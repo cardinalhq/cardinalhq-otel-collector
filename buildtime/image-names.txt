@@ -1,0 +1,2 @@
+docker.flame.org/library/cardinal-otel-collector-saas:latest
+docker.flame.org/library/cardinal-otel-collector-saas:v0.0.0

@@ -15,7 +15,7 @@ data:
           http:
             endpoint: ${env:MY_POD_IP}:4318
     exporters:
-      datadog:
+      datadog/cardinalhq:
         api:
           key: ${env:DATADOG_API_KEY}
         metrics:
@@ -24,6 +24,10 @@ data:
           endpoint: https://intake.cardinalhq.io
         traces:
           endpoint: https://intake.cardinalhq.io
+      datadog/actual:
+        api:
+          site: us3.datadoghq.com
+          key: ${env:DATADOG_API_KEY}
     processors:
       batch:
       memory_limiter:
@@ -35,12 +39,12 @@ data:
         logs:
           receivers: [otlp]
           processors: [memory_limiter, batch]
-          exporters: [datadog]
+          exporters: [datadog/cardinalhq]
         metrics:
           receivers: [otlp]
           processors: [memory_limiter, batch]
-          exporters: [datadog]
+          exporters: [datadog/cardinalhq, datadog/actual]
         traces:
           receivers: [otlp]
           processors: [memory_limiter, batch]
-          exporters: [datadog]
+          exporters: [datadog/cardinalhq]

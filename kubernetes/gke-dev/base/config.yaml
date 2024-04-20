@@ -34,6 +34,7 @@ data:
         limit_mib: 400
         spike_limit_mib: 100
         check_interval: 5s
+      cumulativetodeltaprocessor: {}
     service:
       pipelines:
         logs:
@@ -42,7 +43,7 @@ data:
           exporters: [datadog/cardinalhq]
         metrics:
           receivers: [otlp]
-          processors: [memory_limiter, batch]
+          processors: [memory_limiter, cumulativetodeltaprocessor, batch]
           exporters: [datadog/cardinalhq, datadog/actual]
         traces:
           receivers: [otlp]

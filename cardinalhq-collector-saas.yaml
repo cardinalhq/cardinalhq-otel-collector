@@ -33,6 +33,8 @@ processors:
     gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/resourcedetectionprocessor v0.98.0
   - import: github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor
     gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor v0.98.0
+  - import: github.com/open-telemetry/opentelemetry-collector-contrib/processor/cumulativetodeltaprocessor
+    gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/cumulativetodeltaprocessor v0.98.0
   - import: go.opentelemetry.io/collector/processor/memorylimiterprocessor
     gomod: go.opentelemetry.io/collector/processor/memorylimiterprocessor v0.98.0
   - import: go.opentelemetry.io/collector/processor/batchprocessor

@@ -61,11 +61,11 @@ spec:
               type: RuntimeDefault
           resources:
             limits:
-              cpu: 2000m
-              memory: 2Gi
+              cpu: 200m
+              memory: 500Mi
             requests:
-              cpu: 2000m
-              memory: 2Gi
+              cpu: 200m
+              memory: 500Mi
           volumeMounts:
             - name: config
               mountPath: /app/config

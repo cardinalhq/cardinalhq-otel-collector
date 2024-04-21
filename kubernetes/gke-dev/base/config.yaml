@@ -14,6 +14,27 @@ data:
             endpoint: ${env:MY_POD_IP}:4317
           http:
             endpoint: ${env:MY_POD_IP}:4318
+      hostmetrics:
+          collection_interval: 10s
+          scrapers:
+            paging:
+              metrics:
+                system.paging.utilization:
+                  enabled: true
+            cpu:
+              metrics:
+                system.cpu.utilization:
+                  enabled: true
+                system.cpu.physical.count:
+                  enabled: true
+                system.cpu.logical.count:
+                  enabled: true
+                system.cpu.frequency:
+                  enabled: true
+            load:
+            memory:
+            network:
+            processes:
     exporters:
       datadog/cardinalhq:
         api:
@@ -34,7 +55,6 @@ data:
         limit_mib: 400
         spike_limit_mib: 100
         check_interval: 5s
-      cumulativetodelta: {}
     service:
       pipelines:
         logs:
@@ -42,10 +62,13 @@ data:
           processors: [memory_limiter, batch]
           exporters: [datadog/cardinalhq]
         metrics:
-          receivers: [otlp]
-          processors: [memory_limiter, cumulativetodelta, batch]
+          receivers: [otlp, hostmetrics]
+          processors: [memory_limiter, batch]
           exporters: [datadog/cardinalhq, datadog/actual]
         traces:
           receivers: [otlp]
           processors: [memory_limiter, batch]
           exporters: [datadog/cardinalhq]
+    extensions:
+      zpages: {}
+      health_check: {}

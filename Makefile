@@ -29,14 +29,11 @@ BINARIES = cardinal-otel-collector-saas
 # Dockerfiles should have a target that ends in -image, e.g. agent-image.
 IMAGE_TARGETS = cardinal-otel-collector-saas
 
+LINT_TEST_SOURCE_PATHS = processor/...
+
 #
 # Below here lies magic...
 #
-
-# Due to the way we build, we will make the universe no matter which files
-# actually change.  With the many targets, this is just so much easier,
-# and it also ensures the Docker images have identical timestamp-based tags.
-pb_deps = internal/providers/datadog/metrics.pb.go
 
 rl_deps = internal/tokenizer/fingerprinter.go
 
@@ -61,6 +58,8 @@ generate:
 # Run pre-commit checks
 #
 check: test
+	license-eye header check
+	golangci-lint run $(LINT_TEST_SOURCE_PATHS)
 
 #
 # make a buildtime directory to hold the build timestamp files
@@ -105,6 +104,7 @@ image-names:
 
 .PHONY: test
 test: generate
+	go test -v ${LINT_TEST_SOURCE_PATHS}
 
 #
 # Clean the world.

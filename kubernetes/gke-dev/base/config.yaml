@@ -28,6 +28,15 @@ data:
         api:
           site: us3.datadoghq.com
           key: ${env:DATADOG_API_KEY}
+      awss3/cardinalhq:
+        s3uploader:
+          region: auto
+          s3_bucket: cardinalhq
+          s3_prefix: otel-raw
+          s3_partition: minute
+          marshaler: otel_proto
+          endpoint: https://storage.googleapis.com
+          compression: gzip
     processors:
       batch:
       memory_limiter:
@@ -40,15 +49,15 @@ data:
         logs:
           receivers: [otlp]
           processors: [memory_limiter, chqdecorator, batch]
-          exporters: [datadog/cardinalhq]
+          exporters: [datadog/cardinalhq, awss3/cardinalhq]
         metrics:
           receivers: [otlp]
           processors: [memory_limiter, chqdecorator, batch]
-          exporters: [datadog/cardinalhq, datadog/actual]
+          exporters: [datadog/cardinalhq, datadog/actual, awss3/cardinalhq]
         traces:
           receivers: [otlp]
           processors: [memory_limiter, chqdecorator, batch]
-          exporters: [datadog/cardinalhq]
+          exporters: [datadog/cardinalhq, awss3/cardinalhq]
       telemetry:
         metrics:
           readers:

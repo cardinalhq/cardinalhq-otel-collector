@@ -48,6 +48,13 @@ func newDecoratorMetricProcessor(set processor.CreateSettings, _ *Config) (*deco
 }
 
 func (dmp *decoratorMetricProcessor) processMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
+	//marshaller := pmetric.ProtoMarshaler{}
+	//size := marshaller.MetricsSize(md)
+	//_, err := marshaller.MarshalMetrics(md)
+	//if err != nil {
+	//	return md, err
+	//}
+
 	rms := md.ResourceMetrics()
 	for i := 0; i < rms.Len(); i++ {
 		rm := rms.At(i)

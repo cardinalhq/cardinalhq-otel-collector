@@ -49,5 +49,21 @@ data:
           receivers: [otlp]
           processors: [memory_limiter, chqdecorator, batch]
           exporters: [datadog/cardinalhq]
+      telemetry:
+        metrics:
+          readers:
+            - periodic:
+                interval: 10000
+                exporter:
+                  otlp:
+                    protocol: grpc/protobuf
+                    endpoint: ${env:MY_POD_IP}:4317
+        traces:
+          processors:
+            - batch:
+                exporter:
+                  otlp:
+                    protocol: grpc/protobuf
+                    endpoint: ${env:MY_POD_IP}:4317
     extensions:
       zpages: {}

@@ -48,6 +48,24 @@ func newDecoratorSpansProcessor(set processor.CreateSettings, _ *Config) (*decor
 }
 
 func (dmp *decoratorSpansProcessor) processTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
-	dmp.logger.Info("received and passed traces", zap.Int("num_spans", td.SpanCount()))
+	rss := td.ResourceSpans()
+	for i := 0; i < rss.Len(); i++ {
+		rs := rss.At(i)
+		//resource := rs.Resource()
+		ilss := rs.ScopeSpans()
+		for j := 0; j < ilss.Len(); j++ {
+			ils := ilss.At(j)
+			//scope := ils.Scope()
+			spans := ils.Spans()
+			for k := 0; k < spans.Len(); k++ {
+				span := spans.At(k)
+				dmp.augment(span)
+			}
+		}
+	}
 	return td, nil
+}
+
+func (dmp *decoratorSpansProcessor) augment(span ptrace.Span) {
+	span.Attributes().PutStr("cardinalhq.was", "here")
 }

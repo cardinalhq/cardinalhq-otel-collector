@@ -27,8 +27,7 @@ import (
     "github.com/db47h/ragel/v2"
 )
 
-// Tokens for my-C
-//
+// Token types
 const (
     TokenIdentifier ragel.Token = iota
     TokenString

@@ -48,6 +48,57 @@ func newDecoratorMetricProcessor(set processor.CreateSettings, _ *Config) (*deco
 }
 
 func (dmp *decoratorMetricProcessor) processMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
-	dmp.logger.Info("received and passed metrics", zap.Int("num_metrics", md.ResourceMetrics().Len()))
+	rms := md.ResourceMetrics()
+	for i := 0; i < rms.Len(); i++ {
+		rm := rms.At(i)
+		//resource := rm.Resource()
+		ilms := rm.ScopeMetrics()
+		for j := 0; j < ilms.Len(); j++ {
+			ils := ilms.At(j)
+			//scope := ils.Scope()
+			metrics := ils.Metrics()
+			for k := 0; k < metrics.Len(); k++ {
+				metric := metrics.At(k)
+				dmp.augment(metric)
+			}
+		}
+	}
+
 	return md, nil
+}
+
+func (dmp *decoratorMetricProcessor) augment(metric pmetric.Metric) {
+	switch metric.Type() {
+	case pmetric.MetricTypeGauge:
+		dps := metric.Gauge().DataPoints()
+		for i := 0; i < dps.Len(); i++ {
+			dp := dps.At(i)
+			dp.Attributes().PutStr("cardinalhq.was", "here.gauge")
+		}
+	case pmetric.MetricTypeSum:
+		dps := metric.Sum().DataPoints()
+		for i := 0; i < dps.Len(); i++ {
+			dp := dps.At(i)
+			dp.Attributes().PutStr("cardinalhq.was", "here.sum")
+		}
+	case pmetric.MetricTypeHistogram:
+		dps := metric.Histogram().DataPoints()
+		for i := 0; i < dps.Len(); i++ {
+			dp := dps.At(i)
+			dp.Attributes().PutStr("cardinalhq.was", "here.histogram")
+		}
+	case pmetric.MetricTypeExponentialHistogram:
+		dps := metric.ExponentialHistogram().DataPoints()
+		for i := 0; i < dps.Len(); i++ {
+			dp := dps.At(i)
+			dp.Attributes().PutStr("cardinalhq.was", "here.exponential_histogram")
+		}
+	case pmetric.MetricTypeSummary:
+		dps := metric.Summary().DataPoints()
+		for i := 0; i < dps.Len(); i++ {
+			dp := dps.At(i)
+			dp.Attributes().PutStr("cardinalhq.was", "here.summary")
+		}
+	default:
+	}
 }

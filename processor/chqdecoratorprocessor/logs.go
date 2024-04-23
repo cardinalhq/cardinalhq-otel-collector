@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/cardinalhq/otel-collector-saas/processor/chqdecoratorprocessor/internal/fingerprinter"
+
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
@@ -48,6 +50,20 @@ func newDecoratorLogsProcessor(set processor.CreateSettings, _ *Config) (*filter
 }
 
 func (dmp *filterLogProcessor) processLogs(ctx context.Context, ld plog.Logs) (plog.Logs, error) {
-	dmp.logger.Info("received and passed logs", zap.Int("num_logs", ld.ResourceLogs().Len()))
+	for i := 0; i < ld.ResourceLogs().Len(); i++ {
+		rl := ld.ResourceLogs().At(i)
+		for j := 0; j < rl.ScopeLogs().Len(); j++ {
+			sl := rl.ScopeLogs().At(j)
+			for k := 0; k < sl.LogRecords().Len(); k++ {
+				log := sl.LogRecords().At(k)
+
+				_, level := fingerprinter.Fingerprint(log.Body().AsString())
+				// log.Attributes().PutInt("cardinalhq._fingerprint", fingerprint)
+				log.Attributes().PutStr("cardinalhq._level", level)
+				log.Attributes().PutStr("cardinalhq.was", "here")
+			}
+		}
+	}
+
 	return ld, nil
 }

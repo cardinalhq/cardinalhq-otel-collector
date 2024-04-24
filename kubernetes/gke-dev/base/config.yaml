@@ -24,21 +24,22 @@ data:
           endpoint: https://intake.cardinalhq.io
         traces:
           endpoint: https://intake.cardinalhq.io
-      datadog/actual:
-        api:
-          site: us3.datadoghq.com
-          key: ${env:DATADOG_API_KEY}
       awss3/cardinalhq:
         s3uploader:
           region: auto
           s3_bucket: cardinalhq
           s3_prefix: otel-raw
           s3_partition: minute
-          marshaler: otel_proto
           endpoint: https://storage.googleapis.com
           compression: gzip
+        marshaler: otlp_proto
     processors:
-      batch:
+      batch/logs:
+        timeout: 60s
+      batch/metrics:
+        timeout: 10s
+      batch/traces:
+        timeout: 60s
       memory_limiter:
         limit_mib: 400
         spike_limit_mib: 100
@@ -48,15 +49,15 @@ data:
       pipelines:
         logs:
           receivers: [otlp]
-          processors: [memory_limiter, chqdecorator, batch]
+          processors: [memory_limiter, chqdecorator, batch/logs]
           exporters: [datadog/cardinalhq, awss3/cardinalhq]
         metrics:
           receivers: [otlp]
-          processors: [memory_limiter, chqdecorator, batch]
-          exporters: [datadog/cardinalhq, datadog/actual, awss3/cardinalhq]
+          processors: [memory_limiter, chqdecorator, batch/metrics]
+          exporters: [datadog/cardinalhq, awss3/cardinalhq]
         traces:
           receivers: [otlp]
-          processors: [memory_limiter, chqdecorator, batch]
+          processors: [memory_limiter, chqdecorator, batch/traces]
           exporters: [datadog/cardinalhq, awss3/cardinalhq]
       telemetry:
         metrics:
@@ -66,13 +67,13 @@ data:
                 exporter:
                   otlp:
                     protocol: grpc/protobuf
-                    endpoint: ${env:MY_POD_IP}:4317
+                    endpoint: http://cardinal-collector.collector.svc.cluster.local:4317
         traces:
           processors:
             - batch:
                 exporter:
                   otlp:
                     protocol: grpc/protobuf
-                    endpoint: ${env:MY_POD_IP}:4317
+                    endpoint: http://cardinal-collector.collector.svc.cluster.local:4317
     extensions:
       zpages: {}

@@ -11,10 +11,10 @@ spec:
       port: 4317
     - name: http
       port: 4318
-    - name: opencensus
-      port: 55678
     - name: zpages
       port: 55679
+    - name: datadog
+      port: 8126
   selector:
     app.kubernetes.io/name: cardinalhq
     app.kubernetes.io/component: collector

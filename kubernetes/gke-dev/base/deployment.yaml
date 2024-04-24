@@ -6,7 +6,7 @@ metadata:
     app.kubernetes.io/component: collector
   name: cardinal-collector
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app.kubernetes.io/name: cardinalhq
@@ -57,11 +57,11 @@ spec:
             - name: otlp
               containerPort: 4317
               protocol: TCP
-            - name: opencensus
-              containerPort: 55678
-              protocol: TCP
             - name: zpages
               containerPort: 55679
+              protocol: TCP
+            - name: datadog
+              containerPort: 8126
               protocol: TCP
           securityContext:
             allowPrivilegeEscalation: false

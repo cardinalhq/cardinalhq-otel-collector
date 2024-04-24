@@ -49,7 +49,7 @@ func newDecoratorLogsProcessor(set processor.CreateSettings, _ *Config) (*filter
 	return dsp, nil
 }
 
-func (dmp *filterLogProcessor) processLogs(ctx context.Context, ld plog.Logs) (plog.Logs, error) {
+func (dmp *filterLogProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
 		rl.Resource().Attributes().PutStr("cardinalhq.resource.was", "here")
@@ -62,7 +62,11 @@ func (dmp *filterLogProcessor) processLogs(ctx context.Context, ld plog.Logs) (p
 				log.Attributes().PutInt("cardinalhq.fingerprint", fingerprint)
 				log.Attributes().PutStr("cardinalhq.level", level)
 				log.Attributes().PutStr("cardinalhq.was", "here")
-				dmp.logger.Info("Log processed", zap.String("log", log.Body().AsString()), zap.Int64("fingerprint", fingerprint), zap.String("level", level))
+				if log.Body().AsString() == "" {
+					if v, found := log.Attributes().Get("path"); found {
+						log.Body().SetStr("Path: " + v.AsString())
+					}
+				}
 			}
 		}
 	}

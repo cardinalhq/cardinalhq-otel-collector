@@ -73,8 +73,8 @@ func checkSamplerConfigFile(file string) error {
 	if err != nil {
 		return fmt.Errorf("invalid URL: %w", err)
 	}
-	if u.Scheme != "file" && u.Scheme != "s3" {
-		return fmt.Errorf("unsupported scheme: %s, must be 'file' or 's3", u.Scheme)
+	if u.Scheme != "file" && u.Scheme != "s3" && u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("unsupported scheme: %s, must be 'file', 's3', 'http', or 'https'", u.Scheme)
 	}
 	return nil
 }

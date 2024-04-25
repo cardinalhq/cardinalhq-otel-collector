@@ -74,7 +74,7 @@ data:
       filter/chq:
         logs:
           log_record:
-            - 'attributes["cardinalhq._filtered"] == true'
+            - 'attributes["cardinalhq.filtered"] == true'
 
     service:
       pipelines:

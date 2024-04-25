@@ -32,12 +32,24 @@ import (
 )
 
 type Config struct {
-	SampleConfigFile    string `mapstructure:"sample_config_file"`
-	Region              string `mapstructure:"region"`
-	S3Endpoint          string `mapstructure:"s3_endpoint"`
-	S3Provider          string `mapstructure:"s3_provider"`
-	ConfigCheckInterval int    `mapstructure:"config_check_interval"`
-	APIKey              string `mapstructure:"api_key"`
+	// SampleConfigFile is the URL of the file containing the configuration for the sampler.
+	SampleConfigFile string `mapstructure:"sample_config_file"`
+
+	// S3 configuration
+	Region     string `mapstructure:"region"`
+	S3Endpoint string `mapstructure:"s3_endpoint"`
+	S3Provider string `mapstructure:"s3_provider"`
+
+	// ConfigCheckInterval is the interval at which the configuration file is checked for updates.
+	ConfigCheckInterval int `mapstructure:"config_check_interval"`
+
+	// ClusterID is the ID of the cluster to which the collector belongs.
+	// All collectors able to receive the same data should use this same value.
+	ClusterID string `mapstructure:"cluster_id"`
+
+	// APIKey is the API key to use when fetching configuration via http[s].
+	// If it is not set, no authorization header is added.
+	APIKey string `mapstructure:"api_key"`
 
 	configCheckInterval time.Duration
 }

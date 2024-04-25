@@ -22,6 +22,7 @@ func NewHTTPFileReader(url string, apikey string, client *http.Client) *HTTPFile
 	}
 	return &HTTPFileReader{
 		URL:    url,
+		APIKey: apikey,
 		client: client,
 	}
 }

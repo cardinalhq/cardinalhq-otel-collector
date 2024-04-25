@@ -14,7 +14,11 @@ data:
             endpoint: ${env:MY_POD_IP}:4317
           http:
             endpoint: ${env:MY_POD_IP}:4318
+
     exporters:
+
+      # Exporter for sending telemetry CardinalHQ via the Datadog exporters.
+      # TODO This is temporary until S3 ingest works.
       datadog/cardinalhq:
         api:
           key: ${env:DATADOG_API_KEY}
@@ -24,6 +28,9 @@ data:
           endpoint: https://intake.cardinalhq.io
         traces:
           endpoint: https://intake.cardinalhq.io
+
+      # Exporter for sending telemetry to S3 for later processing by CardinalHQ.
+      # This shuold receive decorated, but otherwise unfiltered telemetry.
       awss3/cardinalhq:
         s3uploader:
           region: auto
@@ -33,32 +40,59 @@ data:
           endpoint: https://storage.googleapis.com
           compression: gzip
         marshaler: otlp_proto
+
     processors:
+      # Limit collector process memory usage.  This should be the first processor
+      # in the processor list.
+      memory_limiter:
+        limit_mib: 400
+        spike_limit_mib: 100
+        check_interval: 5s
+
+      # Batch processors to limit the size and/or timeframe that telemetry
+      # is batched before being sent to the exporters.  This should be
+      # the last item in the processor list.
       batch/logs:
         timeout: 60s
       batch/metrics:
         timeout: 10s
       batch/traces:
         timeout: 60s
-      memory_limiter:
-        limit_mib: 400
-        spike_limit_mib: 100
-        check_interval: 5s
+
+      # This processor should be added to the list of processors before
+      # the filter/chq, and the exporters that write to S3 or to upstream
+      # providers, such as Datadog.  It will add attributes to the telemetry
+      # which will allow selectively sending metrics on to the upstream
+      # provider.  This markup is also written to S3 for later processing
+      # by CardinalHQ.
       chqdecorator:
+
+      # This processor should be added to the list of processors that
+      # are in the pipeline destined to the upstream provider, such as
+      # Datadog.  It should NOT be used to filter output to S3 for
+      # later processing by CardinalHQ.
+      filter/chq:
+        logs:
+          log_record:
+            - 'attributes["cardinalhq._filtered"] == true'
+
     service:
       pipelines:
-        logs:
+        logs/chq:
           receivers: [otlp]
           processors: [memory_limiter, chqdecorator, batch/logs]
           exporters: [datadog/cardinalhq, awss3/cardinalhq]
-        metrics:
+        metrics/chq:
           receivers: [otlp]
           processors: [memory_limiter, chqdecorator, batch/metrics]
           exporters: [datadog/cardinalhq, awss3/cardinalhq]
-        traces:
+        traces/chq:
           receivers: [otlp]
           processors: [memory_limiter, chqdecorator, batch/traces]
           exporters: [datadog/cardinalhq, awss3/cardinalhq]
+
+      # Echo telemetry back to ourselves.  This requires more than one replica or
+      # startup and shutdown delays may occur.
       telemetry:
         metrics:
           readers:

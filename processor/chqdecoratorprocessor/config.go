@@ -23,11 +23,12 @@ import (
 	"strings"
 	"time"
 
+	"go.opentelemetry.io/collector/component"
+	"go.uber.org/zap"
+
 	"github.com/cardinalhq/otel-collector-saas/processor/chqdecoratorprocessor/internal/filereader"
 	"github.com/cardinalhq/otel-collector-saas/processor/chqdecoratorprocessor/internal/s3tools"
 	"github.com/cardinalhq/otel-collector-saas/processor/chqdecoratorprocessor/internal/sampler"
-	"go.opentelemetry.io/collector/component"
-	"go.uber.org/zap"
 )
 
 type Config struct {
@@ -36,6 +37,8 @@ type Config struct {
 	S3Endpoint          string `mapstructure:"s3_endpoint"`
 	S3Provider          string `mapstructure:"s3_provider"`
 	ConfigCheckInterval int    `mapstructure:"config_check_interval"`
+	APIKey              string `mapstructure:"api_key"`
+
 	configCheckInterval time.Duration
 }
 
@@ -77,9 +80,16 @@ func makeConfigurationManager(conf *Config, logger *zap.Logger) (sampler.ConfigM
 		return makeFileConfigManager(u.Path, conf, logger)
 	case "s3":
 		return makeS3ConfigManager(ctx, u, conf, logger)
+	case "http", "https":
+		return makeHTTPConfigManager(ctx, u, conf, logger)
 	default:
 		return nil, fmt.Errorf("unsupported scheme: %s, must be 'file' or 's3", u.Scheme)
 	}
+}
+
+func makeHTTPConfigManager(_ context.Context, u *url.URL, conf *Config, logger *zap.Logger) (sampler.ConfigManager, error) {
+	fr := filereader.NewHTTPFileReader(u.String(), conf.APIKey, nil)
+	return sampler.NewConfigManagerImpl(logger, conf.configCheckInterval, fr), nil
 }
 
 func makeFileConfigManager(path string, conf *Config, logger *zap.Logger) (sampler.ConfigManager, error) {

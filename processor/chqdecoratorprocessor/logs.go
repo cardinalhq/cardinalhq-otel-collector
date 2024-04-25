@@ -42,7 +42,7 @@ func newDecoratorLogsProcessor(set processor.CreateSettings, conf *Config) (*fil
 		sampler: samp,
 	}
 
-	if conf.SampleConfigFile != "" {
+	if conf.SamplerConfigFile != "" {
 		confmgr, err := makeConfigurationManager(conf, set.Logger)
 		if err != nil {
 			return nil, fmt.Errorf("error creating configuration manager: %w", err)

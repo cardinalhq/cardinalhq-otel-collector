@@ -66,6 +66,8 @@ data:
       # provider.  This markup is also written to S3 for later processing
       # by CardinalHQ.
       chqdecorator:
+        sampler_config_file: http://www.flame.org/~explorer/sampler-config.yaml
+        api_key: ${env:SAMPLER_API_KEY}
 
       # This processor should be added to the list of processors that
       # are in the pipeline destined to the upstream provider, such as

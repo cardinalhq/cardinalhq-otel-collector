@@ -32,8 +32,8 @@ import (
 )
 
 type Config struct {
-	// SampleConfigFile is the URL of the file containing the configuration for the sampler.
-	SampleConfigFile string `mapstructure:"sample_config_file"`
+	// SamplerConfigFile is the URL of the file containing the configuration for the sampler.
+	SamplerConfigFile string `mapstructure:"sampler_config_file"`
 
 	// S3 configuration
 	Region     string `mapstructure:"region"`
@@ -62,8 +62,8 @@ func (cfg *Config) Validate() error {
 	}
 	cfg.configCheckInterval = time.Duration(cfg.ConfigCheckInterval) * time.Second
 
-	if cfg.SampleConfigFile != "" {
-		return checkSamplerConfigFile(cfg.SampleConfigFile)
+	if cfg.SamplerConfigFile != "" {
+		return checkSamplerConfigFile(cfg.SamplerConfigFile)
 	}
 	return nil
 }
@@ -82,7 +82,7 @@ func checkSamplerConfigFile(file string) error {
 func makeConfigurationManager(conf *Config, logger *zap.Logger) (sampler.ConfigManager, error) {
 	ctx := context.Background()
 
-	u, err := url.Parse(conf.SampleConfigFile)
+	u, err := url.Parse(conf.SamplerConfigFile)
 	if err != nil {
 		return nil, fmt.Errorf("invalid URL: %w", err)
 	}

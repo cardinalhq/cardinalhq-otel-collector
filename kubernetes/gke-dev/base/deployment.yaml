@@ -50,6 +50,11 @@ spec:
                 secretKeyRef:
                   name: cardinal-collector-aws
                   key: secret-access-key
+            - name: SAMPLER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cardinal-collector-chq
+                  key: api-key
           ports:
             - name: http
               containerPort: 4318

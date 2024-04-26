@@ -69,6 +69,8 @@ func newDecoratorLogsProcessor(set processor.CreateSettings, conf *Config) (*fil
 }
 
 func (dmp *filterLogProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
+	dropped := int64(0)
+	processed := int64(0)
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
@@ -81,12 +83,16 @@ func (dmp *filterLogProcessor) processLogs(_ context.Context, ld plog.Logs) (plo
 				rule_match := dmp.sampler.Sample(rl.Resource().Attributes(), sl.Scope().Attributes(), log.Attributes())
 				log.Attributes().PutStr("cardinalhq._rule_match", rule_match)
 				log.Attributes().PutBool("cardinalhq._filtered", rule_match != "")
+				processed++
 				if rule_match != "" {
-					dmp.telemetry.record(triggerLogsDropped, 1)
+					dropped++
 				}
 			}
 		}
 	}
+
+	dmp.telemetry.record(triggerLogsDropped, dropped)
+	dmp.telemetry.record(triggerLogsProcessed, processed)
 
 	return ld, nil
 }

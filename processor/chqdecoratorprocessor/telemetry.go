@@ -31,6 +31,7 @@ const (
 	triggerMetricDataPointsDropped trigger = iota
 	triggerLogsDropped
 	triggerSpansDropped
+	triggerLogsProcessed
 )
 
 type decoratorProcessorTelemetry struct {
@@ -40,6 +41,7 @@ type decoratorProcessorTelemetry struct {
 
 	datapointsFiltered metric.Int64Counter
 	logsFiltered       metric.Int64Counter
+	logsProcessed      metric.Int64Counter
 	spansFiltered      metric.Int64Counter
 }
 
@@ -72,6 +74,16 @@ func newDecoratorProcessorTelemetry(set processor.CreateSettings) (*decoratorPro
 	dpt.logsFiltered = counter
 
 	counter, err = metadata.Meter(set.TelemetrySettings).Int64Counter(
+		processorhelper.BuildCustomMetricName(metadata.Type.String(), "logs.processed"),
+		metric.WithDescription("The total number of logs processed by the processor"),
+		metric.WithUnit("1"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	dpt.logsProcessed = counter
+
+	counter, err = metadata.Meter(set.TelemetrySettings).Int64Counter(
 		processorhelper.BuildCustomMetricName(metadata.Type.String(), "spans.filtered"),
 		metric.WithDescription("The total number of spans filtered by the processor"),
 		metric.WithUnit("1"),
@@ -91,8 +103,12 @@ func (dpt *decoratorProcessorTelemetry) record(trigger trigger, dropped int64) {
 		triggerMeasure = dpt.datapointsFiltered
 	case triggerLogsDropped:
 		triggerMeasure = dpt.logsFiltered
+	case triggerLogsProcessed:
+		triggerMeasure = dpt.logsProcessed
 	case triggerSpansDropped:
 		triggerMeasure = dpt.spansFiltered
+	default:
+		return
 	}
 
 	triggerMeasure.Add(dpt.exportCtx, dropped, metric.WithAttributes(dpt.processorAttr...))

@@ -154,6 +154,7 @@ func (c *ConfigManagerImpl) checkUpdates() {
 		ll.Debug("No change in sampler config", zap.Uint64("hash", newhash))
 		return
 	}
+	ll.Info("Sampler config updated", zap.Uint64("hash", newhash))
 
 	if err := json.Unmarshal(b, &conf); err != nil {
 		ll.Error("Error unmarshalling sampler config", zap.Error(err))

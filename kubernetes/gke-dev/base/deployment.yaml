@@ -29,7 +29,7 @@ spec:
             - "--config=/app/config/config.yaml"
           env:
             - name: GOMEMLIMIT
-              value: "1000MiB"
+              value: "400MiB"
             - name: MY_POD_IP
               valueFrom:
                 fieldRef:

@@ -15,38 +15,38 @@
 package sampler
 
 type SamplerConfig struct {
-	Logs    LogConfig
-	Metrics MetricConfig
+	Logs    LogConfig    `json:"logs,omitempty" yaml:"logs,omitempty"`
+	Metrics MetricConfig `json:"metrics,omitempty" yaml:"metrics,omitempty"`
 }
 
 type LogConfig struct {
-	Sampling     []LogSamplingConfig
-	Destinations []DestinationConfig
+	Sampling     []LogSamplingConfig `json:"sampling,omitempty" yaml:"sampling,omitempty"`
+	Destinations []DestinationConfig `json:"destinations,omitempty" yaml:"destinations,omitempty"`
 }
 
 type LogSamplingConfig struct {
-	Id         string
-	RuleType   string
-	Scope      map[string]string
-	SampleRate float64
-	RPS        int
+	Id         string            `json:"id,omitempty" yaml:"id,omitempty"`
+	RuleType   string            `json:"ruleType,omitempty" yaml:"ruleType,omitempty"`
+	Scope      map[string]string `json:"scope,omitempty" yaml:"scope,omitempty"`
+	SampleRate float64           `json:"sampleRate,omitempty" yaml:"sampleRate,omitempty"`
+	RPS        int               `json:"rps,omitempty" yaml:"rps,omitempty"`
 }
 
 type MetricConfig struct {
-	Aggregators  []AggregatorConfig
-	Destinations []DestinationConfig
+	Aggregators  []AggregatorConfig  `json:"aggregators,omitempty" yaml:"aggregators,omitempty"`
+	Destinations []DestinationConfig `json:"destinations,omitempty" yaml:"destinations,omitempty"`
 }
 
 type AggregatorConfig struct {
-	Id         string
-	Scope      map[string]string
-	MetricName string
-	Tags       []string
-	TagAction  string
+	Id         string            `json:"id,omitempty" yaml:"id,omitempty"`
+	Scope      map[string]string `json:"scope,omitempty" yaml:"scope,omitempty"`
+	MetricName string            `json:"metricName,omitempty" yaml:"metricName,omitempty"`
+	Tags       []string          `json:"tags,omitempty" yaml:"tags,omitempty"`
+	TagAction  string            `json:"tagAction,omitempty" yaml:"tagAction,omitempty"`
 }
 
 type DestinationConfig struct {
-	Provider string
-	Host     string
-	APIKey   string
+	Provider string `json:"provider,omitempty" yaml:"provider,omitempty"`
+	Host     string `json:"host,omitempty" yaml:"host,omitempty"`
+	APIKey   string `json:"apiKey,omitempty" yaml:"apiKey,omitempty"`
 }

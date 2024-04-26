@@ -3,7 +3,9 @@
     "sampling": [
       {
         "id": "rule1",
-        "ruleType"}
+        "ruleType": "random",
+        "sampleRate": 0.25
+      }
     ]
   }
 }

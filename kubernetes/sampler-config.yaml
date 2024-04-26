@@ -5,6 +5,13 @@
         "id": "rule1",
         "ruleType": "random",
         "sampleRate": 0.25
+      }, {
+        "id": "rule2",
+        "ruleType": "rps",
+        "rps": 2,
+        "scope": {
+          "resource.service.name": "cardinal-receiver"
+        }
       }
     ]
   }

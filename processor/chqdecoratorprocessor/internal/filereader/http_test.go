@@ -21,7 +21,10 @@ func TestHTTPFileReader_ReadFile_WithAuth(t *testing.T) {
 			t.Errorf("unexpected Authorization header: got %s, want %s", authHeader, expectedAuthHeader)
 		}
 
-		w.Write([]byte("test data"))
+		_, err := w.Write([]byte("test data"))
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
 	}))
 
 	defer server.Close()
@@ -49,7 +52,10 @@ func TestHTTPFileReader_ReadFile_WithoutAuth(t *testing.T) {
 			t.Errorf("unexpected Authorization header: got %s, want empty", authHeader)
 		}
 
-		w.Write([]byte("test data"))
+		_, err := w.Write([]byte("test data"))
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
 	}))
 
 	defer server.Close()

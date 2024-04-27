@@ -37,7 +37,11 @@ func NewFactory() processor.Factory {
 }
 
 func createDefaultConfig() component.Config {
-	return &Config{}
+	return &Config{
+		MetricConfig: MetricConfig{
+			MetricAggregationInterval: 10,
+		},
+	}
 }
 
 func createMetricsProcessor(
@@ -46,7 +50,7 @@ func createMetricsProcessor(
 	cfg component.Config,
 	nextConsumer consumer.Metrics,
 ) (processor.Metrics, error) {
-	dp, err := newDecoratorMetricProcessor(set, cfg.(*Config))
+	dp, err := newDecoratorMetricProcessor(set, cfg.(*Config), nextConsumer)
 	if err != nil {
 		return nil, err
 	}

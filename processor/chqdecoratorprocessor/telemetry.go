@@ -28,7 +28,7 @@ import (
 type trigger int
 
 const (
-	triggerMetricDataPointsDropped trigger = iota
+	triggerMetricDataPointsAggregated trigger = iota
 	triggerLogsDropped
 	triggerSpansDropped
 	triggerLogsProcessed
@@ -54,8 +54,8 @@ func newDecoratorProcessorTelemetry(set processor.CreateSettings) (*decoratorPro
 	}
 
 	counter, err := metadata.Meter(set.TelemetrySettings).Int64Counter(
-		processorhelper.BuildCustomMetricName(metadata.Type.String(), "datapoints.filtered"),
-		metric.WithDescription("The total number of datapoints filtered by the processor"),
+		processorhelper.BuildCustomMetricName(metadata.Type.String(), "datapoints.aggregated"),
+		metric.WithDescription("The total number of datapoints aggregated by the processor"),
 		metric.WithUnit("1"),
 	)
 	if err != nil {
@@ -99,7 +99,7 @@ func newDecoratorProcessorTelemetry(set processor.CreateSettings) (*decoratorPro
 func (dpt *decoratorProcessorTelemetry) record(trigger trigger, dropped int64) {
 	var triggerMeasure metric.Int64Counter
 	switch trigger {
-	case triggerMetricDataPointsDropped:
+	case triggerMetricDataPointsAggregated:
 		triggerMeasure = dpt.datapointsFiltered
 	case triggerLogsDropped:
 		triggerMeasure = dpt.logsFiltered

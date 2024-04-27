@@ -67,5 +67,5 @@ func (dmp *decoratorSpansProcessor) processTraces(ctx context.Context, td ptrace
 }
 
 func (dmp *decoratorSpansProcessor) augment(span ptrace.Span) {
-	span.Attributes().PutStr("cardinalhq.was", "here")
+	span.Attributes().PutStr("_cardinalhq.was", "here")
 }

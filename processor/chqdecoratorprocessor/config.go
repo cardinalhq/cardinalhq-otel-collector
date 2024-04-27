@@ -51,7 +51,18 @@ type Config struct {
 	// If it is not set, no authorization header is added.
 	APIKey string `mapstructure:"api_key"`
 
+	MetricConfig        MetricConfig `mapstructure:"metrics"`
 	configCheckInterval time.Duration
+}
+
+// MetricConfig contains configuration for the metrics processor.
+type MetricConfig struct {
+	// MetricAggregationInterval is the interval at which metrics are aggregated.
+	// Metrics are gathered over time, and sent to the next processor in
+	// our pipeline in blocks of this duration.
+	// An interval is considered "closed" when it is at least
+	// one interval in the past.
+	MetricAggregationInterval int64 `mapstructure:"metric_aggregation_interval"`
 }
 
 var _ component.Config = (*Config)(nil)
@@ -61,6 +72,10 @@ func (cfg *Config) Validate() error {
 		cfg.configCheckInterval = 10 * time.Second
 	}
 	cfg.configCheckInterval = time.Duration(cfg.ConfigCheckInterval) * time.Second
+
+	if cfg.MetricConfig.MetricAggregationInterval < 10 {
+		return fmt.Errorf("invalid metric aggregation interval: %d, must be >= than 10", cfg.MetricConfig.MetricAggregationInterval)
+	}
 
 	if cfg.SamplerConfigFile != "" {
 		return checkSamplerConfigFile(cfg.SamplerConfigFile)

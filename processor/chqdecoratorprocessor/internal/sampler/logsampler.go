@@ -76,7 +76,12 @@ func (ls *LogSamplerImpl) shouldSample(rattr pcommon.Map, iattr pcommon.Map, lat
 		if matched && r.ruleType == LogRuleTypeRandom {
 			continue
 		}
-		if matchscope(r.scope, rattr, iattr, lattr) {
+		attrs := map[string]pcommon.Map{
+			"resource":        rattr,
+			"instrumentation": iattr,
+			"log":             lattr,
+		}
+		if matchscope(r.scope, attrs) {
 			rate := r.sampler.GetSampleRate(rid)
 			switch rate {
 			case 0:

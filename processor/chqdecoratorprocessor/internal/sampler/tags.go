@@ -39,25 +39,18 @@ func hashTagValues(values []string) uint64 {
 	return xxhash.Sum64String(strings.Join(values, ":"))
 }
 
-func matchscope(scope map[string]string, rattr pcommon.Map, iattr pcommon.Map, lattr pcommon.Map) bool {
+func matchscope(scope map[string]string, attrs map[string]pcommon.Map) bool {
 	if len(scope) == 0 {
 		return true
 	}
 	for k, v := range scope {
 		parts := strings.SplitN(k, ".", 2)
-		switch parts[0] {
-		case "resource":
-			if !matchTag(parts[1], rattr, v) {
-				return false
-			}
-		case "instrumentation":
-			if !matchTag(parts[1], iattr, v) {
-				return false
-			}
-		case "log":
-			if !matchTag(parts[1], lattr, v) {
-				return false
-			}
+		sattr, ok := attrs[parts[1]]
+		if !ok {
+			return false
+		}
+		if !matchTag(parts[1], sattr, v) {
+			return false
 		}
 	}
 	return true

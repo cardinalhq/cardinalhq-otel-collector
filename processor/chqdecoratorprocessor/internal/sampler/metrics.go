@@ -103,7 +103,10 @@ func (m *MetricAggregatorImpl[T]) MatchAndAdd(t *time.Time, buckets []T, values 
 			"metric":          mattr,
 		})
 		if detaillog {
-			log.Printf("Rule=%s rulemetric=%s metricname=%s\n\tscope %v\n\tattrs %v", rule.Id, rule.MetricName, name, rule.Scope, attrs)
+			mattr.Range(func(k string, v pcommon.Value) bool {
+				log.Printf("key: %s, value: %s", k, v.AsString())
+				return true
+			})
 		}
 		if matchscopeMap(rule.Scope, attrs) {
 			if len(rule.Tags) > 0 {

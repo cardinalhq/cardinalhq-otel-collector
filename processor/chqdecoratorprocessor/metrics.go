@@ -82,11 +82,6 @@ func (mp *metricProcessor) processMetrics(ctx context.Context, md pmetric.Metric
 	md.ResourceMetrics().RemoveIf(func(rms pmetric.ResourceMetrics) bool {
 		rms.ScopeMetrics().RemoveIf(func(ils pmetric.ScopeMetrics) bool {
 			ils.Metrics().RemoveIf(func(metric pmetric.Metric) bool {
-				if metric.Name() == "cardinalhq.middleware.compression" {
-					jm := pmetric.JSONMarshaler{}
-					j, _ := jm.MarshalMetrics(md)
-					mp.logger.Info("Compression metric", zap.String("metrics", string(j)))
-				}
 				aggregated = aggregated + mp.aggregate(rms, ils, metric)
 				// decorate, don't drop
 				return false

@@ -1,6 +1,7 @@
 package chqdecoratorprocessor
 
 import (
+	"log"
 	"testing"
 	"time"
 
@@ -26,7 +27,11 @@ func (m *MockAggregator[T]) Emit(t time.Time) map[int64]*sampler.AggregationSet[
 	return nil
 }
 
-func (m *MockAggregator[T]) MatchAndAdd(t *time.Time, buckets []T, values []T, ty sampler.AggregationType, name string, rms pcommon.Map, ils pcommon.Map, metric pcommon.Map) (string, error) {
+func (m *MockAggregator[T]) MatchAndAdd(t *time.Time, buckets []T, values []T, ty sampler.AggregationType, name string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (string, error) {
+	mattr.Range(func(k string, v pcommon.Value) bool {
+		log.Printf("key: %s, value: %s", k, v.AsString())
+		return true
+	})
 	return "bob", nil
 }
 
@@ -39,10 +44,13 @@ func TestAggregateGauge(t *testing.T) {
 	metric.SetEmptyGauge()
 	dp := metric.Gauge().DataPoints().AppendEmpty()
 	dp.SetDoubleValue(1.0)
+	dp.Attributes().PutStr("foo", "bar")
 	dp = metric.Gauge().DataPoints().AppendEmpty()
 	dp.SetDoubleValue(2.0)
+	dp.Attributes().PutStr("foo", "bar")
 	dp = metric.Gauge().DataPoints().AppendEmpty()
 	dp.SetDoubleValue(3.0)
+	dp.Attributes().PutStr("foo", "bar")
 
 	mp := &metricProcessor{
 		aggregatorF: &MockAggregator[float64]{},

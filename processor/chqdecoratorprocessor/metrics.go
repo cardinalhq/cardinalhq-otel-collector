@@ -166,7 +166,6 @@ func (mp *metricProcessor) aggregateGauge(rms pmetric.ResourceMetrics, ils pmetr
 			aggregated++
 			filtered = true
 		}
-		mp.logger.Info("Processing metric", zap.String("name", metric.Name()), zap.String("type", metric.Type().String()), zap.Bool("filtered", filtered))
 		dp.Attributes().PutBool("_cardinalhq.filtered", filtered)
 		return false
 	})
@@ -181,7 +180,6 @@ func (mp *metricProcessor) aggregateSum(rms pmetric.ResourceMetrics, ils pmetric
 			aggregated++
 			filtered = true
 		}
-		mp.logger.Info("Processing metric", zap.String("name", metric.Name()), zap.String("type", metric.Type().String()), zap.Bool("filtered", filtered))
 		dp.Attributes().PutBool("_cardinalhq.filtered", filtered)
 		return false
 	})
@@ -209,7 +207,6 @@ func (mp *metricProcessor) AggregateHistogram(rms pmetric.ResourceMetrics, ils p
 			dp.Attributes().PutBool("_cardinalhq.filtered", true)
 			aggregated++
 		}
-		mp.logger.Info("Processing metric", zap.String("name", metric.Name()), zap.String("type", metric.Type().String()), zap.Bool("filtered", filtered))
 		return false
 	})
 	return aggregated

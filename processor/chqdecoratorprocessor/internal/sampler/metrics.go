@@ -15,6 +15,7 @@
 package sampler
 
 import (
+	"log"
 	"slices"
 	"strings"
 	"sync"
@@ -89,6 +90,10 @@ func (m *MetricAggregatorImpl[T]) MatchAndAdd(t *time.Time, buckets []T, values 
 		t = &tt
 	}
 	for _, rule := range m.rules {
+		detaillog := false
+		if name == "cardinalhq.middleware.compression" {
+			detaillog = true
+		}
 		if rule.MetricName != "" && rule.MetricName != name {
 			continue
 		}
@@ -97,6 +102,9 @@ func (m *MetricAggregatorImpl[T]) MatchAndAdd(t *time.Time, buckets []T, values 
 			"instrumentation": iattr,
 			"metric":          mattr,
 		})
+		if detaillog {
+			log.Printf("Rule=%s rulemetric=%s metricname=%s\n\tscope %v\n\tattrs %v", rule.Id, rule.MetricName, name, rule.Scope, attrs)
+		}
 		if matchscopeMap(rule.Scope, attrs) {
 			if len(rule.Tags) > 0 {
 				if rule.TagAction == "keep" {

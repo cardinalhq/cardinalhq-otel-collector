@@ -27,8 +27,8 @@ import (
 	"go.uber.org/zap"
 )
 
-type decoratorMetricProcessor struct {
-	telemetry           *decoratorProcessorTelemetry
+type metricProcessor struct {
+	telemetry           *processorTelemetry
 	logger              *zap.Logger
 	aggregationInterval int64
 	nextConsumer        consumer.Metrics
@@ -39,9 +39,9 @@ type decoratorMetricProcessor struct {
 	lastEmitCheck       time.Time
 }
 
-func newDecoratorMetricProcessor(set processor.CreateSettings, conf *Config, nextConsumer consumer.Metrics) (*decoratorMetricProcessor, error) {
+func newMetricProcessor(set processor.CreateSettings, conf *Config, nextConsumer consumer.Metrics) (*metricProcessor, error) {
 	var err error
-	dmp := &decoratorMetricProcessor{
+	mp := &metricProcessor{
 		logger:              set.Logger,
 		aggregationInterval: conf.MetricConfig.MetricAggregationInterval,
 		nextConsumer:        nextConsumer,
@@ -56,46 +56,44 @@ func newDecoratorMetricProcessor(set processor.CreateSettings, conf *Config, nex
 			return nil, fmt.Errorf("error creating configuration manager: %w", err)
 		}
 		go confmgr.Run()
-		dmp.configManager = confmgr
+		mp.configManager = confmgr
 
-		dmp.updaterId = confmgr.RegisterCallback("metricsampler", func(config sampler.SamplerConfig) {
-			dmp.aggregatorI.Configure(config.Metrics.Aggregators)
-			dmp.aggregatorF.Configure(config.Metrics.Aggregators)
+		mp.updaterId = confmgr.RegisterCallback("metricsampler", func(config sampler.SamplerConfig) {
+			mp.aggregatorI.Configure(config.Metrics.Aggregators)
+			mp.aggregatorF.Configure(config.Metrics.Aggregators)
 		})
 	}
 
-	dpt, err := newDecoratorProcessorTelemetry(set)
+	dpt, err := newProcessorTelemetry(set)
 	if err != nil {
 		return nil, fmt.Errorf("error creating chqdecorator processor telemetry: %w", err)
 	}
-	dmp.telemetry = dpt
+	mp.telemetry = dpt
 
 	set.Logger.Info(
 		"Decorator processor configured",
 	)
 
-	return dmp, nil
+	return mp, nil
 }
 
-func (dmp *decoratorMetricProcessor) processMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
-	dropped := int64(0)
+func (mp *metricProcessor) processMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
+	aggregated := int64(0)
 	md.ResourceMetrics().RemoveIf(func(rms pmetric.ResourceMetrics) bool {
 		rms.ScopeMetrics().RemoveIf(func(ils pmetric.ScopeMetrics) bool {
 			ils.Metrics().RemoveIf(func(metric pmetric.Metric) bool {
-				filtered := dmp.aggregate(rms, ils, metric)
-				if filtered {
-					dropped++
-				}
-				return filtered
+				aggregated = aggregated + mp.aggregate(rms, ils, metric)
+				// decorate, don't drop
+				return false
 			})
 			return rms.ScopeMetrics().Len() == 0
 		})
 		return md.ResourceMetrics().Len() == 0
 	})
 
-	dmp.telemetry.record(triggerMetricDataPointsAggregated, dropped)
+	mp.telemetry.record(triggerMetricDataPointsAggregated, aggregated)
 
-	dmp.emit()
+	mp.emit()
 
 	if md.ResourceMetrics().Len() == 0 {
 		return md, processorhelper.ErrSkipProcessingData
@@ -103,25 +101,25 @@ func (dmp *decoratorMetricProcessor) processMetrics(ctx context.Context, md pmet
 	return md, nil
 }
 
-func (dmp *decoratorMetricProcessor) emit() {
+func (mp *metricProcessor) emit() {
 	now := time.Now()
-	if now.Sub(dmp.lastEmitCheck) < time.Duration(dmp.aggregationInterval)*time.Second {
+	if now.Sub(mp.lastEmitCheck) < time.Duration(mp.aggregationInterval)*time.Second {
 		return
 	}
-	dmp.lastEmitCheck = now
-	mi := dmp.aggregatorI.Emit(now)
+	mp.lastEmitCheck = now
+	mi := mp.aggregatorI.Emit(now)
 	for _, set := range mi {
-		dmp.emitSetI(set)
+		mp.emitSetI(set)
 	}
-	mf := dmp.aggregatorF.Emit(now)
+	mf := mp.aggregatorF.Emit(now)
 	for _, set := range mf {
-		dmp.emitSetF(set)
+		mp.emitSetF(set)
 	}
 }
 
-func (dmp *decoratorMetricProcessor) emitSetI(set *sampler.AggregationSet[int64]) {
+func (mp *metricProcessor) emitSetI(set *sampler.AggregationSet[int64]) {
 	for _, agg := range set.Aggregations {
-		dmp.logger.Info("Emitting int aggregated metric",
+		mp.logger.Info("Emitting int aggregated metric",
 			zap.String("name", agg.Tags["_cardinalhq.name"]),
 			zap.String("type", agg.AggregationType),
 			zap.Any("tags", agg.Tags),
@@ -130,9 +128,9 @@ func (dmp *decoratorMetricProcessor) emitSetI(set *sampler.AggregationSet[int64]
 	}
 }
 
-func (dmp *decoratorMetricProcessor) emitSetF(set *sampler.AggregationSet[float64]) {
+func (mp *metricProcessor) emitSetF(set *sampler.AggregationSet[float64]) {
 	for _, agg := range set.Aggregations {
-		dmp.logger.Info("Emitting float64 aggregated metric",
+		mp.logger.Info("Emitting float64 aggregated metric",
 			zap.String("name", agg.Tags["_cardinalhq.name"]),
 			zap.String("type", agg.AggregationType),
 			zap.Any("tags", agg.Tags),
@@ -141,49 +139,65 @@ func (dmp *decoratorMetricProcessor) emitSetF(set *sampler.AggregationSet[float6
 	}
 }
 
-func (dmp *decoratorMetricProcessor) aggregate(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric) bool {
+func (mp *metricProcessor) aggregate(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric) int64 {
 	switch metric.Type() {
 	case pmetric.MetricTypeGauge:
-		return dmp.aggregateGauge(rms, ils, metric)
+		return mp.aggregateGauge(rms, ils, metric)
 	case pmetric.MetricTypeSum:
-		return dmp.aggregateSum(rms, ils, metric)
+		return mp.aggregateSum(rms, ils, metric)
 	case pmetric.MetricTypeHistogram:
-		return false
+		return 0
 	case pmetric.MetricTypeExponentialHistogram:
-		return false
+		return 0
 	case pmetric.MetricTypeSummary:
-		return false
+		return 0
 	default:
-		return false
+		return 0
 	}
 }
 
-func (dmp *decoratorMetricProcessor) aggregateGauge(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric) bool {
+func (mp *metricProcessor) aggregateGauge(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric) int64 {
+	aggregated := int64(0)
 	metric.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
-		return dmp.aggregateDatapoint("avg", rms, ils, metric, dp)
+		if mp.aggregateDatapoint("avg", rms, ils, metric, dp) {
+			aggregated++
+		}
+		return false
 	})
-	return metric.Gauge().DataPoints().Len() == 0
+	return aggregated
 }
 
-func (dmp *decoratorMetricProcessor) aggregateSum(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric) bool {
+func (mp *metricProcessor) aggregateSum(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric) int64 {
+	aggregated := int64(0)
 	metric.Sum().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
-		return dmp.aggregateDatapoint("sum", rms, ils, metric, dp)
+		if mp.aggregateDatapoint("sum", rms, ils, metric, dp) {
+			aggregated++
+		}
+		return false
 	})
-	return metric.Sum().DataPoints().Len() == 0
+	return aggregated
 }
 
-func (dmp *decoratorMetricProcessor) aggregateDatapoint(ty string, rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint) bool {
+func (mp *metricProcessor) aggregateDatapoint(ty string, rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint) bool {
 	t := dp.Timestamp().AsTime()
 	switch dp.ValueType() {
 	case pmetric.NumberDataPointValueTypeInt:
 		v := dp.IntValue()
-		rmatch := dmp.aggregatorI.MatchAndAdd(&t, v, ty, metric.Name(), rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes())
+		rmatch := mp.aggregatorI.MatchAndAdd(&t, v, ty, metric.Name(), rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes())
 		return rmatch != ""
 	case pmetric.NumberDataPointValueTypeDouble:
 		v := dp.DoubleValue()
-		rmatch := dmp.aggregatorF.MatchAndAdd(&t, v, ty, metric.Name(), rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes())
+		rmatch := mp.aggregatorF.MatchAndAdd(&t, v, ty, metric.Name(), rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes())
 		return rmatch != ""
 	default:
 		return false
 	}
+}
+
+func (mp *metricProcessor) Shutdown(_ context.Context) error {
+	if mp.configManager != nil {
+		mp.configManager.UnregisterCallback(mp.updaterId)
+		mp.configManager.Stop()
+	}
+	return nil
 }

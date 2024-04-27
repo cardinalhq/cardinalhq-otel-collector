@@ -23,31 +23,31 @@ import (
 	"go.uber.org/zap"
 )
 
-type decoratorSpansProcessor struct {
-	telemetry *decoratorProcessorTelemetry
+type spansProcessor struct {
+	telemetry *processorTelemetry
 	logger    *zap.Logger
 }
 
-func newDecoratorSpansProcessor(set processor.CreateSettings, _ *Config) (*decoratorSpansProcessor, error) {
+func newSpansProcessor(set processor.CreateSettings, _ *Config) (*spansProcessor, error) {
 	var err error
-	dsp := &decoratorSpansProcessor{
+	sp := &spansProcessor{
 		logger: set.Logger,
 	}
 
-	dpt, err := newDecoratorProcessorTelemetry(set)
+	dpt, err := newProcessorTelemetry(set)
 	if err != nil {
 		return nil, fmt.Errorf("error creating chqdecorator processor telemetry: %w", err)
 	}
-	dsp.telemetry = dpt
+	sp.telemetry = dpt
 
 	set.Logger.Info(
 		"Decorator processor configured",
 	)
 
-	return dsp, nil
+	return sp, nil
 }
 
-func (dmp *decoratorSpansProcessor) processTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
+func (sp *spansProcessor) processTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
 	rss := td.ResourceSpans()
 	for i := 0; i < rss.Len(); i++ {
 		rs := rss.At(i)
@@ -59,13 +59,17 @@ func (dmp *decoratorSpansProcessor) processTraces(ctx context.Context, td ptrace
 			spans := ils.Spans()
 			for k := 0; k < spans.Len(); k++ {
 				span := spans.At(k)
-				dmp.augment(span)
+				sp.augment(span)
 			}
 		}
 	}
 	return td, nil
 }
 
-func (dmp *decoratorSpansProcessor) augment(span ptrace.Span) {
+func (sp *spansProcessor) augment(span ptrace.Span) {
 	span.Attributes().PutStr("_cardinalhq.was", "here")
+}
+
+func (sp *spansProcessor) Shutdown(context.Context) error {
+	return nil
 }

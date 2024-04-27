@@ -34,7 +34,7 @@ const (
 	triggerLogsProcessed
 )
 
-type decoratorProcessorTelemetry struct {
+type processorTelemetry struct {
 	exportCtx context.Context
 
 	processorAttr []attribute.KeyValue
@@ -45,10 +45,10 @@ type decoratorProcessorTelemetry struct {
 	spansFiltered      metric.Int64Counter
 }
 
-func newDecoratorProcessorTelemetry(set processor.CreateSettings) (*decoratorProcessorTelemetry, error) {
+func newProcessorTelemetry(set processor.CreateSettings) (*processorTelemetry, error) {
 	processorID := set.ID.String()
 
-	dpt := &decoratorProcessorTelemetry{
+	dpt := &processorTelemetry{
 		processorAttr: []attribute.KeyValue{attribute.String(metadata.Type.String(), processorID)},
 		exportCtx:     context.Background(),
 	}
@@ -96,7 +96,7 @@ func newDecoratorProcessorTelemetry(set processor.CreateSettings) (*decoratorPro
 	return dpt, nil
 }
 
-func (dpt *decoratorProcessorTelemetry) record(trigger trigger, dropped int64) {
+func (dpt *processorTelemetry) record(trigger trigger, dropped int64) {
 	var triggerMeasure metric.Int64Counter
 	switch trigger {
 	case triggerMetricDataPointsAggregated:

@@ -80,7 +80,14 @@ data:
       filter/chq:
         logs:
           log_record:
-            - 'attributes["cardinalhq._filtered"] == true'
+            - 'attributes["_cardinalhq.filtered"] == true'
+        metrics:
+          datapoint:
+            - 'attributes["_cardinalhq.filtered"] == true'
+      attributes/chq:
+        actions:
+          - action: remove
+            pattern: '^_.*'
 
     connectors:
       forward/filtered:
@@ -93,16 +100,24 @@ data:
           exporters: [awss3/cardinalhq, forward/filtered]
         logs/filtered:
           receivers: [forward/filtered]
-          processors: [filter/chq]
+          processors: [filter/chq, attributes/chq]
           exporters: [otlphttp/cardinalhq]
         metrics/chq:
           receivers: [otlp]
           processors: [memory_limiter, chqdecorator, batch/metrics]
-          exporters: [datadog/cardinalhq, awss3/cardinalhq]
+          exporters: [awss3/cardinalhq, forward/filtered]
+        metrics/filtered:
+          receivers: [forward/filtered]
+          processors: [filter/chq, attributes/chq]
+          exporters: [datadog/cardinalhq]
         traces/chq:
           receivers: [otlp]
           processors: [memory_limiter, chqdecorator, batch/traces]
-          exporters: [datadog/cardinalhq, awss3/cardinalhq]
+          exporters: [awss3/cardinalhq, forward/filtered]
+        traces/filtered:
+          receivers: [forward/filtered]
+          processors: [filter/chq, attributes/chq]
+          exporters: [datadog/cardinalhq]
 
       # Echo telemetry back to ourselves.  This requires more than one replica or
       # startup and shutdown delays may occur.

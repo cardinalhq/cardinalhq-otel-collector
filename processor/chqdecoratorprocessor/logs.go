@@ -26,18 +26,18 @@ import (
 	"go.uber.org/zap"
 )
 
-type filterLogProcessor struct {
-	telemetry     *decoratorProcessorTelemetry
+type logProcessor struct {
+	telemetry     *processorTelemetry
 	sampler       sampler.LogSampler
 	logger        *zap.Logger
 	configManager sampler.ConfigManager
 	updaterId     int
 }
 
-func newDecoratorLogsProcessor(set processor.CreateSettings, conf *Config) (*filterLogProcessor, error) {
+func newLogsProcessor(set processor.CreateSettings, conf *Config) (*logProcessor, error) {
 	samp := sampler.NewLogSamplerImpl(context.Background(), set.Logger)
 
-	dsp := &filterLogProcessor{
+	lp := &logProcessor{
 		logger:  set.Logger,
 		sampler: samp,
 	}
@@ -48,27 +48,27 @@ func newDecoratorLogsProcessor(set processor.CreateSettings, conf *Config) (*fil
 			return nil, fmt.Errorf("error creating configuration manager: %w", err)
 		}
 		go confmgr.Run()
-		dsp.configManager = confmgr
+		lp.configManager = confmgr
 
-		dsp.updaterId = confmgr.RegisterCallback("logsampler", func(config sampler.SamplerConfig) {
+		lp.updaterId = confmgr.RegisterCallback("logsampler", func(config sampler.SamplerConfig) {
 			samp.UpdateConfig(&config)
 		})
 	}
 
-	dpt, err := newDecoratorProcessorTelemetry(set)
+	dpt, err := newProcessorTelemetry(set)
 	if err != nil {
 		return nil, fmt.Errorf("error creating chqdecorator processor telemetry: %w", err)
 	}
-	dsp.telemetry = dpt
+	lp.telemetry = dpt
 
 	set.Logger.Info(
 		"Decorator processor configured",
 	)
 
-	return dsp, nil
+	return lp, nil
 }
 
-func (dmp *filterLogProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
+func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
 	dropped := int64(0)
 	processed := int64(0)
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
@@ -80,7 +80,7 @@ func (dmp *filterLogProcessor) processLogs(_ context.Context, ld plog.Logs) (plo
 				fingerprint, level := fingerprinter.Fingerprint(log.Body().AsString())
 				log.Attributes().PutInt("_cardinalhq.fingerprint", fingerprint)
 				log.Attributes().PutStr("_cardinalhq.level", level)
-				rule_match := dmp.sampler.Sample(rl.Resource().Attributes(), sl.Scope().Attributes(), log.Attributes())
+				rule_match := lp.sampler.Sample(rl.Resource().Attributes(), sl.Scope().Attributes(), log.Attributes())
 				log.Attributes().PutStr("_cardinalhq.rule_match", rule_match)
 				log.Attributes().PutBool("_cardinalhq.filtered", rule_match != "")
 				processed++
@@ -91,16 +91,16 @@ func (dmp *filterLogProcessor) processLogs(_ context.Context, ld plog.Logs) (plo
 		}
 	}
 
-	dmp.telemetry.record(triggerLogsDropped, dropped)
-	dmp.telemetry.record(triggerLogsProcessed, processed)
+	lp.telemetry.record(triggerLogsDropped, dropped)
+	lp.telemetry.record(triggerLogsProcessed, processed)
 
 	return ld, nil
 }
 
-func (dmp *filterLogProcessor) Shutdown(context.Context) error {
-	if dmp.configManager != nil {
-		dmp.configManager.UnregisterCallback(dmp.updaterId)
-		dmp.configManager.Stop()
+func (lp *logProcessor) Shutdown(_ context.Context) error {
+	if lp.configManager != nil {
+		lp.configManager.UnregisterCallback(lp.updaterId)
+		lp.configManager.Stop()
 	}
 	return nil
 }

@@ -14,5 +14,17 @@
         }
       }
     ]
+  },
+  "metrics": {
+    "sampling": [
+      {
+        id: "metricrule1",
+        MetricName: "cardinalhq.middleware.compression",
+        TagAction: "drop",
+        Tags: [
+          "metric.content_encoding"
+        ]
+      }
+    ]
   }
 }

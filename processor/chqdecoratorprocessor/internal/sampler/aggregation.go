@@ -14,7 +14,11 @@
 
 package sampler
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/cardinalhq/otel-collector-saas/processor/chqdecoratorprocessor/internal/sampler/accumulator"
+)
 
 type AggregationType int
 
@@ -23,34 +27,60 @@ const (
 	AggregationTypeAvg
 )
 
-type Aggregation[T int64 | float64] struct {
-	AggregationType AggregationType
-	Name            string
-	Tags            map[string]string
-	Sum             T
-	Count           uint64
+type Aggregation interface {
+	Add(name string, values []float64) error
+	Value() []float64
+	Count() uint64
+	Tags() map[string]string
+	Buckets() []float64
 }
 
-func NewAggregation[T int64 | float64](name string, aggregationType AggregationType, tags map[string]string) *Aggregation[T] {
-	return &Aggregation[T]{
-		Name:            name,
-		AggregationType: aggregationType,
-		Tags:            tags,
+type AggregationImpl[T int64 | float64] struct {
+	ty          AggregationType
+	name        string
+	tags        map[string]string
+	accumulator accumulator.Accumulator[T]
+}
+
+func NewAggregationImpl[T int64 | float64](name string, buckets []T, aggregationType AggregationType, tags map[string]string) *AggregationImpl[T] {
+	return &AggregationImpl[T]{
+		name:        name,
+		ty:          aggregationType,
+		tags:        tags,
+		accumulator: accumulator.NewAccumulatorImlp(buckets),
 	}
 }
 
-func (a *Aggregation[T]) Add(name string, value T) error {
-	if a.Name != name {
-		return fmt.Errorf("aggregation name mismatch: %s != %s", a.Name, name)
+func (a *AggregationImpl[T]) Add(name string, values []T) error {
+	if a.name != name {
+		return fmt.Errorf("aggregation name mismatch: %s != %s", a.name, name)
 	}
-	a.Sum += value
-	a.Count++
-	return nil
+	return a.accumulator.Add(values)
 }
 
-func (a *Aggregation[T]) Value() T {
-	if a.AggregationType == AggregationTypeAvg {
-		return a.Sum / T(a.Count)
+func (a *AggregationImpl[T]) Value() []T {
+	if a.ty == AggregationTypeAvg {
+		return a.accumulator.Avg()
 	}
-	return a.Sum
+	return a.accumulator.Sum()
+}
+
+func (a *AggregationImpl[T]) Count() uint64 {
+	return a.accumulator.Count()
+}
+
+func (a *AggregationImpl[T]) Tags() map[string]string {
+	return a.tags
+}
+
+func (a *AggregationImpl[T]) Buckets() []T {
+	return a.accumulator.Buckets()
+}
+
+func (a *AggregationImpl[T]) AggregationType() AggregationType {
+	return a.ty
+}
+
+func (a *AggregationImpl[T]) Name() string {
+	return a.name
 }

@@ -26,7 +26,7 @@ import (
 type MetricAggregator[T int64 | float64] interface {
 	Emit(now time.Time) map[int64]*AggregationSet[T]
 	Configure(rules []AggregatorConfig)
-	MatchAndAdd(t *time.Time, value T, aggregationType AggregationType, name string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (string, error)
+	MatchAndAdd(t *time.Time, buckets []T, value []T, aggregationType AggregationType, name string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (string, error)
 }
 
 type MetricAggregatorImpl[T int64 | float64] struct {
@@ -35,6 +35,8 @@ type MetricAggregatorImpl[T int64 | float64] struct {
 	rulesLock sync.RWMutex
 	interval  int64
 }
+
+var _ MetricAggregator[int64] = (*MetricAggregatorImpl[int64])(nil)
 
 func NewMetricAggregatorImpl[T int64 | float64](interval int64, rules []AggregatorConfig) *MetricAggregatorImpl[T] {
 	return &MetricAggregatorImpl[T]{
@@ -69,17 +71,17 @@ func timebox(t time.Time, interval int64) int64 {
 	return n - (n % interval)
 }
 
-func (m *MetricAggregatorImpl[T]) add(t time.Time, name string, value T, aggregationType AggregationType, tags map[string]string) error {
+func (m *MetricAggregatorImpl[T]) add(t time.Time, name string, buckets []T, values []T, aggregationType AggregationType, tags map[string]string) error {
 	interval := timebox(t, m.interval)
 	set, ok := m.sets[interval]
 	if !ok {
 		set = NewAggregationSet[T](interval, m.interval)
 		m.sets[interval] = set
 	}
-	return set.Add(name, value, aggregationType, tags)
+	return set.Add(name, buckets, values, aggregationType, tags)
 }
 
-func (m *MetricAggregatorImpl[T]) MatchAndAdd(t *time.Time, value T, aggregationType AggregationType, name string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (string, error) {
+func (m *MetricAggregatorImpl[T]) MatchAndAdd(t *time.Time, buckets []T, values []T, aggregationType AggregationType, name string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (string, error) {
 	m.rulesLock.RLock()
 	defer m.rulesLock.RUnlock()
 	if t == nil {
@@ -103,7 +105,7 @@ func (m *MetricAggregatorImpl[T]) MatchAndAdd(t *time.Time, value T, aggregation
 					RemoveTags(attrs, rule.Tags)
 				}
 			}
-			err := m.add(*t, name, value, aggregationType, attrs)
+			err := m.add(*t, name, buckets, values, aggregationType, attrs)
 			return rule.Id, err
 		}
 	}

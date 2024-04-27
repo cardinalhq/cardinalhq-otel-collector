@@ -22,10 +22,11 @@ import (
 
 func TestAggregationSet_Add(t *testing.T) {
 	aggregationSet := &AggregationSet[float64]{
-		Aggregations: make(map[uint64]*Aggregation[float64]),
+		Aggregations: make(map[uint64]*AggregationImpl[float64]),
 	}
 
-	value := 10.5
+	values := []float64{10.5}
+	buckets := []float64{1}
 	aggregationType := AggregationTypeAvg
 	tags := map[string]string{
 		"key1": "value1",
@@ -33,24 +34,23 @@ func TestAggregationSet_Add(t *testing.T) {
 	}
 	fingerprint := FingerprintTags(tags)
 
-	aggregationSet.Add("alice", value, aggregationType, tags)
+	aggregationSet.Add("alice", buckets, values, aggregationType, tags)
 
 	assert.NotNil(t, aggregationSet.Aggregations[fingerprint])
-	assert.Equal(t, value, aggregationSet.Aggregations[fingerprint].Sum)
-	assert.Equal(t, uint64(1), aggregationSet.Aggregations[fingerprint].Count)
-	assert.Equal(t, aggregationType, aggregationSet.Aggregations[fingerprint].AggregationType)
-	assert.Equal(t, tags, aggregationSet.Aggregations[fingerprint].Tags)
-	assert.Equal(t, "alice", aggregationSet.Aggregations[fingerprint].Name)
+	assert.Equal(t, values, aggregationSet.Aggregations[fingerprint].Value())
+	assert.Equal(t, uint64(1), aggregationSet.Aggregations[fingerprint].Count())
+	assert.Equal(t, aggregationType, aggregationSet.Aggregations[fingerprint].AggregationType())
+	assert.Equal(t, tags, aggregationSet.Aggregations[fingerprint].Tags())
+	assert.Equal(t, "alice", aggregationSet.Aggregations[fingerprint].Name())
 }
 
 func TestAggregationSet_Add_ExistingAggregation(t *testing.T) {
-	aggregationSet := &AggregationSet[float64]{
-		Aggregations: make(map[uint64]*Aggregation[float64]),
-	}
+	buckets := []float64{1}
+	aggregationSet := NewAggregationSet[float64](1234567890, 60)
 
 	value1 := 10.5
 	value2 := 5.5
-	aggregationType := AggregationTypeAvg
+	aggregationType := AggregationTypeSum
 	tags := map[string]string{
 		"key1": "value1",
 		"key2": "value2",
@@ -58,23 +58,26 @@ func TestAggregationSet_Add_ExistingAggregation(t *testing.T) {
 
 	fingerprint := FingerprintTags(tags)
 
-	aggregationSet.Aggregations[fingerprint] = &Aggregation[float64]{
-		Name:            "alice",
-		Sum:             value1,
-		Count:           1,
-		AggregationType: aggregationType,
-		Tags:            tags,
-	}
+	ai := NewAggregationImpl(
+		"alice",
+		buckets,
+		aggregationType,
+		tags,
+	)
+	err := ai.Add("alice", []float64{value1})
+	assert.Nil(t, err)
 
-	err := aggregationSet.Add("alice", value2, aggregationType, tags)
+	aggregationSet.Aggregations[fingerprint] = ai
+	err = aggregationSet.Add("alice", buckets, []float64{value2}, aggregationType, tags)
 	assert.Nil(t, err)
 
 	assert.NotNil(t, aggregationSet.Aggregations[fingerprint])
-	assert.Equal(t, value1+value2, aggregationSet.Aggregations[fingerprint].Sum)
-	assert.Equal(t, uint64(2), aggregationSet.Aggregations[fingerprint].Count)
-	assert.Equal(t, aggregationType, aggregationSet.Aggregations[fingerprint].AggregationType)
-	assert.Equal(t, tags, aggregationSet.Aggregations[fingerprint].Tags)
-	assert.Equal(t, "alice", aggregationSet.Aggregations[fingerprint].Name)
+	assert.Equal(t, []float64{value1 + value2}, aggregationSet.Aggregations[fingerprint].Value())
+	assert.Equal(t, buckets, aggregationSet.Aggregations[fingerprint].Buckets())
+	assert.Equal(t, uint64(2), aggregationSet.Aggregations[fingerprint].Count())
+	assert.Equal(t, aggregationType, aggregationSet.Aggregations[fingerprint].AggregationType())
+	assert.Equal(t, tags, aggregationSet.Aggregations[fingerprint].Tags())
+	assert.Equal(t, "alice", aggregationSet.Aggregations[fingerprint].Name())
 }
 
 func TestNewAggregationSet(t *testing.T) {
@@ -84,20 +87,20 @@ func TestNewAggregationSet(t *testing.T) {
 	aggregationSet := NewAggregationSet[float64](starttime, interval)
 
 	assert.NotNil(t, aggregationSet)
-	assert.Equal(t, map[uint64]*Aggregation[float64]{}, aggregationSet.Aggregations)
+	assert.Equal(t, map[uint64]*AggregationImpl[float64]{}, aggregationSet.Aggregations)
 	assert.Equal(t, starttime, aggregationSet.StartTime)
 	assert.Equal(t, interval, aggregationSet.Interval)
 }
 
 func TestAggregationSet_GetAggregations(t *testing.T) {
 	aggregationSet := &AggregationSet[float64]{
-		Aggregations: make(map[uint64]*Aggregation[float64]),
+		Aggregations: make(map[uint64]*AggregationImpl[float64]),
 	}
 
 	// Add some sample aggregations
-	aggregationSet.Aggregations[1] = &Aggregation[float64]{}
-	aggregationSet.Aggregations[2] = &Aggregation[float64]{}
-	aggregationSet.Aggregations[3] = &Aggregation[float64]{}
+	aggregationSet.Aggregations[1] = &AggregationImpl[float64]{}
+	aggregationSet.Aggregations[2] = &AggregationImpl[float64]{}
+	aggregationSet.Aggregations[3] = &AggregationImpl[float64]{}
 
 	aggregations := aggregationSet.GetAggregations()
 

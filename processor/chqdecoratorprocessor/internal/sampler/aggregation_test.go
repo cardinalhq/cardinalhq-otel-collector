@@ -20,42 +20,40 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAggregation_Add(t *testing.T) {
-	aggregation := &Aggregation[float64]{
-		Name: "alice",
-	}
+func TestAggregationImpl_Add(t *testing.T) {
+	aggregation := NewAggregationImpl("alice", []float64{1}, AggregationTypeSum, nil)
 
-	aggregation.Add("alice", 10.5)
-	assert.Equal(t, 10.5, aggregation.Sum)
-	assert.Equal(t, uint64(1), aggregation.Count)
+	err := aggregation.Add("alice", []float64{10.5})
+	assert.Nil(t, err)
+	assert.Equal(t, []float64{10.5}, aggregation.Value())
+	assert.Equal(t, uint64(1), aggregation.Count())
 
-	aggregation.Add("alice", 5.5)
-	assert.Equal(t, 16.0, aggregation.Sum)
-	assert.Equal(t, uint64(2), aggregation.Count)
-	assert.Equal(t, "alice", aggregation.Name)
+	err = aggregation.Add("alice", []float64{5.5})
+	assert.Nil(t, err)
+	assert.Equal(t, []float64{16.0}, aggregation.Value())
+	assert.Equal(t, uint64(2), aggregation.Count())
+	assert.Equal(t, "alice", aggregation.Name())
 }
 
-func TestAggregation_Value_avg(t *testing.T) {
-	aggregation := &Aggregation[float64]{
-		Name:            "alice",
-		AggregationType: AggregationTypeAvg,
-	}
+func TestAggregationImpl_Value_avg(t *testing.T) {
+	aggregation := NewAggregationImpl("alice", []float64{1}, AggregationTypeAvg, nil)
 
-	aggregation.Add("alice", 10.5)
-	aggregation.Add("alice", 5.5)
-	assert.Equal(t, 8.0, aggregation.Value())
-	assert.Equal(t, uint64(2), aggregation.Count)
-	assert.Equal(t, "alice", aggregation.Name)
+	err := aggregation.Add("alice", []float64{10.5})
+	assert.Nil(t, err)
+	err = aggregation.Add("alice", []float64{5.5})
+	assert.Nil(t, err)
+	assert.Equal(t, []float64{8.0}, aggregation.Value())
+	assert.Equal(t, uint64(2), aggregation.Count())
+	assert.Equal(t, "alice", aggregation.Name())
 }
 
-func TestAggregation_Value_sum(t *testing.T) {
-	aggregation := &Aggregation[float64]{
-		Name:            "alice",
-		AggregationType: AggregationTypeSum,
-	}
+func TestAggregationImpl_Value_sum(t *testing.T) {
+	aggregation := NewAggregationImpl("alice", []float64{1}, AggregationTypeSum, nil)
 
-	aggregation.Add("alice", 10.5)
-	aggregation.Add("alice", 5.5)
-	assert.Equal(t, 16.0, aggregation.Value())
-	assert.Equal(t, "alice", aggregation.Name)
+	err := aggregation.Add("alice", []float64{10.5})
+	assert.Nil(t, err)
+	err = aggregation.Add("alice", []float64{5.5})
+	assert.Nil(t, err)
+	assert.Equal(t, []float64{16.0}, aggregation.Value())
+	assert.Equal(t, "alice", aggregation.Name())
 }

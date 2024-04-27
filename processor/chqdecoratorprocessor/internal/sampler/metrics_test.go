@@ -280,7 +280,8 @@ func TestMatchAndAdd(t *testing.T) {
 
 	log.Printf("rattr: %v", rattr.AsRaw())
 
-	value := 10.0
+	buckets := []float64{1}
+	values := []float64{10.0}
 	aggregationType := AggregationTypeSum
 	name := "metric1"
 
@@ -294,7 +295,7 @@ func TestMatchAndAdd(t *testing.T) {
 	ttime := time.UnixMilli(1641024001231)
 	tbox := timebox(ttime, 10)
 
-	actualId, err := m.MatchAndAdd(&ttime, value, aggregationType, name, rattr, iattr, mattr)
+	actualId, err := m.MatchAndAdd(&ttime, buckets, values, aggregationType, name, rattr, iattr, mattr)
 	assert.Nil(t, err)
 
 	assert.Equal(t, expectedId, actualId)
@@ -303,13 +304,13 @@ func TestMatchAndAdd(t *testing.T) {
 	// we don't know what the actual entry is, so we will pull out
 	// whatever is there.
 	for _, v := range m.sets[tbox].Aggregations {
-		assert.Equal(t, value, v.Sum)
-		assert.Equal(t, aggregationType, v.AggregationType)
-		assert.Equal(t, expectedTags, v.Tags)
-		assert.Equal(t, uint64(1), v.Count)
+		assert.Equal(t, values, v.Value())
+		assert.Equal(t, aggregationType, v.AggregationType())
+		assert.Equal(t, expectedTags, v.Tags())
+		assert.Equal(t, uint64(1), v.Count())
 	}
 
-	actualId, err = m.MatchAndAdd(&ttime, value, aggregationType, "bob", rattr, iattr, mattr)
+	actualId, err = m.MatchAndAdd(&ttime, buckets, values, aggregationType, "bob", rattr, iattr, mattr)
 	assert.Nil(t, err)
 	assert.Equal(t, "", actualId)
 	// should be no changes
@@ -318,10 +319,10 @@ func TestMatchAndAdd(t *testing.T) {
 	// we don't know what the actual entry is, so we will pull out
 	// whatever is there.
 	for _, v := range m.sets[tbox].Aggregations {
-		assert.Equal(t, value, v.Sum)
-		assert.Equal(t, aggregationType, v.AggregationType)
-		assert.Equal(t, expectedTags, v.Tags)
-		assert.Equal(t, uint64(1), v.Count)
+		assert.Equal(t, values, v.Value())
+		assert.Equal(t, aggregationType, v.AggregationType())
+		assert.Equal(t, expectedTags, v.Tags())
+		assert.Equal(t, uint64(1), v.Count())
 	}
 
 }

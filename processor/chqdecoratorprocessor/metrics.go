@@ -120,10 +120,11 @@ func (mp *metricProcessor) emit() {
 func (mp *metricProcessor) emitSetI(set *sampler.AggregationSet[int64]) {
 	for _, agg := range set.Aggregations {
 		mp.logger.Info("Emitting int aggregated metric",
-			zap.String("name", agg.Name),
-			zap.Int("type", int(agg.AggregationType)),
-			zap.Any("tags", agg.Tags),
-			zap.Int64("value", agg.Value()),
+			zap.String("name", agg.Name()),
+			zap.Int("type", int(agg.AggregationType())),
+			zap.Any("tags", agg.Tags()),
+			zap.Int64s("buckets", agg.Buckets()),
+			zap.Int64s("values", agg.Value()),
 		)
 	}
 }
@@ -131,10 +132,11 @@ func (mp *metricProcessor) emitSetI(set *sampler.AggregationSet[int64]) {
 func (mp *metricProcessor) emitSetF(set *sampler.AggregationSet[float64]) {
 	for _, agg := range set.Aggregations {
 		mp.logger.Info("Emitting float64 aggregated metric",
-			zap.String("name", agg.Name),
-			zap.Int("type", int(agg.AggregationType)),
-			zap.Any("tags", agg.Tags),
-			zap.Float64("value", agg.Value()),
+			zap.String("name", agg.Name()),
+			zap.Int("type", int(agg.AggregationType())),
+			zap.Any("tags", agg.Tags()),
+			zap.Float64s("buckets", agg.Buckets()),
+			zap.Float64s("values", agg.Value()),
 		)
 	}
 }
@@ -183,7 +185,7 @@ func (mp *metricProcessor) aggregateDatapoint(ty sampler.AggregationType, rms pm
 	switch dp.ValueType() {
 	case pmetric.NumberDataPointValueTypeInt:
 		v := dp.IntValue()
-		rmatch, err := mp.aggregatorI.MatchAndAdd(&t, v, ty, metric.Name(), rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes())
+		rmatch, err := mp.aggregatorI.MatchAndAdd(&t, []int64{1}, []int64{v}, ty, metric.Name(), rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes())
 		if err != nil {
 			mp.logger.Error("Error matching and adding int datapoint", zap.Error(err))
 			return false
@@ -191,7 +193,7 @@ func (mp *metricProcessor) aggregateDatapoint(ty sampler.AggregationType, rms pm
 		return rmatch != ""
 	case pmetric.NumberDataPointValueTypeDouble:
 		v := dp.DoubleValue()
-		rmatch, err := mp.aggregatorF.MatchAndAdd(&t, v, ty, metric.Name(), rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes())
+		rmatch, err := mp.aggregatorF.MatchAndAdd(&t, []float64{1}, []float64{v}, ty, metric.Name(), rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes())
 		if err != nil {
 			mp.logger.Error("Error matching and adding float64 datapoint", zap.Error(err))
 			return false

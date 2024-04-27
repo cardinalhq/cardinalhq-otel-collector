@@ -15,27 +15,27 @@
 package sampler
 
 type AggregationSet[T int64 | float64] struct {
-	Aggregations map[uint64]*Aggregation[T]
+	Aggregations map[uint64]*AggregationImpl[T]
 	StartTime    int64
 	Interval     int64
 }
 
 func NewAggregationSet[T int64 | float64](starttime int64, interval int64) *AggregationSet[T] {
 	return &AggregationSet[T]{
-		Aggregations: map[uint64]*Aggregation[T]{},
+		Aggregations: map[uint64]*AggregationImpl[T]{},
 		StartTime:    starttime,
 		Interval:     interval,
 	}
 }
 
-func (a *AggregationSet[T]) Add(name string, value T, aggregationType AggregationType, tags map[string]string) error {
+func (a *AggregationSet[T]) Add(name string, buckets []T, values []T, aggregationType AggregationType, tags map[string]string) error {
 	fingerprint := FingerprintTags(tags)
 	if _, ok := a.Aggregations[fingerprint]; !ok {
-		a.Aggregations[fingerprint] = NewAggregation[T](name, aggregationType, tags)
+		a.Aggregations[fingerprint] = NewAggregationImpl[T](name, buckets, aggregationType, tags)
 	}
-	return a.Aggregations[fingerprint].Add(name, value)
+	return a.Aggregations[fingerprint].Add(name, values)
 }
 
-func (a *AggregationSet[T]) GetAggregations() map[uint64]*Aggregation[T] {
+func (a *AggregationSet[T]) GetAggregations() map[uint64]*AggregationImpl[T] {
 	return a.Aggregations
 }

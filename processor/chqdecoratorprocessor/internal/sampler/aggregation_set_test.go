@@ -33,13 +33,14 @@ func TestAggregationSet_Add(t *testing.T) {
 	}
 	fingerprint := FingerprintTags(tags)
 
-	aggregationSet.Add(value, aggregationType, tags)
+	aggregationSet.Add("alice", value, aggregationType, tags)
 
 	assert.NotNil(t, aggregationSet.Aggregations[fingerprint])
 	assert.Equal(t, value, aggregationSet.Aggregations[fingerprint].Sum)
 	assert.Equal(t, uint64(1), aggregationSet.Aggregations[fingerprint].Count)
 	assert.Equal(t, aggregationType, aggregationSet.Aggregations[fingerprint].AggregationType)
 	assert.Equal(t, tags, aggregationSet.Aggregations[fingerprint].Tags)
+	assert.Equal(t, "alice", aggregationSet.Aggregations[fingerprint].Name)
 }
 
 func TestAggregationSet_Add_ExistingAggregation(t *testing.T) {
@@ -58,19 +59,22 @@ func TestAggregationSet_Add_ExistingAggregation(t *testing.T) {
 	fingerprint := FingerprintTags(tags)
 
 	aggregationSet.Aggregations[fingerprint] = &Aggregation[float64]{
+		Name:            "alice",
 		Sum:             value1,
 		Count:           1,
 		AggregationType: aggregationType,
 		Tags:            tags,
 	}
 
-	aggregationSet.Add(value2, aggregationType, tags)
+	err := aggregationSet.Add("alice", value2, aggregationType, tags)
+	assert.Nil(t, err)
 
 	assert.NotNil(t, aggregationSet.Aggregations[fingerprint])
 	assert.Equal(t, value1+value2, aggregationSet.Aggregations[fingerprint].Sum)
 	assert.Equal(t, uint64(2), aggregationSet.Aggregations[fingerprint].Count)
 	assert.Equal(t, aggregationType, aggregationSet.Aggregations[fingerprint].AggregationType)
 	assert.Equal(t, tags, aggregationSet.Aggregations[fingerprint].Tags)
+	assert.Equal(t, "alice", aggregationSet.Aggregations[fingerprint].Name)
 }
 
 func TestNewAggregationSet(t *testing.T) {

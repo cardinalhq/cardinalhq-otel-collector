@@ -26,7 +26,7 @@ import (
 type MetricAggregator[T int64 | float64] interface {
 	Emit(now time.Time) map[int64]*AggregationSet[T]
 	Configure(rules []AggregatorConfig)
-	MatchAndAdd(t *time.Time, value T, aggregationType string, name string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) string
+	MatchAndAdd(t *time.Time, value T, aggregationType string, name string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (string, error)
 }
 
 type MetricAggregatorImpl[T int64 | float64] struct {
@@ -69,17 +69,17 @@ func timebox(t time.Time, interval int64) int64 {
 	return n - (n % interval)
 }
 
-func (m *MetricAggregatorImpl[T]) add(t time.Time, value T, aggregationType string, tags map[string]string) {
+func (m *MetricAggregatorImpl[T]) add(t time.Time, name string, value T, aggregationType string, tags map[string]string) error {
 	interval := timebox(t, m.interval)
 	set, ok := m.sets[interval]
 	if !ok {
 		set = NewAggregationSet[T](interval, m.interval)
 		m.sets[interval] = set
 	}
-	set.Add(value, aggregationType, tags)
+	return set.Add(name, value, aggregationType, tags)
 }
 
-func (m *MetricAggregatorImpl[T]) MatchAndAdd(t *time.Time, value T, aggregationType string, name string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) string {
+func (m *MetricAggregatorImpl[T]) MatchAndAdd(t *time.Time, value T, aggregationType string, name string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (string, error) {
 	m.rulesLock.RLock()
 	defer m.rulesLock.RUnlock()
 	if t == nil {
@@ -103,11 +103,11 @@ func (m *MetricAggregatorImpl[T]) MatchAndAdd(t *time.Time, value T, aggregation
 					RemoveTags(attrs, rule.Tags)
 				}
 			}
-			m.add(*t, value, aggregationType, attrs)
-			return rule.Id
+			err := m.add(*t, name, value, aggregationType, attrs)
+			return rule.Id, err
 		}
 	}
-	return ""
+	return "", nil
 }
 
 func matchscopeMap(scope map[string]string, attrs map[string]string) bool {

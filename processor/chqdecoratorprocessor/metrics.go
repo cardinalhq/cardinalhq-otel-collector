@@ -183,11 +183,19 @@ func (mp *metricProcessor) aggregateDatapoint(ty string, rms pmetric.ResourceMet
 	switch dp.ValueType() {
 	case pmetric.NumberDataPointValueTypeInt:
 		v := dp.IntValue()
-		rmatch := mp.aggregatorI.MatchAndAdd(&t, v, ty, metric.Name(), rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes())
+		rmatch, err := mp.aggregatorI.MatchAndAdd(&t, v, ty, metric.Name(), rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes())
+		if err != nil {
+			mp.logger.Error("Error matching and adding int datapoint", zap.Error(err))
+			return false
+		}
 		return rmatch != ""
 	case pmetric.NumberDataPointValueTypeDouble:
 		v := dp.DoubleValue()
-		rmatch := mp.aggregatorF.MatchAndAdd(&t, v, ty, metric.Name(), rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes())
+		rmatch, err := mp.aggregatorF.MatchAndAdd(&t, v, ty, metric.Name(), rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes())
+		if err != nil {
+			mp.logger.Error("Error matching and adding float64 datapoint", zap.Error(err))
+			return false
+		}
 		return rmatch != ""
 	default:
 		return false

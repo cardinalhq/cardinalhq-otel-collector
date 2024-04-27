@@ -14,23 +14,31 @@
 
 package sampler
 
+import "fmt"
+
 type Aggregation[T int64 | float64] struct {
 	AggregationType string
+	Name            string
 	Tags            map[string]string
 	Sum             T
 	Count           uint64
 }
 
-func NewAggregation[T int64 | float64](aggregationType string, tags map[string]string) *Aggregation[T] {
+func NewAggregation[T int64 | float64](name string, aggregationType string, tags map[string]string) *Aggregation[T] {
 	return &Aggregation[T]{
+		Name:            name,
 		AggregationType: aggregationType,
 		Tags:            tags,
 	}
 }
 
-func (a *Aggregation[T]) Add(value T) {
+func (a *Aggregation[T]) Add(name string, value T) error {
+	if a.Name != name {
+		return fmt.Errorf("aggregation name mismatch: %s != %s", a.Name, name)
+	}
 	a.Sum += value
 	a.Count++
+	return nil
 }
 
 func (a *Aggregation[T]) Value() T {

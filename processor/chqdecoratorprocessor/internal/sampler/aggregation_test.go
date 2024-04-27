@@ -21,33 +21,41 @@ import (
 )
 
 func TestAggregation_Add(t *testing.T) {
-	aggregation := &Aggregation[float64]{}
+	aggregation := &Aggregation[float64]{
+		Name: "alice",
+	}
 
-	aggregation.Add(10.5)
+	aggregation.Add("alice", 10.5)
 	assert.Equal(t, 10.5, aggregation.Sum)
 	assert.Equal(t, uint64(1), aggregation.Count)
 
-	aggregation.Add(5.5)
+	aggregation.Add("alice", 5.5)
 	assert.Equal(t, 16.0, aggregation.Sum)
 	assert.Equal(t, uint64(2), aggregation.Count)
+	assert.Equal(t, "alice", aggregation.Name)
 }
 
 func TestAggregation_Value_avg(t *testing.T) {
 	aggregation := &Aggregation[float64]{
+		Name:            "alice",
 		AggregationType: "avg",
 	}
 
-	aggregation.Add(10.5)
-	aggregation.Add(5.5)
+	aggregation.Add("alice", 10.5)
+	aggregation.Add("alice", 5.5)
 	assert.Equal(t, 8.0, aggregation.Value())
+	assert.Equal(t, uint64(2), aggregation.Count)
+	assert.Equal(t, "alice", aggregation.Name)
 }
 
 func TestAggregation_Value_sum(t *testing.T) {
 	aggregation := &Aggregation[float64]{
+		Name:            "alice",
 		AggregationType: "sum",
 	}
 
-	aggregation.Add(10.5)
-	aggregation.Add(5.5)
+	aggregation.Add("alice", 10.5)
+	aggregation.Add("alice", 5.5)
 	assert.Equal(t, 16.0, aggregation.Value())
+	assert.Equal(t, "alice", aggregation.Name)
 }

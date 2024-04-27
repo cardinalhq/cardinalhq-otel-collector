@@ -86,7 +86,7 @@ data:
             - 'attributes["_cardinalhq.filtered"] == true'
       attributes/chq:
         actions:
-          - action: remove
+          - action: delete
             pattern: '^_.*'
 
     connectors:

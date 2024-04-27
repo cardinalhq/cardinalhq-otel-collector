@@ -294,7 +294,8 @@ func TestMatchAndAdd(t *testing.T) {
 	ttime := time.UnixMilli(1641024001231)
 	tbox := timebox(ttime, 10)
 
-	actualId := m.MatchAndAdd(&ttime, value, aggregationType, name, rattr, iattr, mattr)
+	actualId, err := m.MatchAndAdd(&ttime, value, aggregationType, name, rattr, iattr, mattr)
+	assert.Nil(t, err)
 
 	assert.Equal(t, expectedId, actualId)
 	assert.Equal(t, 1, len(m.sets))
@@ -308,7 +309,8 @@ func TestMatchAndAdd(t *testing.T) {
 		assert.Equal(t, uint64(1), v.Count)
 	}
 
-	actualId = m.MatchAndAdd(&ttime, value, aggregationType, "bob", rattr, iattr, mattr)
+	actualId, err = m.MatchAndAdd(&ttime, value, aggregationType, "bob", rattr, iattr, mattr)
+	assert.Nil(t, err)
 	assert.Equal(t, "", actualId)
 	// should be no changes
 	assert.Equal(t, 1, len(m.sets))

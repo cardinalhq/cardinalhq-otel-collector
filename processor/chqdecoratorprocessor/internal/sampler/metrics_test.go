@@ -281,7 +281,7 @@ func TestMatchAndAdd(t *testing.T) {
 	log.Printf("rattr: %v", rattr.AsRaw())
 
 	value := 10.0
-	aggregationType := "sum"
+	aggregationType := AggregationTypeSum
 	name := "metric1"
 
 	expectedTags := map[string]string{

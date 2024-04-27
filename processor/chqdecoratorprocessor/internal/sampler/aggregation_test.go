@@ -38,7 +38,7 @@ func TestAggregation_Add(t *testing.T) {
 func TestAggregation_Value_avg(t *testing.T) {
 	aggregation := &Aggregation[float64]{
 		Name:            "alice",
-		AggregationType: "avg",
+		AggregationType: AggregationTypeAvg,
 	}
 
 	aggregation.Add("alice", 10.5)
@@ -51,7 +51,7 @@ func TestAggregation_Value_avg(t *testing.T) {
 func TestAggregation_Value_sum(t *testing.T) {
 	aggregation := &Aggregation[float64]{
 		Name:            "alice",
-		AggregationType: "sum",
+		AggregationType: AggregationTypeSum,
 	}
 
 	aggregation.Add("alice", 10.5)

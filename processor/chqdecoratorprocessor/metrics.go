@@ -121,7 +121,7 @@ func (mp *metricProcessor) emitSetI(set *sampler.AggregationSet[int64]) {
 	for _, agg := range set.Aggregations {
 		mp.logger.Info("Emitting int aggregated metric",
 			zap.String("name", agg.Name),
-			zap.String("type", agg.AggregationType),
+			zap.Int("type", int(agg.AggregationType)),
 			zap.Any("tags", agg.Tags),
 			zap.Int64("value", agg.Value()),
 		)
@@ -132,7 +132,7 @@ func (mp *metricProcessor) emitSetF(set *sampler.AggregationSet[float64]) {
 	for _, agg := range set.Aggregations {
 		mp.logger.Info("Emitting float64 aggregated metric",
 			zap.String("name", agg.Name),
-			zap.String("type", agg.AggregationType),
+			zap.Int("type", int(agg.AggregationType)),
 			zap.Any("tags", agg.Tags),
 			zap.Float64("value", agg.Value()),
 		)
@@ -159,7 +159,7 @@ func (mp *metricProcessor) aggregate(rms pmetric.ResourceMetrics, ils pmetric.Sc
 func (mp *metricProcessor) aggregateGauge(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric) int64 {
 	aggregated := int64(0)
 	metric.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
-		if mp.aggregateDatapoint("avg", rms, ils, metric, dp) {
+		if mp.aggregateDatapoint(sampler.AggregationTypeAvg, rms, ils, metric, dp) {
 			aggregated++
 		}
 		return false
@@ -170,7 +170,7 @@ func (mp *metricProcessor) aggregateGauge(rms pmetric.ResourceMetrics, ils pmetr
 func (mp *metricProcessor) aggregateSum(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric) int64 {
 	aggregated := int64(0)
 	metric.Sum().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
-		if mp.aggregateDatapoint("sum", rms, ils, metric, dp) {
+		if mp.aggregateDatapoint(sampler.AggregationTypeSum, rms, ils, metric, dp) {
 			aggregated++
 		}
 		return false
@@ -178,7 +178,7 @@ func (mp *metricProcessor) aggregateSum(rms pmetric.ResourceMetrics, ils pmetric
 	return aggregated
 }
 
-func (mp *metricProcessor) aggregateDatapoint(ty string, rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint) bool {
+func (mp *metricProcessor) aggregateDatapoint(ty sampler.AggregationType, rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint) bool {
 	t := dp.Timestamp().AsTime()
 	switch dp.ValueType() {
 	case pmetric.NumberDataPointValueTypeInt:

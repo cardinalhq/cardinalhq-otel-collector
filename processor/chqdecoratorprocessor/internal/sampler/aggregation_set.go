@@ -28,7 +28,7 @@ func NewAggregationSet[T int64 | float64](starttime int64, interval int64) *Aggr
 	}
 }
 
-func (a *AggregationSet[T]) Add(name string, value T, aggregationType string, tags map[string]string) error {
+func (a *AggregationSet[T]) Add(name string, value T, aggregationType AggregationType, tags map[string]string) error {
 	fingerprint := FingerprintTags(tags)
 	if _, ok := a.Aggregations[fingerprint]; !ok {
 		a.Aggregations[fingerprint] = NewAggregation[T](name, aggregationType, tags)

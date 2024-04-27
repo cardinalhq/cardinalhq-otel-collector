@@ -16,15 +16,22 @@ package sampler
 
 import "fmt"
 
+type AggregationType int
+
+const (
+	AggregationTypeSum AggregationType = iota
+	AggregationTypeAvg
+)
+
 type Aggregation[T int64 | float64] struct {
-	AggregationType string
+	AggregationType AggregationType
 	Name            string
 	Tags            map[string]string
 	Sum             T
 	Count           uint64
 }
 
-func NewAggregation[T int64 | float64](name string, aggregationType string, tags map[string]string) *Aggregation[T] {
+func NewAggregation[T int64 | float64](name string, aggregationType AggregationType, tags map[string]string) *Aggregation[T] {
 	return &Aggregation[T]{
 		Name:            name,
 		AggregationType: aggregationType,
@@ -42,7 +49,7 @@ func (a *Aggregation[T]) Add(name string, value T) error {
 }
 
 func (a *Aggregation[T]) Value() T {
-	if a.AggregationType == "avg" {
+	if a.AggregationType == AggregationTypeAvg {
 		return a.Sum / T(a.Count)
 	}
 	return a.Sum

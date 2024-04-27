@@ -26,7 +26,7 @@ import (
 type MetricAggregator[T int64 | float64] interface {
 	Emit(now time.Time) map[int64]*AggregationSet[T]
 	Configure(rules []AggregatorConfig)
-	MatchAndAdd(t *time.Time, value T, aggregationType string, name string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (string, error)
+	MatchAndAdd(t *time.Time, value T, aggregationType AggregationType, name string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (string, error)
 }
 
 type MetricAggregatorImpl[T int64 | float64] struct {
@@ -69,7 +69,7 @@ func timebox(t time.Time, interval int64) int64 {
 	return n - (n % interval)
 }
 
-func (m *MetricAggregatorImpl[T]) add(t time.Time, name string, value T, aggregationType string, tags map[string]string) error {
+func (m *MetricAggregatorImpl[T]) add(t time.Time, name string, value T, aggregationType AggregationType, tags map[string]string) error {
 	interval := timebox(t, m.interval)
 	set, ok := m.sets[interval]
 	if !ok {
@@ -79,7 +79,7 @@ func (m *MetricAggregatorImpl[T]) add(t time.Time, name string, value T, aggrega
 	return set.Add(name, value, aggregationType, tags)
 }
 
-func (m *MetricAggregatorImpl[T]) MatchAndAdd(t *time.Time, value T, aggregationType string, name string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (string, error) {
+func (m *MetricAggregatorImpl[T]) MatchAndAdd(t *time.Time, value T, aggregationType AggregationType, name string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (string, error) {
 	m.rulesLock.RLock()
 	defer m.rulesLock.RUnlock()
 	if t == nil {

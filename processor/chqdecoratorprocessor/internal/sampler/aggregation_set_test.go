@@ -26,7 +26,7 @@ func TestAggregationSet_Add(t *testing.T) {
 	}
 
 	value := 10.5
-	aggregationType := "avg"
+	aggregationType := AggregationTypeAvg
 	tags := map[string]string{
 		"key1": "value1",
 		"key2": "value2",
@@ -50,7 +50,7 @@ func TestAggregationSet_Add_ExistingAggregation(t *testing.T) {
 
 	value1 := 10.5
 	value2 := 5.5
-	aggregationType := "avg"
+	aggregationType := AggregationTypeAvg
 	tags := map[string]string{
 		"key1": "value1",
 		"key2": "value2",

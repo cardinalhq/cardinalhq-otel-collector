@@ -27,6 +27,17 @@ const (
 	AggregationTypeAvg
 )
 
+func (a AggregationType) String() string {
+	switch a {
+	case AggregationTypeSum:
+		return "sum"
+	case AggregationTypeAvg:
+		return "avg"
+	default:
+		return "unknown"
+	}
+}
+
 type Aggregation interface {
 	Add(name string, values []float64) error
 	Value() []float64

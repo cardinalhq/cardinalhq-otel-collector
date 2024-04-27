@@ -82,6 +82,7 @@ func (mp *metricProcessor) processMetrics(ctx context.Context, md pmetric.Metric
 	md.ResourceMetrics().RemoveIf(func(rms pmetric.ResourceMetrics) bool {
 		rms.ScopeMetrics().RemoveIf(func(ils pmetric.ScopeMetrics) bool {
 			ils.Metrics().RemoveIf(func(metric pmetric.Metric) bool {
+				mp.logger.Info("Processing metric", zap.String("name", metric.Name()), zap.String("type", metric.Type().String()))
 				aggregated = aggregated + mp.aggregate(rms, ils, metric)
 				// decorate, don't drop
 				return false
@@ -121,7 +122,7 @@ func (mp *metricProcessor) emitSetI(set *sampler.AggregationSet[int64]) {
 	for _, agg := range set.Aggregations {
 		mp.logger.Info("Emitting int aggregated metric",
 			zap.String("name", agg.Name()),
-			zap.Int("type", int(agg.AggregationType())),
+			zap.String("type", agg.AggregationType().String()),
 			zap.Any("tags", agg.Tags()),
 			zap.Int64s("buckets", agg.Buckets()),
 			zap.Int64s("values", agg.Value()),
@@ -133,7 +134,7 @@ func (mp *metricProcessor) emitSetF(set *sampler.AggregationSet[float64]) {
 	for _, agg := range set.Aggregations {
 		mp.logger.Info("Emitting float64 aggregated metric",
 			zap.String("name", agg.Name()),
-			zap.Int("type", int(agg.AggregationType())),
+			zap.String("type", agg.AggregationType().String()),
 			zap.Any("tags", agg.Tags()),
 			zap.Float64s("buckets", agg.Buckets()),
 			zap.Float64s("values", agg.Value()),
@@ -161,10 +162,12 @@ func (mp *metricProcessor) aggregate(rms pmetric.ResourceMetrics, ils pmetric.Sc
 func (mp *metricProcessor) aggregateGauge(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric) int64 {
 	aggregated := int64(0)
 	metric.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
+		filtered := false
 		if mp.aggregateDatapoint(sampler.AggregationTypeAvg, rms, ils, metric, dp) {
-			dp.Attributes().PutBool("_cardinalhq.filtered", true)
 			aggregated++
+			filtered = true
 		}
+		dp.Attributes().PutBool("_cardinalhq.filtered", filtered)
 		return false
 	})
 	return aggregated
@@ -173,10 +176,12 @@ func (mp *metricProcessor) aggregateGauge(rms pmetric.ResourceMetrics, ils pmetr
 func (mp *metricProcessor) aggregateSum(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric) int64 {
 	aggregated := int64(0)
 	metric.Sum().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
+		filtered := false
 		if mp.aggregateDatapoint(sampler.AggregationTypeSum, rms, ils, metric, dp) {
-			dp.Attributes().PutBool("_cardinalhq.filtered", true)
 			aggregated++
+			filtered = true
 		}
+		dp.Attributes().PutBool("_cardinalhq.filtered", filtered)
 		return false
 	})
 	return aggregated

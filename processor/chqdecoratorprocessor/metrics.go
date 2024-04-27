@@ -120,7 +120,7 @@ func (mp *metricProcessor) emit() {
 func (mp *metricProcessor) emitSetI(set *sampler.AggregationSet[int64]) {
 	for _, agg := range set.Aggregations {
 		mp.logger.Info("Emitting int aggregated metric",
-			zap.String("name", agg.Tags["_cardinalhq.name"]),
+			zap.String("name", agg.Name),
 			zap.String("type", agg.AggregationType),
 			zap.Any("tags", agg.Tags),
 			zap.Int64("value", agg.Value()),
@@ -131,7 +131,7 @@ func (mp *metricProcessor) emitSetI(set *sampler.AggregationSet[int64]) {
 func (mp *metricProcessor) emitSetF(set *sampler.AggregationSet[float64]) {
 	for _, agg := range set.Aggregations {
 		mp.logger.Info("Emitting float64 aggregated metric",
-			zap.String("name", agg.Tags["_cardinalhq.name"]),
+			zap.String("name", agg.Name),
 			zap.String("type", agg.AggregationType),
 			zap.Any("tags", agg.Tags),
 			zap.Float64("value", agg.Value()),

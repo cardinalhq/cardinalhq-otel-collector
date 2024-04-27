@@ -34,7 +34,8 @@ func TestAggregationSet_Add(t *testing.T) {
 	}
 	fingerprint := FingerprintTags(tags)
 
-	aggregationSet.Add("alice", buckets, values, aggregationType, tags)
+	err := aggregationSet.Add("alice", buckets, values, aggregationType, tags)
+	assert.Nil(t, err)
 
 	assert.NotNil(t, aggregationSet.Aggregations[fingerprint])
 	assert.Equal(t, values, aggregationSet.Aggregations[fingerprint].Value())

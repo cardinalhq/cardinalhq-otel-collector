@@ -148,7 +148,7 @@ func (mp *metricProcessor) aggregate(rms pmetric.ResourceMetrics, ils pmetric.Sc
 	case pmetric.MetricTypeSum:
 		return mp.aggregateSum(rms, ils, metric)
 	case pmetric.MetricTypeHistogram:
-		return 0
+		return mp.AggregateHistogram(rms, ils, metric)
 	case pmetric.MetricTypeExponentialHistogram:
 		return 0
 	case pmetric.MetricTypeSummary:
@@ -162,6 +162,7 @@ func (mp *metricProcessor) aggregateGauge(rms pmetric.ResourceMetrics, ils pmetr
 	aggregated := int64(0)
 	metric.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
 		if mp.aggregateDatapoint(sampler.AggregationTypeAvg, rms, ils, metric, dp) {
+			dp.Attributes().PutBool("_cardinalhq.filtered", true)
 			aggregated++
 		}
 		return false
@@ -173,6 +174,32 @@ func (mp *metricProcessor) aggregateSum(rms pmetric.ResourceMetrics, ils pmetric
 	aggregated := int64(0)
 	metric.Sum().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
 		if mp.aggregateDatapoint(sampler.AggregationTypeSum, rms, ils, metric, dp) {
+			dp.Attributes().PutBool("_cardinalhq.filtered", true)
+			aggregated++
+		}
+		return false
+	})
+	return aggregated
+}
+
+func (mp *metricProcessor) AggregateHistogram(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric) int64 {
+	aggregated := int64(0)
+	metric.Histogram().DataPoints().RemoveIf(func(dp pmetric.HistogramDataPoint) bool {
+		attrs := dp.Attributes()
+		buckets := dp.ExplicitBounds().AsRaw()
+		ci := dp.BucketCounts().AsRaw()
+		counts := make([]float64, len(ci))
+		for i, c := range ci {
+			counts[i] = float64(c)
+		}
+		t := dp.Timestamp().AsTime()
+		rmatch, err := mp.aggregatorF.MatchAndAdd(&t, buckets, counts, sampler.AggregationTypeSum, metric.Name(), rms.Resource().Attributes(), ils.Scope().Attributes(), attrs)
+		if err != nil {
+			mp.logger.Error("Error matching and adding histogram datapoint", zap.Error(err))
+			return false
+		}
+		if rmatch != "" {
+			dp.Attributes().PutBool("_cardinalhq.filtered", true)
 			aggregated++
 		}
 		return false
@@ -199,6 +226,8 @@ func (mp *metricProcessor) aggregateDatapoint(ty sampler.AggregationType, rms pm
 			return false
 		}
 		return rmatch != ""
+	case pmetric.NumberDataPointValueTypeEmpty:
+		return false
 	default:
 		return false
 	}

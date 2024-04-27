@@ -118,8 +118,9 @@ func (mp *metricProcessor) emit() {
 }
 
 func (mp *metricProcessor) emitSetI(set *sampler.AggregationSet[int64]) {
-	for _, agg := range set.Aggregations {
+	for tsb, agg := range set.Aggregations {
 		mp.logger.Info("Emitting int aggregated metric",
+			zap.Uint64("tsb", tsb),
 			zap.String("name", agg.Name()),
 			zap.String("type", agg.AggregationType().String()),
 			zap.Any("tags", agg.Tags()),
@@ -130,8 +131,9 @@ func (mp *metricProcessor) emitSetI(set *sampler.AggregationSet[int64]) {
 }
 
 func (mp *metricProcessor) emitSetF(set *sampler.AggregationSet[float64]) {
-	for _, agg := range set.Aggregations {
+	for tsb, agg := range set.Aggregations {
 		mp.logger.Info("Emitting float64 aggregated metric",
+			zap.Uint64("tsb", tsb),
 			zap.String("name", agg.Name()),
 			zap.String("type", agg.AggregationType().String()),
 			zap.Any("tags", agg.Tags()),
@@ -160,29 +162,31 @@ func (mp *metricProcessor) aggregate(rms pmetric.ResourceMetrics, ils pmetric.Sc
 
 func (mp *metricProcessor) aggregateGauge(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric) int64 {
 	aggregated := int64(0)
-	metric.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
+	for i := 0; i < metric.Gauge().DataPoints().Len(); i++ {
+		dp := metric.Gauge().DataPoints().At(i)
+		dp.Attributes().PutStr("_cardinalhq.was", "here")
 		filtered := false
 		if mp.aggregateDatapoint(sampler.AggregationTypeAvg, rms, ils, metric, dp) {
 			aggregated++
 			filtered = true
 		}
 		dp.Attributes().PutBool("_cardinalhq.filtered", filtered)
-		return false
-	})
+	}
 	return aggregated
 }
 
 func (mp *metricProcessor) aggregateSum(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric) int64 {
 	aggregated := int64(0)
-	metric.Sum().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
+	for i := 0; i < metric.Sum().DataPoints().Len(); i++ {
+		dp := metric.Sum().DataPoints().At(i)
+		dp.Attributes().PutStr("_cardinalhq.was", "here")
 		filtered := false
 		if mp.aggregateDatapoint(sampler.AggregationTypeSum, rms, ils, metric, dp) {
 			aggregated++
 			filtered = true
 		}
 		dp.Attributes().PutBool("_cardinalhq.filtered", filtered)
-		return false
-	})
+	}
 	return aggregated
 }
 

@@ -16,12 +16,12 @@
     ]
   },
   "metrics": {
-    "sampling": [
+    "aggregators": [
       {
-        id: "metricrule1",
-        MetricName: "cardinalhq.middleware.compression",
-        TagAction: "drop",
-        Tags: [
+        "id": "metricrule1",
+        "metricName": "cardinalhq.middleware.compression",
+        "tagAction": "drop",
+        "tags": [
           "metric.content_encoding"
         ]
       }

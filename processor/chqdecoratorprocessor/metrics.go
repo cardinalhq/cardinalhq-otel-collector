@@ -82,7 +82,6 @@ func (mp *metricProcessor) processMetrics(ctx context.Context, md pmetric.Metric
 	md.ResourceMetrics().RemoveIf(func(rms pmetric.ResourceMetrics) bool {
 		rms.ScopeMetrics().RemoveIf(func(ils pmetric.ScopeMetrics) bool {
 			ils.Metrics().RemoveIf(func(metric pmetric.Metric) bool {
-				mp.logger.Info("Processing metric", zap.String("name", metric.Name()), zap.String("type", metric.Type().String()))
 				aggregated = aggregated + mp.aggregate(rms, ils, metric)
 				// decorate, don't drop
 				return false
@@ -167,6 +166,7 @@ func (mp *metricProcessor) aggregateGauge(rms pmetric.ResourceMetrics, ils pmetr
 			aggregated++
 			filtered = true
 		}
+		mp.logger.Info("Processing metric", zap.String("name", metric.Name()), zap.String("type", metric.Type().String()), zap.Bool("filtered", filtered))
 		dp.Attributes().PutBool("_cardinalhq.filtered", filtered)
 		return false
 	})
@@ -181,6 +181,7 @@ func (mp *metricProcessor) aggregateSum(rms pmetric.ResourceMetrics, ils pmetric
 			aggregated++
 			filtered = true
 		}
+		mp.logger.Info("Processing metric", zap.String("name", metric.Name()), zap.String("type", metric.Type().String()), zap.Bool("filtered", filtered))
 		dp.Attributes().PutBool("_cardinalhq.filtered", filtered)
 		return false
 	})
@@ -203,10 +204,12 @@ func (mp *metricProcessor) AggregateHistogram(rms pmetric.ResourceMetrics, ils p
 			mp.logger.Error("Error matching and adding histogram datapoint", zap.Error(err))
 			return false
 		}
-		if rmatch != "" {
+		filtered := rmatch != ""
+		if filtered {
 			dp.Attributes().PutBool("_cardinalhq.filtered", true)
 			aggregated++
 		}
+		mp.logger.Info("Processing metric", zap.String("name", metric.Name()), zap.String("type", metric.Type().String()), zap.Bool("filtered", filtered))
 		return false
 	})
 	return aggregated

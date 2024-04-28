@@ -143,7 +143,7 @@ func (mp *metricProcessor) emitSetI(set *sampler.AggregationSet[int64]) {
 		dp.SetStartTimestamp(ts)
 		dp.SetIntValue(agg.Value()[0])
 
-		setTags(res, sm, dp, agg.Tags())
+		setTags(res, sm, m, dp, agg.Tags())
 
 		err := mp.nextConsumer.ConsumeMetrics(context.Background(), mmetrics)
 		if err != nil {
@@ -176,7 +176,7 @@ func (mp *metricProcessor) emitSetF(set *sampler.AggregationSet[float64]) {
 		dp.SetStartTimestamp(ts)
 		dp.SetDoubleValue(agg.Value()[0])
 
-		setTags(res, sm, dp, agg.Tags())
+		setTags(res, sm, m, dp, agg.Tags())
 
 		err := mp.nextConsumer.ConsumeMetrics(context.Background(), mmetrics)
 		if err != nil {
@@ -185,31 +185,73 @@ func (mp *metricProcessor) emitSetF(set *sampler.AggregationSet[float64]) {
 	}
 }
 
-func setTags(res pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, dp pmetric.NumberDataPoint, tags map[string]string) {
+func setTags(res pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint, tags map[string]string) {
 	for k, v := range tags {
 		section, tagname := sampler.SplitTag(k)
 		switch section {
 		case "resource":
 			res.Resource().Attributes().PutStr(tagname, v)
-		case "_resource":
-			switch tagname {
-			case "schema":
-				res.SetSchemaUrl(v)
-			}
 		case "instrumentation":
 			sm.Scope().Attributes().PutStr(tagname, v)
-		case "_instrumentation":
-			switch tagname {
-			case "schema":
-				sm.SetSchemaUrl(v)
-			case "name":
-				sm.Scope().SetName(v)
-			case "version":
-				sm.Scope().SetVersion(v)
-			}
 		case "metric":
 			dp.Attributes().PutStr(tagname, v)
+		case "metadata":
+			setMetadata(res, sm, metric, tagname, v)
 		}
+	}
+}
+
+func setMetadata(res pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, metric pmetric.Metric, tagname string, v string) {
+	area, mname := sampler.SplitTag(tagname)
+	switch area {
+	case "resource":
+		setResourceMetadata(res, mname, v)
+	case "instrumentation":
+		setInstrumentationMetadata(sm, mname, v)
+	case "metric":
+		setMetricMetadata(metric, mname, v)
+	}
+}
+
+func setResourceMetadata(res pmetric.ResourceMetrics, tagname string, v string) {
+	switch tagname {
+	case "schemaurl":
+		res.SetSchemaUrl(v)
+	}
+}
+
+func setInstrumentationMetadata(sm pmetric.ScopeMetrics, tagname string, v string) {
+	switch tagname {
+	case "schemaurl":
+		sm.SetSchemaUrl(v)
+	case "version":
+		sm.Scope().SetVersion(v)
+	case "name":
+		sm.Scope().SetName(v)
+	}
+}
+
+func setMetricMetadata(metric pmetric.Metric, tagname string, v string) {
+	switch tagname {
+	case "name":
+		metric.SetName(v)
+	case "description":
+		metric.SetDescription(v)
+	case "aggregationtemporality":
+		if metric.Type() != pmetric.MetricTypeSum {
+			return
+		}
+		switch v {
+		case "cumulative":
+			metric.Sum().SetAggregationTemporality(pmetric.AggregationTemporalityCumulative)
+		case "delta":
+			metric.Sum().SetAggregationTemporality(pmetric.AggregationTemporalityDelta)
+		}
+	case "ismonotonic":
+		if metric.Type() != pmetric.MetricTypeSum {
+			return
+		}
+		metric.Sum().SetIsMonotonic(v == "true")
 	}
 }
 
@@ -236,12 +278,14 @@ func (mp *metricProcessor) aggregateGauge(rms pmetric.ResourceMetrics, ils pmetr
 	for i := 0; i < metric.Gauge().DataPoints().Len(); i++ {
 		dp := metric.Gauge().DataPoints().At(i)
 		filtered := false
-		metadata := map[string]string{}
-		metadata["resource.schemaurl"] = rms.SchemaUrl()
-		metadata["instrumentation.schemaurl"] = ils.SchemaUrl()
-		metadata["instrumentation.name"] = ils.Scope().Name()
-		metadata["instrumentation.version"] = ils.Scope().Version()
-		metadata["metric.name"] = metric.Name()
+		metadata := map[string]string{
+			"resource.schemaurl":        rms.SchemaUrl(),
+			"instrumentation.schemaurl": ils.SchemaUrl(),
+			"instrumentation.name":      ils.Scope().Name(),
+			"instrumentation.version":   ils.Scope().Version(),
+			"metric.name":               metric.Name(),
+			"metric.description":        metric.Description(),
+		}
 		if mp.aggregateDatapoint(sampler.AggregationTypeAvg, rms, ils, metric, dp, metadata) {
 			aggregated++
 			filtered = true
@@ -256,14 +300,16 @@ func (mp *metricProcessor) aggregateSum(rms pmetric.ResourceMetrics, ils pmetric
 	for i := 0; i < metric.Sum().DataPoints().Len(); i++ {
 		dp := metric.Sum().DataPoints().At(i)
 		filtered := false
-		metadata := map[string]string{}
-		metadata["resource.schemaurl"] = rms.SchemaUrl()
-		metadata["instrumentation.schemaurl"] = ils.SchemaUrl()
-		metadata["instrumentation.name"] = ils.Scope().Name()
-		metadata["instrumentation.version"] = ils.Scope().Version()
-		metadata["metric.name"] = metric.Name()
-		metadata["metric.aggregationtemporality"] = metric.Sum().AggregationTemporality().String()
-		metadata["metric.ismonotonic"] = fmt.Sprintf("%t", metric.Sum().IsMonotonic())
+		metadata := map[string]string{
+			"resource.schemaurl":            rms.SchemaUrl(),
+			"instrumentation.schemaurl":     ils.SchemaUrl(),
+			"instrumentation.name":          ils.Scope().Name(),
+			"instrumentation.version":       ils.Scope().Version(),
+			"metric.name":                   metric.Name(),
+			"metric.description":            metric.Description(),
+			"metric.aggregationtemporality": metric.Sum().AggregationTemporality().String(),
+			"metric.ismonotonic":            fmt.Sprintf("%t", metric.Sum().IsMonotonic()),
+		}
 		if mp.aggregateDatapoint(sampler.AggregationTypeSum, rms, ils, metric, dp, metadata) {
 			aggregated++
 			filtered = true

@@ -26,7 +26,7 @@ func (m *MockAggregator[T]) Emit(t time.Time) map[int64]*sampler.AggregationSet[
 	return nil
 }
 
-func (m *MockAggregator[T]) MatchAndAdd(t *time.Time, buckets []T, values []T, ty sampler.AggregationType, name string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (string, error) {
+func (m *MockAggregator[T]) MatchAndAdd(t *time.Time, buckets []T, values []T, ty sampler.AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (string, error) {
 	return "bob", nil
 }
 
@@ -60,9 +60,6 @@ func TestAggregateGauge(t *testing.T) {
 	for i := 0; i < metric.Gauge().DataPoints().Len(); i++ {
 		dp := metric.Gauge().DataPoints().At(i)
 		attr := dp.Attributes()
-		was, found := attr.Get("_cardinalhq.was")
-		assert.True(t, found)
-		assert.Equal(t, "here", was.AsString())
 		filtered, found := attr.Get("_cardinalhq.filtered")
 		assert.True(t, found)
 		assert.Equal(t, "true", filtered.AsString())

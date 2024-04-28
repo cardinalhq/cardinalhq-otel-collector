@@ -284,7 +284,8 @@ func (mp *metricProcessor) AggregateHistogram(rms pmetric.ResourceMetrics, ils p
 			counts[i] = float64(c)
 		}
 		t := dp.Timestamp().AsTime()
-		rmatch, err := mp.aggregatorF.MatchAndAdd(&t, buckets, counts, sampler.AggregationTypeSum, metric.Name(), rms.Resource().Attributes(), ils.Scope().Attributes(), attrs)
+		// TODO pass in metadata
+		rmatch, err := mp.aggregatorF.MatchAndAdd(&t, buckets, counts, sampler.AggregationTypeSum, metric.Name(), nil, rms.Resource().Attributes(), ils.Scope().Attributes(), attrs)
 		if err != nil {
 			mp.logger.Error("Error matching and adding histogram datapoint", zap.Error(err))
 			return false
@@ -299,12 +300,28 @@ func (mp *metricProcessor) AggregateHistogram(rms pmetric.ResourceMetrics, ils p
 	return aggregated
 }
 
-func (mp *metricProcessor) aggregateDatapoint(ty sampler.AggregationType, rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint, metadata map[string]string) bool {
+func (mp *metricProcessor) aggregateDatapoint(
+	ty sampler.AggregationType,
+	rms pmetric.ResourceMetrics,
+	ils pmetric.ScopeMetrics,
+	metric pmetric.Metric,
+	dp pmetric.NumberDataPoint,
+	metadata map[string]string,
+) bool {
 	t := dp.Timestamp().AsTime()
 	switch dp.ValueType() {
 	case pmetric.NumberDataPointValueTypeInt:
 		v := dp.IntValue()
-		rmatch, err := mp.aggregatorI.MatchAndAdd(&t, []int64{1}, []int64{v}, ty, metric.Name(), rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes())
+		rmatch, err := mp.aggregatorI.MatchAndAdd(
+			&t,
+			[]int64{1},
+			[]int64{v},
+			ty,
+			metric.Name(),
+			metadata,
+			rms.Resource().Attributes(),
+			ils.Scope().Attributes(),
+			dp.Attributes())
 		if err != nil {
 			mp.logger.Error("Error matching and adding int datapoint", zap.Error(err))
 			return false
@@ -312,7 +329,15 @@ func (mp *metricProcessor) aggregateDatapoint(ty sampler.AggregationType, rms pm
 		return rmatch != ""
 	case pmetric.NumberDataPointValueTypeDouble:
 		v := dp.DoubleValue()
-		rmatch, err := mp.aggregatorF.MatchAndAdd(&t, []float64{1}, []float64{v}, ty, metric.Name(), rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes())
+		rmatch, err := mp.aggregatorF.MatchAndAdd(&t,
+			[]float64{1},
+			[]float64{v},
+			ty,
+			metric.Name(),
+			metadata,
+			rms.Resource().Attributes(),
+			ils.Scope().Attributes(),
+			dp.Attributes())
 		if err != nil {
 			mp.logger.Error("Error matching and adding float64 datapoint", zap.Error(err))
 			return false

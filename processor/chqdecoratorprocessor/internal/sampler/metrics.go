@@ -26,7 +26,7 @@ import (
 type MetricAggregator[T int64 | float64] interface {
 	Emit(now time.Time) map[int64]*AggregationSet[T]
 	Configure(rules []AggregatorConfig)
-	MatchAndAdd(t *time.Time, buckets []T, value []T, aggregationType AggregationType, name string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (string, error)
+	MatchAndAdd(t *time.Time, buckets []T, value []T, aggregationType AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (string, error)
 }
 
 type MetricAggregatorImpl[T int64 | float64] struct {
@@ -81,7 +81,17 @@ func (m *MetricAggregatorImpl[T]) add(t time.Time, name string, buckets []T, val
 	return set.Add(name, buckets, values, aggregationType, tags)
 }
 
-func (m *MetricAggregatorImpl[T]) MatchAndAdd(t *time.Time, buckets []T, values []T, aggregationType AggregationType, name string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (string, error) {
+func (m *MetricAggregatorImpl[T]) MatchAndAdd(
+	t *time.Time,
+	buckets []T,
+	values []T,
+	aggregationType AggregationType,
+	name string,
+	metadata map[string]string,
+	rattr pcommon.Map,
+	iattr pcommon.Map,
+	mattr pcommon.Map,
+) (string, error) {
 	m.rulesLock.RLock()
 	defer m.rulesLock.RUnlock()
 	if t == nil {
@@ -97,6 +107,9 @@ func (m *MetricAggregatorImpl[T]) MatchAndAdd(t *time.Time, buckets []T, values 
 			"instrumentation": iattr,
 			"metric":          mattr,
 		})
+		for k, v := range metadata {
+			attrs["metadata."+k] = v
+		}
 		if matchscopeMap(rule.Scope, attrs) {
 			if len(rule.Tags) > 0 {
 				if rule.TagAction == "keep" {

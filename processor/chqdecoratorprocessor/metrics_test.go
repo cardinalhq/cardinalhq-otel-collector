@@ -65,3 +65,74 @@ func TestAggregateGauge(t *testing.T) {
 		assert.Equal(t, "true", filtered.AsString())
 	}
 }
+func TestSetResourceMetadata(t *testing.T) {
+	res := pmetric.NewResourceMetrics()
+
+	setResourceMetadata(res, "schemaurl", "schemaurl")
+	assert.Equal(t, "schemaurl", res.SchemaUrl(), "schemaurl")
+}
+
+func TestSetInstrumentationMetadata(t *testing.T) {
+	res := pmetric.NewResourceMetrics()
+	ils := res.ScopeMetrics().AppendEmpty()
+
+	setInstrumentationMetadata(ils, "schemaurl", "schemaurl")
+	assert.Equal(t, "schemaurl", ils.SchemaUrl(), "schemaurl")
+
+	setInstrumentationMetadata(ils, "version", "alice-1.0.2")
+	assert.Equal(t, "alice-1.0.2", ils.Scope().Version(), "version")
+
+	setInstrumentationMetadata(ils, "name", "alice")
+	assert.Equal(t, "alice", ils.Scope().Name(), "name")
+}
+
+func TestSetMetricMetadata(t *testing.T) {
+	res := pmetric.NewResourceMetrics()
+	ils := res.ScopeMetrics().AppendEmpty()
+	metric := ils.Metrics().AppendEmpty()
+
+	setMetricMetadata(metric, "name", "alice.one")
+	assert.Equal(t, "alice.one", metric.Name(), "name")
+
+	setMetricMetadata(metric, "description", "Alice's first metric")
+	assert.Equal(t, "Alice's first metric", metric.Description(), "description")
+
+	setMetricMetadata(metric, "unit", "alice")
+	assert.Equal(t, "alice", metric.Unit(), "unit")
+}
+
+func TestSetMetricMetadataAggregationTemporality(t *testing.T) {
+	res := pmetric.NewResourceMetrics()
+	ils := res.ScopeMetrics().AppendEmpty()
+	metric := ils.Metrics().AppendEmpty()
+	metric.SetEmptySum()
+
+	setMetricMetadata(metric, "aggregationtemporality", "delta")
+	assert.Equal(t, pmetric.AggregationTemporalityDelta, metric.Sum().AggregationTemporality(), "aggregationtemporality")
+
+	setMetricMetadata(metric, "aggregationtemporality", "cumulative")
+	assert.Equal(t, pmetric.AggregationTemporalityCumulative, metric.Sum().AggregationTemporality(), "aggregationtemporality")
+}
+
+func TestSetMetricMetadataMonotonic(t *testing.T) {
+	res := pmetric.NewResourceMetrics()
+	ils := res.ScopeMetrics().AppendEmpty()
+	metric := ils.Metrics().AppendEmpty()
+	metric.SetEmptySum()
+
+	setMetricMetadata(metric, "ismonotonic", "true")
+	assert.Equal(t, true, metric.Sum().IsMonotonic(), "ismonotonic")
+
+	setMetricMetadata(metric, "ismonotonic", "false")
+	assert.Equal(t, false, metric.Sum().IsMonotonic(), "ismonotonic")
+}
+
+func TestNotSumWontCrash(t *testing.T) {
+	res := pmetric.NewResourceMetrics()
+	ils := res.ScopeMetrics().AppendEmpty()
+	metric := ils.Metrics().AppendEmpty()
+	metric.SetEmptyGauge()
+
+	setMetricMetadata(metric, "aggregationtemporality", "delta")
+	setMetricMetadata(metric, "ismonotonic", "true")
+}

@@ -237,6 +237,8 @@ func setMetricMetadata(metric pmetric.Metric, tagname string, v string) {
 		metric.SetName(v)
 	case "description":
 		metric.SetDescription(v)
+	case "unit":
+		metric.SetUnit(v)
 	case "aggregationtemporality":
 		if metric.Type() != pmetric.MetricTypeSum {
 			return
@@ -285,6 +287,7 @@ func (mp *metricProcessor) aggregateGauge(rms pmetric.ResourceMetrics, ils pmetr
 			"instrumentation.version":   ils.Scope().Version(),
 			"metric.name":               metric.Name(),
 			"metric.description":        metric.Description(),
+			"metric.unit":               metric.Unit(),
 		}
 		if mp.aggregateDatapoint(sampler.AggregationTypeAvg, rms, ils, metric, dp, metadata) {
 			aggregated++
@@ -309,6 +312,7 @@ func (mp *metricProcessor) aggregateSum(rms pmetric.ResourceMetrics, ils pmetric
 			"metric.description":            metric.Description(),
 			"metric.aggregationtemporality": metric.Sum().AggregationTemporality().String(),
 			"metric.ismonotonic":            fmt.Sprintf("%t", metric.Sum().IsMonotonic()),
+			"metric.unit":                   metric.Unit(),
 		}
 		if mp.aggregateDatapoint(sampler.AggregationTypeSum, rms, ils, metric, dp, metadata) {
 			aggregated++

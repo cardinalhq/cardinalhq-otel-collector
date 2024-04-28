@@ -1,7 +1,6 @@
 package chqdecoratorprocessor
 
 import (
-	"log"
 	"testing"
 	"time"
 
@@ -28,10 +27,6 @@ func (m *MockAggregator[T]) Emit(t time.Time) map[int64]*sampler.AggregationSet[
 }
 
 func (m *MockAggregator[T]) MatchAndAdd(t *time.Time, buckets []T, values []T, ty sampler.AggregationType, name string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (string, error) {
-	mattr.Range(func(k string, v pcommon.Value) bool {
-		log.Printf("key: %s, value: %s", k, v.AsString())
-		return true
-	})
 	return "bob", nil
 }
 

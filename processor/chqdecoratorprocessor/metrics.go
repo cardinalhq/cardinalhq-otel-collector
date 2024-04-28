@@ -19,12 +19,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cardinalhq/otel-collector-saas/processor/chqdecoratorprocessor/internal/sampler"
 	"go.opentelemetry.io/collector/consumer"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/collector/processor/processorhelper"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/otel-collector-saas/processor/chqdecoratorprocessor/internal/sampler"
 )
 
 type metricProcessor struct {
@@ -118,28 +120,96 @@ func (mp *metricProcessor) emit() {
 }
 
 func (mp *metricProcessor) emitSetI(set *sampler.AggregationSet[int64]) {
-	for tsb, agg := range set.Aggregations {
-		mp.logger.Info("Emitting int aggregated metric",
-			zap.Uint64("tsb", tsb),
-			zap.String("name", agg.Name()),
-			zap.String("type", agg.AggregationType().String()),
-			zap.Any("tags", agg.Tags()),
-			zap.Int64s("buckets", agg.Buckets()),
-			zap.Int64s("values", agg.Value()),
-		)
+	now := time.Now()
+	for _, agg := range set.Aggregations {
+		mmetrics := pmetric.NewMetrics()
+		res := mmetrics.ResourceMetrics().AppendEmpty()
+		sm := res.ScopeMetrics().AppendEmpty()
+		m := sm.Metrics().AppendEmpty()
+		m.SetName(agg.Name())
+
+		var dp pmetric.NumberDataPoint
+		if agg.AggregationType() == sampler.AggregationTypeSum {
+			m.SetEmptySum()
+			dp = m.Sum().DataPoints().AppendEmpty()
+			m.Sum().SetIsMonotonic(false)
+			m.Sum().SetAggregationTemporality(pmetric.AggregationTemporalityDelta)
+		} else {
+			m.SetEmptyGauge()
+			dp = m.Gauge().DataPoints().AppendEmpty()
+		}
+		ts := pcommon.NewTimestampFromTime(now)
+		dp.SetTimestamp(ts)
+		dp.SetStartTimestamp(ts)
+		dp.SetIntValue(agg.Value()[0])
+
+		setTags(res, sm, dp, agg.Tags())
+
+		err := mp.nextConsumer.ConsumeMetrics(context.Background(), mmetrics)
+		if err != nil {
+			mp.logger.Error("Error emitting metrics", zap.Error(err))
+		}
 	}
 }
 
 func (mp *metricProcessor) emitSetF(set *sampler.AggregationSet[float64]) {
-	for tsb, agg := range set.Aggregations {
-		mp.logger.Info("Emitting float64 aggregated metric",
-			zap.Uint64("tsb", tsb),
-			zap.String("name", agg.Name()),
-			zap.String("type", agg.AggregationType().String()),
-			zap.Any("tags", agg.Tags()),
-			zap.Float64s("buckets", agg.Buckets()),
-			zap.Float64s("values", agg.Value()),
-		)
+	now := time.Now()
+	for _, agg := range set.Aggregations {
+		mmetrics := pmetric.NewMetrics()
+		res := mmetrics.ResourceMetrics().AppendEmpty()
+		sm := res.ScopeMetrics().AppendEmpty()
+		m := sm.Metrics().AppendEmpty()
+		m.SetName(agg.Name())
+
+		var dp pmetric.NumberDataPoint
+		if agg.AggregationType() == sampler.AggregationTypeSum {
+			m.SetEmptySum()
+			dp = m.Sum().DataPoints().AppendEmpty()
+			m.Sum().SetIsMonotonic(false)
+			m.Sum().SetAggregationTemporality(pmetric.AggregationTemporalityDelta)
+		} else {
+			m.SetEmptyGauge()
+			dp = m.Gauge().DataPoints().AppendEmpty()
+		}
+		ts := pcommon.NewTimestampFromTime(now)
+		dp.SetTimestamp(ts)
+		dp.SetStartTimestamp(ts)
+		dp.SetDoubleValue(agg.Value()[0])
+
+		setTags(res, sm, dp, agg.Tags())
+
+		err := mp.nextConsumer.ConsumeMetrics(context.Background(), mmetrics)
+		if err != nil {
+			mp.logger.Error("Error emitting metrics", zap.Error(err))
+		}
+	}
+}
+
+func setTags(res pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, dp pmetric.NumberDataPoint, tags map[string]string) {
+	for k, v := range tags {
+		section, tagname := sampler.SplitTag(k)
+		switch section {
+		case "resource":
+			res.Resource().Attributes().PutStr(tagname, v)
+		case "_resource":
+			switch tagname {
+			case "schema":
+				res.SetSchemaUrl(v)
+			}
+		case "instrumentation":
+			sm.Scope().Attributes().PutStr(tagname, v)
+		case "_instrumentation":
+			switch tagname {
+			case "schema":
+				sm.SetSchemaUrl(v)
+			case "name":
+				sm.Scope().SetName(v)
+			case "version":
+				sm.Scope().SetVersion(v)
+			}
+		case "metric":
+			dp.Attributes().PutStr(tagname, v)
+		}
 	}
 }
 
@@ -150,7 +220,8 @@ func (mp *metricProcessor) aggregate(rms pmetric.ResourceMetrics, ils pmetric.Sc
 	case pmetric.MetricTypeSum:
 		return mp.aggregateSum(rms, ils, metric)
 	case pmetric.MetricTypeHistogram:
-		return mp.AggregateHistogram(rms, ils, metric)
+		return 0
+		//return mp.AggregateHistogram(rms, ils, metric)
 	case pmetric.MetricTypeExponentialHistogram:
 		return 0
 	case pmetric.MetricTypeSummary:
@@ -164,9 +235,14 @@ func (mp *metricProcessor) aggregateGauge(rms pmetric.ResourceMetrics, ils pmetr
 	aggregated := int64(0)
 	for i := 0; i < metric.Gauge().DataPoints().Len(); i++ {
 		dp := metric.Gauge().DataPoints().At(i)
-		dp.Attributes().PutStr("_cardinalhq.was", "here")
 		filtered := false
-		if mp.aggregateDatapoint(sampler.AggregationTypeAvg, rms, ils, metric, dp) {
+		metadata := map[string]string{}
+		metadata["resource.schemaurl"] = rms.SchemaUrl()
+		metadata["instrumentation.schemaurl"] = ils.SchemaUrl()
+		metadata["instrumentation.name"] = ils.Scope().Name()
+		metadata["instrumentation.version"] = ils.Scope().Version()
+		metadata["metric.name"] = metric.Name()
+		if mp.aggregateDatapoint(sampler.AggregationTypeAvg, rms, ils, metric, dp, metadata) {
 			aggregated++
 			filtered = true
 		}
@@ -179,9 +255,16 @@ func (mp *metricProcessor) aggregateSum(rms pmetric.ResourceMetrics, ils pmetric
 	aggregated := int64(0)
 	for i := 0; i < metric.Sum().DataPoints().Len(); i++ {
 		dp := metric.Sum().DataPoints().At(i)
-		dp.Attributes().PutStr("_cardinalhq.was", "here")
 		filtered := false
-		if mp.aggregateDatapoint(sampler.AggregationTypeSum, rms, ils, metric, dp) {
+		metadata := map[string]string{}
+		metadata["resource.schemaurl"] = rms.SchemaUrl()
+		metadata["instrumentation.schemaurl"] = ils.SchemaUrl()
+		metadata["instrumentation.name"] = ils.Scope().Name()
+		metadata["instrumentation.version"] = ils.Scope().Version()
+		metadata["metric.name"] = metric.Name()
+		metadata["metric.aggregationtemporality"] = metric.Sum().AggregationTemporality().String()
+		metadata["metric.ismonotonic"] = fmt.Sprintf("%t", metric.Sum().IsMonotonic())
+		if mp.aggregateDatapoint(sampler.AggregationTypeSum, rms, ils, metric, dp, metadata) {
 			aggregated++
 			filtered = true
 		}
@@ -216,7 +299,7 @@ func (mp *metricProcessor) AggregateHistogram(rms pmetric.ResourceMetrics, ils p
 	return aggregated
 }
 
-func (mp *metricProcessor) aggregateDatapoint(ty sampler.AggregationType, rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint) bool {
+func (mp *metricProcessor) aggregateDatapoint(ty sampler.AggregationType, rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint, metadata map[string]string) bool {
 	t := dp.Timestamp().AsTime()
 	switch dp.ValueType() {
 	case pmetric.NumberDataPointValueTypeInt:

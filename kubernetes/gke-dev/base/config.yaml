@@ -87,7 +87,7 @@ data:
       attributes/chq:
         actions:
           - action: delete
-            pattern: '^_.*'
+            pattern: '^_cardinalhq.*'
 
     connectors:
       forward/filtered:

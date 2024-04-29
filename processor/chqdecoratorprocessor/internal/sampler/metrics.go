@@ -15,7 +15,6 @@
 package sampler
 
 import (
-	"log"
 	"slices"
 	"strings"
 	"sync"
@@ -27,7 +26,7 @@ import (
 type MetricAggregator[T int64 | float64] interface {
 	Emit(now time.Time) map[int64]*AggregationSet[T]
 	Configure(rules []AggregatorConfig)
-	MatchAndAdd(t *time.Time, buckets []T, value []T, aggregationType AggregationType, name string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (string, error)
+	MatchAndAdd(t *time.Time, buckets []T, value []T, aggregationType AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (string, error)
 }
 
 type MetricAggregatorImpl[T int64 | float64] struct {
@@ -82,7 +81,17 @@ func (m *MetricAggregatorImpl[T]) add(t time.Time, name string, buckets []T, val
 	return set.Add(name, buckets, values, aggregationType, tags)
 }
 
-func (m *MetricAggregatorImpl[T]) MatchAndAdd(t *time.Time, buckets []T, values []T, aggregationType AggregationType, name string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (string, error) {
+func (m *MetricAggregatorImpl[T]) MatchAndAdd(
+	t *time.Time,
+	buckets []T,
+	values []T,
+	aggregationType AggregationType,
+	name string,
+	metadata map[string]string,
+	rattr pcommon.Map,
+	iattr pcommon.Map,
+	mattr pcommon.Map,
+) (string, error) {
 	m.rulesLock.RLock()
 	defer m.rulesLock.RUnlock()
 	if t == nil {
@@ -90,10 +99,6 @@ func (m *MetricAggregatorImpl[T]) MatchAndAdd(t *time.Time, buckets []T, values 
 		t = &tt
 	}
 	for _, rule := range m.rules {
-		detaillog := false
-		if name == "cardinalhq.middleware.compression" {
-			detaillog = true
-		}
 		if rule.MetricName != "" && rule.MetricName != name {
 			continue
 		}
@@ -102,11 +107,8 @@ func (m *MetricAggregatorImpl[T]) MatchAndAdd(t *time.Time, buckets []T, values 
 			"instrumentation": iattr,
 			"metric":          mattr,
 		})
-		if detaillog {
-			mattr.Range(func(k string, v pcommon.Value) bool {
-				log.Printf("key: %s, value: %s", k, v.AsString())
-				return true
-			})
+		for k, v := range metadata {
+			attrs["metadata."+k] = v
 		}
 		if matchscopeMap(rule.Scope, attrs) {
 			if len(rule.Tags) > 0 {
@@ -157,7 +159,7 @@ func KeepTags(attrs map[string]string, tags []string) {
 	}
 }
 
-func splitTag(tag string) (scope string, name string) {
+func SplitTag(tag string) (scope string, name string) {
 	parts := strings.SplitN(tag, ".", 2)
 	if len(parts) != 2 {
 		return "", ""

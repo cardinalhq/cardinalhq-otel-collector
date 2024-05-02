@@ -14,7 +14,7 @@
 # limitations under the License.
 
 dist:
-  name: cardinalhq-collector-saas
+  name: cardinalhq-otel-collector
   output_path: ./bin
 
 receivers:

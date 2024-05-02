@@ -17,7 +17,7 @@ package sampler
 import (
 	"fmt"
 
-	"github.com/cardinalhq/otel-collector-saas/processor/chqdecoratorprocessor/internal/sampler/accumulator"
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/sampler/accumulator"
 )
 
 type AggregationType int

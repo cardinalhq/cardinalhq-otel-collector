@@ -18,8 +18,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/cardinalhq/otel-collector-saas/processor/chqdecoratorprocessor/internal/fingerprinter"
-	"github.com/cardinalhq/otel-collector-saas/processor/chqdecoratorprocessor/internal/sampler"
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/fingerprinter"
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/sampler"
 
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/processor"

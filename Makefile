@@ -22,12 +22,12 @@ IMAGE_PREFIX=us-central1-docker.pkg.dev/profound-ship-384422/cardinalhq/
 #
 
 # These are targets for "make local"
-BINARIES = cardinal-otel-collector-saas
+BINARIES = cardinalhq-otel-collector
 
 # These are the targets for Docker images, used both for the multi-arch and
 # single (local) Docker builds.
 # Dockerfiles should have a target that ends in -image, e.g. agent-image.
-IMAGE_TARGETS = cardinal-otel-collector-saas
+IMAGE_TARGETS = cardinalhq-otel-collector
 
 LINT_TEST_SOURCE_PATHS = processor/...
 

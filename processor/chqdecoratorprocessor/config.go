@@ -26,9 +26,9 @@ import (
 	"go.opentelemetry.io/collector/component"
 	"go.uber.org/zap"
 
-	"github.com/cardinalhq/otel-collector-saas/processor/chqdecoratorprocessor/internal/filereader"
-	"github.com/cardinalhq/otel-collector-saas/processor/chqdecoratorprocessor/internal/s3tools"
-	"github.com/cardinalhq/otel-collector-saas/processor/chqdecoratorprocessor/internal/sampler"
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/filereader"
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/s3tools"
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/sampler"
 )
 
 type Config struct {

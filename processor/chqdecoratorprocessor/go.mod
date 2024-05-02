@@ -1,4 +1,4 @@
-module github.com/cardinalhq/otel-collector-saas/processor/chqdecoratorprocessor
+module github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor
 
 go 1.22.2
 

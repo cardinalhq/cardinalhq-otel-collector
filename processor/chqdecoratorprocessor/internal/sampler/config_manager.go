@@ -22,7 +22,7 @@ import (
 	"github.com/cespare/xxhash/v2"
 	"go.uber.org/zap"
 
-	"github.com/cardinalhq/otel-collector-saas/processor/chqdecoratorprocessor/internal/filereader"
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/filereader"
 )
 
 type ConfigManager interface {

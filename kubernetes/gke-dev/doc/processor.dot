@@ -1,24 +1,79 @@
 digraph {
-    LOGS -> memory_limiter[color=red,penwidth=3.0];
-    memory_limiter -> chqdecorator -> "batch/logs"[color=red,penwidth=3.0];
-    "batch/logs" -> "awss3/cardinalhq"[color=red,penwidth=3.0];
-    "batch/logs" -> "forward/filtered"[color=red,penwidth=3.0];
+    edge [penwidth=3.0];
+    compound=true;
 
-    "forward/filtered" -> "filter/chq" -> "attributes/chq"[color=red,penwidth=3.0];
-    "attributes/chq" -> "otelhttp/cardinalhq"[color=red,penwidth=3.0];
+    subgraph cluster_ingress {
+        label="ingress";
 
-    METRICS -> memory_limiter -> chqdecorator -> "batch/metrics"[color=blue,penwidth=3.0];
-    "batch/metrics" -> "awss3/cardinalhq"[color=blue,penwidth=3.0];
-    "batch/metrics" -> "forward/filtered"[color=blue,penwidth=3.0];
+        subgraph {
+            edge [color=red];
+            LOGS -> "memory_limiter/ingress";
+            "memory_limiter/ingress" -> "chqdecorator";
+            "chqdecorator" -> "partition_exporter";
+        }
 
-    "forward/filtered" -> "filter/chq" -> "attributes/chq"[color=blue,penwidth=3.0];
-    "attributes/chq" -> "datadog/cardinalhq"[color=blue,penwidth=3.0];
+        subgraph {
+            edge [color=blue];
+            METRICS -> "memory_limiter/ingress";
+            "memory_limiter/ingress" -> "chqdecorator";
+            "chqdecorator" -> "partition_exporter";
+        }
 
-    TRACES -> memory_limiter -> groupbytrace -> chqdecorator -> "batch/traces"[color=green,penwidth=3.0];
-    "batch/traces" -> { "awss3/cardinalhq" "forward/filtered" "spanmetrics/chq" }[color=green,penwidth=3.0];
+        subgraph {
+            edge [color=green];
+            TRACES -> "memory_limiter/ingress";
+            "memory_limiter/ingress" -> "groupbytrace";
+            "groupbytrace" -> "chqdecorator";
+            "chqdecorator" -> "partition_exporter";
+        }
+    }
 
-    "forward/filtered" -> "filter/chq" -> "attributes/chq"[color=green,penwidth=3.0];
-    "attributes/chq" -> "datadog/cardinalhq"[color=green,penwidth=3.0];
+    subgraph cluster_partitioned {
+        label="partitioned";
 
-    "spanmetrics/chq" -> "batch/spanmetrics" -> "awss3/spanmetrics"[color=green,penwidth=3.0];
+        subgraph {
+            edge [color=red];
+            "partition_receiver" -> "batch/logs";
+            "batch/logs" -> "awss3/cardinalhq";
+            "batch/logs" -> "forward/filtered";
+            "forward/filtered" -> "filter/chq" -> "attributes/chq";
+            "attributes/chq" -> "otelhttp/cardinalhq";
+        }
+
+        subgraph {
+            edge [color=blue];
+            "partition_receiver" -> "batch/metrics";
+            "batch/metrics" -> "awss3/cardinalhq";
+            "batch/metrics" -> "forward/filtered";
+            "forward/filtered" -> "filter/chq" -> "attributes/chq";
+            "attributes/chq" -> "datadog/cardinalhq";
+        }
+
+        subgraph {
+            edge [color=green];
+            "partition_receiver" -> "batch/traces";
+            "batch/traces" -> { "awss3/cardinalhq" "forward/filtered" "spanmetrics/chq" };
+            "forward/filtered" -> "filter/chq" -> "attributes/chq";
+            "attributes/chq" -> "datadog/cardinalhq";
+            "spanmetrics/chq" -> "batch/spanmetrics" -> "awss3/spanmetrics";
+        }
+    }
+
+    subgraph cluster_network {
+        edge [label="network",style=dotted];
+        subgraph {
+            edge [color=red];
+            "partition_exporter" -> "partition_receiver";
+        }
+
+        subgraph {
+            edge [color=blue];
+            "partition_exporter" -> "partition_receiver";
+        }
+
+        subgraph {
+            edge [color=green];
+            "partition_exporter" -> "partition_receiver";
+        }
+    }
 }

@@ -1,0 +1,24 @@
+digraph {
+    LOGS -> memory_limiter[color=red,penwidth=3.0];
+    memory_limiter -> chqdecorator -> "batch/logs"[color=red,penwidth=3.0];
+    "batch/logs" -> "awss3/cardinalhq"[color=red,penwidth=3.0];
+    "batch/logs" -> "forward/filtered"[color=red,penwidth=3.0];
+
+    "forward/filtered" -> "filter/chq" -> "attributes/chq"[color=red,penwidth=3.0];
+    "attributes/chq" -> "otelhttp/cardinalhq"[color=red,penwidth=3.0];
+
+    METRICS -> memory_limiter -> chqdecorator -> "batch/metrics"[color=blue,penwidth=3.0];
+    "batch/metrics" -> "awss3/cardinalhq"[color=blue,penwidth=3.0];
+    "batch/metrics" -> "forward/filtered"[color=blue,penwidth=3.0];
+
+    "forward/filtered" -> "filter/chq" -> "attributes/chq"[color=blue,penwidth=3.0];
+    "attributes/chq" -> "datadog/cardinalhq"[color=blue,penwidth=3.0];
+
+    TRACES -> memory_limiter -> groupbytrace -> chqdecorator -> "batch/traces"[color=green,penwidth=3.0];
+    "batch/traces" -> { "awss3/cardinalhq" "forward/filtered" "spanmetrics/chq" }[color=green,penwidth=3.0];
+
+    "forward/filtered" -> "filter/chq" -> "attributes/chq"[color=green,penwidth=3.0];
+    "attributes/chq" -> "datadog/cardinalhq"[color=green,penwidth=3.0];
+
+    "spanmetrics/chq" -> "batch/spanmetrics" -> "awss3/spanmetrics"[color=green,penwidth=3.0];
+}

@@ -41,6 +41,16 @@ data:
           compression: gzip
         marshaler: otlp_proto
 
+      awss3/spanmetrics:
+        s3uploader:
+          region: auto
+          s3_bucket: cardinalhq
+          s3_prefix: otel-raw-spanmetrics
+          s3_partition: minute
+          endpoint: https://storage.googleapis.com
+          compression: gzip
+        marshaler: otlp_proto
+
       otlphttp/cardinalhq:
         endpoint: https://intake.cardinalhq.io/otlp
         headers: { "dd-api-key": "${env:DATADOG_API_KEY}" }
@@ -62,6 +72,12 @@ data:
         timeout: 10s
       batch/traces:
         timeout: 60s
+      batch/spanmetrics:
+        timeout: 10s
+      
+      # Group by trace processor to group trace data by trace ID.
+      groupbytrace:
+        wait_duration: 5s
 
       # This processor should be added to the list of processors before
       # the filter/chq, and the exporters that write to S3 or to upstream
@@ -91,6 +107,10 @@ data:
 
     connectors:
       forward/filtered:
+      spanmetrics/chq:
+        aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
+        metrics_expiration: 1h
+        metrics_flush_interval: 10s
 
     service:
       pipelines:
@@ -112,12 +132,16 @@ data:
           exporters: [datadog/cardinalhq]
         traces/chq:
           receivers: [otlp]
-          processors: [memory_limiter, chqdecorator, batch/traces]
-          exporters: [awss3/cardinalhq, forward/filtered]
+          processors: [memory_limiter, groupbytrace, chqdecorator, batch/traces]
+          exporters: [awss3/cardinalhq, forward/filtered, spanmetrics/chq]
         traces/filtered:
           receivers: [forward/filtered]
           processors: [filter/chq, attributes/chq]
           exporters: [datadog/cardinalhq]
+        metrics/spanmetrics:
+          receivers: [spanmetrics/chq]
+          processors: [batch/spanmetrics]
+          exporters: [awss3/spanmetrics]
 
       # Echo telemetry back to ourselves.  This requires more than one replica or
       # startup and shutdown delays may occur.

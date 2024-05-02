@@ -25,8 +25,7 @@ digraph {
         subgraph {
             edge [color=green];
             TRACES -> "memory_limiter/ingress";
-            "memory_limiter/ingress" -> "groupbytrace";
-            "groupbytrace" -> "chqdecorator";
+            "memory_limiter/ingress" -> "chqdecorator";
             "chqdecorator" -> "partition_exporter";
         }
     }
@@ -57,7 +56,8 @@ digraph {
 
         subgraph {
             edge [color=green];
-            "partition_receiver" -> "batch/traces";
+            "partition_receiver" -> "groupbytrace";
+            "groupbytrace" -> "batch/traces";
             "batch/traces" -> { "awss3/cardinalhq" "forward/filtered" "spanmetrics/chq" };
             "forward/filtered" -> "filter/chq" -> "attributes/chq";
             "attributes/chq" -> "datadog/cardinalhq";

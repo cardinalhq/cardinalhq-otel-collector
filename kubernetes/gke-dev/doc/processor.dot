@@ -5,6 +5,9 @@ digraph {
     subgraph cluster_ingress {
         label="ingress";
 
+        chqdecorator [style=filled,fillcolor="#ddf"];
+        partition_exporter [style=filled,fillcolor="#ddf"];
+
         subgraph {
             edge [color=red];
             LOGS -> "memory_limiter/ingress";
@@ -31,6 +34,9 @@ digraph {
     subgraph cluster_partitioned {
         label="partitioned";
 
+        "awss3/cardinalhq" [style=filled,fillcolor="#ddf"];
+        "awss3/spanmetrics" [style=filled,fillcolor="#ddf"];
+
         subgraph {
             edge [color=red];
             "partition_receiver" -> "batch/logs";
@@ -55,7 +61,7 @@ digraph {
             "batch/traces" -> { "awss3/cardinalhq" "forward/filtered" "spanmetrics/chq" };
             "forward/filtered" -> "filter/chq" -> "attributes/chq";
             "attributes/chq" -> "datadog/cardinalhq";
-            "spanmetrics/chq" -> "batch/spanmetrics" -> "awss3/spanmetrics";
+            "spanmetrics/chq" -> "awss3/spanmetrics";
         }
     }
 

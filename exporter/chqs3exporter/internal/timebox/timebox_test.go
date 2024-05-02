@@ -14,7 +14,11 @@
 
 package timebox
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestTimebox(t *testing.T) {
 	tests := []struct {
@@ -31,9 +35,7 @@ func TestTimebox(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := Timebox(tt.t, tt.interval)
-			if got != tt.want {
-				t.Errorf("Timebox() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

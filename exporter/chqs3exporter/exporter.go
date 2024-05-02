@@ -19,7 +19,7 @@ type s3Exporter struct {
 	config     *Config
 	dataWriter dataWriter
 	logger     *zap.Logger
-	marshaler  marshaler
+	marshaler  *parquetMarshaller
 }
 
 func newS3Exporter(config *Config,
@@ -43,13 +43,18 @@ func (e *s3Exporter) Capabilities() consumer.Capabilities {
 }
 
 func (e *s3Exporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
-	buf, err := e.marshaler.MarshalMetrics(md)
-
-	if err != nil {
-		return err
+	closedItems := e.marshaler.appendMetrics(md)
+	if len(closedItems) == 0 {
+		return nil
 	}
 
-	return e.dataWriter.writeBuffer(ctx, buf, e.config, "metrics", e.marshaler.format())
+	for _, item := range closedItems {
+		buf, err := e.marshaler.MarshalMetrics(item)
+		if err != nil {
+			return err
+		}
+		return e.dataWriter.writeBuffer(ctx, buf, e.config, "metrics", e.marshaler.format())
+	}
 }
 
 func (e *s3Exporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {

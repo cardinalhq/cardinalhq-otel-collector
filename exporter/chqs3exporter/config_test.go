@@ -156,3 +156,67 @@ func TestConfig_Validate(t *testing.T) {
 		})
 	}
 }
+
+func TestTimeboxConfig_Validate(t *testing.T) {
+	tests := []struct {
+		name        string
+		config      *TimeboxConfig
+		errExpected error
+	}{
+		{
+			name: "valid, disabled intervals",
+			config: &TimeboxConfig{
+				Interval:    0,
+				GracePeriod: 0,
+			},
+			errExpected: nil,
+		},
+		{
+			name: "valid, enabled, 0 grace",
+			config: &TimeboxConfig{
+				Interval:    1,
+				GracePeriod: 0,
+			},
+			errExpected: nil,
+		},
+		{
+			name: "valid, enabled, non-zero grace",
+			config: &TimeboxConfig{
+				Interval:    1,
+				GracePeriod: 1,
+			},
+			errExpected: nil,
+		},
+		{
+			name: "negative interval",
+			config: &TimeboxConfig{
+				Interval:    -1,
+				GracePeriod: 0,
+			},
+			errExpected: errors.New("interval must be greater than or equal to 0"),
+		},
+		{
+			name: "enabled, missing grace period",
+			config: &TimeboxConfig{
+				Interval:    1,
+				GracePeriod: -1,
+			},
+			errExpected: errors.New("grace period must be greater than or equal to 0"),
+		},
+		{
+			name: "disabled, negative grace period",
+			config: &TimeboxConfig{
+				Interval:    0,
+				GracePeriod: -1,
+			},
+			errExpected: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.config.Validate()
+			require.Equal(t, tt.errExpected, err)
+		})
+	}
+}

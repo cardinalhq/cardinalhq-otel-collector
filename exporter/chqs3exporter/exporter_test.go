@@ -22,7 +22,8 @@ type TestWriter struct {
 func (testWriter *TestWriter) writeBuffer(_ context.Context, buf io.Reader, _ *Config, _ string, _ string) error {
 	b, err := io.ReadAll(buf)
 	assert.NoError(testWriter.t, err)
-	assert.Equal(testWriter.t, []byte{'A', 'B', 'C'}, b[:3])
+	assert.NotZero(testWriter.t, len(b))
+	assert.Equal(testWriter.t, []byte{'P', 'A', 'R', '1'}, b[:4])
 	return nil
 }
 
@@ -30,6 +31,7 @@ func getTestLogs(tb testing.TB) plog.Logs {
 	logsMarshaler := plog.JSONUnmarshaler{}
 	logs, err := logsMarshaler.UnmarshalLogs(testLogs)
 	assert.NoError(tb, err, "Can't unmarshal testing logs data -> %s", err)
+	assert.Equal(tb, logs.ResourceLogs().Len(), 1)
 	return logs
 }
 

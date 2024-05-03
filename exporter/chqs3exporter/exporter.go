@@ -66,12 +66,7 @@ func (e *s3Exporter) consumeMetrics(now int64, md pmetric.Metrics) error {
 	if e.config.Timeboxes.Metrics.Interval <= 0 {
 		return nil
 	}
-	err := e.marshaler.appendMetrics(now, md)
-	if err != nil {
-		return err
-	}
-	closedItems := e.marshaler.ClosedMetrics(now)
-	return e.writeTable(closedItems, "metrics")
+	return e.marshaler.appendMetrics(now, md)
 }
 
 func (e *s3Exporter) ConsumeLogs(_ context.Context, logs plog.Logs) error {
@@ -83,12 +78,7 @@ func (e *s3Exporter) consumeLogs(now int64, logs plog.Logs) error {
 	if e.config.Timeboxes.Logs.Interval <= 0 {
 		return nil
 	}
-	err := e.marshaler.appendLogs(now, logs)
-	if err != nil {
-		return err
-	}
-	closedItems := e.marshaler.ClosedLogs(now)
-	return e.writeTable(closedItems, "logs")
+	return e.marshaler.appendLogs(now, logs)
 }
 
 func (e *s3Exporter) ConsumeTraces(_ context.Context, traces ptrace.Traces) error {
@@ -100,16 +90,10 @@ func (e *s3Exporter) consumeTraces(now int64, traces ptrace.Traces) error {
 	if e.config.Timeboxes.Traces.Interval <= 0 {
 		return nil
 	}
-	err := e.marshaler.appendTraces(now, traces)
-	if err != nil {
-		return err
-	}
-	closedItems := e.marshaler.ClosedTraces(now)
-	return e.writeTable(closedItems, "traces")
+	return e.marshaler.appendTraces(now, traces)
 }
 
 func (s *s3Exporter) writeTable(items map[int64][]map[string]any, telemetryType string) error {
-	dump(items)
 	if len(items) == 0 {
 		return nil
 	}

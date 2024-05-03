@@ -15,10 +15,8 @@
 package chqs3exporter
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/pmetric"
@@ -91,7 +89,7 @@ func processTable(items []map[string]any, wr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	return nil
+	return writer.Close()
 }
 
 func closed(now, tbstart, interval, grace int64) bool {
@@ -151,12 +149,11 @@ func (s *parquetMarshaller) appendLogs(now int64, ld plog.Logs) error {
 	for _, row := range tbl {
 		emitInto(s.logs, now, row)
 	}
-	dump(s.logs)
 	return nil
 }
 
 func emitInto(acc map[int64][]map[string]any, interval int64, item map[string]any) {
-	itemts, ok := item["timestamp"].(int64)
+	itemts, ok := item["_cardinalhq.timestamp"].(int64)
 	if !ok {
 		return
 	}
@@ -165,9 +162,4 @@ func emitInto(acc map[int64][]map[string]any, interval int64, item map[string]an
 		acc[ch] = []map[string]any{}
 	}
 	acc[ch] = append(acc[ch], item)
-}
-
-func dump(x any) {
-	b, _ := json.MarshalIndent(x, "", "  ")
-	log.Printf("%s", b)
 }

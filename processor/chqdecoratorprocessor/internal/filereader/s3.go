@@ -18,7 +18,7 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
-	"github.com/cardinalhq/otel-collector-saas/processor/chqdecoratorprocessor/internal/s3tools"
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/s3tools"
 )
 
 type S3FileReader struct {

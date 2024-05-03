@@ -31,25 +31,36 @@ data:
 
       # Exporter for sending telemetry to S3 for later processing by CardinalHQ.
       # This shuold receive decorated, but otherwise unfiltered telemetry.
-      awss3/cardinalhq:
+      chqs3/cardinalhq:
         s3uploader:
           region: auto
           s3_bucket: cardinalhq
           s3_prefix: otel-raw
           s3_partition: minute
           endpoint: https://storage.googleapis.com
-          compression: gzip
-        marshaler: otlp_proto
+        timeboxes:
+          logs:
+            interval: 60000
+            grace_period: 10000
+          metrics:
+            interval: 10000
+            grace_period: 2000
+          traces:
+            interval: 60000
+            grace_period: 10000
 
-      awss3/spanmetrics:
+      chqs3/spanmetrics:
         s3uploader:
           region: auto
           s3_bucket: cardinalhq
-          s3_prefix: otel-raw-spanmetrics
+          s3_prefix: otel-raw
           s3_partition: minute
+          file_prefix: span_
           endpoint: https://storage.googleapis.com
-          compression: gzip
-        marshaler: otlp_proto
+        timeboxes:
+          metrics:
+            interval: 10000
+            grace_period: 2000
 
       otlphttp/cardinalhq:
         endpoint: https://intake.cardinalhq.io/otlp
@@ -117,7 +128,7 @@ data:
         logs/chq:
           receivers: [otlp]
           processors: [memory_limiter, chqdecorator, batch/logs]
-          exporters: [awss3/cardinalhq, forward/filtered]
+          exporters: [chqs3/cardinalhq, forward/filtered]
         logs/filtered:
           receivers: [forward/filtered]
           processors: [filter/chq, attributes/chq]
@@ -125,7 +136,7 @@ data:
         metrics/chq:
           receivers: [otlp]
           processors: [memory_limiter, chqdecorator, batch/metrics]
-          exporters: [awss3/cardinalhq, forward/filtered]
+          exporters: [chqs3/cardinalhq, forward/filtered]
         metrics/filtered:
           receivers: [forward/filtered]
           processors: [filter/chq, attributes/chq]
@@ -133,7 +144,7 @@ data:
         traces/chq:
           receivers: [otlp]
           processors: [memory_limiter, groupbytrace, chqdecorator, batch/traces]
-          exporters: [awss3/cardinalhq, forward/filtered, spanmetrics/chq]
+          exporters: [chqs3/cardinalhq, forward/filtered, spanmetrics/chq]
         traces/filtered:
           receivers: [forward/filtered]
           processors: [filter/chq, attributes/chq]
@@ -141,7 +152,7 @@ data:
         metrics/spanmetrics:
           receivers: [spanmetrics/chq]
           processors: [batch/spanmetrics]
-          exporters: [awss3/spanmetrics]
+          exporters: [chqs3/spanmetrics]
 
       # Echo telemetry back to ourselves.  This requires more than one replica or
       # startup and shutdown delays may occur.

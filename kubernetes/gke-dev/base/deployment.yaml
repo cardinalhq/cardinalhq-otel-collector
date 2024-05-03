@@ -23,13 +23,13 @@ spec:
         runAsGroup: 2000
       containers:
         - name: collector
-          image: us-central1-docker.pkg.dev/profound-ship-384422/cardinalhq/cardinal-otel-collector-saas:latest
+          image: us-central1-docker.pkg.dev/profound-ship-384422/cardinalhq/cardinalhq-otel-collector:latest
           command:
-            - "/app/bin/cardinalhq-collector-saas"
+            - "/app/bin/cardinalhq-otel-collector"
             - "--config=/app/config/config.yaml"
           env:
             - name: GOMEMLIMIT
-              value: "400MiB"
+              value: "500MiB"
             - name: MY_POD_IP
               valueFrom:
                 fieldRef:
@@ -76,11 +76,11 @@ spec:
               type: RuntimeDefault
           resources:
             limits:
-              cpu: 200m
-              memory: 500Mi
+              cpu: 400m
+              memory: 600Mi
             requests:
-              cpu: 200m
-              memory: 500Mi
+              cpu: 400m
+              memory: 600Mi
           volumeMounts:
             - name: config
               mountPath: /app/config

@@ -1,0 +1,29 @@
+receivers:
+  nop:
+
+exporters:
+  chqs3:
+    s3uploader:
+      s3_bucket: "foo"
+      region: 'us-east-1'
+      s3_partition: 'minute'
+    timeboxes:
+      logs:
+        interval: 60000
+        grace_period: 10000
+      metrics:
+        interval: 10000
+        grace_period: 2000
+      traces:
+        interval: 60000
+        grace_period: 10000
+
+processors:
+  nop:
+
+service:
+  pipelines:
+    traces:
+      receivers: [nop]
+      processors: [nop]
+      exporters: [chqs3]

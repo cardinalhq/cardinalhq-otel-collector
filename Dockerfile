@@ -21,15 +21,15 @@ WORKDIR /build
 COPY . .
 RUN go install go.opentelemetry.io/collector/cmd/builder@v${OTEL_VERSION}
 ENV GOOS=${TARGETOS} GOARCH=${TARGETARCH}
-RUN CGO_ENABLED=0 builder --config=cardinalhq-collector-saas.yaml
+RUN CGO_ENABLED=0 builder --config=cardinalhq-otel-collector.yaml
 
-FROM gcr.io/distroless/base-debian11 as cardinal-otel-collector-saas-image
+FROM gcr.io/distroless/base-debian11 as cardinalhq-otel-collector-image
 WORKDIR /app
-COPY --from=build /build/bin/cardinalhq-collector-saas /app/bin/cardinalhq-collector-saas
+COPY --from=build /build/bin/cardinalhq-otel-collector /app/bin/cardinalhq-otel-collector
 
 # 4317 - default OTLP receiver
 # 55678 - opencensus (tracing) receiver
 # 55679 - zpages
 EXPOSE 4317/tcp 55678/tcp 55679/tcp
 USER 2000:2000
-CMD ["/app/bin/cardinalhq-collector-saas"]
+CMD ["/app/bin/cardinalhq-otel-collector"]

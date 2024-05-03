@@ -6,7 +6,6 @@ package chqs3exporter
 import (
 	"errors"
 
-	"go.opentelemetry.io/collector/component"
 	"go.uber.org/multierr"
 )
 
@@ -41,10 +40,6 @@ type Config struct {
 	S3Uploader S3UploaderConfig `mapstructure:"s3uploader"`
 
 	Timeboxes TimeboxesConfig `mapstructure:"timeboxes"`
-
-	// Encoding to apply. If present, overrides the marshaler configuration option.
-	Encoding              *component.ID `mapstructure:"encoding"`
-	EncodingFileExtension string        `mapstructure:"encoding_file_extension"`
 }
 
 func (c *Config) Validate() error {

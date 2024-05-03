@@ -29,15 +29,26 @@ func TestLoadConfig(t *testing.T) {
 	require.NotNil(t, cfg)
 
 	e := cfg.Exporters[component.MustNewID("chqs3")].(*Config)
-	encoding := component.MustNewIDWithName("foo", "bar")
 	assert.Equal(t, e,
 		&Config{
-			Encoding:              &encoding,
-			EncodingFileExtension: "baz",
 			S3Uploader: S3UploaderConfig{
 				Region:      "us-east-1",
 				S3Bucket:    "foo",
 				S3Partition: "minute",
+			},
+			Timeboxes: TimeboxesConfig{
+				Logs: TimeboxConfig{
+					Interval:    60000,
+					GracePeriod: 10000,
+				},
+				Metrics: TimeboxConfig{
+					Interval:    10000,
+					GracePeriod: 2000,
+				},
+				Traces: TimeboxConfig{
+					Interval:    60000,
+					GracePeriod: 10000,
+				},
 			},
 		},
 	)

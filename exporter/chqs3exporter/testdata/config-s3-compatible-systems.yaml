@@ -1,22 +1,22 @@
 receivers:
-    nop:
+  nop:
 
 exporters:
-    chqs3:
-        s3uploader:
-            s3_bucket: 'foo'
-            s3_prefix: 'bar'
-            s3_partition: 'minute'
-            endpoint: "alternative-s3-system.example.com"
-            s3_force_path_style: true
-            disable_ssl: true
+  chqs3:
+    s3uploader:
+      s3_bucket: "foo"
+      s3_prefix: "bar"
+      s3_partition: "minute"
+      endpoint: "alternative-s3-system.example.com"
+      s3_force_path_style: true
+      disable_ssl: true
 
 processors:
-    nop:
+  nop:
 
 service:
-    pipelines:
-        traces:
-            receivers: [nop]
-            processors: [nop]
-            exporters: [chqs3]
+  pipelines:
+    traces:
+      receivers: [nop]
+      processors: [nop]
+      exporters: [chqs3]

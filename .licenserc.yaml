@@ -19,6 +19,16 @@ header:
     - sample-config.yaml
     - '**/testdata/**'
     - .idea
+    - exporter/chqs3exporter/s3_marshaler.go
+    - exporter/chqs3exporter/config.go
+    - exporter/chqs3exporter/exporter_test.go
+    - exporter/chqs3exporter/factory.go
+    - exporter/chqs3exporter/data_writer.go
+    - exporter/chqs3exporter/s3_writer.go
+    - exporter/chqs3exporter/doc.go
+    - exporter/chqs3exporter/s3_writer_test.go
+    - exporter/chqs3exporter/config_test.go
+    - exporter/chqs3exporter/factory_test.go
 
   comment: on-failure
 

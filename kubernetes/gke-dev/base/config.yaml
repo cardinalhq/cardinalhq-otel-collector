@@ -152,6 +152,7 @@ data:
     service:
       pipelines:
 
+        # log handling.  No need to partition here.
         logs/chq:
           receivers: [otlp]
           processors: [memory_limiter, chqdecorator, batch/logs]
@@ -161,6 +162,10 @@ data:
           processors: [filter/chq, attributes/chq]
           exporters: [otlphttp/cardinalhq]
 
+        # metric handling.  Partition on metric name so aggregations
+        # work properly.  TODO: modify aggregator to add artificial attribute
+        # for the host that processed the aggregation, and let the receiver
+        # just get more than one time series for our aggregation.
         metrics/l1:
           receivers: [otlp]
           processors: [memory_limiter]
@@ -174,7 +179,8 @@ data:
           processors: [filter/chq, attributes/chq]
           exporters: [datadog/cardinalhq]
 
-
+        # trace handling.  Partition on trace ID so we can group traces
+        # and filter based on the entire trace, not individual spans.
         traces/l1:
           receivers: [otlp]
           processors: [memory_limiter]

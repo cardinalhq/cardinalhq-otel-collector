@@ -7,12 +7,12 @@ metadata:
   name: cardinal-collector
 spec:
   ports:
+    # internal port otlp2 should not be in this service, as we don't want to expose it
+    # to the outside world.  We only want properly partitioned data to go there.
     - name: otlp
       port: 4317
     - name: http
       port: 4318
-    - name: otlp2
-      port: 14317
     - name: zpages
       port: 55679
   selector:

@@ -14,7 +14,7 @@ data:
             endpoint: ${env:MY_POD_IP}:4317
           http:
             endpoint: ${env:MY_POD_IP}:4318
-      otlp2:
+      otlp/l2:
         protocols:
           grpc:
             endpoint: ${env:MY_POD_IP}:14317
@@ -74,6 +74,8 @@ data:
         routing_key: "metric"
         protocol:
           otlp:
+            tls:
+              insecure: true
         resolver:
           dns:
             hostname: cardinal-collector-l2.collector.svc.cluster.local
@@ -83,6 +85,8 @@ data:
         routing_key: "traceID"
         protocol:
           otlp:
+            tls:
+              insecure: true
         resolver:
           dns:
             hostname: cardinal-collector-l2.collector.svc.cluster.local
@@ -162,7 +166,7 @@ data:
           processors: [memory_limiter]
           exporters: [loadbalancing/metrics]
         metrics/chq:
-          receivers: [otlp2]
+          receivers: [otlp/l2]
           processors: [memory_limiter, chqdecorator, batch/metrics]
           exporters: [chqs3/cardinalhq, forward/filtered]
         metrics/filtered:
@@ -176,7 +180,7 @@ data:
           processors: [memory_limiter]
           exporters: [loadbalancing/traces]
         traces/chq:
-          receivers: [otlp2]
+          receivers: [otlp/l2]
           processors: [memory_limiter, groupbytrace, chqdecorator, batch/traces]
           exporters: [chqs3/cardinalhq, forward/filtered, spanmetrics/chq]
         traces/filtered:

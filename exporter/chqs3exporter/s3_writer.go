@@ -1,12 +1,12 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-package chqs3exporter // import "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/chqs3exporter"
+package chqs3exporter
 
 import (
-	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"math/rand"
 	"strconv"
 	"time"
@@ -19,6 +19,8 @@ import (
 
 type s3Writer struct {
 }
+
+var _ dataWriter = (*s3Writer)(nil)
 
 // generate the s3 time key based on partition configuration
 func getTimeKey(time time.Time, partition string) string {
@@ -77,14 +79,13 @@ func getSession(config *Config, sessionConfig *aws.Config) (*session.Session, er
 	return sess, err
 }
 
-func (s3writer *s3Writer) writeBuffer(_ context.Context, buf []byte, config *Config, metadata string, format string) error {
+func (s3writer *s3Writer) writeBuffer(_ context.Context, buf io.Reader, config *Config, metadata string, format string) error {
 	now := time.Now()
 	key := getS3Key(now,
 		config.S3Uploader.S3Prefix, config.S3Uploader.S3Partition,
 		config.S3Uploader.FilePrefix, metadata, format)
 
 	encoding := ""
-	var reader = bytes.NewReader(buf)
 
 	sessionConfig := getSessionConfig(config)
 	sess, err := getSession(config, sessionConfig)
@@ -98,7 +99,7 @@ func (s3writer *s3Writer) writeBuffer(_ context.Context, buf []byte, config *Con
 	_, err = uploader.Upload(&s3manager.UploadInput{
 		Bucket:          aws.String(config.S3Uploader.S3Bucket),
 		Key:             aws.String(key),
-		Body:            reader,
+		Body:            buf,
 		ContentEncoding: &encoding,
 	})
 	if err != nil {

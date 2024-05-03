@@ -14,7 +14,11 @@
 
 package table
 
-import "go.opentelemetry.io/collector/pdata/pcommon"
+import (
+	"strings"
+
+	"go.opentelemetry.io/collector/pdata/pcommon"
+)
 
 func addAttributes(m map[string]any, attrs pcommon.Map, prefix string) {
 	attrs.Range(func(k string, v pcommon.Value) bool {
@@ -27,30 +31,10 @@ func addAttributes(m map[string]any, attrs pcommon.Map, prefix string) {
 			targetName = mappedname
 			targetValue = v.AsString()
 		} else {
-			switch name {
-			case "cardinalhq.fingerprint":
-				targetName = "_fingerprint"
+			targetName = name
+			if strings.HasPrefix(name, "_cardinalhq.") {
 				targetValue = v.AsRaw()
-			case "cardinalhq.filtered":
-				targetName = "_filtered"
-				targetValue = v.AsRaw()
-			case "cardinalhq.rule_id":
-				targetName = "_rule_id"
-				targetValue = v.AsRaw()
-			case "cardinalhq.cluster_id":
-				targetName = "_cluster_id"
-				targetValue = v.AsRaw()
-			case "cardinalhq.provider":
-				targetName = "_provider"
-				targetValue = v.AsRaw()
-			case "service.name":
-				targetName = "service"
-				targetValue = v.AsRaw()
-			case "service.version":
-				targetName = "version"
-				targetValue = v.AsRaw()
-			default:
-				targetName = name
+			} else {
 				targetValue = v.AsString()
 			}
 		}

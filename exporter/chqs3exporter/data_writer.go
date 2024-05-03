@@ -3,8 +3,11 @@
 
 package chqs3exporter
 
-import "context"
+import (
+	"context"
+	"io"
+)
 
 type dataWriter interface {
-	writeBuffer(ctx context.Context, buf []byte, config *Config, metadata string, format string) error
+	writeBuffer(ctx context.Context, buf io.Reader, config *Config, metadata string, format string) error
 }

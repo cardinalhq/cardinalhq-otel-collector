@@ -104,8 +104,8 @@ func TestCalculateTID(t *testing.T) {
 		{
 			"ignores timestamp and value",
 			map[string]any{
-				"timestamp":                int64(1712667843000),
-				"value":                    float64(0.0),
+				"_cardinalhq.timestamp":    int64(1712667843000),
+				"_cardinalhq.value":        float64(0.0),
 				"cluster_name$string":      "cardinalhq-dev-demo",
 				"host$string":              "i-0a56936559d3bc37d",
 				"kube_cluster_name$string": "cardinalhq-dev-demo",

@@ -16,15 +16,13 @@ package tagwriter
 
 import (
 	"fmt"
-	"os"
+	"io"
 
 	"github.com/parquet-go/parquet-go"
 )
 
 type ParquetMapWriter struct {
-	writer   *parquet.GenericWriter[map[string]any]
-	filename string
-	tmpname  string
+	writer *parquet.GenericWriter[map[string]any]
 }
 
 var (
@@ -35,18 +33,13 @@ var (
 // The filename will be used to write the final parquet file, and a temporary file will be created
 // with the same name but with a .tmp extension. This temporary file will be used to write the
 // parquet data to, and will be renamed to the final filename when Close is called.
-func NewParquetMapWriter(filename string, schema *parquet.Schema) (*ParquetMapWriter, error) {
-	tmpname := filename + ".tmp"
-	f, err := os.Create(tmpname)
-	if err != nil {
-		return nil, fmt.Errorf("error creating file: %v", err)
-	}
+func NewParquetMapWriter(wr io.Writer, schema *parquet.Schema) (*ParquetMapWriter, error) {
 	wc, err := parquet.NewWriterConfig(schema, parquet.Compression(&parquet.Zstd))
 	if err != nil {
 		return nil, fmt.Errorf("error creating writer config: %v", err)
 	}
-	writer := parquet.NewGenericWriter[map[string]any](f, wc)
-	return &ParquetMapWriter{writer: writer, filename: filename, tmpname: tmpname}, nil
+	writer := parquet.NewGenericWriter[map[string]any](wr, wc)
+	return &ParquetMapWriter{writer: writer}, nil
 }
 
 // WriteRows writes the given rows to the parquet file.
@@ -59,19 +52,12 @@ func (w *ParquetMapWriter) Close() error {
 	if err := w.writer.Close(); err != nil {
 		return fmt.Errorf("error closing writer: %v", err)
 	}
-	if err := os.Rename(w.tmpname, w.filename); err != nil {
-		return fmt.Errorf("error renaming file: %v", err)
-	}
 	return nil
 }
 
 // Abort closes the writer and removes the temporary file.
 func (w *ParquetMapWriter) Abort() error {
-	_ = w.writer.Close()
-	// ignore error here, as we still want to remove the file.
-	if err := os.Remove(w.tmpname); err != nil {
-		return fmt.Errorf("error removing file: %v", err)
-	}
+	_ = w.writer.Close() // ignore error
 	return nil
 }
 

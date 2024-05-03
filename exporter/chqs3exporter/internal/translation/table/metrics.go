@@ -35,7 +35,7 @@ func (l *TableTranslator) MetricsFromOtel(om *pmetric.Metrics) ([]map[string]any
 		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
 			imm := rm.ScopeMetrics().At(j)
 			for k := 0; k < imm.Metrics().Len(); k++ {
-				baseret := map[string]any{"_telemetry_type": "metric"}
+				baseret := map[string]any{"_cardinalhq.telemetry_type": "metric"}
 				addAttributes(baseret, rm.Resource().Attributes(), "resource")
 				addAttributes(baseret, imm.Scope().Attributes(), "scope")
 				metric := imm.Metrics().At(k)
@@ -67,22 +67,22 @@ func (l *TableTranslator) toddGauge(metric pmetric.Metric, baseattrs map[string]
 		dp := metric.Gauge().DataPoints().At(i)
 		ret := maps.Clone(baseattrs)
 		addAttributes(ret, dp.Attributes(), "metric")
-		ret["_metric_type"] = "gauge"
-		ret["timestamp"] = dp.Timestamp().AsTime().UnixMilli()
+		ret["_cardinalhq.metric_type"] = "gauge"
+		ret["_cardinalhq.timestamp"] = dp.Timestamp().AsTime().UnixMilli()
 		switch dp.ValueType() {
 		case pmetric.NumberDataPointValueTypeDouble:
 			val, safe := safeFloat(dp.DoubleValue())
 			if !safe {
 				continue
 			}
-			ret["value"] = val
+			ret["_cardinalhq.value"] = val
 		case pmetric.NumberDataPointValueTypeInt:
-			ret["value"] = float64(dp.IntValue())
+			ret["_cardinalhq.value"] = float64(dp.IntValue())
 		default:
 			continue
 		}
-		ret["name"] = metric.Name()
-		ret["_id"] = l.idg.Make(time.Now())
+		ret["_cardinalhq.name"] = metric.Name()
+		ret["_cardinalhq.id"] = l.idg.Make(time.Now())
 		ensureExpectedKeysMetrics(ret)
 		rets = append(rets, ret)
 	}
@@ -97,22 +97,22 @@ func (l *TableTranslator) toddSum(metric pmetric.Metric, baseattrs map[string]an
 		dp := metric.Sum().DataPoints().At(i)
 		ret := maps.Clone(baseattrs)
 		addAttributes(ret, dp.Attributes(), "metric")
-		ret["_metric_type"] = "gauge"
-		ret["timestamp"] = dp.Timestamp().AsTime().UnixMilli()
+		ret["_cardinalhq.metric_type"] = "gauge"
+		ret["_cardinalhq.timestamp"] = dp.Timestamp().AsTime().UnixMilli()
 		switch dp.ValueType() {
 		case pmetric.NumberDataPointValueTypeDouble:
 			val, safe := safeFloat(dp.DoubleValue())
 			if !safe {
 				continue
 			}
-			ret["value"] = val
+			ret["_cardinalhq.value"] = val
 		case pmetric.NumberDataPointValueTypeInt:
-			ret["value"] = float64(dp.IntValue())
+			ret["_cardinalhq.value"] = float64(dp.IntValue())
 		default:
 			continue
 		}
-		ret["name"] = metric.Name()
-		ret["_id"] = l.idg.Make(time.Now())
+		ret["_cardinalhq.name"] = metric.Name()
+		ret["_cardinalhq.id"] = l.idg.Make(time.Now())
 		ensureExpectedKeysMetrics(ret)
 		rets = append(rets, ret)
 	}
@@ -129,15 +129,14 @@ func safeFloat(v float64) (float64, bool) {
 
 func ensureExpectedKeysMetrics(m map[string]any) {
 	keys := map[string]any{
-		"_rule_id":       "",
-		"_cluster_id":    "",
-		"_provider":      "",
-		"_aggregated_by": "",
-		"_metric_type":   "gauge",
-		"service":        "unknown_service",
-		"version":        "",
-		"hostname":       findHostname(m),
-		"message":        "",
+		"_cardinalhq.rule_id":       "",
+		"_cardinalhq.cluster_id":    "",
+		"_cardinalhq.aggregated_by": "",
+		"_cardinalhq.metric_type":   "gauge",
+		"_cardinalhq.service":       "unknown_service",
+		"_cardinalhq.version":       "",
+		"_cardinalhq.hostname":      findHostname(m),
+		"_cardinalhq.message":       "",
 	}
 
 	for key, val := range keys {
@@ -146,13 +145,13 @@ func ensureExpectedKeysMetrics(m map[string]any) {
 		}
 	}
 
-	m["_tid"] = calculateTID(m)
+	m["_cardinalhq.tid"] = calculateTID(m)
 }
 
 func calculateTID(tags map[string]any) int64 {
 	keys := []string{}
 	for k := range tags {
-		if k[0] != '_' && k != "timestamp" && k != "value" {
+		if k[0] != '_' {
 			keys = append(keys, k)
 		}
 	}

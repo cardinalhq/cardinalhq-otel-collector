@@ -29,17 +29,17 @@ func (l *TableTranslator) LogsFromOtel(ol *plog.Logs) ([]map[string]any, error) 
 			ill := rl.ScopeLogs().At(j)
 			for k := 0; k < ill.LogRecords().Len(); k++ {
 				log := ill.LogRecords().At(k)
-				ret := map[string]any{"_telemetry_type": "log"}
+				ret := map[string]any{"_cardinalhq.telemetry_type": "log"}
 				addAttributes(ret, rl.Resource().Attributes(), "resource")
 				addAttributes(ret, ill.Scope().Attributes(), "scope")
 				addAttributes(ret, log.Attributes(), "log")
-				ret["message"] = log.Body().AsString()
+				ret["_cardinalhq.message"] = log.Body().AsString()
 				ts := log.Timestamp().AsTime().UnixMilli()
 				if ts == 0 {
 					ts = log.ObservedTimestamp().AsTime().UnixMilli()
 				}
-				ret["timestamp"] = ts
-				ret["_id"] = l.idg.Make(time.Now())
+				ret["_cardinalhq.timestamp"] = ts
+				ret["_cardinalhq.id"] = l.idg.Make(time.Now())
 				ensureExpectedKeysLogs(ret)
 				rets = append(rets, ret)
 			}
@@ -51,16 +51,14 @@ func (l *TableTranslator) LogsFromOtel(ol *plog.Logs) ([]map[string]any, error) 
 
 func ensureExpectedKeysLogs(m map[string]any) {
 	keys := map[string]any{
-		"_fingerprint": int64(0),
-		"_filtered":    false,
-		"_rule_id":     "",
-		"_cluster_id":  "",
-		"_provider":    "",
-		"service":      "unknown_service",
-		"version":      "",
-		"hostname":     findHostname(m),
-		"message":      "",
-		"value":        float64(1),
+		"_cardinalhq.fingerprint": int64(0),
+		"_cardinalhq.filtered":    false,
+		"_cardinalhq.rule_id":     "",
+		"_cardinalhq.service":     "unknown_service",
+		"_cardinalhq.version":     "",
+		"_cardinalhq.hostname":    findHostname(m),
+		"_cardinalhq.message":     "",
+		"_cardinalhq.value":       float64(1),
 	}
 
 	for key, val := range keys {

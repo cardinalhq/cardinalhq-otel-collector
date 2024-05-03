@@ -15,19 +15,24 @@
 package table
 
 import (
-	"strings"
+	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 )
 
-func addAttributes(m map[string]any, attrs pcommon.Map, prefix string) {
-	attrs.Range(func(name string, v pcommon.Value) bool {
-		if strings.HasPrefix(name, "_cardinalhq.") {
-			m[name] = v.AsRaw()
-		} else {
-			m[prefix+"."+name] = v.AsString()
-		}
+func TestAddAttributes(t *testing.T) {
+	m := make(map[string]interface{})
+	attrs := pcommon.NewMap()
+	attrs.PutStr("_cardinalhq.attribute1", "value1")
+	attrs.PutBool("_cardinalhq.attribute2", true)
+	attrs.PutStr("attribute2", "value2")
+	attrs.PutInt("attribute3", 123)
 
-		return true
-	})
+	addAttributes(m, attrs, "prefix")
+
+	assert.Equal(t, "value1", m["_cardinalhq.attribute1"])
+	assert.Equal(t, true, m["_cardinalhq.attribute2"])
+	assert.Equal(t, "value2", m["prefix.attribute2"])
+	assert.Equal(t, "123", m["prefix.attribute3"])
 }

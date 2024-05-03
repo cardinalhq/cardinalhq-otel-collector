@@ -70,8 +70,8 @@ data:
       # Limit collector process memory usage.  This should be the first processor
       # in the processor list.
       memory_limiter:
-        limit_mib: 800
-        spike_limit_mib: 200
+        limit_mib: 400
+        spike_limit_mib: 100
         check_interval: 5s
 
       # Batch processors to limit the size and/or timeframe that telemetry

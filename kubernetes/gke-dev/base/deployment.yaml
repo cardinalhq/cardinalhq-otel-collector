@@ -29,7 +29,7 @@ spec:
             - "--config=/app/config/config.yaml"
           env:
             - name: GOMEMLIMIT
-              value: "800MiB"
+              value: "500MiB"
             - name: MY_POD_IP
               valueFrom:
                 fieldRef:
@@ -77,10 +77,10 @@ spec:
           resources:
             limits:
               cpu: 400m
-              memory: 1000Mi
+              memory: 600Mi
             requests:
               cpu: 400m
-              memory: 1000Mi
+              memory: 600Mi
           volumeMounts:
             - name: config
               mountPath: /app/config

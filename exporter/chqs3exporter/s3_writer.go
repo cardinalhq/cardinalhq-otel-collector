@@ -79,13 +79,16 @@ func getSession(config *Config, sessionConfig *aws.Config) (*session.Session, er
 	return sess, err
 }
 
-func (s3writer *s3Writer) writeBuffer(_ context.Context, buf io.Reader, config *Config, metadata string, format string) error {
+func (s3writer *s3Writer) writeBuffer(_ context.Context, buf io.Reader, config *Config, metadata string, format string, kv map[string]string) error {
 	now := time.Now()
 	key := getS3Key(now,
 		config.S3Uploader.S3Prefix, config.S3Uploader.S3Partition,
 		config.S3Uploader.FilePrefix, metadata, format)
 
 	encoding := ""
+	if format == "parquet" {
+		encoding = "application/vnd.apache.parquet"
+	}
 
 	sessionConfig := getSessionConfig(config)
 	sess, err := getSession(config, sessionConfig)
@@ -96,11 +99,17 @@ func (s3writer *s3Writer) writeBuffer(_ context.Context, buf io.Reader, config *
 
 	uploader := s3manager.NewUploader(sess)
 
+	md := make(map[string]*string)
+	for k, v := range kv {
+		md[k] = aws.String(v)
+	}
+
 	_, err = uploader.Upload(&s3manager.UploadInput{
 		Bucket:          aws.String(config.S3Uploader.S3Bucket),
 		Key:             aws.String(key),
 		Body:            buf,
 		ContentEncoding: &encoding,
+		Metadata:        md,
 	})
 	if err != nil {
 		return err

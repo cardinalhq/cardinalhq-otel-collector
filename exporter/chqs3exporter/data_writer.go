@@ -9,5 +9,5 @@ import (
 )
 
 type dataWriter interface {
-	writeBuffer(ctx context.Context, buf io.Reader, config *Config, metadata string, format string) error
+	writeBuffer(ctx context.Context, buf io.Reader, config *Config, metadata string, format string, kv map[string]string) error
 }

@@ -19,7 +19,7 @@ type TestWriter struct {
 	t *testing.T
 }
 
-func (testWriter *TestWriter) writeBuffer(_ context.Context, buf io.Reader, _ *Config, _ string, _ string) error {
+func (testWriter *TestWriter) writeBuffer(_ context.Context, buf io.Reader, _ *Config, _ string, _ string, _ map[string]string) error {
 	b, err := io.ReadAll(buf)
 	assert.NoError(testWriter.t, err)
 	assert.NotZero(testWriter.t, len(b))
@@ -52,7 +52,7 @@ func getLogExporter(t *testing.T) *s3Exporter {
 func TestLog(t *testing.T) {
 	logs := getTestLogs(t)
 	exporter := getLogExporter(t)
-	assert.NoError(t, exporter.consumeLogs(1, logs))
+	assert.NoError(t, exporter.consumeLogs(logs))
 	items := exporter.marshaler.ClosedLogs(0)
 	assert.Len(t, items, 1)
 	assert.NoError(t, exporter.writeTable(items, "logs"))

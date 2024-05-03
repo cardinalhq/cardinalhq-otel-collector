@@ -26,24 +26,13 @@ func addAttributes(m map[string]any, attrs pcommon.Map, prefix string) {
 		targetName := ""
 		targetValue := any(nil)
 
-		mappedname, found := OtelToDatadogResource[name]
-		if found {
-			targetName = mappedname
-			targetValue = v.AsString()
+		if strings.HasPrefix(name, "_cardinalhq.") {
+			targetValue = v.AsRaw()
 		} else {
-			targetName = name
-			if strings.HasPrefix(name, "_cardinalhq.") {
-				targetValue = v.AsRaw()
-			} else {
-				targetValue = v.AsString()
-			}
+			targetValue = v.AsString()
 		}
 
-		if _, found := m[targetName]; found {
-			m[prefix+"."+targetName] = targetValue
-		} else {
-			m[targetName] = targetValue
-		}
+		m[prefix+"."+targetName] = targetValue
 
 		return true
 	})

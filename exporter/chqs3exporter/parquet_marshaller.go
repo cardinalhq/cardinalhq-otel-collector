@@ -97,57 +97,57 @@ func closed(now, tbstart, interval, grace int64) bool {
 }
 
 func (s *parquetMarshaller) ClosedLogs(t int64) map[int64][]map[string]any {
-	return s.closed(t, s.logs)
+	return s.closed(s.logconfig, t, s.logs)
 }
 
 func (s *parquetMarshaller) ClosedMetrics(t int64) map[int64][]map[string]any {
-	return s.closed(t, s.metrics)
+	return s.closed(s.metricconfig, t, s.metrics)
 }
 
 func (s *parquetMarshaller) ClosedTraces(t int64) map[int64][]map[string]any {
-	return s.closed(t, s.traces)
+	return s.closed(s.traceconfig, t, s.traces)
 }
 
-func (s *parquetMarshaller) closed(t int64, m map[int64][]map[string]any) map[int64][]map[string]any {
+func (s *parquetMarshaller) closed(c TimeboxConfig, t int64, m map[int64][]map[string]any) map[int64][]map[string]any {
 	ret := map[int64][]map[string]any{}
 	for k, v := range m {
-		if t == 0 || closed(t, k, s.logconfig.Interval, s.logconfig.GracePeriod) {
+		if t == 0 || closed(t, k, c.Interval, c.GracePeriod) {
 			ret[k] = v
-			delete(s.logs, k)
+			delete(m, k)
 		}
 	}
 	return ret
 }
 
-func (s *parquetMarshaller) appendMetrics(now int64, md pmetric.Metrics) error {
+func (s *parquetMarshaller) appendMetrics(md pmetric.Metrics) error {
 	tbl, err := s.tb.MetricsFromOtel(&md)
 	if err != nil {
 		return err
 	}
 	for _, row := range tbl {
-		emitInto(s.metrics, now, row)
+		emitInto(s.metrics, s.metricconfig.Interval, row)
 	}
 	return nil
 }
 
-func (s *parquetMarshaller) appendTraces(now int64, td ptrace.Traces) error {
+func (s *parquetMarshaller) appendTraces(td ptrace.Traces) error {
 	tbl, err := s.tb.TracesFromOtel(&td)
 	if err != nil {
 		return err
 	}
 	for _, row := range tbl {
-		emitInto(s.traces, now, row)
+		emitInto(s.traces, s.traceconfig.Interval, row)
 	}
 	return nil
 }
 
-func (s *parquetMarshaller) appendLogs(now int64, ld plog.Logs) error {
+func (s *parquetMarshaller) appendLogs(ld plog.Logs) error {
 	tbl, err := s.tb.LogsFromOtel(&ld)
 	if err != nil {
 		return err
 	}
 	for _, row := range tbl {
-		emitInto(s.logs, now, row)
+		emitInto(s.logs, s.logconfig.Interval, row)
 	}
 	return nil
 }

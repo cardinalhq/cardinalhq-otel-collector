@@ -11,10 +11,26 @@ spec:
       port: 4317
     - name: http
       port: 4318
+    - name: otlp2
+      port: 14317
     - name: zpages
       port: 55679
-    - name: datadog
-      port: 8126
   selector:
     app.kubernetes.io/name: cardinalhq
     app.kubernetes.io/component: collector
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: cardinalhq
+    app.kubernetes.io/component: collector
+  name: cardinal-collector-l2
+spec:
+  ports:
+    - name: otlp2
+      port: 14317
+  selector:
+    app.kubernetes.io/name: cardinalhq
+    app.kubernetes.io/component: collector
+  clusterIP: None

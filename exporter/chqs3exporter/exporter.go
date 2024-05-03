@@ -15,7 +15,6 @@
 package chqs3exporter
 
 import (
-	"bytes"
 	"context"
 	"os"
 	"strconv"
@@ -40,7 +39,6 @@ type s3Exporter struct {
 }
 
 func newS3Exporter(config *Config, params exporter.CreateSettings) *s3Exporter {
-
 	metadata := map[string]string{}
 	hn, err := os.Hostname()
 	if err == nil {
@@ -118,12 +116,14 @@ func (s *s3Exporter) writeTable(items map[int64][]map[string]any, telemetryType 
 	if len(items) == 0 {
 		return nil
 	}
+	wr := getBuffer()
+	defer putBuffer(wr)
 	for tb, rows := range items {
 		if len(rows) == 0 {
 			continue
 		}
+		wr.Reset()
 		s.logger.Info("Writing table", zap.String("telemetryType", telemetryType), zap.Int64("timebox", tb), zap.Int("rows", len(rows)))
-		wr := &bytes.Buffer{}
 		err := s.marshaler.MarshalTable(wr, rows)
 		if err != nil {
 			s.logger.Error("Failed to marshal table", zap.Error(err), zap.String("telemetryType", telemetryType), zap.Int64("timebox", tb))

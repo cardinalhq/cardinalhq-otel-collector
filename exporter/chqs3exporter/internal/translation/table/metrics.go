@@ -19,6 +19,7 @@ import (
 	"maps"
 	"math"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -53,7 +54,11 @@ func (l *TableTranslator) toddmetric(metric pmetric.Metric, baseattrs map[string
 		return l.toddGauge(metric, baseattrs)
 	case pmetric.MetricTypeSum:
 		return l.toddSum(metric, baseattrs)
-	case pmetric.MetricTypeHistogram | pmetric.MetricTypeExponentialHistogram | pmetric.MetricTypeSummary:
+	case pmetric.MetricTypeHistogram:
+		return l.toddHistogram(metric, baseattrs)
+	case pmetric.MetricTypeExponentialHistogram:
+		return l.toddExponentialHistogram(metric, baseattrs)
+	case pmetric.MetricTypeSummary:
 		return nil
 	default:
 		return nil
@@ -127,10 +132,89 @@ func safeFloat(v float64) (float64, bool) {
 	return v, true
 }
 
+func (l *TableTranslator) toddHistogram(metric pmetric.Metric, baseattrs map[string]any) []map[string]any {
+	rets := []map[string]any{}
+
+	metricType := "histogram"
+
+	for i := 0; i < metric.Histogram().DataPoints().Len(); i++ {
+		dp := metric.Histogram().DataPoints().At(i)
+		ret := maps.Clone(baseattrs)
+		addAttributes(ret, dp.Attributes(), "metric")
+		ret["_cardinalhq.metric_type"] = metricType
+		ret["_cardinalhq.timestamp"] = dp.Timestamp().AsTime().UnixMilli()
+		values := dp.BucketCounts().AsRaw()
+		bounds := dp.ExplicitBounds().AsRaw()
+		total := uint64(0)
+		for j, v := range values {
+			if v == 0 {
+				continue
+			}
+			index := strconv.Itoa(j)
+			total += v
+			ret["_cardinalhq.count."+index] = float64(v)
+			ret["_cardinalhq.bucket."+index] = bounds[j]
+		}
+		ret["_cardinalhq.value"] = float64(total)
+
+		ret["_cardinalhq.name"] = metric.Name()
+		ret["_cardinalhq.id"] = l.idg.Make(time.Now())
+		ensureExpectedKeysMetrics(ret)
+		rets = append(rets, ret)
+	}
+
+	return rets
+}
+
+func (l *TableTranslator) toddExponentialHistogram(metric pmetric.Metric, baseattrs map[string]any) []map[string]any {
+	rets := []map[string]any{}
+
+	metricType := "exponential_histogram"
+
+	for i := 0; i < metric.ExponentialHistogram().DataPoints().Len(); i++ {
+		dp := metric.ExponentialHistogram().DataPoints().At(i)
+		ret := maps.Clone(baseattrs)
+		addAttributes(ret, dp.Attributes(), "metric")
+		ret["_cardinalhq.metric_type"] = metricType
+		ret["_cardinalhq.timestamp"] = dp.Timestamp().AsTime().UnixMilli()
+		ret["_cardinalhq.scale"] = dp.Scale()
+		total := uint64(0)
+		for j := 0; j < dp.Negative().BucketCounts().Len(); j++ {
+			v := dp.Negative().BucketCounts().At(j)
+			if v == 0 {
+				continue
+			}
+			index := strconv.Itoa(j)
+			total += v
+			ret["_cardinalhq.negative.count."+index] = float64(v)
+		}
+		for j := 0; j < dp.Positive().BucketCounts().Len(); j++ {
+			v := dp.Positive().BucketCounts().At(j)
+			if v == 0 {
+				continue
+			}
+			index := strconv.Itoa(j)
+			total += v
+			ret["_cardinalhq.positive.count."+index] = float64(v)
+		}
+
+		ret["_cardinalhq.zero.count"] = float64(dp.ZeroCount())
+		total += dp.ZeroCount()
+
+		ret["_cardinalhq.value"] = float64(total)
+
+		ret["_cardinalhq.name"] = metric.Name()
+		ret["_cardinalhq.id"] = l.idg.Make(time.Now())
+		ensureExpectedKeysMetrics(ret)
+		rets = append(rets, ret)
+	}
+
+	return rets
+}
+
 func ensureExpectedKeysMetrics(m map[string]any) {
 	keys := map[string]any{
 		"_cardinalhq.rule_id":       "",
-		"_cardinalhq.cluster_id":    "",
 		"_cardinalhq.aggregated_by": "",
 		"_cardinalhq.metric_type":   "gauge",
 		"_cardinalhq.service":       "unknown_service",

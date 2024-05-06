@@ -3,6 +3,7 @@ module github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter
 go 1.21.0
 
 require (
+	github.com/DataDog/sketches-go v1.4.4
 	github.com/aws/aws-sdk-go v1.52.1
 	github.com/oklog/ulid/v2 v2.1.0
 	github.com/parquet-go/parquet-go v0.21.0

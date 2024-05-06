@@ -60,8 +60,6 @@ func (l *TableTranslator) TracesFromOtel(ot *ptrace.Traces) ([]map[string]any, e
 
 func ensureExpectedKeysTraces(m map[string]any) {
 	keys := map[string]any{
-		"_cardinalhq.service":  "unknown_service",
-		"_cardinalhq.version":  "",
 		"_cardinalhq.hostname": findHostname(m),
 		"_cardinalhq.value":    float64(1),
 	}

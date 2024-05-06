@@ -62,11 +62,11 @@ spec:
             - name: otlp
               containerPort: 4317
               protocol: TCP
+            - name: otlp2
+              containerPort: 14317
+              protocol: TCP
             - name: zpages
               containerPort: 55679
-              protocol: TCP
-            - name: datadog
-              containerPort: 8126
               protocol: TCP
           securityContext:
             allowPrivilegeEscalation: false

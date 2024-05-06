@@ -14,6 +14,10 @@ data:
             endpoint: ${env:MY_POD_IP}:4317
           http:
             endpoint: ${env:MY_POD_IP}:4318
+      otlp/l2:
+        protocols:
+          grpc:
+            endpoint: ${env:MY_POD_IP}:14317
 
     exporters:
 
@@ -65,6 +69,28 @@ data:
       otlphttp/cardinalhq:
         endpoint: https://intake.cardinalhq.io/otlp
         headers: { "dd-api-key": "${env:DATADOG_API_KEY}" }
+
+      loadbalancing/metrics:
+        routing_key: "metric"
+        protocol:
+          otlp:
+            tls:
+              insecure: true
+        resolver:
+          dns:
+            hostname: cardinal-collector-l2.collector.svc.cluster.local
+            port: 14317
+
+      loadbalancing/traces:
+        routing_key: "traceID"
+        protocol:
+          otlp:
+            tls:
+              insecure: true
+        resolver:
+          dns:
+            hostname: cardinal-collector-l2.collector.svc.cluster.local
+            port: 14317
 
     processors:
       # Limit collector process memory usage.  This should be the first processor
@@ -125,6 +151,8 @@ data:
 
     service:
       pipelines:
+
+        # log handling.  No need to partition here.
         logs/chq:
           receivers: [otlp]
           processors: [memory_limiter, chqdecorator, batch/logs]
@@ -133,22 +161,39 @@ data:
           receivers: [forward/filtered]
           processors: [filter/chq, attributes/chq]
           exporters: [otlphttp/cardinalhq]
-        metrics/chq:
+
+        # metric handling.  Partition on metric name so aggregations
+        # work properly.  TODO: modify aggregator to add artificial attribute
+        # for the host that processed the aggregation, and let the receiver
+        # just get more than one time series for our aggregation.
+        metrics/l1:
           receivers: [otlp]
+          processors: [memory_limiter]
+          exporters: [loadbalancing/metrics]
+        metrics/chq:
+          receivers: [otlp/l2]
           processors: [memory_limiter, chqdecorator, batch/metrics]
           exporters: [chqs3/cardinalhq, forward/filtered]
         metrics/filtered:
           receivers: [forward/filtered]
           processors: [filter/chq, attributes/chq]
           exporters: [datadog/cardinalhq]
-        traces/chq:
+
+        # trace handling.  Partition on trace ID so we can group traces
+        # and filter based on the entire trace, not individual spans.
+        traces/l1:
           receivers: [otlp]
+          processors: [memory_limiter]
+          exporters: [loadbalancing/traces]
+        traces/chq:
+          receivers: [otlp/l2]
           processors: [memory_limiter, groupbytrace, chqdecorator, batch/traces]
           exporters: [chqs3/cardinalhq, forward/filtered, spanmetrics/chq]
         traces/filtered:
           receivers: [forward/filtered]
           processors: [filter/chq, attributes/chq]
           exporters: [datadog/cardinalhq]
+
         metrics/spanmetrics:
           receivers: [spanmetrics/chq]
           processors: [batch/spanmetrics]

@@ -15,6 +15,7 @@
 package table
 
 import (
+	"encoding/json"
 	"fmt"
 	"maps"
 	"math"
@@ -22,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/sketches-go/ddsketch"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/trigram"
@@ -53,7 +55,11 @@ func (l *TableTranslator) toddmetric(metric pmetric.Metric, baseattrs map[string
 		return l.toddGauge(metric, baseattrs)
 	case pmetric.MetricTypeSum:
 		return l.toddSum(metric, baseattrs)
-	case pmetric.MetricTypeHistogram | pmetric.MetricTypeExponentialHistogram | pmetric.MetricTypeSummary:
+	case pmetric.MetricTypeHistogram:
+		return l.toddHistogram(metric, baseattrs)
+	case pmetric.MetricTypeExponentialHistogram:
+		return l.toddExponentialHistogram(metric, baseattrs)
+	case pmetric.MetricTypeSummary:
 		return nil
 	default:
 		return nil
@@ -127,16 +133,65 @@ func safeFloat(v float64) (float64, bool) {
 	return v, true
 }
 
+func (l *TableTranslator) toddHistogram(metric pmetric.Metric, baseattrs map[string]any) []map[string]any {
+	rets := []map[string]any{}
+
+	metricType := "histogram"
+
+	for i := 0; i < metric.Histogram().DataPoints().Len(); i++ {
+		dp := metric.Histogram().DataPoints().At(i)
+		ret := maps.Clone(baseattrs)
+		addAttributes(ret, dp.Attributes(), "metric")
+		ret["_cardinalhq.metric_type"] = metricType
+		ret["_cardinalhq.timestamp"] = dp.Timestamp().AsTime().UnixMilli()
+		ret["_cardinalhq.counts"] = asJson(dp.BucketCounts().AsRaw())
+		ret["_cardinalhq.bucket_bounds"] = asJson(dp.ExplicitBounds().AsRaw())
+		ret["_cardinalhq.name"] = metric.Name()
+		ret["_cardinalhq.id"] = l.idg.Make(time.Now())
+		ret["_cardinalhq.value"] = float64(-1)
+		ensureExpectedKeysMetrics(ret)
+		rets = append(rets, ret)
+	}
+
+	return rets
+}
+
+func (l *TableTranslator) toddExponentialHistogram(metric pmetric.Metric, baseattrs map[string]any) []map[string]any {
+	rets := []map[string]any{}
+
+	metricType := "exponential_histogram"
+
+	for i := 0; i < metric.ExponentialHistogram().DataPoints().Len(); i++ {
+		dp := metric.ExponentialHistogram().DataPoints().At(i)
+		ret := maps.Clone(baseattrs)
+		addAttributes(ret, dp.Attributes(), "metric")
+		ret["_cardinalhq.metric_type"] = metricType
+		ret["_cardinalhq.timestamp"] = dp.Timestamp().AsTime().UnixMilli()
+		ret["_cardinalhq.scale"] = dp.Scale()
+		ret["_cardinalhq.netative.counts"] = asJson(dp.Negative().BucketCounts().AsRaw())
+		ret["_cardinalhq.positive.counts"] = asJson(dp.Positive().BucketCounts().AsRaw())
+		ret["_cardinalhq.zero.count"] = dp.ZeroCount()
+		ret["_cardinalhq.name"] = metric.Name()
+		ret["_cardinalhq.id"] = l.idg.Make(time.Now())
+		ret["_cardinalhq.value"] = float64(-1)
+		ensureExpectedKeysMetrics(ret)
+		rets = append(rets, ret)
+	}
+
+	return rets
+}
+
+func asJson[T uint64 | float64](s []T) string {
+	ret, _ := json.Marshal(s)
+	return string(ret)
+}
+
 func ensureExpectedKeysMetrics(m map[string]any) {
 	keys := map[string]any{
 		"_cardinalhq.rule_id":       "",
-		"_cardinalhq.cluster_id":    "",
 		"_cardinalhq.aggregated_by": "",
 		"_cardinalhq.metric_type":   "gauge",
-		"_cardinalhq.service":       "unknown_service",
-		"_cardinalhq.version":       "",
 		"_cardinalhq.hostname":      findHostname(m),
-		"_cardinalhq.message":       "",
 	}
 
 	for key, val := range keys {
@@ -172,4 +227,50 @@ func valueToString(v any) string {
 		return ""
 	}
 	return fmt.Sprintf("%v", v)
+}
+
+type DDWrapper struct {
+	Sketch         *ddsketch.DDSketch
+	StartTimestamp time.Time
+	Timestamp      time.Time
+	Attributes     map[string]any
+}
+
+func convertToDDSketch(dp pmetric.ExponentialHistogramDataPoint) (*DDWrapper, error) {
+	// Create a new DDSketch with a relative accuracy of 0.01
+	sketch, err := ddsketch.NewDefaultDDSketch(0.01)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add the counts from each bucket to the sketch
+	for bucketIndex, count := range dp.Positive().BucketCounts().AsRaw() {
+		// Calculate the bucket value based on the scale and index
+		bucketValue := math.Pow(2, float64(dp.Scale())) * float64(bucketIndex)
+		err := sketch.AddWithCount(bucketValue, float64(count))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for bucketIndex, count := range dp.Negative().BucketCounts().AsRaw() {
+		// Calculate the bucket value based on the scale and index
+		bucketValue := -math.Pow(2, float64(dp.Scale())) * float64(bucketIndex)
+		if err := sketch.AddWithCount(bucketValue, float64(count)); err != nil {
+			return nil, err
+		}
+	}
+
+	// Add the zero count to the sketch
+	if err := sketch.AddWithCount(0, float64(dp.ZeroCount())); err != nil {
+		return nil, err
+	}
+
+	dw := &DDWrapper{
+		Sketch:         sketch,
+		StartTimestamp: dp.StartTimestamp().AsTime(),
+		Timestamp:      dp.Timestamp().AsTime(),
+		Attributes:     dp.Attributes().AsRaw(),
+	}
+	return dw, nil
 }

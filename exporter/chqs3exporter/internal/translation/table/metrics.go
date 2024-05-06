@@ -15,6 +15,7 @@
 package table
 
 import (
+	"encoding/json"
 	"fmt"
 	"maps"
 	"math"
@@ -143,8 +144,8 @@ func (l *TableTranslator) toddHistogram(metric pmetric.Metric, baseattrs map[str
 		addAttributes(ret, dp.Attributes(), "metric")
 		ret["_cardinalhq.metric_type"] = metricType
 		ret["_cardinalhq.timestamp"] = dp.Timestamp().AsTime().UnixMilli()
-		ret["_cardinalhq.counts"] = dp.BucketCounts().AsRaw()
-		ret["_cardinalhq.bucket_bounds"] = dp.ExplicitBounds().AsRaw()
+		ret["_cardinalhq.counts"] = asJson(dp.BucketCounts().AsRaw())
+		ret["_cardinalhq.bucket_bounds"] = asJson(dp.ExplicitBounds().AsRaw())
 		ret["_cardinalhq.name"] = metric.Name()
 		ret["_cardinalhq.id"] = l.idg.Make(time.Now())
 		ret["_cardinalhq.value"] = float64(-1)
@@ -167,8 +168,8 @@ func (l *TableTranslator) toddExponentialHistogram(metric pmetric.Metric, baseat
 		ret["_cardinalhq.metric_type"] = metricType
 		ret["_cardinalhq.timestamp"] = dp.Timestamp().AsTime().UnixMilli()
 		ret["_cardinalhq.scale"] = dp.Scale()
-		ret["_cardinalhq.netative.counts"] = dp.Negative().BucketCounts().AsRaw()
-		ret["_cardinalhq.positive.counts"] = dp.Positive().BucketCounts().AsRaw()
+		ret["_cardinalhq.netative.counts"] = asJson(dp.Negative().BucketCounts().AsRaw())
+		ret["_cardinalhq.positive.counts"] = asJson(dp.Positive().BucketCounts().AsRaw())
 		ret["_cardinalhq.zero.count"] = dp.ZeroCount()
 		ret["_cardinalhq.name"] = metric.Name()
 		ret["_cardinalhq.id"] = l.idg.Make(time.Now())
@@ -178,6 +179,11 @@ func (l *TableTranslator) toddExponentialHistogram(metric pmetric.Metric, baseat
 	}
 
 	return rets
+}
+
+func asJson[T uint64 | float64](s []T) string {
+	ret, _ := json.Marshal(s)
+	return string(ret)
 }
 
 func ensureExpectedKeysMetrics(m map[string]any) {

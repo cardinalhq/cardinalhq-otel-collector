@@ -7,6 +7,7 @@ import (
 	"context"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/plog"
@@ -19,7 +20,7 @@ type TestWriter struct {
 	t *testing.T
 }
 
-func (testWriter *TestWriter) writeBuffer(_ context.Context, buf io.Reader, _ *Config, _ string, _ string, _ map[string]string) error {
+func (testWriter *TestWriter) writeBuffer(_ context.Context, now time.Time, buf io.Reader, _ *Config, _ string, _ string, _ map[string]string) error {
 	b, err := io.ReadAll(buf)
 	assert.NoError(testWriter.t, err)
 	assert.NotZero(testWriter.t, len(b))

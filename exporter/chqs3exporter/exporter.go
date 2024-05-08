@@ -123,14 +123,14 @@ func (s *s3Exporter) writeTable(items map[int64][]map[string]any, telemetryType 
 			continue
 		}
 		wr.Reset()
-		s.logger.Info("Writing table", zap.String("telemetryType", telemetryType), zap.Int64("timebox", tb), zap.Int("rows", len(rows)))
 		err := s.marshaler.MarshalTable(wr, rows)
 		if err != nil {
 			s.logger.Error("Failed to marshal table", zap.Error(err), zap.String("telemetryType", telemetryType), zap.Int64("timebox", tb))
 			continue
 		}
 		prefix := telemetryType + "_" + strconv.FormatInt(tb, 10)
-		err = s.dataWriter.writeBuffer(context.Background(), wr, s.config, prefix, s.marshaler.format(), s.metadata)
+		now := time.UnixMilli(tb)
+		err = s.dataWriter.writeBuffer(context.Background(), now, wr, s.config, prefix, s.marshaler.format(), s.metadata)
 		if err != nil {
 			s.logger.Error("Failed to write buffer", zap.Error(err), zap.String("telemetryType", telemetryType), zap.Int64("timebox", tb))
 			continue

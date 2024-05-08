@@ -79,8 +79,7 @@ func getSession(config *Config, sessionConfig *aws.Config) (*session.Session, er
 	return sess, err
 }
 
-func (s3writer *s3Writer) writeBuffer(_ context.Context, buf io.Reader, config *Config, metadata string, format string, kv map[string]string) error {
-	now := time.Now()
+func (s3writer *s3Writer) writeBuffer(_ context.Context, now time.Time, buf io.Reader, config *Config, metadata string, format string, kv map[string]string) error {
 	key := getS3Key(now,
 		config.S3Uploader.S3Prefix, config.S3Uploader.S3Partition,
 		config.S3Uploader.FilePrefix, metadata, format)

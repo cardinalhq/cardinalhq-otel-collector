@@ -44,14 +44,14 @@ data:
           endpoint: https://storage.googleapis.com
         timeboxes:
           logs:
-            interval: 60000
-            grace_period: 10000
+            interval: 10000
+            grace_period: 2000
           metrics:
             interval: 10000
             grace_period: 2000
           traces:
-            interval: 60000
-            grace_period: 10000
+            interval: 10000
+            grace_period: 2000
 
       chqs3/spanmetrics:
         s3uploader:
@@ -104,11 +104,11 @@ data:
       # is batched before being sent to the exporters.  This should be
       # the last item in the processor list.
       batch/logs:
-        timeout: 60s
+        timeout: 10s
       batch/metrics:
         timeout: 10s
       batch/traces:
-        timeout: 60s
+        timeout: 10s
       batch/spanmetrics:
         timeout: 10s
       

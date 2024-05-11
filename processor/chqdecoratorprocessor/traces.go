@@ -21,6 +21,8 @@ import (
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/spantagger"
 )
 
 type spansProcessor struct {
@@ -47,27 +49,45 @@ func newSpansProcessor(set processor.CreateSettings, _ *Config) (*spansProcessor
 	return sp, nil
 }
 
+func fingerprint(traces ptrace.Traces) (uint64, bool, string) {
+	fp, he, err := spantagger.Fingerprint(traces)
+	switch err {
+	case nil:
+		return fp, he, ""
+	case spantagger.InconsistentTraceIDsError:
+		return 0, true, "InconsistentTraceIDs"
+	case spantagger.OrphanedSpanError:
+		return 0, true, "OrphanedSpan"
+	case spantagger.NoRootError:
+		return 0, true, "NoRoot"
+	case spantagger.MultipleRootsError:
+		return 0, true, "MultipleRoots"
+	default:
+		return 0, true, "UnknownError"
+	}
+}
+
 func (sp *spansProcessor) processTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
+	fingerprint, hasError, fpError := fingerprint(td)
+
 	rss := td.ResourceSpans()
 	for i := 0; i < rss.Len(); i++ {
 		rs := rss.At(i)
-		//resource := rs.Resource()
 		ilss := rs.ScopeSpans()
 		for j := 0; j < ilss.Len(); j++ {
 			ils := ilss.At(j)
-			//scope := ils.Scope()
 			spans := ils.Spans()
 			for k := 0; k < spans.Len(); k++ {
 				span := spans.At(k)
-				sp.augment(span)
+				span.Attributes().PutInt("_cardinalhq.fingerprint", int64(fingerprint))
+				span.Attributes().PutBool("_cardinalhq.trace_has_error", hasError)
+				if fpError != "" {
+					span.Attributes().PutStr("_cardinalhq.fingerprint_error", fpError)
+				}
 			}
 		}
 	}
 	return td, nil
-}
-
-func (sp *spansProcessor) augment(span ptrace.Span) {
-	span.Attributes().PutStr("_cardinalhq.was", "here")
 }
 
 func (sp *spansProcessor) Shutdown(context.Context) error {

@@ -148,6 +148,13 @@ data:
         aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
         metrics_expiration: 1h
         metrics_flush_interval: 10s
+        histogram:
+          exponential:
+        dimensions:
+          - name: "_cardinalhq.filtered"
+            default: false
+          - name: "_cardinalhq.fingerprint"
+            default: 0
 
     service:
       pipelines:

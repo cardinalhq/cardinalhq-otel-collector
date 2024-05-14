@@ -151,11 +151,13 @@ data:
         histogram:
           exponential:
         dimensions:
-          - name: "_cardinalhq.filtered"
-            default: false
           - name: "_cardinalhq.fingerprint"
             default: 0
-
+          - name: "_cardinalhq.trace_has_error"
+          - name: "_cardinalhq.is_root_span"
+          - name: "status.code"
+            default: "STATUS_CODE_UNSET"
+        
     service:
       pipelines:
 

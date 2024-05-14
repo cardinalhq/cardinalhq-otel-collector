@@ -155,8 +155,6 @@ data:
             default: 0
           - name: "_cardinalhq.trace_has_error"
           - name: "_cardinalhq.is_root_span"
-          - name: "status.code"
-            default: "STATUS_CODE_UNSET"
         
     service:
       pipelines:
@@ -197,7 +195,7 @@ data:
         traces/chq:
           receivers: [otlp/l2]
           processors: [memory_limiter, groupbytrace, chqdecorator, batch/traces]
-          exporters: [chqs3/cardinalhq, forward/filtered, spanmetrics/chq]
+          exporters: [forward/filtered, spanmetrics/chq]
         traces/filtered:
           receivers: [forward/filtered]
           processors: [filter/chq, attributes/chq]

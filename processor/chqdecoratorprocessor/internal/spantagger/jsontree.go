@@ -26,7 +26,6 @@ type spanNode struct {
 	SpanName    string      `json:"spanName,omitempty"`
 	SpanKind    string      `json:"spanKind,omitempty"`
 	Children    []*spanNode `json:"children,omitempty"`
-	spanID      string
 }
 
 func TreeToJSON(root spanNode) string {
@@ -54,7 +53,6 @@ func makeTree(elementPaths [][]spanelement) *spanNode {
 			root.ServiceName = path[0].ServiceName
 			root.SpanKind = path[0].SpanKind
 			root.SpanName = path[0].SpanName
-			root.spanID = path[0].SpanID
 		}
 		current := root
 		for i, element := range path {
@@ -65,7 +63,7 @@ func makeTree(elementPaths [][]spanelement) *spanNode {
 			// If the child already exists, use it as the current node.
 			found := false
 			for _, child := range current.Children {
-				if child.ServiceName == element.ServiceName && child.SpanKind == element.SpanKind && child.SpanName == element.SpanName && child.spanID == element.SpanID {
+				if child.ServiceName == element.ServiceName && child.SpanKind == element.SpanKind && child.SpanName == element.SpanName {
 					current = child
 					found = true
 					break
@@ -78,7 +76,6 @@ func makeTree(elementPaths [][]spanelement) *spanNode {
 				ServiceName: element.ServiceName,
 				SpanKind:    element.SpanKind,
 				SpanName:    element.SpanName,
-				spanID:      element.SpanID,
 			}
 			current.Children = append(current.Children, newChild)
 			current = newChild

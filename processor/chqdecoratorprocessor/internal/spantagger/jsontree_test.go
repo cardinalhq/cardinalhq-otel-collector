@@ -93,25 +93,16 @@ func TestBuildTree(t *testing.T) {
 		ServiceName: "example-service",
 		SpanName:    "span1",
 		SpanKind:    "Client",
-		spanID:      span1ID.String(),
 		Children: []*spanNode{
 			{
 				ServiceName: "example-service",
 				SpanName:    "span3",
 				SpanKind:    "Server",
-				spanID:      span3ID.String(),
 				Children: []*spanNode{
 					{
 						ServiceName: "example-service2",
 						SpanName:    "span4",
 						SpanKind:    "Server",
-						spanID:      span4ID.String(),
-					},
-					{
-						ServiceName: "example-service2",
-						SpanName:    "span4",
-						SpanKind:    "Server",
-						spanID:      span5ID.String(),
 					},
 				},
 			},
@@ -119,7 +110,6 @@ func TestBuildTree(t *testing.T) {
 				ServiceName: "example-service2",
 				SpanName:    "span2",
 				SpanKind:    "Server",
-				spanID:      span2ID.String(),
 			},
 		},
 	}

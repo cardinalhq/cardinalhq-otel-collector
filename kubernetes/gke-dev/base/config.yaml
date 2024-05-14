@@ -218,4 +218,8 @@ data:
                     protocol: grpc/protobuf
                     endpoint: http://cardinal-collector.collector.svc.cluster.local:4317
     extensions:
-      zpages: {}
+      zpages:
+        endpoint: ":55679"
+      health_check:
+        endpoint: ":13133"
+        path: "/healthz"

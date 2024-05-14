@@ -68,6 +68,12 @@ spec:
             - name: zpages
               containerPort: 55679
               protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 13133
+            initialDelaySeconds: 3
+            periodSeconds: 3
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

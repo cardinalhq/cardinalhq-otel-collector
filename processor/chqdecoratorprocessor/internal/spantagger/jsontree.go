@@ -21,12 +21,9 @@ import (
 )
 
 type spanNode struct {
-	TraceID     string     `json:"traceID,omitempty" yaml:"traceID,omitempty"`
 	ServiceName string     `json:"serviceName,omitempty" yaml:"serviceName,omitempty"`
-	SpanID      string     `json:"spanID,omitempty" yaml:"spanID,omitempty"`
 	SpanName    string     `json:"spanName,omitempty" yaml:"spanName,omitempty"`
 	SpanKind    string     `json:"spanKind,omitempty" yaml:"spanKind,omitempty"`
-	StatusCode  string     `json:"statusCode,omitempty" yaml:"statusCode,omitempty"`
 	Children    []spanNode `json:"children,omitempty" yaml:"children,omitempty"`
 }
 
@@ -51,11 +48,8 @@ func makeTree(elementPaths [][]spanelement) spanNode {
 	for _, path := range elementPaths {
 		if root.ServiceName == "" {
 			root.ServiceName = path[0].ServiceName
-			root.TraceID = path[0].TraceID
-			root.SpanID = path[0].SpanID
 			root.SpanKind = path[0].SpanKind
 			root.SpanName = path[0].SpanName
-			root.StatusCode = path[0].StatusCode
 		}
 		current := &root
 		for i, element := range path {
@@ -63,10 +57,9 @@ func makeTree(elementPaths [][]spanelement) spanNode {
 				continue
 			}
 			newChild := spanNode{
-				SpanID:     element.SpanID,
-				SpanKind:   element.SpanKind,
-				SpanName:   element.SpanName,
-				StatusCode: element.StatusCode,
+				ServiceName: element.ServiceName,
+				SpanKind:    element.SpanKind,
+				SpanName:    element.SpanName,
 			}
 			current.Children = append(current.Children, newChild)
 			current = &current.Children[len(current.Children)-1]

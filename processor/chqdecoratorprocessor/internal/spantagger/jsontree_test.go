@@ -17,6 +17,7 @@ package spantagger
 import (
 	"testing"
 
+	"github.com/r3labs/diff/v3"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
@@ -44,8 +45,11 @@ func TestBuildTree(t *testing.T) {
 	span1.SetKind(ptrace.SpanKindClient)
 	span1.Status().SetCode(ptrace.StatusCodeOk)
 
+	rs2 := traces.ResourceSpans().AppendEmpty()
+	rs2.Resource().Attributes().PutStr("service.name", "example-service2")
+	ils2 := rs2.ScopeSpans().AppendEmpty()
 	// span2 is a child of span1.
-	span2 := ils.Spans().AppendEmpty()
+	span2 := ils2.Spans().AppendEmpty()
 	span2.SetTraceID(traceID)
 	span2.SetSpanID(span2ID)
 	span2.SetParentSpanID(span1ID)
@@ -63,7 +67,7 @@ func TestBuildTree(t *testing.T) {
 	span3.Status().SetCode(ptrace.StatusCodeOk)
 
 	// span4 is a child of span3.
-	span4 := ils.Spans().AppendEmpty()
+	span4 := ils2.Spans().AppendEmpty()
 	span4.SetTraceID(traceID)
 	span4.SetSpanID(span4ID)
 	span4.SetParentSpanID(span3ID)
@@ -74,72 +78,65 @@ func TestBuildTree(t *testing.T) {
 	root, hasError, err := BuildTree(traces)
 	assert.False(t, hasError)
 	assert.NoError(t, err)
-	assert.Equal(t, spanNode{
-		TraceID:     traceID.String(),
-		ServiceName: "example-service",
-		SpanID:      span1ID.String(),
-		SpanName:    "span1",
-		SpanKind:    "Client",
-		StatusCode:  "Ok",
-		Children: []spanNode{
-			{
-				SpanID:     span2ID.String(),
-				SpanName:   "span2",
-				SpanKind:   "Server",
-				StatusCode: "Ok",
-			},
-			{
-				SpanID:     span3ID.String(),
-				SpanName:   "span3",
-				SpanKind:   "Server",
-				StatusCode: "Ok",
-				Children: []spanNode{
-					{
-						SpanID:     span4ID.String(),
-						SpanName:   "span4",
-						SpanKind:   "Server",
-						StatusCode: "Ok",
-					},
-				},
-			},
-		},
-	}, root)
-}
 
-func TestTreeToJSON(t *testing.T) {
-	root := spanNode{
-		TraceID:     "1234567890abcdef",
+	exp := spanNode{
 		ServiceName: "example-service",
-		SpanID:      "abcdefgh",
 		SpanName:    "span1",
 		SpanKind:    "Client",
-		StatusCode:  "Ok",
 		Children: []spanNode{
 			{
-				SpanID:     "ijklmnop",
-				SpanName:   "span2",
-				SpanKind:   "Server",
-				StatusCode: "Ok",
+				ServiceName: "example-service2",
+				SpanName:    "span2",
+				SpanKind:    "Server",
 			},
 			{
-				SpanID:     "qrstuvwxyz",
-				SpanName:   "span3",
-				SpanKind:   "Server",
-				StatusCode: "Ok",
+				ServiceName: "example-service",
+				SpanName:    "span3",
+				SpanKind:    "Server",
 				Children: []spanNode{
 					{
-						SpanID:     "01234567",
-						SpanName:   "span4",
-						SpanKind:   "Server",
-						StatusCode: "Ok",
+						ServiceName: "example-service2",
+						SpanName:    "span4",
+						SpanKind:    "Server",
 					},
 				},
 			},
 		},
 	}
 
-	expectedJSON := `{"traceID":"1234567890abcdef","serviceName":"example-service","spanID":"abcdefgh","spanName":"span1","spanKind":"Client","statusCode":"Ok","children":[{"spanID":"ijklmnop","spanName":"span2","spanKind":"Server","statusCode":"Ok"},{"spanID":"qrstuvwxyz","spanName":"span3","spanKind":"Server","statusCode":"Ok","children":[{"spanID":"01234567","spanName":"span4","spanKind":"Server","statusCode":"Ok"}]}]}`
+	changelog, err := diff.Diff(exp, root)
+	assert.NoError(t, err)
+	assert.Len(t, changelog, 0)
+}
+
+func TestTreeToJSON(t *testing.T) {
+	root := spanNode{
+		ServiceName: "example-service",
+		SpanName:    "span1",
+		SpanKind:    "Client",
+		Children: []spanNode{
+			{
+				ServiceName: "example-service2",
+				SpanName:    "span2",
+				SpanKind:    "Server",
+			},
+			{
+				ServiceName: "example-service3",
+				SpanName:    "span3",
+				SpanKind:    "Server",
+				Children: []spanNode{
+					{
+						ServiceName: "example-service4",
+						SpanName:    "span4",
+						SpanKind:    "Server",
+					},
+				},
+			},
+		},
+	}
+
+	expectedJSON := `{"serviceName":"example-service","spanName":"span1","spanKind":"Client","children":[{"serviceName":"example-service2","spanName":"span2","spanKind":"Server"},{"serviceName":"example-service3","spanName":"span3","spanKind":"Server","children":[{"serviceName":"example-service4","spanName":"span4","spanKind":"Server"}]}]}`
 
 	jsonStr := TreeToJSON(root)
-	assert.Equal(t, expectedJSON, jsonStr)
+	assert.JSONEq(t, expectedJSON, jsonStr)
 }

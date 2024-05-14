@@ -13,8 +13,6 @@ spec:
       port: 4317
     - name: http
       port: 4318
-    - name: zpages
-      port: 55679
   selector:
     app.kubernetes.io/name: cardinalhq
     app.kubernetes.io/component: collector

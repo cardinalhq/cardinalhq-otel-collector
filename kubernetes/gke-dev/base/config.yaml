@@ -11,13 +11,13 @@ data:
       otlp:
         protocols:
           grpc:
-            endpoint: ${env:MY_POD_IP}:4317
+            endpoint: 0.0.0.0:4317
           http:
-            endpoint: ${env:MY_POD_IP}:4318
+            endpoint: 0.0.0.0:4318
       otlp/l2:
         protocols:
           grpc:
-            endpoint: ${env:MY_POD_IP}:14317
+            endpoint: 0.0.0.0:14317
 
     exporters:
 
@@ -217,9 +217,13 @@ data:
                   otlp:
                     protocol: grpc/protobuf
                     endpoint: http://cardinal-collector.collector.svc.cluster.local:4317
+      extensions:
+        - zpages
+        - health_check
+
     extensions:
       zpages:
-        endpoint: ":55679"
+        endpoint: "0.0.0.0:55679"
       health_check:
-        endpoint: ":13133"
+        endpoint: "0.0.0.0:13133"
         path: "/healthz"

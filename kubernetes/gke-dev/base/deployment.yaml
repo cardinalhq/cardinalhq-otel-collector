@@ -68,6 +68,9 @@ spec:
             - name: zpages
               containerPort: 55679
               protocol: TCP
+            - name: healthz
+              containerPort: 13133
+              protocol: TCP
           livenessProbe:
             httpGet:
               path: /healthz

@@ -17,7 +17,6 @@ package spantagger
 import (
 	"testing"
 
-	"github.com/r3labs/diff/v3"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
@@ -33,6 +32,7 @@ func TestBuildTree(t *testing.T) {
 	span2ID := pcommon.SpanID([8]byte{2, 3, 4, 5, 6, 7, 8, 9})
 	span3ID := pcommon.SpanID([8]byte{3, 4, 5, 6, 7, 8, 9, 10})
 	span4ID := pcommon.SpanID([8]byte{4, 5, 6, 7, 8, 9, 10, 11})
+	span5ID := pcommon.SpanID([8]byte{5, 6, 7, 8, 9, 10, 11, 12})
 
 	ils := rs.ScopeSpans().AppendEmpty()
 
@@ -75,38 +75,56 @@ func TestBuildTree(t *testing.T) {
 	span4.SetKind(ptrace.SpanKindServer)
 	span4.Status().SetCode(ptrace.StatusCodeOk)
 
-	root, hasError, err := BuildTree(traces)
+	// span5 is a child of span3 with the same attributes as span4.
+	span5 := ils2.Spans().AppendEmpty()
+	span5.SetTraceID(traceID)
+	span5.SetSpanID(span5ID)
+	span5.SetParentSpanID(span3ID)
+	span5.SetName("span4")
+	span5.SetKind(ptrace.SpanKindServer)
+	span5.Status().SetCode(ptrace.StatusCodeUnset)
+
+	root, hasError, err := BuildTree(traces, 9999)
 	assert.False(t, hasError)
 	assert.NoError(t, err)
 
-	exp := spanNode{
+	exp := &spanNode{
+		Fingerprint: 9999,
 		ServiceName: "example-service",
 		SpanName:    "span1",
 		SpanKind:    "Client",
-		Children: []spanNode{
-			{
-				ServiceName: "example-service2",
-				SpanName:    "span2",
-				SpanKind:    "Server",
-			},
+		spanID:      span1ID.String(),
+		Children: []*spanNode{
 			{
 				ServiceName: "example-service",
 				SpanName:    "span3",
 				SpanKind:    "Server",
-				Children: []spanNode{
+				spanID:      span3ID.String(),
+				Children: []*spanNode{
 					{
 						ServiceName: "example-service2",
 						SpanName:    "span4",
 						SpanKind:    "Server",
+						spanID:      span4ID.String(),
+					},
+					{
+						ServiceName: "example-service2",
+						SpanName:    "span4",
+						SpanKind:    "Server",
+						spanID:      span5ID.String(),
 					},
 				},
+			},
+			{
+				ServiceName: "example-service2",
+				SpanName:    "span2",
+				SpanKind:    "Server",
+				spanID:      span2ID.String(),
 			},
 		},
 	}
 
-	changelog, err := diff.Diff(exp, root)
-	assert.NoError(t, err)
-	assert.Len(t, changelog, 0)
+	assert.Equal(t, exp, root)
 }
 
 func TestTreeToJSON(t *testing.T) {
@@ -114,7 +132,7 @@ func TestTreeToJSON(t *testing.T) {
 		ServiceName: "example-service",
 		SpanName:    "span1",
 		SpanKind:    "Client",
-		Children: []spanNode{
+		Children: []*spanNode{
 			{
 				ServiceName: "example-service2",
 				SpanName:    "span2",
@@ -124,7 +142,7 @@ func TestTreeToJSON(t *testing.T) {
 				ServiceName: "example-service3",
 				SpanName:    "span3",
 				SpanKind:    "Server",
-				Children: []spanNode{
+				Children: []*spanNode{
 					{
 						ServiceName: "example-service4",
 						SpanName:    "span4",

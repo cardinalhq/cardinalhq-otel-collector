@@ -21,10 +21,12 @@ import (
 )
 
 type spanNode struct {
-	ServiceName string     `json:"serviceName,omitempty" yaml:"serviceName,omitempty"`
-	SpanName    string     `json:"spanName,omitempty" yaml:"spanName,omitempty"`
-	SpanKind    string     `json:"spanKind,omitempty" yaml:"spanKind,omitempty"`
-	Children    []spanNode `json:"children,omitempty" yaml:"children,omitempty"`
+	Fingerprint int64       `json:"fingerprint,omitempty"`
+	ServiceName string      `json:"serviceName,omitempty"`
+	SpanName    string      `json:"spanName,omitempty"`
+	SpanKind    string      `json:"spanKind,omitempty"`
+	Children    []*spanNode `json:"children,omitempty"`
+	spanID      string
 }
 
 func TreeToJSON(root spanNode) string {
@@ -35,34 +37,51 @@ func TreeToJSON(root spanNode) string {
 	return string(b)
 }
 
-func BuildTree(traces ptrace.Traces) (root spanNode, hasError bool, err error) {
+func BuildTree(traces ptrace.Traces, fingerprint int64) (root *spanNode, hasError bool, err error) {
 	elementPaths, hasError, err := makeElements(traces)
 	if err != nil {
-		return spanNode{}, hasError, err
+		return nil, hasError, err
 	}
-	return makeTree(elementPaths), hasError, nil
+	spannodes := makeTree(elementPaths)
+	spannodes.Fingerprint = fingerprint
+	return spannodes, hasError, nil
 }
 
-func makeTree(elementPaths [][]spanelement) spanNode {
-	root := spanNode{}
+func makeTree(elementPaths [][]spanelement) *spanNode {
+	root := &spanNode{}
 	for _, path := range elementPaths {
 		if root.ServiceName == "" {
 			root.ServiceName = path[0].ServiceName
 			root.SpanKind = path[0].SpanKind
 			root.SpanName = path[0].SpanName
+			root.spanID = path[0].SpanID
 		}
-		current := &root
+		current := root
 		for i, element := range path {
+			// Skip the first element because it is the root.
 			if i == 0 {
 				continue
 			}
-			newChild := spanNode{
+			// If the child already exists, use it as the current node.
+			found := false
+			for _, child := range current.Children {
+				if child.ServiceName == element.ServiceName && child.SpanKind == element.SpanKind && child.SpanName == element.SpanName && child.spanID == element.SpanID {
+					current = child
+					found = true
+					break
+				}
+			}
+			if found {
+				continue
+			}
+			newChild := &spanNode{
 				ServiceName: element.ServiceName,
 				SpanKind:    element.SpanKind,
 				SpanName:    element.SpanName,
+				spanID:      element.SpanID,
 			}
 			current.Children = append(current.Children, newChild)
-			current = &current.Children[len(current.Children)-1]
+			current = newChild
 		}
 	}
 	return root

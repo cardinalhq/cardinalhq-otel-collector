@@ -11,6 +11,10 @@ spec:
     matchLabels:
       app.kubernetes.io/name: cardinalhq
       app.kubernetes.io/component: collector
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
   template:
     metadata:
       labels:

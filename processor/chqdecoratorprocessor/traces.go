@@ -84,6 +84,9 @@ func (sp *spansProcessor) processTraces(ctx context.Context, td ptrace.Traces) (
 				if fpError != "" {
 					span.Attributes().PutStr("_cardinalhq.fingerprint_error", fpError)
 				}
+				if span.ParentSpanID().IsEmpty() {
+					span.Attributes().PutBool("_cardinalhq.is_root_span", true)
+				}
 			}
 		}
 	}

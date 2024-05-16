@@ -83,6 +83,16 @@ func (cfg *Config) Validate() error {
 	if cfg.SamplerConfigFile != "" {
 		return checkSamplerConfigFile(cfg.SamplerConfigFile)
 	}
+
+	if cfg.GraphURL != "" {
+		u, err := url.Parse(cfg.GraphURL)
+		if err != nil {
+			return fmt.Errorf("invalid URL: %w", err)
+		}
+		if u.Scheme != "http" && u.Scheme != "https" {
+			return fmt.Errorf("unsupported scheme: %s, must be 'http' or 'https'", u.Scheme)
+		}
+	}
 	return nil
 }
 

@@ -94,6 +94,12 @@ func newTrace(fingerprint uint64) bool {
 	return true
 }
 
+func deleteTrace(fingerprint uint64) {
+	sentFingerprints.Lock()
+	defer sentFingerprints.Unlock()
+	delete(sentFingerprints.fingerprints, fingerprint)
+}
+
 func (sp *spansProcessor) processTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
 	fingerprint, hasError, fpError := getFingerprint(td)
 	if err := sp.postFingerprint(ctx, td, fingerprint); err != nil {
@@ -103,14 +109,22 @@ func (sp *spansProcessor) processTraces(ctx context.Context, td ptrace.Traces) (
 }
 
 func (sp *spansProcessor) postFingerprint(ctx context.Context, td ptrace.Traces, fingerprint uint64) error {
-	if fingerprint != 0 && newTrace(fingerprint) {
-		graph, _, err := spantagger.BuildTree(td, int64(fingerprint))
-		if err != nil {
-			if err := sp.sendGraph(ctx, graph); err != nil {
-				sp.logger.Error("Failed to send graph", zap.Error(err))
-			}
-		}
+	if fingerprint == 0 {
+		return nil
 	}
+	if !newTrace(fingerprint) {
+		return nil
+	}
+	graph, _, err := spantagger.BuildTree(td, int64(fingerprint))
+	if err != nil {
+		deleteTrace(fingerprint)
+		return fmt.Errorf("failed to build graph: %w", err)
+	}
+	if err := sp.sendGraph(ctx, graph); err != nil {
+		deleteTrace(fingerprint)
+		return fmt.Errorf("failed to send graph: %w", err)
+	}
+
 	return nil
 }
 

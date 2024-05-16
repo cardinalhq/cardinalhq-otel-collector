@@ -15,8 +15,11 @@
 package chqdecoratorprocessor
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor"
@@ -28,12 +31,14 @@ import (
 type spansProcessor struct {
 	telemetry *processorTelemetry
 	logger    *zap.Logger
+	graphURL  string
 }
 
-func newSpansProcessor(set processor.CreateSettings, _ *Config) (*spansProcessor, error) {
+func newSpansProcessor(set processor.CreateSettings, config *Config) (*spansProcessor, error) {
 	var err error
 	sp := &spansProcessor{
-		logger: set.Logger,
+		logger:   set.Logger,
+		graphURL: config.GraphURL,
 	}
 
 	dpt, err := newProcessorTelemetry(set)
@@ -55,20 +60,28 @@ func fingerprint(traces ptrace.Traces) (uint64, bool, string) {
 	case nil:
 		return fp, he, ""
 	case spantagger.InconsistentTraceIDsError:
-		return 0, true, "InconsistentTraceIDs"
+		return 0, he, "InconsistentTraceIDs"
 	case spantagger.OrphanedSpanError:
-		return 0, true, "OrphanedSpan"
+		return 0, he, "OrphanedSpan"
 	case spantagger.NoRootError:
-		return 0, true, "NoRoot"
+		return 0, he, "NoRoot"
 	case spantagger.MultipleRootsError:
-		return 0, true, "MultipleRoots"
+		return 0, he, "MultipleRoots"
 	default:
-		return 0, true, "UnknownError"
+		return 0, he, "UnknownError"
 	}
 }
 
 func (sp *spansProcessor) processTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
 	fingerprint, hasError, fpError := fingerprint(td)
+	if fingerprint != 0 {
+		graph, _, err := spantagger.BuildTree(td, int64(fingerprint))
+		if err != nil {
+			if err := sp.sendGraph(ctx, graph); err != nil {
+				sp.logger.Error("Failed to send graph", zap.Error(err))
+			}
+		}
+	}
 
 	rss := td.ResourceSpans()
 	for i := 0; i < rss.Len(); i++ {
@@ -94,5 +107,27 @@ func (sp *spansProcessor) processTraces(ctx context.Context, td ptrace.Traces) (
 }
 
 func (sp *spansProcessor) Shutdown(context.Context) error {
+	return nil
+}
+
+func (sp *spansProcessor) sendGraph(ctx context.Context, graph *spantagger.Graph) error {
+	b, err := json.Marshal(graph)
+	if err != nil {
+		return fmt.Errorf("failed to marshal graph: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, sp.graphURL, bytes.NewReader(b))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send graph: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("failed to send graph: http status %d", resp.StatusCode)
+	}
+
 	return nil
 }

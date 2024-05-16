@@ -18,9 +18,9 @@ import (
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
-type graphWrapper struct {
+type Graph struct {
 	Fingerprint int64     `json:"fingerprint,omitempty"`
-	Graph       *spanNode `json:"graph,omitempty"`
+	Root        *spanNode `json:"root,omitempty"`
 }
 
 type spanNode struct {
@@ -30,15 +30,15 @@ type spanNode struct {
 	Children    []*spanNode `json:"children,omitempty"`
 }
 
-func BuildTree(traces ptrace.Traces, fingerprint int64) (graph *graphWrapper, hasError bool, err error) {
+func BuildTree(traces ptrace.Traces, fingerprint int64) (graph *Graph, hasError bool, err error) {
 	elementPaths, hasError, err := makeElements(traces)
 	if err != nil {
 		return nil, hasError, err
 	}
 	spannodes := makeTree(elementPaths)
-	ret := &graphWrapper{
+	ret := &Graph{
 		Fingerprint: fingerprint,
-		Graph:       spannodes,
+		Root:        spannodes,
 	}
 	return ret, hasError, nil
 }

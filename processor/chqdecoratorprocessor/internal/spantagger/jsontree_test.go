@@ -143,7 +143,30 @@ func TestTreeToJSON(t *testing.T) {
 		},
 	}
 
-	expectedJSON := `{"serviceName":"example-service","spanName":"span1","spanKind":"Client","children":[{"serviceName":"example-service2","spanName":"span2","spanKind":"Server"},{"serviceName":"example-service3","spanName":"span3","spanKind":"Server","children":[{"serviceName":"example-service4","spanName":"span4","spanKind":"Server"}]}]}`
+	expectedJSON := `
+{
+	"serviceName": "example-service",
+	"spanName": "span1",
+	"spanKind": "Client",
+	"children": [
+		{
+			"serviceName": "example-service2",
+			"spanName": "span2",
+			"spanKind": "Server"
+		}, {
+			"serviceName": "example-service3",
+			"spanName": "span3",
+			"spanKind": "Server",
+			"children": [
+				{
+					"serviceName": "example-service4",
+					"spanName": "span4",
+					"spanKind": "Server"
+				}
+			]
+		}
+	]
+}`
 
 	jsonStr := TreeToJSON(root)
 	assert.JSONEq(t, expectedJSON, jsonStr)

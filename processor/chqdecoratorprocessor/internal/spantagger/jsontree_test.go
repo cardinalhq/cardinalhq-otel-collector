@@ -15,6 +15,7 @@
 package spantagger
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -88,28 +89,30 @@ func TestBuildTree(t *testing.T) {
 	assert.False(t, hasError)
 	assert.NoError(t, err)
 
-	exp := &spanNode{
+	exp := &graphWrapper{
 		Fingerprint: 9999,
-		ServiceName: "example-service",
-		SpanName:    "span1",
-		SpanKind:    "Client",
-		Children: []*spanNode{
-			{
-				ServiceName: "example-service",
-				SpanName:    "span3",
-				SpanKind:    "Server",
-				Children: []*spanNode{
-					{
-						ServiceName: "example-service2",
-						SpanName:    "span4",
-						SpanKind:    "Server",
+		Tree: &spanNode{
+			ServiceName: "example-service",
+			SpanName:    "span1",
+			SpanKind:    "Client",
+			Children: []*spanNode{
+				{
+					ServiceName: "example-service",
+					SpanName:    "span3",
+					SpanKind:    "Server",
+					Children: []*spanNode{
+						{
+							ServiceName: "example-service2",
+							SpanName:    "span4",
+							SpanKind:    "Server",
+						},
 					},
 				},
-			},
-			{
-				ServiceName: "example-service2",
-				SpanName:    "span2",
-				SpanKind:    "Server",
+				{
+					ServiceName: "example-service2",
+					SpanName:    "span2",
+					SpanKind:    "Server",
+				},
 			},
 		},
 	}
@@ -118,25 +121,28 @@ func TestBuildTree(t *testing.T) {
 }
 
 func TestTreeToJSON(t *testing.T) {
-	root := spanNode{
-		ServiceName: "example-service",
-		SpanName:    "span1",
-		SpanKind:    "Client",
-		Children: []*spanNode{
-			{
-				ServiceName: "example-service2",
-				SpanName:    "span2",
-				SpanKind:    "Server",
-			},
-			{
-				ServiceName: "example-service3",
-				SpanName:    "span3",
-				SpanKind:    "Server",
-				Children: []*spanNode{
-					{
-						ServiceName: "example-service4",
-						SpanName:    "span4",
-						SpanKind:    "Server",
+	graph := &graphWrapper{
+		Fingerprint: 9999,
+		Tree: &spanNode{
+			ServiceName: "example-service",
+			SpanName:    "span1",
+			SpanKind:    "Client",
+			Children: []*spanNode{
+				{
+					ServiceName: "example-service2",
+					SpanName:    "span2",
+					SpanKind:    "Server",
+				},
+				{
+					ServiceName: "example-service3",
+					SpanName:    "span3",
+					SpanKind:    "Server",
+					Children: []*spanNode{
+						{
+							ServiceName: "example-service4",
+							SpanName:    "span4",
+							SpanKind:    "Server",
+						},
 					},
 				},
 			},
@@ -145,29 +151,33 @@ func TestTreeToJSON(t *testing.T) {
 
 	expectedJSON := `
 {
-	"serviceName": "example-service",
-	"spanName": "span1",
-	"spanKind": "Client",
-	"children": [
-		{
-			"serviceName": "example-service2",
-			"spanName": "span2",
-			"spanKind": "Server"
-		}, {
-			"serviceName": "example-service3",
-			"spanName": "span3",
-			"spanKind": "Server",
-			"children": [
-				{
-					"serviceName": "example-service4",
-					"spanName": "span4",
-					"spanKind": "Server"
-				}
-			]
-		}
-	]
+	"fingerprint": 9999,
+	"tree": {
+		"serviceName": "example-service",
+		"spanName": "span1",
+		"spanKind": "Client",
+		"children": [
+			{
+				"serviceName": "example-service2",
+				"spanName": "span2",
+				"spanKind": "Server"
+			}, {
+				"serviceName": "example-service3",
+				"spanName": "span3",
+				"spanKind": "Server",
+				"children": [
+					{
+						"serviceName": "example-service4",
+						"spanName": "span4",
+						"spanKind": "Server"
+					}
+				]
+			}
+		]
+	}
 }`
 
-	jsonStr := TreeToJSON(root)
-	assert.JSONEq(t, expectedJSON, jsonStr)
+	b, err := json.Marshal(graph)
+	assert.NoError(t, err)
+	assert.JSONEq(t, expectedJSON, string(b))
 }

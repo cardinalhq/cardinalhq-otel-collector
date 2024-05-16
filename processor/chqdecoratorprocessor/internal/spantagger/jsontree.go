@@ -15,35 +15,32 @@
 package spantagger
 
 import (
-	"encoding/json"
-
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
+type graphWrapper struct {
+	Fingerprint int64     `json:"fingerprint,omitempty"`
+	Tree        *spanNode `json:"tree,omitempty"`
+}
+
 type spanNode struct {
-	Fingerprint int64       `json:"fingerprint,omitempty"`
 	ServiceName string      `json:"serviceName,omitempty"`
 	SpanName    string      `json:"spanName,omitempty"`
 	SpanKind    string      `json:"spanKind,omitempty"`
 	Children    []*spanNode `json:"children,omitempty"`
 }
 
-func TreeToJSON(root spanNode) string {
-	b, err := json.Marshal(root)
-	if err != nil {
-		return ""
-	}
-	return string(b)
-}
-
-func BuildTree(traces ptrace.Traces, fingerprint int64) (root *spanNode, hasError bool, err error) {
+func BuildTree(traces ptrace.Traces, fingerprint int64) (graph *graphWrapper, hasError bool, err error) {
 	elementPaths, hasError, err := makeElements(traces)
 	if err != nil {
 		return nil, hasError, err
 	}
 	spannodes := makeTree(elementPaths)
-	spannodes.Fingerprint = fingerprint
-	return spannodes, hasError, nil
+	ret := &graphWrapper{
+		Fingerprint: fingerprint,
+		Tree:        spannodes,
+	}
+	return ret, hasError, nil
 }
 
 func makeTree(elementPaths [][]spanelement) *spanNode {

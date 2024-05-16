@@ -111,6 +111,9 @@ func (sp *spansProcessor) Shutdown(context.Context) error {
 }
 
 func (sp *spansProcessor) sendGraph(ctx context.Context, graph *spantagger.Graph) error {
+	if sp.graphURL == "" {
+		return nil
+	}
 	b, err := json.Marshal(graph)
 	if err != nil {
 		return fmt.Errorf("failed to marshal graph: %w", err)

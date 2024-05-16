@@ -47,7 +47,7 @@ func (r *HTTPFileReader) ReadFile(ctx context.Context) (data []byte, err error) 
 		return nil, err
 	}
 	if r.APIKey != "" {
-		req.Header.Set("Authorization", "Bearer "+r.APIKey)
+		req.Header.Set("x-cardinalhq-api-key", r.APIKey)
 	}
 	resp, err := r.client.Do(req)
 	if err != nil {

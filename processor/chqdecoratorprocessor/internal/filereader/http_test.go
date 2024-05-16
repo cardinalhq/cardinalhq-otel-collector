@@ -29,8 +29,8 @@ func TestHTTPFileReader_ReadFile_WithAuth(t *testing.T) {
 		assert.Equal(t, http.MethodGet, r.Method)
 		assert.Equal(t, "/file.txt", r.URL.Path)
 
-		authHeader := r.Header.Get("Authorization")
-		expectedAuthHeader := "Bearer test-api-key"
+		authHeader := r.Header.Get("x-cardinalhq-api-key")
+		expectedAuthHeader := "test-api-key"
 		if authHeader != expectedAuthHeader {
 			t.Errorf("unexpected Authorization header: got %s, want %s", authHeader, expectedAuthHeader)
 		}
@@ -61,7 +61,7 @@ func TestHTTPFileReader_ReadFile_WithoutAuth(t *testing.T) {
 		assert.Equal(t, http.MethodGet, r.Method)
 		assert.Equal(t, "/file.txt", r.URL.Path)
 
-		authHeader := r.Header.Get("Authorization")
+		authHeader := r.Header.Get("x-cardinalhq-api-key")
 		if authHeader != "" {
 			t.Errorf("unexpected Authorization header: got %s, want empty", authHeader)
 		}

@@ -33,6 +33,7 @@ type spansProcessor struct {
 	telemetry *processorTelemetry
 	logger    *zap.Logger
 	graphURL  string
+	apiKey    string
 }
 
 func newSpansProcessor(set processor.CreateSettings, config *Config) (*spansProcessor, error) {
@@ -40,6 +41,7 @@ func newSpansProcessor(set processor.CreateSettings, config *Config) (*spansProc
 	sp := &spansProcessor{
 		logger:   set.Logger,
 		graphURL: config.GraphURL,
+		apiKey:   config.APIKey,
 	}
 
 	dpt, err := newProcessorTelemetry(set)
@@ -153,6 +155,10 @@ func (sp *spansProcessor) sendGraph(ctx context.Context, graph *spantagger.Graph
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if sp.apiKey != "" {
+		req.Header.Set("x-cardinalhq-api-key", sp.apiKey)
+		req.Header.Set("dd-api-key", sp.apiKey)
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send graph: %w", err)

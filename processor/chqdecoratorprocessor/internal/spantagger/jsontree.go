@@ -20,7 +20,7 @@ import (
 
 type Graph struct {
 	Fingerprint int64     `json:"fingerprint,omitempty"`
-	Root        *spanNode `json:"root,omitempty"`
+	Graph       *spanNode `json:"graph,omitempty"`
 }
 
 type spanNode struct {
@@ -38,7 +38,7 @@ func BuildTree(traces ptrace.Traces, fingerprint int64) (graph *Graph, hasError 
 	spannodes := makeTree(elementPaths)
 	ret := &Graph{
 		Fingerprint: fingerprint,
-		Root:        spannodes,
+		Graph:       spannodes,
 	}
 	return ret, hasError, nil
 }

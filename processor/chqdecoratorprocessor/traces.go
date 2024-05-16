@@ -103,7 +103,7 @@ func deleteTrace(fingerprint uint64) {
 func (sp *spansProcessor) processTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
 	fingerprint, hasError, fpError := getFingerprint(td)
 	if err := sp.postFingerprint(ctx, td, fingerprint); err != nil {
-		return td, err
+		sp.logger.Warn("failed to post fingerprint", zap.Error(err))
 	}
 	return sp.decorateTraces(td, fingerprint, hasError, fpError)
 }
@@ -182,5 +182,7 @@ func (sp *spansProcessor) sendGraph(ctx context.Context, graph *spantagger.Graph
 		return fmt.Errorf("failed to send graph: http status %d", resp.StatusCode)
 	}
 
+	sp.logger.Info("sent graph", zap.String("url", sp.graphURL), zap.Int("status", resp.StatusCode))
+	sp.telemetry.record(triggerGraphPosted, 1)
 	return nil
 }

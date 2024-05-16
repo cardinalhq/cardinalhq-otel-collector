@@ -32,6 +32,7 @@ const (
 	triggerLogsDropped
 	triggerSpansDropped
 	triggerLogsProcessed
+	triggerGraphPosted
 )
 
 type processorTelemetry struct {
@@ -43,14 +44,17 @@ type processorTelemetry struct {
 	logsFiltered       metric.Int64Counter
 	logsProcessed      metric.Int64Counter
 	spansFiltered      metric.Int64Counter
+	graphsPosted       metric.Int64Counter
 }
 
 func newProcessorTelemetry(set processor.CreateSettings) (*processorTelemetry, error) {
 	processorID := set.ID.String()
 
 	dpt := &processorTelemetry{
-		processorAttr: []attribute.KeyValue{attribute.String(metadata.Type.String(), processorID)},
-		exportCtx:     context.Background(),
+		processorAttr: []attribute.KeyValue{
+			attribute.String(metadata.Type.String(), processorID),
+		},
+		exportCtx: context.Background(),
 	}
 
 	counter, err := metadata.Meter(set.TelemetrySettings).Int64Counter(
@@ -93,10 +97,20 @@ func newProcessorTelemetry(set processor.CreateSettings) (*processorTelemetry, e
 	}
 	dpt.spansFiltered = counter
 
+	counter, err = metadata.Meter(set.TelemetrySettings).Int64Counter(
+		processorhelper.BuildCustomMetricName(metadata.Type.String(), "graphs.posted"),
+		metric.WithDescription("The total number of graphs posted by the processor"),
+		metric.WithUnit("1"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	dpt.graphsPosted = counter
+
 	return dpt, nil
 }
 
-func (dpt *processorTelemetry) record(trigger trigger, dropped int64) {
+func (dpt *processorTelemetry) record(trigger trigger, count int64) {
 	var triggerMeasure metric.Int64Counter
 	switch trigger {
 	case triggerMetricDataPointsAggregated:
@@ -107,9 +121,11 @@ func (dpt *processorTelemetry) record(trigger trigger, dropped int64) {
 		triggerMeasure = dpt.logsProcessed
 	case triggerSpansDropped:
 		triggerMeasure = dpt.spansFiltered
+	case triggerGraphPosted:
+		triggerMeasure = dpt.graphsPosted
 	default:
 		return
 	}
 
-	triggerMeasure.Add(dpt.exportCtx, dropped, metric.WithAttributes(dpt.processorAttr...))
+	triggerMeasure.Add(dpt.exportCtx, count, metric.WithAttributes(dpt.processorAttr...))
 }

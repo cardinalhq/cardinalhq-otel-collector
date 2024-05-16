@@ -91,7 +91,7 @@ func TestBuildTree(t *testing.T) {
 
 	exp := &graphWrapper{
 		Fingerprint: 9999,
-		Tree: &spanNode{
+		Graph: &spanNode{
 			ServiceName: "example-service",
 			SpanName:    "span1",
 			SpanKind:    "Client",
@@ -123,7 +123,7 @@ func TestBuildTree(t *testing.T) {
 func TestTreeToJSON(t *testing.T) {
 	graph := &graphWrapper{
 		Fingerprint: 9999,
-		Tree: &spanNode{
+		Graph: &spanNode{
 			ServiceName: "example-service",
 			SpanName:    "span1",
 			SpanKind:    "Client",
@@ -152,7 +152,7 @@ func TestTreeToJSON(t *testing.T) {
 	expectedJSON := `
 {
 	"fingerprint": 9999,
-	"tree": {
+	"graph": {
 		"serviceName": "example-service",
 		"spanName": "span1",
 		"spanKind": "Client",

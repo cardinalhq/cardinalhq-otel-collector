@@ -3,6 +3,7 @@ module github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorpro
 go 1.22.2
 
 require (
+	github.com/DataDog/sketches-go v1.4.5
 	github.com/aws/aws-sdk-go-v2 v1.26.1
 	github.com/aws/aws-sdk-go-v2/config v1.27.11
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.11

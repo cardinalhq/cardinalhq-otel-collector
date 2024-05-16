@@ -36,7 +36,8 @@ const (
 )
 
 type processorTelemetry struct {
-	exportCtx context.Context
+	exportCtx  context.Context
+	configured bool
 
 	processorAttr []attribute.KeyValue
 
@@ -107,10 +108,14 @@ func newProcessorTelemetry(set processor.CreateSettings) (*processorTelemetry, e
 	}
 	dpt.graphsPosted = counter
 
+	dpt.configured = true
 	return dpt, nil
 }
 
 func (dpt *processorTelemetry) record(trigger trigger, count int64) {
+	if !dpt.configured {
+		return
+	}
 	var triggerMeasure metric.Int64Counter
 	switch trigger {
 	case triggerMetricDataPointsAggregated:

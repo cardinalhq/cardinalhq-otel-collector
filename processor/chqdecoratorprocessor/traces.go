@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor"
@@ -54,7 +55,7 @@ func newSpansProcessor(set processor.CreateSettings, config *Config) (*spansProc
 	return sp, nil
 }
 
-func fingerprint(traces ptrace.Traces) (uint64, bool, string) {
+func getFingerprint(traces ptrace.Traces) (uint64, bool, string) {
 	fp, he, err := spantagger.Fingerprint(traces)
 	switch err {
 	case nil:
@@ -72,9 +73,35 @@ func fingerprint(traces ptrace.Traces) (uint64, bool, string) {
 	}
 }
 
+type fingerprintTracker struct {
+	sync.Mutex
+	fingerprints map[uint64]struct{}
+}
+
+var sentFingerprints = fingerprintTracker{
+	fingerprints: make(map[uint64]struct{}),
+}
+
+func newTrace(fingerprint uint64) bool {
+	sentFingerprints.Lock()
+	defer sentFingerprints.Unlock()
+	if _, ok := sentFingerprints.fingerprints[fingerprint]; ok {
+		return false
+	}
+	sentFingerprints.fingerprints[fingerprint] = struct{}{}
+	return true
+}
+
 func (sp *spansProcessor) processTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
-	fingerprint, hasError, fpError := fingerprint(td)
-	if fingerprint != 0 {
+	fingerprint, hasError, fpError := getFingerprint(td)
+	if err := sp.postFingerprint(ctx, td, fingerprint); err != nil {
+		return td, err
+	}
+	return sp.decorateTraces(td, fingerprint, hasError, fpError)
+}
+
+func (sp *spansProcessor) postFingerprint(ctx context.Context, td ptrace.Traces, fingerprint uint64) error {
+	if fingerprint != 0 && newTrace(fingerprint) {
 		graph, _, err := spantagger.BuildTree(td, int64(fingerprint))
 		if err != nil {
 			if err := sp.sendGraph(ctx, graph); err != nil {
@@ -82,7 +109,10 @@ func (sp *spansProcessor) processTraces(ctx context.Context, td ptrace.Traces) (
 			}
 		}
 	}
+	return nil
+}
 
+func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, hasError bool, fpError string) (ptrace.Traces, error) {
 	rss := td.ResourceSpans()
 	for i := 0; i < rss.Len(); i++ {
 		rs := rss.At(i)

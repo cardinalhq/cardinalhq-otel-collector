@@ -168,7 +168,7 @@ func (l *TableTranslator) toddExponentialHistogram(metric pmetric.Metric, baseat
 		ret["_cardinalhq.metric_type"] = metricType
 		ret["_cardinalhq.timestamp"] = dp.Timestamp().AsTime().UnixMilli()
 		ret["_cardinalhq.scale"] = dp.Scale()
-		ret["_cardinalhq.netative.counts"] = asJson(dp.Negative().BucketCounts().AsRaw())
+		ret["_cardinalhq.negative.counts"] = asJson(dp.Negative().BucketCounts().AsRaw())
 		ret["_cardinalhq.positive.counts"] = asJson(dp.Positive().BucketCounts().AsRaw())
 		ret["_cardinalhq.zero.count"] = dp.ZeroCount()
 		ret["_cardinalhq.name"] = metric.Name()

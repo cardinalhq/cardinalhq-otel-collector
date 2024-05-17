@@ -29,6 +29,7 @@ import (
 
 	"github.com/DataDog/sketches-go/ddsketch"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/spantagger"
+	"github.com/hashicorp/go-multierror"
 	"github.com/honeycombio/dynsampler-go"
 )
 
@@ -50,7 +51,6 @@ type fingerprintTracker struct {
 }
 
 func newSpansProcessor(set processor.CreateSettings, config *Config) (*spansProcessor, error) {
-	var err error
 	sp := &spansProcessor{
 		logger:   set.Logger,
 		graphURL: config.GraphURL,
@@ -68,6 +68,13 @@ func newSpansProcessor(set processor.CreateSettings, config *Config) (*spansProc
 		return nil, fmt.Errorf("error creating chqdecorator processor telemetry: %w", err)
 	}
 	sp.telemetry = dpt
+
+	if err := sp.slowSampler.Start(); err != nil {
+		return nil, fmt.Errorf("error starting slow sampler: %w", err)
+	}
+	if err := sp.hasErrorSampler.Start(); err != nil {
+		return nil, fmt.Errorf("error starting has error sampler: %w", err)
+	}
 
 	set.Logger.Info(
 		"Decorator processor configured",
@@ -282,7 +289,11 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 }
 
 func (sp *spansProcessor) Shutdown(context.Context) error {
-	return nil
+	var errors *multierror.Error
+
+	errors = multierror.Append(errors, sp.slowSampler.Stop())
+	errors = multierror.Append(errors, sp.hasErrorSampler.Stop())
+	return errors.ErrorOrNil()
 }
 
 func (sp *spansProcessor) sendGraph(ctx context.Context, graph *spantagger.Graph) error {
@@ -311,7 +322,6 @@ func (sp *spansProcessor) sendGraph(ctx context.Context, graph *spantagger.Graph
 		return fmt.Errorf("failed to send graph: http status %d", resp.StatusCode)
 	}
 
-	sp.logger.Info("sent graph", zap.String("url", sp.graphURL), zap.Int("status", resp.StatusCode))
 	sp.telemetry.recordCount(triggerGraphPosted, 1)
 	return nil
 }

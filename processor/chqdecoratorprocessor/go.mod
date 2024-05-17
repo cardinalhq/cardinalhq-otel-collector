@@ -12,6 +12,7 @@ require (
 	github.com/aws/smithy-go v1.20.2
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/db47h/ragel/v2 v2.2.4
+	github.com/hashicorp/go-multierror v1.1.1
 	github.com/honeycombio/dynsampler-go v0.6.0
 	github.com/stretchr/testify v1.9.0
 	go.opentelemetry.io/collector/component v0.99.0
@@ -48,6 +49,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-viper/mapstructure/v2 v2.0.0-alpha.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/knadh/koanf/maps v0.1.1 // indirect

@@ -108,13 +108,13 @@ data:
       batch/metrics:
         timeout: 10s
       batch/traces:
-        timeout: 10s
+        timeout: 120s
       batch/spanmetrics:
         timeout: 10s
       
       # Group by trace processor to group trace data by trace ID.
       groupbytrace:
-        wait_duration: 5s
+        wait_duration: 10s
 
       # This processor should be added to the list of processors before
       # the filter/chq, and the exporters that write to S3 or to upstream
@@ -132,11 +132,15 @@ data:
       # Datadog.  It should NOT be used to filter output to S3 for
       # later processing by CardinalHQ.
       filter/chq:
+        error_mode: ignore
         logs:
           log_record:
             - 'attributes["_cardinalhq.filtered"] == true'
         metrics:
           datapoint:
+            - 'attributes["_cardinalhq.filtered"] == true'
+        traces:
+          span:
             - 'attributes["_cardinalhq.filtered"] == true'
       attributes/chq:
         actions:

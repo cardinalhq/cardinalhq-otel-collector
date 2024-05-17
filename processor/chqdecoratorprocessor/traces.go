@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"sync"
 
@@ -26,7 +27,9 @@ import (
 	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
 
+	"github.com/DataDog/sketches-go/ddsketch"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/spantagger"
+	"github.com/honeycombio/dynsampler-go"
 )
 
 type spansProcessor struct {
@@ -34,6 +37,16 @@ type spansProcessor struct {
 	logger    *zap.Logger
 	graphURL  string
 	apiKey    string
+
+	sketches         map[uint64]*ddsketch.DDSketch
+	sentFingerprints fingerprintTracker
+	slowSampler      dynsampler.Sampler
+	hasErrorSampler  dynsampler.Sampler
+}
+
+type fingerprintTracker struct {
+	sync.Mutex
+	fingerprints map[uint64]struct{}
 }
 
 func newSpansProcessor(set processor.CreateSettings, config *Config) (*spansProcessor, error) {
@@ -42,6 +55,12 @@ func newSpansProcessor(set processor.CreateSettings, config *Config) (*spansProc
 		logger:   set.Logger,
 		graphURL: config.GraphURL,
 		apiKey:   config.APIKey,
+		sketches: make(map[uint64]*ddsketch.DDSketch),
+		sentFingerprints: fingerprintTracker{
+			fingerprints: make(map[uint64]struct{}),
+		},
+		slowSampler:     &dynsampler.AvgSampleWithMin{GoalSampleRate: 2},
+		hasErrorSampler: &dynsampler.AvgSampleWithMin{GoalSampleRate: 2},
 	}
 
 	dpt, err := newProcessorTelemetry(set)
@@ -75,29 +94,20 @@ func getFingerprint(traces ptrace.Traces) (uint64, bool, string) {
 	}
 }
 
-type fingerprintTracker struct {
-	sync.Mutex
-	fingerprints map[uint64]struct{}
-}
-
-var sentFingerprints = fingerprintTracker{
-	fingerprints: make(map[uint64]struct{}),
-}
-
-func newTrace(fingerprint uint64) bool {
-	sentFingerprints.Lock()
-	defer sentFingerprints.Unlock()
-	if _, ok := sentFingerprints.fingerprints[fingerprint]; ok {
+func (sp *spansProcessor) newTrace(fingerprint uint64) bool {
+	sp.sentFingerprints.Lock()
+	defer sp.sentFingerprints.Unlock()
+	if _, ok := sp.sentFingerprints.fingerprints[fingerprint]; ok {
 		return false
 	}
-	sentFingerprints.fingerprints[fingerprint] = struct{}{}
+	sp.sentFingerprints.fingerprints[fingerprint] = struct{}{}
 	return true
 }
 
-func deleteTrace(fingerprint uint64) {
-	sentFingerprints.Lock()
-	defer sentFingerprints.Unlock()
-	delete(sentFingerprints.fingerprints, fingerprint)
+func (sp *spansProcessor) deleteTrace(fingerprint uint64) {
+	sp.sentFingerprints.Lock()
+	defer sp.sentFingerprints.Unlock()
+	delete(sp.sentFingerprints.fingerprints, fingerprint)
 }
 
 func (sp *spansProcessor) processTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
@@ -112,23 +122,23 @@ func (sp *spansProcessor) postFingerprint(ctx context.Context, td ptrace.Traces,
 	if fingerprint == 0 {
 		return nil
 	}
-	if !newTrace(fingerprint) {
+	if !sp.newTrace(fingerprint) {
 		return nil
 	}
 	graph, _, err := spantagger.BuildTree(td, int64(fingerprint))
 	if err != nil {
-		deleteTrace(fingerprint)
+		sp.deleteTrace(fingerprint)
 		return fmt.Errorf("failed to build graph: %w", err)
 	}
 	if err := sp.sendGraph(ctx, graph); err != nil {
-		deleteTrace(fingerprint)
+		sp.deleteTrace(fingerprint)
 		return fmt.Errorf("failed to send graph: %w", err)
 	}
 
 	return nil
 }
 
-func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, hasError bool, fpError string) (ptrace.Traces, error) {
+func findRootDuration(td ptrace.Traces) (int64, bool) {
 	rss := td.ResourceSpans()
 	for i := 0; i < rss.Len(); i++ {
 		rs := rss.At(i)
@@ -138,6 +148,116 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 			spans := ils.Spans()
 			for k := 0; k < spans.Len(); k++ {
 				span := spans.At(k)
+				if span.ParentSpanID().IsEmpty() {
+					return span.EndTimestamp().AsTime().Sub(span.StartTimestamp().AsTime()).Abs().Milliseconds(), true
+				}
+			}
+		}
+	}
+	return 0, false
+}
+
+// isSlow returns true if the trace is slow compared to the 75% percentile
+// of traces with the same fingerprint.
+func (sp *spansProcessor) isSlow(td ptrace.Traces, fingerprint uint64) bool {
+	rootDuration, found := findRootDuration(td)
+	if !found {
+		return false
+	}
+	return sp.slowPercentile(fingerprint, rootDuration)
+}
+
+func (sp *spansProcessor) findSketch(fingerprint uint64) (*ddsketch.DDSketch, error) {
+	sketch, ok := sp.sketches[fingerprint]
+	if !ok {
+		newSketch, err := ddsketch.NewDefaultDDSketch(0.01)
+		if err != nil {
+			sp.logger.Warn("failed to create sketch", zap.Error(err))
+			return nil, err
+		}
+		sp.sketches[fingerprint] = newSketch
+		return newSketch, nil
+	}
+	return sketch, nil
+}
+
+func (sp *spansProcessor) slowPercentile(fingerprint uint64, duration int64) bool {
+	sketch, err := sp.findSketch(fingerprint)
+	if err != nil {
+		return false
+	}
+	if err := sketch.Add(float64(duration)); err != nil {
+		if err != ddsketch.ErrUntrackableTooHigh {
+			return true // too large means too large, so it's likely too slow
+		}
+		sp.logger.Warn("failed to add value to sketch", zap.Error(err))
+		return false
+	}
+	v, err := sketch.GetValueAtQuantile(0.75)
+	if err != nil {
+		sp.logger.Warn("failed to get value at quantile", zap.Error(err))
+		return false
+	}
+	return float64(duration) > v
+}
+
+func (sp *spansProcessor) shouldFilter(td ptrace.Traces, fingerprint uint64, hasError bool) bool {
+	if fingerprint == 0 {
+		return true
+	}
+	slow := sp.isSlow(td, fingerprint)
+	return !hasError && !slow
+}
+
+func (sp *spansProcessor) rateLimitSlow(fingerprint uint64) bool {
+	rate := sp.slowSampler.GetSampleRate(fmt.Sprintf("%d", fingerprint))
+	switch rate {
+	case 0:
+		return true
+	case 1:
+		return false
+	default:
+		return rand.Float64() <= 1/float64(rate)
+	}
+}
+
+func (sp *spansProcessor) rateLimitHasError(fingerprint uint64) bool {
+	rate := sp.hasErrorSampler.GetSampleRate(fmt.Sprintf("%d", fingerprint))
+	switch rate {
+	case 0:
+		return true
+	case 1:
+		return false
+	default:
+		return rand.Float64() <= 1/float64(rate)
+	}
+}
+
+func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, hasError bool, fpError string) (ptrace.Traces, error) {
+	// First, check to see if this trace is interesting.  If it is not,
+	// we will have filtered set to true.  In that case, we only want to
+	// rate limit the unfiltered traces.
+	filtered := sp.shouldFilter(td, fingerprint, hasError)
+	if !filtered {
+		if hasError {
+			filtered = sp.rateLimitHasError(fingerprint)
+		} else {
+			filtered = sp.rateLimitSlow(fingerprint)
+		}
+	}
+
+	spancount := int64(0)
+	rss := td.ResourceSpans()
+	for i := 0; i < rss.Len(); i++ {
+		rs := rss.At(i)
+		ilss := rs.ScopeSpans()
+		for j := 0; j < ilss.Len(); j++ {
+			ils := ilss.At(j)
+			spans := ils.Spans()
+			for k := 0; k < spans.Len(); k++ {
+				spancount++
+				span := spans.At(k)
+				span.Attributes().PutBool("_cardinalhq.filtered", filtered)
 				span.Attributes().PutInt("_cardinalhq.fingerprint", int64(fingerprint))
 				span.Attributes().PutBool("_cardinalhq.trace_has_error", hasError)
 				if fpError != "" {
@@ -149,6 +269,15 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 			}
 		}
 	}
+
+	if filtered {
+		sp.telemetry.recordProcessed(triggerTracesProcessed, 0, 1)
+		sp.telemetry.recordProcessed(triggerSpansProcessed, 0, spancount)
+	} else {
+		sp.telemetry.recordProcessed(triggerTracesProcessed, 1, 0)
+		sp.telemetry.recordProcessed(triggerSpansProcessed, spancount, 0)
+	}
+
 	return td, nil
 }
 
@@ -183,6 +312,6 @@ func (sp *spansProcessor) sendGraph(ctx context.Context, graph *spantagger.Graph
 	}
 
 	sp.logger.Info("sent graph", zap.String("url", sp.graphURL), zap.Int("status", resp.StatusCode))
-	sp.telemetry.record(triggerGraphPosted, 1)
+	sp.telemetry.recordCount(triggerGraphPosted, 1)
 	return nil
 }

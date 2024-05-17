@@ -22,18 +22,27 @@ import (
 	"testing"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/spantagger"
+	"go.uber.org/zap"
 )
 
 func TestNewTrace(t *testing.T) {
+	sp := &spansProcessor{
+		logger: zap.NewNop(),
+		sentFingerprints: fingerprintTracker{
+			fingerprints: make(map[uint64]struct{}),
+		},
+		telemetry: &processorTelemetry{},
+	}
+
 	fingerprint := uint64(1234567890)
 
 	// First call with a new fingerprint should return true
-	if !newTrace(fingerprint) {
+	if !sp.newTrace(fingerprint) {
 		t.Error("expected newTrace to return true")
 	}
 
 	// Second call with the same fingerprint should return false
-	if newTrace(fingerprint) {
+	if sp.newTrace(fingerprint) {
 		t.Error("expected newTrace to return false")
 	}
 }
@@ -64,7 +73,9 @@ func TestSendGraph(t *testing.T) {
 
 	// Create a spansProcessor instance with the mock server URL
 	sp := &spansProcessor{
-		graphURL: server.URL + "/graph",
+		logger:    zap.NewNop(),
+		telemetry: &processorTelemetry{},
+		graphURL:  server.URL + "/graph",
 	}
 
 	// Create a mock graph

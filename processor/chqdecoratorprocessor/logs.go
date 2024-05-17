@@ -91,8 +91,7 @@ func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs,
 		}
 	}
 
-	lp.telemetry.record(triggerLogsDropped, dropped)
-	lp.telemetry.record(triggerLogsProcessed, processed)
+	lp.telemetry.recordProcessed(triggerLogsProcessed, processed-dropped, dropped)
 
 	return ld, nil
 }

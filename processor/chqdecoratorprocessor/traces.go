@@ -25,6 +25,7 @@ import (
 
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor"
+	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/zap"
 
 	"github.com/DataDog/sketches-go/ddsketch"
@@ -208,12 +209,18 @@ func (sp *spansProcessor) slowPercentile(fingerprint uint64, duration int64) boo
 	return float64(duration) > v
 }
 
-func (sp *spansProcessor) shouldFilter(td ptrace.Traces, fingerprint uint64, hasError bool) bool {
+func (sp *spansProcessor) shouldFilter(td ptrace.Traces, fingerprint uint64, hasError bool) (bool, string) {
 	if fingerprint == 0 {
-		return true
+		return true, "invalid_fingerprint"
 	}
-	slow := sp.isSlow(td, fingerprint)
-	return !hasError && !slow
+	slow := sp.isSlow(td, fingerprint) // always call this to update our sketch
+	if hasError {
+		return false, "trace_has_error"
+	}
+	if slow {
+		return false, "slow"
+	}
+	return true, "uninteresting"
 }
 
 func (sp *spansProcessor) rateLimitSlow(fingerprint uint64) bool {
@@ -244,12 +251,20 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 	// First, check to see if this trace is interesting.  If it is not,
 	// we will have filtered set to true.  In that case, we only want to
 	// rate limit the unfiltered traces.
-	filtered := sp.shouldFilter(td, fingerprint, hasError)
+	filtered, filteredReason := sp.shouldFilter(td, fingerprint, hasError)
 	if !filtered {
 		if hasError {
-			filtered = sp.rateLimitHasError(fingerprint)
+			rlFilter := sp.rateLimitHasError(fingerprint)
+			if rlFilter {
+				filtered = true
+				filteredReason = "trace_has_error_rate_limited"
+			}
 		} else {
-			filtered = sp.rateLimitSlow(fingerprint)
+			isSlow := sp.rateLimitSlow(fingerprint)
+			if isSlow {
+				filtered = true
+				filteredReason = "slow_rate_limited"
+			}
 		}
 	}
 
@@ -265,6 +280,7 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 				spancount++
 				span := spans.At(k)
 				span.Attributes().PutBool("_cardinalhq.filtered", filtered)
+				span.Attributes().PutStr("_cardinalhq.filtered_reason", filteredReason)
 				span.Attributes().PutInt("_cardinalhq.fingerprint", int64(fingerprint))
 				span.Attributes().PutBool("_cardinalhq.trace_has_error", hasError)
 				if fpError != "" {
@@ -277,13 +293,8 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 		}
 	}
 
-	if filtered {
-		sp.telemetry.recordProcessed(triggerTracesProcessed, 0, 1)
-		sp.telemetry.recordProcessed(triggerSpansProcessed, 0, spancount)
-	} else {
-		sp.telemetry.recordProcessed(triggerTracesProcessed, 1, 0)
-		sp.telemetry.recordProcessed(triggerSpansProcessed, spancount, 0)
-	}
+	sp.telemetry.record(triggerTracesProcessed, 1, attribute.Bool("filtered.status", filtered), attribute.String("filtered.classification", filteredReason))
+	sp.telemetry.record(triggerSpansProcessed, spancount, attribute.Bool("filtered.status", filtered), attribute.String("filtered.classification", filteredReason))
 
 	return td, nil
 }
@@ -322,6 +333,6 @@ func (sp *spansProcessor) sendGraph(ctx context.Context, graph *spantagger.Graph
 		return fmt.Errorf("failed to send graph: http status %d", resp.StatusCode)
 	}
 
-	sp.telemetry.recordCount(triggerGraphPosted, 1)
+	sp.telemetry.record(triggerGraphPosted, 1)
 	return nil
 }

@@ -39,6 +39,8 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: status.podIP
+            - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+              value: "Delta"
             - name: DATADOG_API_KEY
               valueFrom:
                 secretKeyRef:

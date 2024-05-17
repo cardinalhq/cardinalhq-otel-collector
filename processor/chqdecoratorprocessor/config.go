@@ -29,14 +29,12 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/filereader"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/s3tools"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/sampler"
+	"github.com/hashicorp/go-multierror"
 )
 
 type Config struct {
 	// SamplerConfigFile is the URL of the file containing the configuration for the sampler.
 	SamplerConfigFile string `mapstructure:"sampler_config_file"`
-
-	// Where to send the graph data.  This will be done using a HTTP post.
-	GraphURL string `mapstructure:"graph_url"`
 
 	// S3 configuration
 	Region     string `mapstructure:"region"`
@@ -56,6 +54,8 @@ type Config struct {
 
 	MetricConfig        MetricConfig `mapstructure:"metrics"`
 	configCheckInterval time.Duration
+
+	TraceConfig TraceConfig `mapstructure:"traces"`
 }
 
 // MetricConfig contains configuration for the metrics processor.
@@ -66,6 +66,27 @@ type MetricConfig struct {
 	// An interval is considered "closed" when it is at least
 	// one interval in the past.
 	MetricAggregationInterval int64 `mapstructure:"metric_aggregation_interval"`
+}
+
+type TraceConfig struct {
+	// UninterestingRate is the rate limit applied to traces that
+	// are not otherwise interesting.  Defaults to 0, which will
+	// drop all uninteresting traces.  A value of 100 will keep
+	// 1 out of 100 traces.
+	// The rate is applied per fingerprint.
+	UninterestingRate *int `mapstructure:"uninteresting_rate"`
+	// SlowRate is the rate limit applied to traces that are considered
+	// slow by measuring the duration of this trace and comparing it to
+	// the 75% percentile of previous traces that are the same shape,
+	// i.e., have the same fingerprint.
+	// The rate is applied per fingerprint.
+	SlowRate *int `mapstructure:"slow_rate"`
+	// HasErrorRate is the rate limit applied to traces that have
+	// at least one span that has an error indication.
+	// The rate is applied per fingerprint.
+	HasErrorRate *int `mapstructure:"has_error_rate"`
+	// Where to send the graph data.  This will be done using a HTTP post.
+	GraphURL string `mapstructure:"graph_url"`
 }
 
 var _ component.Config = (*Config)(nil)
@@ -84,16 +105,51 @@ func (cfg *Config) Validate() error {
 		return checkSamplerConfigFile(cfg.SamplerConfigFile)
 	}
 
+	return cfg.TraceConfig.Validate()
+}
+
+func (cfg *TraceConfig) Validate() error {
+	var errors *multierror.Error
+
 	if cfg.GraphURL != "" {
 		u, err := url.Parse(cfg.GraphURL)
 		if err != nil {
-			return fmt.Errorf("invalid URL: %w", err)
-		}
-		if u.Scheme != "http" && u.Scheme != "https" {
-			return fmt.Errorf("unsupported scheme: %s, must be 'http' or 'https'", u.Scheme)
+			err := fmt.Errorf("invalid URL: %w", err)
+			errors = multierror.Append(errors, err)
+		} else {
+			if u.Scheme != "http" && u.Scheme != "https" {
+				err := fmt.Errorf("unsupported scheme: %s, must be 'http' or 'https'", u.Scheme)
+				errors = multierror.Append(errors, err)
+			}
 		}
 	}
-	return nil
+
+	if cfg.UninterestingRate == nil {
+		cfg.UninterestingRate = new(int)
+		*cfg.UninterestingRate = 0
+	}
+	if cfg.SlowRate == nil {
+		cfg.SlowRate = new(int)
+		*cfg.SlowRate = 2
+	}
+	if cfg.HasErrorRate == nil {
+		cfg.HasErrorRate = new(int)
+		*cfg.HasErrorRate = 2
+	}
+
+	if *cfg.UninterestingRate < 0 {
+		err := fmt.Errorf("invalid uninteresting rate: %d, must be >= 0", cfg.UninterestingRate)
+		errors = multierror.Append(errors, err)
+	}
+	if *cfg.SlowRate < 0 {
+		err := fmt.Errorf("invalid slow rate: %d, must be >= 0", cfg.SlowRate)
+		errors = multierror.Append(errors, err)
+	}
+	if *cfg.HasErrorRate < 0 {
+		err := fmt.Errorf("invalid has error rate: %d, must be >= 0", cfg.HasErrorRate)
+		errors = multierror.Append(errors, err)
+	}
+	return errors.ErrorOrNil()
 }
 
 func checkSamplerConfigFile(file string) error {

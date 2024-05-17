@@ -106,7 +106,9 @@ func TestSendGraph(t *testing.T) {
 	sp := &spansProcessor{
 		logger:    zap.NewNop(),
 		telemetry: &processorTelemetry{},
-		graphURL:  server.URL + "/graph",
+		traceConfig: &TraceConfig{
+			GraphURL: server.URL + "/graph",
+		},
 	}
 
 	// Create a mock graph
@@ -181,7 +183,7 @@ func TestShouldFilter(t *testing.T) {
 				1234567890,
 				false,
 			},
-			true,
+			false,
 			"uninteresting",
 		},
 		{
@@ -351,10 +353,9 @@ func TestMaybeRateLimit(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		args           args
-		expected       bool
-		expectedReason filteredReason
+		name     string
+		args     args
+		expected bool
 	}{
 		{
 			"Filtered",
@@ -364,7 +365,6 @@ func TestMaybeRateLimit(t *testing.T) {
 				"uninterestingPassthrough",
 			},
 			true,
-			"uninterestingPassthrough",
 		},
 		{
 			"HasError",
@@ -374,7 +374,6 @@ func TestMaybeRateLimit(t *testing.T) {
 				filteredReasonTraceHasError,
 			},
 			true,
-			filteredReasonErrorRateLimit,
 		},
 		{
 			"Slow",
@@ -384,22 +383,30 @@ func TestMaybeRateLimit(t *testing.T) {
 				filteredReasonSlow,
 			},
 			true,
-			filteredReasonSlowRateLimit,
+		},
+		{
+			"Uninteresting",
+			args{
+				1234567890,
+				false,
+				filteredReasonUninteresting,
+			},
+			true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sp := &spansProcessor{
-				logger:          zap.NewNop(),
-				telemetry:       &processorTelemetry{},
-				slowSampler:     constantSampler(0),
-				hasErrorSampler: constantSampler(0),
+				logger:               zap.NewNop(),
+				telemetry:            &processorTelemetry{},
+				slowSampler:          constantSampler(0),
+				hasErrorSampler:      constantSampler(0),
+				uninterestingSampler: constantSampler(0),
 			}
 
-			rateLimited, rateLimitedReason := sp.maybeRateLimit(tt.args.fingerprint, tt.args.filtered, tt.args.filteredReason)
+			rateLimited := sp.maybeRateLimit(tt.args.fingerprint, tt.args.filtered, tt.args.filteredReason)
 			assert.Equal(t, tt.expected, rateLimited)
-			assert.Equal(t, tt.expectedReason, rateLimitedReason)
 		})
 	}
 }

@@ -35,15 +35,16 @@ import (
 )
 
 type spansProcessor struct {
-	telemetry *processorTelemetry
-	logger    *zap.Logger
-	graphURL  string
-	apiKey    string
+	telemetry   *processorTelemetry
+	logger      *zap.Logger
+	traceConfig *TraceConfig
+	apiKey      string
 
-	sketches         map[uint64]*ddsketch.DDSketch
-	sentFingerprints fingerprintTracker
-	slowSampler      dynsampler.Sampler
-	hasErrorSampler  dynsampler.Sampler
+	sketches             map[uint64]*ddsketch.DDSketch
+	sentFingerprints     fingerprintTracker
+	slowSampler          dynsampler.Sampler
+	hasErrorSampler      dynsampler.Sampler
+	uninterestingSampler dynsampler.Sampler
 }
 
 type fingerprintTracker struct {
@@ -53,15 +54,16 @@ type fingerprintTracker struct {
 
 func newSpansProcessor(set processor.CreateSettings, config *Config) (*spansProcessor, error) {
 	sp := &spansProcessor{
-		logger:   set.Logger,
-		graphURL: config.GraphURL,
-		apiKey:   config.APIKey,
-		sketches: make(map[uint64]*ddsketch.DDSketch),
+		logger:      set.Logger,
+		traceConfig: &config.TraceConfig,
+		apiKey:      config.APIKey,
+		sketches:    make(map[uint64]*ddsketch.DDSketch),
 		sentFingerprints: fingerprintTracker{
 			fingerprints: make(map[uint64]struct{}),
 		},
-		slowSampler:     &dynsampler.AvgSampleWithMin{GoalSampleRate: 2},
-		hasErrorSampler: &dynsampler.AvgSampleWithMin{GoalSampleRate: 2},
+		slowSampler:          &dynsampler.AvgSampleWithMin{GoalSampleRate: *config.TraceConfig.SlowRate},
+		hasErrorSampler:      &dynsampler.AvgSampleWithMin{GoalSampleRate: *config.TraceConfig.HasErrorRate},
+		uninterestingSampler: &dynsampler.AvgSampleWithMin{GoalSampleRate: *config.TraceConfig.UninterestingRate},
 	}
 
 	dpt, err := newProcessorTelemetry(set)
@@ -75,6 +77,9 @@ func newSpansProcessor(set processor.CreateSettings, config *Config) (*spansProc
 	}
 	if err := sp.hasErrorSampler.Start(); err != nil {
 		return nil, fmt.Errorf("error starting has error sampler: %w", err)
+	}
+	if err := sp.uninterestingSampler.Start(); err != nil {
+		return nil, fmt.Errorf("error starting uninteresting sampler: %w", err)
 	}
 
 	set.Logger.Info(
@@ -220,7 +225,7 @@ func (sp *spansProcessor) shouldFilter(td ptrace.Traces, fingerprint uint64, has
 	if slow {
 		return false, filteredReasonSlow
 	}
-	return true, filteredReasonUninteresting
+	return false, filteredReasonUninteresting
 }
 
 func rateHelper(rate int) bool {
@@ -237,12 +242,10 @@ func rateHelper(rate int) bool {
 type filteredReason string
 
 const (
-	filteredReasonTraceHasError  filteredReason = "trace_has_error"
-	filteredReasonSlow           filteredReason = "slow"
-	filteredReasonUninteresting  filteredReason = "uninteresting"
-	filteredReasonInvalid        filteredReason = "invalid_fingerprint"
-	filteredReasonSlowRateLimit  filteredReason = "slow_rate_limited"
-	filteredReasonErrorRateLimit filteredReason = "trace_has_error_rate_limited"
+	filteredReasonTraceHasError filteredReason = "trace_has_error"
+	filteredReasonSlow          filteredReason = "slow"
+	filteredReasonUninteresting filteredReason = "uninteresting"
+	filteredReasonInvalid       filteredReason = "invalid_fingerprint"
 )
 
 func (sp *spansProcessor) rateLimitSlow(fingerprint uint64) bool {
@@ -255,22 +258,32 @@ func (sp *spansProcessor) rateLimitHasError(fingerprint uint64) bool {
 	return rateHelper(rate)
 }
 
-func (sp *spansProcessor) maybeRateLimit(fingerprint uint64, filtered bool, filteredReason filteredReason) (bool, filteredReason) {
+func (sp *spansProcessor) rateLimitUninteresting(fingerprint uint64) bool {
+	rate := sp.uninterestingSampler.GetSampleRate(fmt.Sprintf("%d", fingerprint))
+	return rateHelper(rate)
+}
+
+func (sp *spansProcessor) maybeRateLimit(fingerprint uint64, filtered bool, filteredReason filteredReason) bool {
 	if filtered {
-		return filtered, filteredReason
+		return filtered
 	}
 
-	if filteredReason == filteredReasonTraceHasError {
-		if sp.rateLimitHasError(fingerprint) {
-			return true, filteredReasonErrorRateLimit
-		}
-	}
-	if filteredReason == filteredReasonSlow {
+	switch filteredReason {
+	case filteredReasonSlow:
 		if sp.rateLimitSlow(fingerprint) {
-			return true, filteredReasonSlowRateLimit
+			return true
+		}
+	case filteredReasonTraceHasError:
+		if sp.rateLimitHasError(fingerprint) {
+			return true
+		}
+	case filteredReasonUninteresting:
+		if sp.rateLimitUninteresting(fingerprint) {
+			return true
 		}
 	}
-	return filtered, filteredReason
+
+	return filtered
 }
 
 func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, hasError bool, fpError string) (ptrace.Traces, error) {
@@ -279,7 +292,7 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 	// rate limit the unfiltered traces.
 	filtered, filteredReason := sp.shouldFilter(td, fingerprint, hasError)
 	if !filtered {
-		filtered, filteredReason = sp.maybeRateLimit(fingerprint, filtered, filteredReason)
+		filtered = sp.maybeRateLimit(fingerprint, filtered, filteredReason)
 	}
 
 	spancount := int64(0)
@@ -322,14 +335,15 @@ func (sp *spansProcessor) Shutdown(context.Context) error {
 }
 
 func (sp *spansProcessor) sendGraph(ctx context.Context, graph *spantagger.Graph) error {
-	if sp.graphURL == "" {
+	u := sp.traceConfig.GraphURL
+	if u == "" {
 		return nil
 	}
 	b, err := json.Marshal(graph)
 	if err != nil {
 		return fmt.Errorf("failed to marshal graph: %w", err)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, sp.graphURL, bytes.NewReader(b))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(b))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}

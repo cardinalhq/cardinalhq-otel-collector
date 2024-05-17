@@ -235,7 +235,7 @@ func rateHelper(rate int) bool {
 	case 1:
 		return false
 	default:
-		return rand.Float64() <= 1/float64(rate)
+		return rand.Float64() >= 1/float64(rate)
 	}
 }
 

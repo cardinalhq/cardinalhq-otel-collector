@@ -410,3 +410,35 @@ func TestMaybeRateLimit(t *testing.T) {
 		})
 	}
 }
+
+func TestRateHelper(t *testing.T) {
+	// Test case: rate = 0, expected: true
+	rate := 0
+	expected := true
+	result := rateHelper(rate)
+	if result != expected {
+		t.Errorf("rateHelper(%d) = %t, expected %t", rate, result, expected)
+	}
+
+	// Test case: rate = 1, expected: false
+	rate = 1
+	expected = false
+	result = rateHelper(rate)
+	if result != expected {
+		t.Errorf("rateHelper(%d) = %t, expected %t", rate, result, expected)
+	}
+
+	trues := 0
+	falses := 0
+	for i := 0; i < 100_000; i++ {
+		result = rateHelper(100)
+		if result {
+			trues++
+		} else {
+			falses++
+		}
+	}
+	if trues < 80_000 {
+		t.Errorf("rateHelper(100) should return false more often than true: trues=%d, falses=%d", trues, falses)
+	}
+}

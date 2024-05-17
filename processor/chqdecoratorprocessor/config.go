@@ -69,6 +69,8 @@ type MetricConfig struct {
 }
 
 type TraceConfig struct {
+	// Where to send the graph data.  This will be done using a HTTP post.
+	GraphURL string `mapstructure:"graph_url"`
 	// UninterestingRate is the rate limit applied to traces that
 	// are not otherwise interesting.  Defaults to 0, which will
 	// drop all uninteresting traces.  A value of 100 will keep
@@ -85,8 +87,6 @@ type TraceConfig struct {
 	// at least one span that has an error indication.
 	// The rate is applied per fingerprint.
 	HasErrorRate *int `mapstructure:"has_error_rate"`
-	// Where to send the graph data.  This will be done using a HTTP post.
-	GraphURL string `mapstructure:"graph_url"`
 }
 
 var _ component.Config = (*Config)(nil)

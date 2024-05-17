@@ -320,8 +320,13 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 		}
 	}
 
-	sp.telemetry.record(triggerTracesProcessed, 1, attribute.Bool("filtered.status", filtered), attribute.String("filtered.classification", string(filteredReason)))
-	sp.telemetry.record(triggerSpansProcessed, spancount, attribute.Bool("filtered.status", filtered), attribute.String("filtered.classification", string(filteredReason)))
+	attributes := []attribute.KeyValue{
+		attribute.Bool("filtered.status", filtered),
+		attribute.String("filtered.classification", string(filteredReason)),
+		attribute.Int64("filtered.fingerprint", int64(fingerprint)),
+	}
+	sp.telemetry.record(triggerTracesProcessed, 1, attributes...)
+	sp.telemetry.record(triggerSpansProcessed, spancount, attributes...)
 
 	return td, nil
 }

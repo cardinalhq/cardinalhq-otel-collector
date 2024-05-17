@@ -23,6 +23,7 @@ import (
 
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/processor"
+	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/zap"
 )
 
@@ -91,7 +92,8 @@ func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs,
 		}
 	}
 
-	lp.telemetry.recordProcessed(triggerLogsProcessed, processed-dropped, dropped)
+	lp.telemetry.record(triggerLogsProcessed, processed-dropped, attribute.Bool("filtered.status", false), attribute.String("filtered.classification", "not_filtered"))
+	lp.telemetry.record(triggerLogsProcessed, dropped, attribute.Bool("filtered.status", true), attribute.String("filtered.classification", "rule_match"))
 
 	return ld, nil
 }

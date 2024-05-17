@@ -24,6 +24,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/collector/processor/processorhelper"
+	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/sampler"
@@ -95,8 +96,9 @@ func (mp *metricProcessor) processMetrics(ctx context.Context, md pmetric.Metric
 		return md.ResourceMetrics().Len() == 0
 	})
 
-	mp.telemetry.recordCount(triggerMetricDataPointsAggregated, aggregated)
-	mp.telemetry.recordProcessed(triggerMetricsProcessed, processed-aggregated, aggregated)
+	mp.telemetry.record(triggerMetricDataPointsAggregated, aggregated)
+	mp.telemetry.record(triggerMetricsProcessed, processed-aggregated, attribute.Bool("filtered.status", false), attribute.String("filtered.classification", "not_filtered"))
+	mp.telemetry.record(triggerMetricsProcessed, aggregated, attribute.Bool("filtered.status", true), attribute.String("filtered.classification", "aggregated"))
 
 	mp.emit()
 

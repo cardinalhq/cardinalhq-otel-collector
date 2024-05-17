@@ -143,7 +143,7 @@ func (dpt *processorTelemetry) getMetric(trigger trigger) metric.Int64Counter {
 	}
 }
 
-func (dpt *processorTelemetry) recordProcessed(trigger trigger, processedCount int64, filteredCount int64) {
+func (dpt *processorTelemetry) record(trigger trigger, count int64, attributes ...attribute.KeyValue) {
 	if !dpt.configured {
 		return
 	}
@@ -151,19 +151,6 @@ func (dpt *processorTelemetry) recordProcessed(trigger trigger, processedCount i
 	if triggerMeasure == nil {
 		return
 	}
-
-	triggerMeasure.Add(dpt.exportCtx, processedCount, metric.WithAttributes(dpt.processorAttr...), metric.WithAttributes(attribute.Bool("filtered", false)))
-	triggerMeasure.Add(dpt.exportCtx, filteredCount, metric.WithAttributes(dpt.processorAttr...), metric.WithAttributes(attribute.Bool("filtered", true)))
-}
-
-func (dpt *processorTelemetry) recordCount(trigger trigger, count int64) {
-	if !dpt.configured {
-		return
-	}
-	triggerMeasure := dpt.getMetric(trigger)
-	if triggerMeasure == nil {
-		return
-	}
-
-	triggerMeasure.Add(dpt.exportCtx, count, metric.WithAttributes(dpt.processorAttr...))
+	attrs := append(dpt.processorAttr, attributes...)
+	triggerMeasure.Add(dpt.exportCtx, count, metric.WithAttributes(attrs...))
 }

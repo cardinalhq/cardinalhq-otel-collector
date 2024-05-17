@@ -114,7 +114,7 @@ data:
       
       # Group by trace processor to group trace data by trace ID.
       groupbytrace:
-        wait_duration: 10s
+        wait_duration: 60s
 
       # This processor should be added to the list of processors before
       # the filter/chq, and the exporters that write to S3 or to upstream
@@ -124,8 +124,11 @@ data:
       # by CardinalHQ.
       chqdecorator:
         sampler_config_file: https://www.flame.org/~explorer/sampler-config.yaml
-        graph_url: http://microbatch-flows.default.svc.cluster.local:7101/api/v1/flowGraph
         api_key: ${env:SAMPLER_API_KEY}
+        traces:
+          graph_url: http://microbatch-flows.default.svc.cluster.local:7101/api/v1/flowGraph
+          uninteresting_rate: 100
+          has_error_rate: 4
 
       # This processor should be added to the list of processors that
       # are in the pipeline destined to the upstream provider, such as

@@ -114,7 +114,7 @@ data:
       
       # Group by trace processor to group trace data by trace ID.
       groupbytrace:
-        wait_duration: 10s
+        wait_duration: 60s
 
       # This processor should be added to the list of processors before
       # the filter/chq, and the exporters that write to S3 or to upstream

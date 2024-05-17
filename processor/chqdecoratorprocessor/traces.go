@@ -209,22 +209,21 @@ func (sp *spansProcessor) slowPercentile(fingerprint uint64, duration int64) boo
 	return float64(duration) > v
 }
 
-func (sp *spansProcessor) shouldFilter(td ptrace.Traces, fingerprint uint64, hasError bool) (bool, string) {
+func (sp *spansProcessor) shouldFilter(td ptrace.Traces, fingerprint uint64, hasError bool) (bool, filteredReason) {
 	if fingerprint == 0 {
-		return true, "invalid_fingerprint"
+		return true, filteredReasonInvalid
 	}
 	slow := sp.isSlow(td, fingerprint) // always call this to update our sketch
 	if hasError {
-		return false, "trace_has_error"
+		return false, filteredReasonTraceHasError
 	}
 	if slow {
-		return false, "slow"
+		return false, filteredReasonSlow
 	}
-	return true, "uninteresting"
+	return true, filteredReasonUninteresting
 }
 
-func (sp *spansProcessor) rateLimitSlow(fingerprint uint64) bool {
-	rate := sp.slowSampler.GetSampleRate(fmt.Sprintf("%d", fingerprint))
+func rateHelper(rate int) bool {
 	switch rate {
 	case 0:
 		return true
@@ -233,18 +232,45 @@ func (sp *spansProcessor) rateLimitSlow(fingerprint uint64) bool {
 	default:
 		return rand.Float64() <= 1/float64(rate)
 	}
+}
+
+type filteredReason string
+
+const (
+	filteredReasonTraceHasError  filteredReason = "trace_has_error"
+	filteredReasonSlow           filteredReason = "slow"
+	filteredReasonUninteresting  filteredReason = "uninteresting"
+	filteredReasonInvalid        filteredReason = "invalid_fingerprint"
+	filteredReasonSlowRateLimit  filteredReason = "slow_rate_limited"
+	filteredReasonErrorRateLimit filteredReason = "trace_has_error_rate_limited"
+)
+
+func (sp *spansProcessor) rateLimitSlow(fingerprint uint64) bool {
+	rate := sp.slowSampler.GetSampleRate(fmt.Sprintf("%d", fingerprint))
+	return rateHelper(rate)
 }
 
 func (sp *spansProcessor) rateLimitHasError(fingerprint uint64) bool {
 	rate := sp.hasErrorSampler.GetSampleRate(fmt.Sprintf("%d", fingerprint))
-	switch rate {
-	case 0:
-		return true
-	case 1:
-		return false
-	default:
-		return rand.Float64() <= 1/float64(rate)
+	return rateHelper(rate)
+}
+
+func (sp *spansProcessor) maybeRateLimit(fingerprint uint64, filtered bool, filteredReason filteredReason) (bool, filteredReason) {
+	if filtered {
+		return filtered, filteredReason
 	}
+
+	if filteredReason == filteredReasonTraceHasError {
+		if sp.rateLimitHasError(fingerprint) {
+			return true, filteredReasonErrorRateLimit
+		}
+	}
+	if filteredReason == filteredReasonSlow {
+		if sp.rateLimitSlow(fingerprint) {
+			return true, filteredReasonSlowRateLimit
+		}
+	}
+	return filtered, filteredReason
 }
 
 func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, hasError bool, fpError string) (ptrace.Traces, error) {
@@ -253,19 +279,7 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 	// rate limit the unfiltered traces.
 	filtered, filteredReason := sp.shouldFilter(td, fingerprint, hasError)
 	if !filtered {
-		if hasError {
-			rlFilter := sp.rateLimitHasError(fingerprint)
-			if rlFilter {
-				filtered = true
-				filteredReason = "trace_has_error_rate_limited"
-			}
-		} else {
-			isSlow := sp.rateLimitSlow(fingerprint)
-			if isSlow {
-				filtered = true
-				filteredReason = "slow_rate_limited"
-			}
-		}
+		filtered, filteredReason = sp.maybeRateLimit(fingerprint, filtered, filteredReason)
 	}
 
 	spancount := int64(0)
@@ -280,7 +294,7 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 				spancount++
 				span := spans.At(k)
 				span.Attributes().PutBool("_cardinalhq.filtered", filtered)
-				span.Attributes().PutStr("_cardinalhq.filtered_reason", filteredReason)
+				span.Attributes().PutStr("_cardinalhq.filtered_reason", string(filteredReason))
 				span.Attributes().PutInt("_cardinalhq.fingerprint", int64(fingerprint))
 				span.Attributes().PutBool("_cardinalhq.trace_has_error", hasError)
 				if fpError != "" {
@@ -293,8 +307,8 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 		}
 	}
 
-	sp.telemetry.record(triggerTracesProcessed, 1, attribute.Bool("filtered.status", filtered), attribute.String("filtered.classification", filteredReason))
-	sp.telemetry.record(triggerSpansProcessed, spancount, attribute.Bool("filtered.status", filtered), attribute.String("filtered.classification", filteredReason))
+	sp.telemetry.record(triggerTracesProcessed, 1, attribute.Bool("filtered.status", filtered), attribute.String("filtered.classification", string(filteredReason)))
+	sp.telemetry.record(triggerSpansProcessed, spancount, attribute.Bool("filtered.status", filtered), attribute.String("filtered.classification", string(filteredReason)))
 
 	return td, nil
 }

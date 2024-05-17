@@ -126,7 +126,7 @@ func (cfg *TraceConfig) Validate() error {
 
 	if cfg.UninterestingRate == nil {
 		cfg.UninterestingRate = new(int)
-		*cfg.UninterestingRate = 0
+		*cfg.UninterestingRate = 1
 	}
 	if cfg.SlowRate == nil {
 		cfg.SlowRate = new(int)

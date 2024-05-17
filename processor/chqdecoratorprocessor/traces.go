@@ -322,7 +322,6 @@ func (sp *spansProcessor) sendGraph(ctx context.Context, graph *spantagger.Graph
 		return fmt.Errorf("failed to send graph: http status %d", resp.StatusCode)
 	}
 
-	sp.logger.Info("sent graph", zap.String("url", sp.graphURL), zap.Int("status", resp.StatusCode))
 	sp.telemetry.recordCount(triggerGraphPosted, 1)
 	return nil
 }

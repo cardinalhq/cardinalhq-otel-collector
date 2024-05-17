@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"sync"
 
@@ -28,6 +29,7 @@ import (
 
 	"github.com/DataDog/sketches-go/ddsketch"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/spantagger"
+	"github.com/honeycombio/dynsampler-go"
 )
 
 type spansProcessor struct {
@@ -38,6 +40,8 @@ type spansProcessor struct {
 
 	sketches         map[uint64]*ddsketch.DDSketch
 	sentFingerprints fingerprintTracker
+	slowSampler      dynsampler.Sampler
+	hasErrorSampler  dynsampler.Sampler
 }
 
 type fingerprintTracker struct {
@@ -55,6 +59,8 @@ func newSpansProcessor(set processor.CreateSettings, config *Config) (*spansProc
 		sentFingerprints: fingerprintTracker{
 			fingerprints: make(map[uint64]struct{}),
 		},
+		slowSampler:     &dynsampler.AvgSampleWithMin{GoalSampleRate: 2},
+		hasErrorSampler: &dynsampler.AvgSampleWithMin{GoalSampleRate: 2},
 	}
 
 	dpt, err := newProcessorTelemetry(set)
@@ -180,7 +186,13 @@ func (sp *spansProcessor) slowPercentile(fingerprint uint64, duration int64) boo
 	if err != nil {
 		return false
 	}
-	sketch.Add(float64(duration))
+	if err := sketch.Add(float64(duration)); err != nil {
+		if err != ddsketch.ErrUntrackableTooHigh {
+			return true // too large means too large, so it's likely too slow
+		}
+		sp.logger.Warn("failed to add value to sketch", zap.Error(err))
+		return false
+	}
 	v, err := sketch.GetValueAtQuantile(0.75)
 	if err != nil {
 		sp.logger.Warn("failed to get value at quantile", zap.Error(err))
@@ -197,8 +209,44 @@ func (sp *spansProcessor) shouldFilter(td ptrace.Traces, fingerprint uint64, has
 	return !hasError && !slow
 }
 
+func (sp *spansProcessor) rateLimitSlow(fingerprint uint64) bool {
+	rate := sp.slowSampler.GetSampleRate(fmt.Sprintf("%d", fingerprint))
+	switch rate {
+	case 0:
+		return true
+	case 1:
+		return false
+	default:
+		return rand.Float64() <= 1/float64(rate)
+	}
+}
+
+func (sp *spansProcessor) rateLimitHasError(fingerprint uint64) bool {
+	rate := sp.hasErrorSampler.GetSampleRate(fmt.Sprintf("%d", fingerprint))
+	switch rate {
+	case 0:
+		return true
+	case 1:
+		return false
+	default:
+		return rand.Float64() <= 1/float64(rate)
+	}
+}
+
 func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, hasError bool, fpError string) (ptrace.Traces, error) {
+	// First, check to see if this trace is interesting.  If it is not,
+	// we will have filtered set to true.  In that case, we only want to
+	// rate limit the unfiltered traces.
 	filtered := sp.shouldFilter(td, fingerprint, hasError)
+	if !filtered {
+		if hasError {
+			filtered = sp.rateLimitHasError(fingerprint)
+		} else {
+			filtered = sp.rateLimitSlow(fingerprint)
+		}
+	}
+
+	spancount := int64(0)
 	rss := td.ResourceSpans()
 	for i := 0; i < rss.Len(); i++ {
 		rs := rss.At(i)
@@ -207,6 +255,7 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 			ils := ilss.At(j)
 			spans := ils.Spans()
 			for k := 0; k < spans.Len(); k++ {
+				spancount++
 				span := spans.At(k)
 				span.Attributes().PutBool("_cardinalhq.filtered", filtered)
 				span.Attributes().PutInt("_cardinalhq.fingerprint", int64(fingerprint))
@@ -220,6 +269,15 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 			}
 		}
 	}
+
+	if filtered {
+		sp.telemetry.recordProcessed(triggerTracesProcessed, 0, 1)
+		sp.telemetry.recordProcessed(triggerSpansProcessed, 0, spancount)
+	} else {
+		sp.telemetry.recordProcessed(triggerTracesProcessed, 1, 0)
+		sp.telemetry.recordProcessed(triggerSpansProcessed, spancount, 0)
+	}
+
 	return td, nil
 }
 
@@ -254,6 +312,6 @@ func (sp *spansProcessor) sendGraph(ctx context.Context, graph *spantagger.Graph
 	}
 
 	sp.logger.Info("sent graph", zap.String("url", sp.graphURL), zap.Int("status", resp.StatusCode))
-	sp.telemetry.record(triggerGraphPosted, 1)
+	sp.telemetry.recordCount(triggerGraphPosted, 1)
 	return nil
 }

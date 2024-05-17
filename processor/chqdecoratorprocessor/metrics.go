@@ -81,9 +81,11 @@ func newMetricProcessor(set processor.CreateSettings, conf *Config, nextConsumer
 
 func (mp *metricProcessor) processMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
 	aggregated := int64(0)
+	processed := int64(0)
 	md.ResourceMetrics().RemoveIf(func(rms pmetric.ResourceMetrics) bool {
 		rms.ScopeMetrics().RemoveIf(func(ils pmetric.ScopeMetrics) bool {
 			ils.Metrics().RemoveIf(func(metric pmetric.Metric) bool {
+				processed++
 				aggregated = aggregated + mp.aggregate(rms, ils, metric)
 				// decorate, don't drop
 				return false
@@ -93,7 +95,8 @@ func (mp *metricProcessor) processMetrics(ctx context.Context, md pmetric.Metric
 		return md.ResourceMetrics().Len() == 0
 	})
 
-	mp.telemetry.record(triggerMetricDataPointsAggregated, aggregated)
+	mp.telemetry.recordCount(triggerMetricDataPointsAggregated, aggregated)
+	mp.telemetry.recordProcessed(triggerMetricsProcessed, processed-aggregated, aggregated)
 
 	mp.emit()
 

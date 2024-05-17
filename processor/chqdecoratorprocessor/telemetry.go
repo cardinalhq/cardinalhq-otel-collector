@@ -29,9 +29,10 @@ type trigger int
 
 const (
 	triggerMetricDataPointsAggregated trigger = iota
-	triggerLogsDropped
-	triggerSpansDropped
 	triggerLogsProcessed
+	triggerMetricsProcessed
+	triggerSpansProcessed
+	triggerTracesProcessed
 	triggerGraphPosted
 )
 
@@ -42,9 +43,10 @@ type processorTelemetry struct {
 	processorAttr []attribute.KeyValue
 
 	datapointsFiltered metric.Int64Counter
-	logsFiltered       metric.Int64Counter
 	logsProcessed      metric.Int64Counter
-	spansFiltered      metric.Int64Counter
+	metricsProcessed   metric.Int64Counter
+	spansProcessed     metric.Int64Counter
+	tracesProcessed    metric.Int64Counter
 	graphsPosted       metric.Int64Counter
 }
 
@@ -69,14 +71,14 @@ func newProcessorTelemetry(set processor.CreateSettings) (*processorTelemetry, e
 	dpt.datapointsFiltered = counter
 
 	counter, err = metadata.Meter(set.TelemetrySettings).Int64Counter(
-		processorhelper.BuildCustomMetricName(metadata.Type.String(), "logs.filtered"),
-		metric.WithDescription("The total number of logs filtered by the processor"),
+		processorhelper.BuildCustomMetricName(metadata.Type.String(), "metrics.processed"),
+		metric.WithDescription("The total number of metrics processed by the processor"),
 		metric.WithUnit("1"),
 	)
 	if err != nil {
 		return nil, err
 	}
-	dpt.logsFiltered = counter
+	dpt.metricsProcessed = counter
 
 	counter, err = metadata.Meter(set.TelemetrySettings).Int64Counter(
 		processorhelper.BuildCustomMetricName(metadata.Type.String(), "logs.processed"),
@@ -89,14 +91,24 @@ func newProcessorTelemetry(set processor.CreateSettings) (*processorTelemetry, e
 	dpt.logsProcessed = counter
 
 	counter, err = metadata.Meter(set.TelemetrySettings).Int64Counter(
-		processorhelper.BuildCustomMetricName(metadata.Type.String(), "spans.filtered"),
-		metric.WithDescription("The total number of spans filtered by the processor"),
+		processorhelper.BuildCustomMetricName(metadata.Type.String(), "spans.processed"),
+		metric.WithDescription("The total number of spans processed by the processor"),
 		metric.WithUnit("1"),
 	)
 	if err != nil {
 		return nil, err
 	}
-	dpt.spansFiltered = counter
+	dpt.spansProcessed = counter
+
+	counter, err = metadata.Meter(set.TelemetrySettings).Int64Counter(
+		processorhelper.BuildCustomMetricName(metadata.Type.String(), "traces.processed"),
+		metric.WithDescription("The total number of traces processed by the processor"),
+		metric.WithUnit("1"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	dpt.tracesProcessed = counter
 
 	counter, err = metadata.Meter(set.TelemetrySettings).Int64Counter(
 		processorhelper.BuildCustomMetricName(metadata.Type.String(), "graphs.posted"),
@@ -112,23 +124,44 @@ func newProcessorTelemetry(set processor.CreateSettings) (*processorTelemetry, e
 	return dpt, nil
 }
 
-func (dpt *processorTelemetry) record(trigger trigger, count int64) {
+func (dpt *processorTelemetry) getMetric(trigger trigger) metric.Int64Counter {
+	switch trigger {
+	case triggerMetricDataPointsAggregated:
+		return dpt.datapointsFiltered
+	case triggerLogsProcessed:
+		return dpt.logsProcessed
+	case triggerMetricsProcessed:
+		return dpt.metricsProcessed
+	case triggerTracesProcessed:
+		return dpt.tracesProcessed
+	case triggerSpansProcessed:
+		return dpt.spansProcessed
+	case triggerGraphPosted:
+		return dpt.graphsPosted
+	default:
+		return nil
+	}
+}
+
+func (dpt *processorTelemetry) recordProcessed(trigger trigger, processedCount int64, filteredCount int64) {
 	if !dpt.configured {
 		return
 	}
-	var triggerMeasure metric.Int64Counter
-	switch trigger {
-	case triggerMetricDataPointsAggregated:
-		triggerMeasure = dpt.datapointsFiltered
-	case triggerLogsDropped:
-		triggerMeasure = dpt.logsFiltered
-	case triggerLogsProcessed:
-		triggerMeasure = dpt.logsProcessed
-	case triggerSpansDropped:
-		triggerMeasure = dpt.spansFiltered
-	case triggerGraphPosted:
-		triggerMeasure = dpt.graphsPosted
-	default:
+	triggerMeasure := dpt.getMetric(trigger)
+	if triggerMeasure == nil {
+		return
+	}
+
+	triggerMeasure.Add(dpt.exportCtx, processedCount, metric.WithAttributes(dpt.processorAttr...), metric.WithAttributes(attribute.Bool("filtered", false)))
+	triggerMeasure.Add(dpt.exportCtx, filteredCount, metric.WithAttributes(dpt.processorAttr...), metric.WithAttributes(attribute.Bool("filtered", true)))
+}
+
+func (dpt *processorTelemetry) recordCount(trigger trigger, count int64) {
+	if !dpt.configured {
+		return
+	}
+	triggerMeasure := dpt.getMetric(trigger)
+	if triggerMeasure == nil {
 		return
 	}
 

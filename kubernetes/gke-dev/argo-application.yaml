@@ -11,7 +11,7 @@ spec:
     targetRevision: main
   destination:
     namespace: collector
-    name: kubepi
+    name: gke-dev
   syncPolicy:
     automated: {}
     syncOptions:

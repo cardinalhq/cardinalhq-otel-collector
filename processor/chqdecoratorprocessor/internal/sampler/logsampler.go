@@ -26,9 +26,11 @@ import (
 )
 
 type LogSampler interface {
-	Sample(rattr pcommon.Map, iattr pcommon.Map, lattr pcommon.Map) (droppingRule string)
+	Sample(fingerprint string, rattr pcommon.Map, iattr pcommon.Map, lattr pcommon.Map) (droppingRule string)
 	UpdateConfig(config *SamplerConfig)
 }
+
+var _ LogSampler = (*LogSamplerImpl)(nil)
 
 type LogSamplerImpl struct {
 	sync.RWMutex
@@ -59,14 +61,14 @@ func (ls *LogSamplerImpl) UpdateConfig(config *SamplerConfig) {
 	ls.configure(config.Logs.Sampling)
 }
 
-func (ls *LogSamplerImpl) Sample(rattr pcommon.Map, iattr pcommon.Map, lattr pcommon.Map) (droppingRule string) {
+func (ls *LogSamplerImpl) Sample(fingerprint string, rattr pcommon.Map, iattr pcommon.Map, lattr pcommon.Map) (droppingRule string) {
 	ls.RLock()
 	defer ls.RUnlock()
 
-	return ls.shouldSample(rattr, iattr, lattr)
+	return ls.shouldSample(fingerprint, rattr, iattr, lattr)
 }
 
-func (ls *LogSamplerImpl) shouldSample(rattr pcommon.Map, iattr pcommon.Map, lattr pcommon.Map) (droppingRule string) {
+func (ls *LogSamplerImpl) shouldSample(fingerprint string, rattr pcommon.Map, iattr pcommon.Map, lattr pcommon.Map) (droppingRule string) {
 	ret := ""
 	matched := false
 
@@ -82,7 +84,7 @@ func (ls *LogSamplerImpl) shouldSample(rattr pcommon.Map, iattr pcommon.Map, lat
 			"log":             lattr,
 		}
 		if matchscope(r.scope, attrs) {
-			rate := r.sampler.GetSampleRate(rid)
+			rate := r.sampler.GetSampleRate(fingerprint)
 			switch rate {
 			case 0:
 				if !matched {

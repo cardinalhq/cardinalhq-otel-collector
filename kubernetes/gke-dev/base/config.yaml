@@ -50,7 +50,7 @@ data:
             interval: 10000
             grace_period: 2000
           traces:
-            interval: 10000
+            interval: 300000
             grace_period: 2000
 
       chqs3/spanmetrics:
@@ -203,7 +203,7 @@ data:
         traces/chq:
           receivers: [otlp/l2]
           processors: [memory_limiter, groupbytrace, chqdecorator, batch/traces]
-          exporters: [forward/filtered, spanmetrics/chq]
+          exporters: [chqs3/cardinalhq, forward/filtered, spanmetrics/chq]
         traces/filtered:
           receivers: [forward/filtered]
           processors: [filter/chq, attributes/chq]

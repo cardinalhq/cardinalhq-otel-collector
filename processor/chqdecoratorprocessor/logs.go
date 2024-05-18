@@ -79,9 +79,10 @@ func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs,
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				log := sl.LogRecords().At(k)
 				fingerprint, level := fingerprinter.Fingerprint(log.Body().AsString())
+				fingerprintString := fmt.Sprintf("%d", fingerprint)
 				log.Attributes().PutInt("_cardinalhq.fingerprint", fingerprint)
 				log.Attributes().PutStr("_cardinalhq.level", level)
-				rule_match := lp.sampler.Sample(rl.Resource().Attributes(), sl.Scope().Attributes(), log.Attributes())
+				rule_match := lp.sampler.Sample(fingerprintString, rl.Resource().Attributes(), sl.Scope().Attributes(), log.Attributes())
 				log.Attributes().PutStr("_cardinalhq.rule_match", rule_match)
 				log.Attributes().PutBool("_cardinalhq.filtered", rule_match != "")
 				processed++

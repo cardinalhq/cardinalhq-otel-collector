@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cardinalhq-otel-collector
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'ssh://git@github.com/cardinalhq/cardinalhq-otel-collector.git'
+    path: kubernetes/gke-dev
+    targetRevision: main
+  destination:
+    namespace: collector
+    name: kubepi
+  syncPolicy:
+    automated: {}
+    syncOptions:
+      - CreateNamespace=true

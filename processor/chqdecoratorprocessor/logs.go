@@ -85,6 +85,7 @@ func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs,
 				rule_match := lp.sampler.Sample(fingerprintString, rl.Resource().Attributes(), sl.Scope().Attributes(), log.Attributes())
 				log.Attributes().PutStr("_cardinalhq.rule_match", rule_match)
 				log.Attributes().PutBool("_cardinalhq.filtered", rule_match != "")
+				log.Attributes().PutBool("_cardinalhq.would_filter", rule_match != "")
 				processed++
 				if rule_match != "" {
 					dropped++

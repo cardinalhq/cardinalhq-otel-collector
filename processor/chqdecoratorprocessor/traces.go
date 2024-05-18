@@ -354,9 +354,11 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 				spancount++
 				span := spans.At(k)
 				span.Attributes().PutBool("_cardinalhq.filtered", filtered)
+				span.Attributes().PutBool("_cardinalhq.would_filter", filtered)
 				span.Attributes().PutStr("_cardinalhq.filtered_reason", string(filteredReason))
 				span.Attributes().PutInt("_cardinalhq.fingerprint", int64(fingerprint))
 				span.Attributes().PutBool("_cardinalhq.trace_has_error", hasError)
+				span.Attributes().PutBool("_cardinalhq.span_has_error", span.Status().Code() == ptrace.StatusCodeError)
 				if fpError != "" {
 					span.Attributes().PutStr("_cardinalhq.fingerprint_error", fpError)
 				}

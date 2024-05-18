@@ -299,6 +299,8 @@ func (mp *metricProcessor) aggregateGauge(rms pmetric.ResourceMetrics, ils pmetr
 			filtered = true
 		}
 		dp.Attributes().PutBool("_cardinalhq.filtered", filtered)
+		dp.Attributes().PutBool("_cardinalhq.would_filter", filtered)
+
 	}
 	return aggregated
 }

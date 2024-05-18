@@ -313,10 +313,10 @@ func getTraceID(td ptrace.Traces) (pcommon.TraceID, bool) {
 		for j := 0; j < ilss.Len(); j++ {
 			ils := ilss.At(j)
 			spans := ils.Spans()
-			for k := 0; k < spans.Len(); k++ {
-				span := spans.At(k)
-				return span.TraceID(), true
+			if spans.Len() == 0 {
+				continue
 			}
+			return spans.At(0).TraceID(), true
 		}
 	}
 	return pcommon.TraceID{}, false

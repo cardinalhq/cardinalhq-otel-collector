@@ -338,7 +338,7 @@ func (mp *metricProcessor) aggregateSum(rms pmetric.ResourceMetrics, ils pmetric
 	return aggregated
 }
 
-func (mp *metricProcessor) AggregateHistogram(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric) int64 {
+func (mp *metricProcessor) aggregateHistogram(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric) int64 {
 	aggregated := int64(0)
 	metric.Histogram().DataPoints().RemoveIf(func(dp pmetric.HistogramDataPoint) bool {
 		attrs := dp.Attributes()
@@ -350,13 +350,15 @@ func (mp *metricProcessor) AggregateHistogram(rms pmetric.ResourceMetrics, ils p
 		}
 		t := dp.Timestamp().AsTime()
 		// TODO pass in metadata
-		rmatch, err := mp.aggregatorF.MatchAndAdd(&t, buckets, counts, sampler.AggregationTypeSum, metric.Name(), nil, rms.Resource().Attributes(), ils.Scope().Attributes(), attrs)
+		rulematch, err := mp.aggregatorF.MatchAndAdd(&t, buckets, counts, sampler.AggregationTypeSum, metric.Name(), nil, rms.Resource().Attributes(), ils.Scope().Attributes(), attrs)
 		if err != nil {
 			mp.logger.Error("Error matching and adding histogram datapoint", zap.Error(err))
 			return false
 		}
-		filtered := rmatch != nil
+		filtered := rulematch != nil
 		if filtered {
+			b, _ := json.Marshal(rulematch)
+			dp.Attributes().PutStr("_cardinalhq.ruleconfig", string(b))
 			dp.Attributes().PutBool("_cardinalhq.filtered", true)
 			dp.Attributes().PutBool("_cardinalhq.would_filter", filtered)
 			aggregated++

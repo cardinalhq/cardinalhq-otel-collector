@@ -22,7 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/sketches-go/ddsketch"
 	"github.com/honeycombio/dynsampler-go"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -212,16 +211,15 @@ func TestShouldFilter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sp := &spansProcessor{
-				logger:    zap.NewNop(),
-				telemetry: &processorTelemetry{},
-				sketches:  make(map[uint64]*ddsketch.DDSketch),
+				logger:              zap.NewNop(),
+				telemetry:           &processorTelemetry{},
+				estimators:          make(map[uint64]*OnlineWindowStat),
+				estimatorWindowSize: 10,
 			}
-			sketch, err := sp.findSketch(tt.args.fingerprint)
-			assert.NoError(t, err)
-			_ = sketch.AddWithCount(1000, 100000)
-			_ = sketch.AddWithCount(2000, 100000)
-			_ = sketch.AddWithCount(3000, 100000)
-			_ = sketch.AddWithCount(4000, 100000)
+			sketch := sp.findSketch(tt.args.fingerprint)
+			for i := 0; i < 10; i++ {
+				sketch.Update(10000)
+			}
 
 			filtered, classification := sp.shouldFilter(tt.args.td, tt.args.fingerprint, tt.args.hasErr)
 			assert.Equal(t, tt.filtered, filtered)

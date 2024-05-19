@@ -28,19 +28,19 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/zap"
 
-	"github.com/DataDog/sketches-go/ddsketch"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/spantagger"
 	"github.com/hashicorp/go-multierror"
 	"github.com/honeycombio/dynsampler-go"
 )
 
 type spansProcessor struct {
-	telemetry   *processorTelemetry
-	logger      *zap.Logger
-	traceConfig *TraceConfig
-	apiKey      string
+	telemetry           *processorTelemetry
+	logger              *zap.Logger
+	traceConfig         *TraceConfig
+	apiKey              string
+	estimatorWindowSize int
 
-	sketches             map[uint64]*ddsketch.DDSketch
+	estimators           map[uint64]*OnlineWindowStat
 	sentFingerprints     fingerprintTracker
 	slowSampler          dynsampler.Sampler
 	hasErrorSampler      dynsampler.Sampler
@@ -57,7 +57,7 @@ func newSpansProcessor(set processor.CreateSettings, config *Config) (*spansProc
 		logger:      set.Logger,
 		traceConfig: &config.TraceConfig,
 		apiKey:      config.APIKey,
-		sketches:    make(map[uint64]*ddsketch.DDSketch),
+		estimators:  make(map[uint64]*OnlineWindowStat),
 		sentFingerprints: fingerprintTracker{
 			fingerprints: make(map[uint64]struct{}),
 		},
@@ -180,47 +180,19 @@ func (sp *spansProcessor) isSlow(td ptrace.Traces, fingerprint uint64) bool {
 	return sp.slowPercentile(fingerprint, rootDuration)
 }
 
-func (sp *spansProcessor) findSketch(fingerprint uint64) (*ddsketch.DDSketch, error) {
-	sketch, ok := sp.sketches[fingerprint]
+func (sp *spansProcessor) findSketch(fingerprint uint64) *OnlineWindowStat {
+	sketch, ok := sp.estimators[fingerprint]
 	if !ok {
-		newSketch, err := ddsketch.NewDefaultDDSketch(0.01)
-		if err != nil {
-			sp.logger.Warn("failed to create sketch", zap.Error(err))
-			return nil, err
-		}
-		sp.sketches[fingerprint] = newSketch
-		return newSketch, nil
+		estimator := NewOnlineWindowStat(sp.estimatorWindowSize)
+		sp.estimators[fingerprint] = estimator
+		return estimator
 	}
-	return sketch, nil
-}
-
-func (sp *spansProcessor) addToSketch(sketch *ddsketch.DDSketch, value float64) error {
-	defer func() {
-		if r := recover(); r != nil {
-			sp.logger.Error("panic in addToSketch", zap.Stack("stack"), zap.Any("recovered", r), zap.Float64("value", value))
-		}
-	}()
-	return sketch.Add(value)
+	return sketch
 }
 
 func (sp *spansProcessor) slowPercentile(fingerprint uint64, duration int64) bool {
-	sketch, err := sp.findSketch(fingerprint)
-	if err != nil {
-		return false
-	}
-	if err := sp.addToSketch(sketch, float64(duration)); err != nil {
-		if err != ddsketch.ErrUntrackableTooHigh {
-			return true // too large means too large, so it's likely too slow
-		}
-		sp.logger.Warn("failed to add value to sketch", zap.Error(err))
-		return false
-	}
-	v, err := sketch.GetValueAtQuantile(0.75)
-	if err != nil {
-		sp.logger.Warn("failed to get value at quantile", zap.Error(err))
-		return false
-	}
-	return float64(duration) > v
+	sketch := sp.findSketch(fingerprint)
+	return sketch.GreaterThanThreeStdDev(float64(duration))
 }
 
 func (sp *spansProcessor) shouldFilter(td ptrace.Traces, fingerprint uint64, hasError bool) (bool, filteredReason) {

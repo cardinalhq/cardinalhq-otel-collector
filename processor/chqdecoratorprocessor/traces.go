@@ -21,48 +21,42 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
-	"sync"
-	"sync/atomic"
+	"time"
 
-	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/zap"
 
-	"github.com/DataDog/sketches-go/ddsketch"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/spantagger"
 	"github.com/hashicorp/go-multierror"
 	"github.com/honeycombio/dynsampler-go"
 )
 
 type spansProcessor struct {
-	telemetry   *processorTelemetry
-	logger      *zap.Logger
-	traceConfig *TraceConfig
-	apiKey      string
+	telemetry           *processorTelemetry
+	logger              *zap.Logger
+	traceConfig         *TraceConfig
+	apiKey              string
+	estimatorWindowSize int
+	estimatorInterval   int64
 
-	sketches             map[uint64]*ddsketch.DDSketch
+	estimators           map[uint64]*SlidingEstimatorStat
 	sentFingerprints     fingerprintTracker
 	slowSampler          dynsampler.Sampler
 	hasErrorSampler      dynsampler.Sampler
 	uninterestingSampler dynsampler.Sampler
 }
 
-type fingerprintTracker struct {
-	sync.Mutex
-	fingerprints map[uint64]struct{}
-}
-
 func newSpansProcessor(set processor.CreateSettings, config *Config) (*spansProcessor, error) {
 	sp := &spansProcessor{
-		logger:      set.Logger,
-		traceConfig: &config.TraceConfig,
-		apiKey:      config.APIKey,
-		sketches:    make(map[uint64]*ddsketch.DDSketch),
-		sentFingerprints: fingerprintTracker{
-			fingerprints: make(map[uint64]struct{}),
-		},
+		logger:               set.Logger,
+		traceConfig:          &config.TraceConfig,
+		apiKey:               config.APIKey,
+		estimators:           make(map[uint64]*SlidingEstimatorStat),
+		estimatorWindowSize:  *config.TraceConfig.EstimatorWindowSize,
+		estimatorInterval:    *config.TraceConfig.EstimatorInterval,
+		sentFingerprints:     *newFingerprintTracker(),
 		slowSampler:          &dynsampler.AvgSampleWithMin{GoalSampleRate: *config.TraceConfig.SlowRate},
 		hasErrorSampler:      &dynsampler.AvgSampleWithMin{GoalSampleRate: *config.TraceConfig.HasErrorRate},
 		uninterestingSampler: &dynsampler.AvgSampleWithMin{GoalSampleRate: *config.TraceConfig.UninterestingRate},
@@ -84,9 +78,7 @@ func newSpansProcessor(set processor.CreateSettings, config *Config) (*spansProc
 		return nil, fmt.Errorf("error starting uninteresting sampler: %w", err)
 	}
 
-	set.Logger.Info(
-		"Decorator processor configured",
-	)
+	set.Logger.Info("Decorator processor configured")
 
 	return sp, nil
 }
@@ -107,22 +99,6 @@ func getFingerprint(traces ptrace.Traces) (uint64, bool, string) {
 	default:
 		return 0, he, "UnknownError"
 	}
-}
-
-func (sp *spansProcessor) newTrace(fingerprint uint64) bool {
-	sp.sentFingerprints.Lock()
-	defer sp.sentFingerprints.Unlock()
-	if _, ok := sp.sentFingerprints.fingerprints[fingerprint]; ok {
-		return false
-	}
-	sp.sentFingerprints.fingerprints[fingerprint] = struct{}{}
-	return true
-}
-
-func (sp *spansProcessor) deleteTrace(fingerprint uint64) {
-	sp.sentFingerprints.Lock()
-	defer sp.sentFingerprints.Unlock()
-	delete(sp.sentFingerprints.fingerprints, fingerprint)
 }
 
 func (sp *spansProcessor) processTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
@@ -179,41 +155,23 @@ func (sp *spansProcessor) isSlow(td ptrace.Traces, fingerprint uint64) bool {
 	if !found {
 		return false
 	}
-	return sp.slowPercentile(fingerprint, rootDuration)
+	return sp.slowPercentile(fingerprint, float64(rootDuration))
 }
 
-func (sp *spansProcessor) findSketch(fingerprint uint64) (*ddsketch.DDSketch, error) {
-	sketch, ok := sp.sketches[fingerprint]
+func (sp *spansProcessor) findSketch(fingerprint uint64) *SlidingEstimatorStat {
+	sketch, ok := sp.estimators[fingerprint]
 	if !ok {
-		newSketch, err := ddsketch.NewDefaultDDSketch(0.01)
-		if err != nil {
-			sp.logger.Warn("failed to create sketch", zap.Error(err))
-			return nil, err
-		}
-		sp.sketches[fingerprint] = newSketch
-		return newSketch, nil
+		estimator := NewSlidingEstimatorStat(sp.estimatorWindowSize, sp.estimatorInterval)
+		sp.estimators[fingerprint] = estimator
+		return estimator
 	}
-	return sketch, nil
+	return sketch
 }
 
-func (sp *spansProcessor) slowPercentile(fingerprint uint64, duration int64) bool {
-	sketch, err := sp.findSketch(fingerprint)
-	if err != nil {
-		return false
-	}
-	if err := sketch.Add(float64(duration)); err != nil {
-		if err != ddsketch.ErrUntrackableTooHigh {
-			return true // too large means too large, so it's likely too slow
-		}
-		sp.logger.Warn("failed to add value to sketch", zap.Error(err))
-		return false
-	}
-	v, err := sketch.GetValueAtQuantile(0.75)
-	if err != nil {
-		sp.logger.Warn("failed to get value at quantile", zap.Error(err))
-		return false
-	}
-	return float64(duration) > v
+func (sp *spansProcessor) slowPercentile(fingerprint uint64, duration float64) bool {
+	sketch := sp.findSketch(fingerprint)
+	sketch.Update(time.Now().UnixMilli(), duration)
+	return sketch.GreaterThanThreeStdDev(duration)
 }
 
 func (sp *spansProcessor) shouldFilter(td ptrace.Traces, fingerprint uint64, hasError bool) (bool, filteredReason) {
@@ -288,44 +246,6 @@ func (sp *spansProcessor) maybeRateLimit(fingerprint uint64, filtered bool, filt
 	return filtered
 }
 
-var processorCounter atomic.Int64
-
-type tracker struct {
-	sync.Mutex
-	traces map[pcommon.TraceID]struct{}
-}
-
-func (t *tracker) newTraceID(traceID pcommon.TraceID) bool {
-	t.Lock()
-	defer t.Unlock()
-	if _, ok := t.traces[traceID]; ok {
-		return false
-	}
-	t.traces[traceID] = struct{}{}
-	return true
-}
-
-func getTraceID(td ptrace.Traces) (pcommon.TraceID, bool) {
-	rss := td.ResourceSpans()
-	for i := 0; i < rss.Len(); i++ {
-		rs := rss.At(i)
-		ilss := rs.ScopeSpans()
-		for j := 0; j < ilss.Len(); j++ {
-			ils := ilss.At(j)
-			spans := ils.Spans()
-			if spans.Len() == 0 {
-				continue
-			}
-			return spans.At(0).TraceID(), true
-		}
-	}
-	return pcommon.TraceID{}, false
-}
-
-var t = tracker{
-	traces: make(map[pcommon.TraceID]struct{}),
-}
-
 func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, hasError bool, fpError string) (ptrace.Traces, error) {
 	// First, check to see if this trace is interesting.  If it is not,
 	// we will have filtered set to true.  In that case, we only want to
@@ -333,13 +253,6 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 	filtered, filteredReason := sp.shouldFilter(td, fingerprint, hasError)
 	if !filtered {
 		filtered = sp.maybeRateLimit(fingerprint, filtered, filteredReason)
-	}
-
-	counter := processorCounter.Add(1)
-	traceID, found := getTraceID(td)
-	seen := false
-	if found {
-		seen = t.newTraceID(traceID)
 	}
 
 	spancount := int64(0)
@@ -365,14 +278,13 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 				if span.ParentSpanID().IsEmpty() {
 					span.Attributes().PutBool("_cardinalhq.is_root_span", true)
 				}
-				span.Attributes().PutInt("_cardinalhq.bundle_id", counter)
-				span.Attributes().PutBool("_cardinalhq.seen", seen)
 			}
 		}
 	}
 
 	attributes := []attribute.KeyValue{
-		attribute.Bool("filtered.status", filtered),
+		attribute.Bool("filtered.filtered", filtered),
+		attribute.Bool("filtered.would_filter", filtered),
 		attribute.String("filtered.classification", string(filteredReason)),
 		attribute.Int64("filtered.fingerprint", int64(fingerprint)),
 	}
@@ -384,7 +296,6 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 
 func (sp *spansProcessor) Shutdown(context.Context) error {
 	var errors *multierror.Error
-
 	errors = multierror.Append(errors, sp.slowSampler.Stop())
 	errors = multierror.Append(errors, sp.hasErrorSampler.Stop())
 	return errors.ErrorOrNil()

@@ -87,6 +87,9 @@ type TraceConfig struct {
 	// at least one span that has an error indication.
 	// The rate is applied per fingerprint.
 	HasErrorRate *int `mapstructure:"has_error_rate"`
+
+	EstimatorWindowSize *int   `mapstructure:"estimator_window_size"`
+	EstimatorInterval   *int64 `mapstructure:"estimator_interval"`
 }
 
 var _ component.Config = (*Config)(nil)
@@ -135,6 +138,14 @@ func (cfg *TraceConfig) Validate() error {
 	if cfg.HasErrorRate == nil {
 		cfg.HasErrorRate = new(int)
 		*cfg.HasErrorRate = 2
+	}
+	if cfg.EstimatorWindowSize == nil {
+		cfg.EstimatorWindowSize = new(int)
+		*cfg.EstimatorWindowSize = 30
+	}
+	if cfg.EstimatorInterval == nil {
+		cfg.EstimatorInterval = new(int64)
+		*cfg.EstimatorInterval = 10_000
 	}
 
 	if *cfg.UninterestingRate < 0 {

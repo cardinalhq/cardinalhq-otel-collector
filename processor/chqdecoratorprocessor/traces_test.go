@@ -22,7 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/sketches-go/ddsketch"
 	"github.com/honeycombio/dynsampler-go"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -178,6 +177,8 @@ func TestShouldFilter(t *testing.T) {
 					span.SetName("uninteresting")
 					span.SetTraceID([16]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6})
 					span.SetSpanID([8]byte{1, 2, 3, 4, 5, 6, 7, 8})
+					span.SetStartTimestamp(pcommon.NewTimestampFromTime(time.Unix(0, 0)))
+					span.SetEndTimestamp(pcommon.NewTimestampFromTime(time.Unix(0, 1000)))
 					return td
 				}(),
 				1234567890,
@@ -212,16 +213,16 @@ func TestShouldFilter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sp := &spansProcessor{
-				logger:    zap.NewNop(),
-				telemetry: &processorTelemetry{},
-				sketches:  make(map[uint64]*ddsketch.DDSketch),
+				logger:              zap.NewNop(),
+				telemetry:           &processorTelemetry{},
+				estimators:          make(map[uint64]*SlidingEstimatorStat),
+				estimatorWindowSize: 10,
+				estimatorInterval:   1000,
 			}
-			sketch, err := sp.findSketch(tt.args.fingerprint)
-			assert.NoError(t, err)
-			_ = sketch.AddWithCount(1000, 100000)
-			_ = sketch.AddWithCount(2000, 100000)
-			_ = sketch.AddWithCount(3000, 100000)
-			_ = sketch.AddWithCount(4000, 100000)
+			sketch := sp.findSketch(tt.args.fingerprint)
+			for i := 0; i < 10; i++ {
+				sketch.OnlineWindowStat.Update(10000)
+			}
 
 			filtered, classification := sp.shouldFilter(tt.args.td, tt.args.fingerprint, tt.args.hasErr)
 			assert.Equal(t, tt.filtered, filtered)

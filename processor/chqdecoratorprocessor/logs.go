@@ -70,7 +70,7 @@ func newLogsProcessor(set processor.CreateSettings, conf *Config) (*logProcessor
 }
 
 func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
-	dropped := int64(0)
+	filtered := int64(0)
 	processed := int64(0)
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
@@ -83,19 +83,20 @@ func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs,
 				log.Attributes().PutInt("_cardinalhq.fingerprint", fingerprint)
 				log.Attributes().PutStr("_cardinalhq.level", level)
 				rule_match := lp.sampler.Sample(fingerprintString, rl.Resource().Attributes(), sl.Scope().Attributes(), log.Attributes())
+				wasFiltered := rule_match != ""
 				log.Attributes().PutStr("_cardinalhq.rule_match", rule_match)
-				log.Attributes().PutBool("_cardinalhq.filtered", rule_match != "")
-				log.Attributes().PutBool("_cardinalhq.would_filter", rule_match != "")
+				log.Attributes().PutBool("_cardinalhq.filtered", wasFiltered)
+				log.Attributes().PutBool("_cardinalhq.would_filter", wasFiltered)
 				processed++
-				if rule_match != "" {
-					dropped++
+				if wasFiltered {
+					filtered++
 				}
 			}
 		}
 	}
 
-	lp.telemetry.record(triggerLogsProcessed, processed-dropped, attribute.Bool("filtered.status", false), attribute.String("filtered.classification", "not_filtered"))
-	lp.telemetry.record(triggerLogsProcessed, dropped, attribute.Bool("filtered.status", true), attribute.String("filtered.classification", "rule_match"))
+	lp.telemetry.record(triggerLogsProcessed, processed-filtered, attribute.Bool("filtered.status", false), attribute.String("filtered.classification", "not_filtered"))
+	lp.telemetry.record(triggerLogsProcessed, filtered, attribute.Bool("filtered.status", true), attribute.String("filtered.classification", "rule_match"))
 
 	return ld, nil
 }

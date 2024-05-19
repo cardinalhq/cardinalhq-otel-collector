@@ -53,19 +53,6 @@ data:
             interval: 300000
             grace_period: 2000
 
-      chqs3/spanmetrics:
-        s3uploader:
-          region: auto
-          s3_bucket: cardinalhq
-          s3_prefix: otel-raw
-          s3_partition: minute
-          file_prefix: span_
-          endpoint: https://storage.googleapis.com
-        timeboxes:
-          metrics:
-            interval: 10000
-            grace_period: 2000
-
       otlphttp/cardinalhq:
         endpoint: https://intake.cardinalhq.io/otlp
         headers: { "dd-api-key": "${env:DATADOG_API_KEY}" }
@@ -152,6 +139,7 @@ data:
 
     connectors:
       forward/filtered:
+      forward/mergedmetrics:
       spanmetrics/chq:
         aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
         metrics_expiration: 1h
@@ -161,6 +149,8 @@ data:
         dimensions:
           - name: "_cardinalhq.fingerprint"
             default: 0
+          - name: "_cardinalhq.is_span_metric"
+            default: true
           - name: "_cardinalhq.trace_has_error"
           - name: "_cardinalhq.is_root_span"
         
@@ -185,10 +175,13 @@ data:
           receivers: [otlp]
           processors: [memory_limiter]
           exporters: [loadbalancing/metrics]
-        metrics/chq:
+        metrics/decoration:
           receivers: [otlp/l2]
           processors: [memory_limiter, chqdecorator, batch/metrics]
-          exporters: [chqs3/cardinalhq, forward/filtered]
+          exporters: [forward/mergedmetrics, forward/filtered]
+        metrics/chq:
+          receivers: [forward/mergedmetrics]
+          exporters: [chqs3/cardinalhq]
         metrics/filtered:
           receivers: [forward/filtered]
           processors: [filter/chq, attributes/chq]
@@ -212,7 +205,7 @@ data:
         metrics/spanmetrics:
           receivers: [spanmetrics/chq]
           processors: [batch/spanmetrics]
-          exporters: [chqs3/spanmetrics]
+          exporters: [forward/mergedmetrics]
 
       # Echo telemetry back to ourselves.  This requires more than one replica or
       # startup and shutdown delays may occur.

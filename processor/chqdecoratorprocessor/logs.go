@@ -76,7 +76,7 @@ func getServiceName(rattr pcommon.Map) string {
 	if serviceName, ok := rattr.Get("service.name"); ok {
 		return serviceName.AsString()
 	}
-	return ""
+	return "unknown-service"
 }
 
 func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {

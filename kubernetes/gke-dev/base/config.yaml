@@ -114,7 +114,7 @@ data:
         api_key: ${env:SAMPLER_API_KEY}
         traces:
           graph_url: http://microbatch-flows.default.svc.cluster.local:7101/api/v1/flowGraph
-          uninteresting_rate: 100
+          uninteresting_rate: 1000
           has_error_rate: 4
 
       # This processor should be added to the list of processors that
@@ -149,8 +149,8 @@ data:
         dimensions:
           - name: "_cardinalhq.fingerprint"
             default: 0
-          - name: "_cardinalhq.is_span_metric"
-            default: true
+          - name: "_cardinalhq.telemetry_source"
+            default: "span_metrics_processor"
           - name: "_cardinalhq.trace_has_error"
           - name: "_cardinalhq.is_root_span"
         
@@ -196,7 +196,7 @@ data:
         traces/chq:
           receivers: [otlp/l2]
           processors: [memory_limiter, groupbytrace, chqdecorator, batch/traces]
-          exporters: [chqs3/cardinalhq, forward/filtered, spanmetrics/chq]
+          exporters: [forward/filtered, spanmetrics/chq]
         traces/filtered:
           receivers: [forward/filtered]
           processors: [filter/chq, attributes/chq]

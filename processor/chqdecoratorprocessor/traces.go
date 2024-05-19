@@ -305,27 +305,6 @@ func (t *tracker) newTraceID(traceID pcommon.TraceID) bool {
 	return true
 }
 
-func getTraceID(td ptrace.Traces) (pcommon.TraceID, bool) {
-	rss := td.ResourceSpans()
-	for i := 0; i < rss.Len(); i++ {
-		rs := rss.At(i)
-		ilss := rs.ScopeSpans()
-		for j := 0; j < ilss.Len(); j++ {
-			ils := ilss.At(j)
-			spans := ils.Spans()
-			if spans.Len() == 0 {
-				continue
-			}
-			return spans.At(0).TraceID(), true
-		}
-	}
-	return pcommon.TraceID{}, false
-}
-
-var t = tracker{
-	traces: make(map[pcommon.TraceID]struct{}),
-}
-
 func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, hasError bool, fpError string) (ptrace.Traces, error) {
 	// First, check to see if this trace is interesting.  If it is not,
 	// we will have filtered set to true.  In that case, we only want to
@@ -336,11 +315,6 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 	}
 
 	counter := processorCounter.Add(1)
-	traceID, found := getTraceID(td)
-	seen := false
-	if found {
-		seen = t.newTraceID(traceID)
-	}
 
 	spancount := int64(0)
 	rss := td.ResourceSpans()
@@ -366,7 +340,6 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 					span.Attributes().PutBool("_cardinalhq.is_root_span", true)
 				}
 				span.Attributes().PutInt("_cardinalhq.bundle_id", counter)
-				span.Attributes().PutBool("_cardinalhq.seen", seen)
 			}
 		}
 	}

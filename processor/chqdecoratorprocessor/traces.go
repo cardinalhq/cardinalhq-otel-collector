@@ -22,9 +22,7 @@ import (
 	"math/rand"
 	"net/http"
 	"sync"
-	"sync/atomic"
 
-	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/otel/attribute"
@@ -196,12 +194,21 @@ func (sp *spansProcessor) findSketch(fingerprint uint64) (*ddsketch.DDSketch, er
 	return sketch, nil
 }
 
+func (sp *spansProcessor) addToSketch(sketch *ddsketch.DDSketch, value float64) error {
+	defer func() {
+		if r := recover(); r != nil {
+			sp.logger.Error("panic in addToSketch", zap.Stack("stack"), zap.Any("recovered", r), zap.Float64("value", value))
+		}
+	}()
+	return sketch.Add(value)
+}
+
 func (sp *spansProcessor) slowPercentile(fingerprint uint64, duration int64) bool {
 	sketch, err := sp.findSketch(fingerprint)
 	if err != nil {
 		return false
 	}
-	if err := sketch.Add(float64(duration)); err != nil {
+	if err := sp.addToSketch(sketch, float64(duration)); err != nil {
 		if err != ddsketch.ErrUntrackableTooHigh {
 			return true // too large means too large, so it's likely too slow
 		}
@@ -288,23 +295,6 @@ func (sp *spansProcessor) maybeRateLimit(fingerprint uint64, filtered bool, filt
 	return filtered
 }
 
-var processorCounter atomic.Int64
-
-type tracker struct {
-	sync.Mutex
-	traces map[pcommon.TraceID]struct{}
-}
-
-func (t *tracker) newTraceID(traceID pcommon.TraceID) bool {
-	t.Lock()
-	defer t.Unlock()
-	if _, ok := t.traces[traceID]; ok {
-		return false
-	}
-	t.traces[traceID] = struct{}{}
-	return true
-}
-
 func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, hasError bool, fpError string) (ptrace.Traces, error) {
 	// First, check to see if this trace is interesting.  If it is not,
 	// we will have filtered set to true.  In that case, we only want to
@@ -313,8 +303,6 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 	if !filtered {
 		filtered = sp.maybeRateLimit(fingerprint, filtered, filteredReason)
 	}
-
-	counter := processorCounter.Add(1)
 
 	spancount := int64(0)
 	rss := td.ResourceSpans()
@@ -339,13 +327,13 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 				if span.ParentSpanID().IsEmpty() {
 					span.Attributes().PutBool("_cardinalhq.is_root_span", true)
 				}
-				span.Attributes().PutInt("_cardinalhq.bundle_id", counter)
 			}
 		}
 	}
 
 	attributes := []attribute.KeyValue{
-		attribute.Bool("filtered.status", filtered),
+		attribute.Bool("filtered.filtered", filtered),
+		attribute.Bool("filtered.would_filter", filtered),
 		attribute.String("filtered.classification", string(filteredReason)),
 		attribute.Int64("filtered.fingerprint", int64(fingerprint)),
 	}
@@ -357,7 +345,6 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 
 func (sp *spansProcessor) Shutdown(context.Context) error {
 	var errors *multierror.Error
-
 	errors = multierror.Append(errors, sp.slowSampler.Stop())
 	errors = multierror.Append(errors, sp.hasErrorSampler.Stop())
 	return errors.ErrorOrNil()

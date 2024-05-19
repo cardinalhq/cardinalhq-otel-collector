@@ -16,6 +16,7 @@ package sampler
 
 import (
 	"context"
+	"fmt"
 	"maps"
 	"math/rand"
 	"sync"
@@ -68,9 +69,19 @@ func (ls *LogSamplerImpl) Sample(fingerprint string, rattr pcommon.Map, iattr pc
 	return ls.shouldSample(fingerprint, rattr, iattr, lattr)
 }
 
+func getServiceName(rattr pcommon.Map) string {
+	serviceName, ok := rattr.Get("service.name")
+	if !ok {
+		return "unknown-service"
+	}
+	return serviceName.AsString()
+}
+
 func (ls *LogSamplerImpl) shouldSample(fingerprint string, rattr pcommon.Map, iattr pcommon.Map, lattr pcommon.Map) (droppingRule string) {
 	ret := ""
 	matched := false
+
+	serviceName := getServiceName(rattr)
 
 	randval := rand.Float64()
 	for rid, r := range ls.rules {
@@ -83,8 +94,9 @@ func (ls *LogSamplerImpl) shouldSample(fingerprint string, rattr pcommon.Map, ia
 			"instrumentation": iattr,
 			"log":             lattr,
 		}
+		key := fmt.Sprintf("%s:%s", serviceName, fingerprint)
 		if matchscope(r.scope, attrs) {
-			rate := r.sampler.GetSampleRate(fingerprint)
+			rate := r.sampler.GetSampleRate(key)
 			switch rate {
 			case 0:
 				if !matched {

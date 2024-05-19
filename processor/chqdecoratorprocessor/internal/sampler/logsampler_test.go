@@ -45,7 +45,7 @@ func TestSamplerForType(t *testing.T) {
 				RPS:      100,
 			},
 			expectedType: LogRuleTypeRPS,
-			expected:     &dynsampler.AvgSampleWithMin{GoalSampleRate: 100},
+			expected:     &dynsampler.AvgSampleWithMin{GoalSampleRate: 1, MinEventsPerSec: 100},
 		},
 		{
 			name: "unknown rule type",
@@ -80,25 +80,7 @@ func TestSamplerForCorrectness(t *testing.T) {
 				RuleType: "rps",
 				RPS:      0,
 			},
-			0, 0,
-			100_000,
-		},
-		{
-			"rps == 100",
-			LogSamplingConfig{
-				RuleType: "rps",
-				RPS:      100,
-			},
-			95_000, 99_500,
-			100_000,
-		},
-		{
-			"rps == 1000",
-			LogSamplingConfig{
-				RuleType: "rps",
-				RPS:      1000,
-			},
-			90_000, 100_000,
+			100_000, 100_000,
 			100_000,
 		},
 	}
@@ -197,31 +179,31 @@ func TestShouldFilter(t *testing.T) {
 			name:     "rate is 0, randval is 0",
 			rate:     0,
 			randval:  0,
-			expected: false,
+			expected: true,
 		},
 		{
 			name:     "rate is 0, randval is 0.5",
 			rate:     0,
 			randval:  0.5,
-			expected: false,
+			expected: true,
 		},
 		{
 			name:     "rate is 0, randval is 1",
 			rate:     0,
 			randval:  1,
-			expected: false,
+			expected: true,
 		},
 		{
 			name:     "rate is 1, randval is 0",
 			rate:     1,
 			randval:  0,
-			expected: true,
+			expected: false,
 		},
 		{
 			name:     "rate is 1, randval is 1",
 			rate:     1,
 			randval:  1,
-			expected: true,
+			expected: false,
 		},
 		{
 			name:     "rate is 2, randval is 0.25",

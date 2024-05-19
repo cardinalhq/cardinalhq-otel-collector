@@ -110,9 +110,9 @@ func (ls *LogSamplerImpl) shouldFilter(fingerprint string, rattr pcommon.Map, ia
 func shouldFilter(rate float64, randval float64) bool {
 	switch rate {
 	case 0:
-		return false
-	case 1:
 		return true
+	case 1:
+		return false
 	default:
 		return randval > 1/rate
 	}

@@ -66,7 +66,7 @@ func (ls *LogSamplerImpl) Sample(fingerprint string, rattr pcommon.Map, iattr pc
 	ls.RLock()
 	defer ls.RUnlock()
 
-	return ls.shouldSample(fingerprint, rattr, iattr, lattr)
+	return ls.shouldFilter(fingerprint, rattr, iattr, lattr)
 }
 
 func getServiceName(rattr pcommon.Map) string {
@@ -77,7 +77,7 @@ func getServiceName(rattr pcommon.Map) string {
 	return serviceName.AsString()
 }
 
-func (ls *LogSamplerImpl) shouldSample(fingerprint string, rattr pcommon.Map, iattr pcommon.Map, lattr pcommon.Map) (droppingRule string) {
+func (ls *LogSamplerImpl) shouldFilter(fingerprint string, rattr pcommon.Map, iattr pcommon.Map, lattr pcommon.Map) (droppingRule string) {
 	ret := ""
 	matched := false
 
@@ -97,25 +97,25 @@ func (ls *LogSamplerImpl) shouldSample(fingerprint string, rattr pcommon.Map, ia
 		key := fmt.Sprintf("%s:%s", serviceName, fingerprint)
 		if matchscope(r.scope, attrs) {
 			rate := r.sampler.GetSampleRate(key)
-			switch rate {
-			case 0:
-				if !matched {
-					ret = rid
-					matched = true
-				}
-			case 1:
-				continue
-			default:
-				if randval <= rpsToRandom(rate) {
-					if !matched {
-						ret = rid
-						matched = true
-					}
-				}
+			wasHit := shouldFilter(float64(rate), randval)
+			if wasHit && !matched {
+				ret = rid
+				matched = true
 			}
 		}
 	}
 	return ret
+}
+
+func shouldFilter(rate float64, randval float64) bool {
+	switch rate {
+	case 0:
+		return false
+	case 1:
+		return true
+	default:
+		return randval > 1/rate
+	}
 }
 
 func rpsToRandom(rate int) float64 {
@@ -181,7 +181,12 @@ func samplerForType(c LogSamplingConfig) (ruleType LogRuleType, sampler dynsampl
 	case "random":
 		return LogRuleTypeRandom, &dynsampler.Static{Default: randomToRPS(c.SampleRate)}
 	case "rps":
-		return LogRuleTypeRPS, &dynsampler.AvgSampleWithMin{GoalSampleRate: c.RPS}
+		switch c.RPS {
+		case 0, 1:
+			return LogRuleTypeRPS, NewStaticSampler(float64(c.RPS))
+		default:
+			return LogRuleTypeRPS, &dynsampler.AvgSampleWithMin{GoalSampleRate: c.RPS}
+		}
 	}
 	return LogRuleTypeUnknown, nil
 }

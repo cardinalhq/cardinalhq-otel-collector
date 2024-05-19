@@ -141,7 +141,7 @@ func (cfg *TraceConfig) Validate() error {
 	}
 	if cfg.EstimatorWindowSize == nil {
 		cfg.EstimatorWindowSize = new(int)
-		*cfg.EstimatorWindowSize = 300
+		*cfg.EstimatorWindowSize = 30
 	}
 	if cfg.EstimatorInterval == nil {
 		cfg.EstimatorInterval = new(int64)

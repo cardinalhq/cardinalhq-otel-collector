@@ -177,6 +177,8 @@ func TestShouldFilter(t *testing.T) {
 					span.SetName("uninteresting")
 					span.SetTraceID([16]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6})
 					span.SetSpanID([8]byte{1, 2, 3, 4, 5, 6, 7, 8})
+					span.SetStartTimestamp(pcommon.NewTimestampFromTime(time.Unix(0, 0)))
+					span.SetEndTimestamp(pcommon.NewTimestampFromTime(time.Unix(0, 1000)))
 					return td
 				}(),
 				1234567890,
@@ -213,12 +215,13 @@ func TestShouldFilter(t *testing.T) {
 			sp := &spansProcessor{
 				logger:              zap.NewNop(),
 				telemetry:           &processorTelemetry{},
-				estimators:          make(map[uint64]*OnlineWindowStat),
+				estimators:          make(map[uint64]*SlidingEstimatorStat),
 				estimatorWindowSize: 10,
+				estimatorInterval:   1000,
 			}
 			sketch := sp.findSketch(tt.args.fingerprint)
 			for i := 0; i < 10; i++ {
-				sketch.Update(10000)
+				sketch.OnlineWindowStat.Update(10000)
 			}
 
 			filtered, classification := sp.shouldFilter(tt.args.td, tt.args.fingerprint, tt.args.hasErr)

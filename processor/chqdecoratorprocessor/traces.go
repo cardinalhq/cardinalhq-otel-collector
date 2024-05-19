@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
-	"sync"
+	"time"
 
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor"
@@ -39,28 +39,24 @@ type spansProcessor struct {
 	traceConfig         *TraceConfig
 	apiKey              string
 	estimatorWindowSize int
+	estimatorInterval   int64
 
-	estimators           map[uint64]*OnlineWindowStat
+	estimators           map[uint64]*SlidingEstimatorStat
 	sentFingerprints     fingerprintTracker
 	slowSampler          dynsampler.Sampler
 	hasErrorSampler      dynsampler.Sampler
 	uninterestingSampler dynsampler.Sampler
 }
 
-type fingerprintTracker struct {
-	sync.Mutex
-	fingerprints map[uint64]struct{}
-}
-
 func newSpansProcessor(set processor.CreateSettings, config *Config) (*spansProcessor, error) {
 	sp := &spansProcessor{
-		logger:      set.Logger,
-		traceConfig: &config.TraceConfig,
-		apiKey:      config.APIKey,
-		estimators:  make(map[uint64]*OnlineWindowStat),
-		sentFingerprints: fingerprintTracker{
-			fingerprints: make(map[uint64]struct{}),
-		},
+		logger:               set.Logger,
+		traceConfig:          &config.TraceConfig,
+		apiKey:               config.APIKey,
+		estimators:           make(map[uint64]*SlidingEstimatorStat),
+		estimatorWindowSize:  *config.TraceConfig.EstimatorWindowSize,
+		estimatorInterval:    *config.TraceConfig.EstimatorInterval,
+		sentFingerprints:     *newFingerprintTracker(),
 		slowSampler:          &dynsampler.AvgSampleWithMin{GoalSampleRate: *config.TraceConfig.SlowRate},
 		hasErrorSampler:      &dynsampler.AvgSampleWithMin{GoalSampleRate: *config.TraceConfig.HasErrorRate},
 		uninterestingSampler: &dynsampler.AvgSampleWithMin{GoalSampleRate: *config.TraceConfig.UninterestingRate},
@@ -82,9 +78,7 @@ func newSpansProcessor(set processor.CreateSettings, config *Config) (*spansProc
 		return nil, fmt.Errorf("error starting uninteresting sampler: %w", err)
 	}
 
-	set.Logger.Info(
-		"Decorator processor configured",
-	)
+	set.Logger.Info("Decorator processor configured")
 
 	return sp, nil
 }
@@ -105,22 +99,6 @@ func getFingerprint(traces ptrace.Traces) (uint64, bool, string) {
 	default:
 		return 0, he, "UnknownError"
 	}
-}
-
-func (sp *spansProcessor) newTrace(fingerprint uint64) bool {
-	sp.sentFingerprints.Lock()
-	defer sp.sentFingerprints.Unlock()
-	if _, ok := sp.sentFingerprints.fingerprints[fingerprint]; ok {
-		return false
-	}
-	sp.sentFingerprints.fingerprints[fingerprint] = struct{}{}
-	return true
-}
-
-func (sp *spansProcessor) deleteTrace(fingerprint uint64) {
-	sp.sentFingerprints.Lock()
-	defer sp.sentFingerprints.Unlock()
-	delete(sp.sentFingerprints.fingerprints, fingerprint)
 }
 
 func (sp *spansProcessor) processTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
@@ -177,22 +155,23 @@ func (sp *spansProcessor) isSlow(td ptrace.Traces, fingerprint uint64) bool {
 	if !found {
 		return false
 	}
-	return sp.slowPercentile(fingerprint, rootDuration)
+	return sp.slowPercentile(fingerprint, float64(rootDuration))
 }
 
-func (sp *spansProcessor) findSketch(fingerprint uint64) *OnlineWindowStat {
+func (sp *spansProcessor) findSketch(fingerprint uint64) *SlidingEstimatorStat {
 	sketch, ok := sp.estimators[fingerprint]
 	if !ok {
-		estimator := NewOnlineWindowStat(sp.estimatorWindowSize)
+		estimator := NewSlidingEstimatorStat(sp.estimatorWindowSize, sp.estimatorInterval)
 		sp.estimators[fingerprint] = estimator
 		return estimator
 	}
 	return sketch
 }
 
-func (sp *spansProcessor) slowPercentile(fingerprint uint64, duration int64) bool {
+func (sp *spansProcessor) slowPercentile(fingerprint uint64, duration float64) bool {
 	sketch := sp.findSketch(fingerprint)
-	return sketch.GreaterThanThreeStdDev(float64(duration))
+	sketch.Update(time.Now().UnixMilli(), duration)
+	return sketch.GreaterThanThreeStdDev(duration)
 }
 
 func (sp *spansProcessor) shouldFilter(td ptrace.Traces, fingerprint uint64, hasError bool) (bool, filteredReason) {

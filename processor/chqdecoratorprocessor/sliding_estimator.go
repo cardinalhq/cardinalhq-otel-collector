@@ -1,3 +1,17 @@
+// Copyright 2024 CardinalHQ, Inc
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package chqdecoratorprocessor
 
 import (
@@ -79,4 +93,56 @@ func round(d float64) float64 {
 	} else {
 		return float64(math.Round(d))
 	}
+}
+
+type SlidingEstimator struct {
+	windowSum        float64
+	windowCount      int
+	windowInterval   int64
+	windowLastUpdate int64
+}
+
+func NewSlidingEstimator(windowInterval int64) *SlidingEstimator {
+	return &SlidingEstimator{
+		windowInterval: windowInterval,
+	}
+}
+
+func (s *SlidingEstimator) Update(t int64, x float64) (float64, bool) {
+	if s.windowLastUpdate == 0 {
+		s.windowLastUpdate = t - t%s.windowInterval
+	}
+	if t-s.windowLastUpdate >= s.windowInterval {
+		avg := s.windowSum / float64(s.windowCount)
+		s.windowSum = 0
+		s.windowCount = 0
+		s.windowLastUpdate = t - t%s.windowInterval
+		return avg, true
+	}
+	s.windowSum += x
+	s.windowCount++
+	return 0, false
+}
+
+type SlidingEstimatorStat struct {
+	*OnlineWindowStat
+	*SlidingEstimator
+}
+
+func NewSlidingEstimatorStat(windowSize int, windowInterval int64) *SlidingEstimatorStat {
+	return &SlidingEstimatorStat{
+		OnlineWindowStat: NewOnlineWindowStat(windowSize),
+		SlidingEstimator: NewSlidingEstimator(windowInterval),
+	}
+}
+
+func (s *SlidingEstimatorStat) Update(t int64, x float64) {
+	v, emit := s.SlidingEstimator.Update(t, x)
+	if emit {
+		s.OnlineWindowStat.Update(v)
+	}
+}
+
+func (s *SlidingEstimatorStat) GreaterThanThreeStdDev(t float64) bool {
+	return s.OnlineWindowStat.GreaterThanThreeStdDev(t)
 }

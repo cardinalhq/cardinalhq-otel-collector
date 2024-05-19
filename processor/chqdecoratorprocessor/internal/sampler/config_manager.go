@@ -16,11 +16,11 @@ package sampler
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
 	"github.com/cespare/xxhash/v2"
 	"go.uber.org/zap"
+	"gopkg.in/yaml.v3"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/filereader"
 )
@@ -156,8 +156,8 @@ func (c *ConfigManagerImpl) checkUpdates() {
 	}
 	ll.Info("Sampler config updated", zap.Uint64("hash", newhash))
 
-	if err := json.Unmarshal(b, &conf); err != nil {
-		ll.Error("Error unmarshalling sampler config", zap.Error(err))
+	if err := yaml.Unmarshal(b, &conf); err != nil {
+		ll.Error("Error unmarshalling sampler config YAML", zap.Error(err))
 		return
 	}
 

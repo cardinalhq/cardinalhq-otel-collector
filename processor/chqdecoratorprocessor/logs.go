@@ -116,8 +116,8 @@ func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs,
 		items := strings.Split(key, ":")
 		serviceName := items[0]
 		fingerprint, _ := strconv.ParseInt(items[1], 10, 64)
-		lp.telemetry.record(triggerLogsProcessed, count-filtered, attribute.Bool("filtered.status", false), attribute.String("filtered.classification", "not_filtered"), attribute.String("service.name", serviceName), attribute.Int64("fingerprint", fingerprint))
-		lp.telemetry.record(triggerLogsProcessed, filtered, attribute.Bool("filtered.status", true), attribute.String("filtered.classification", "rule_match"), attribute.String("service.name", serviceName), attribute.Int64("fingerprint", fingerprint))
+		lp.telemetry.record(triggerLogsProcessed, count-filtered, attribute.Bool("filtered.status", false), attribute.String("filtered.classification", "not_filtered"), attribute.String("filtered.service.name", serviceName), attribute.Int64("filtered.fingerprint", fingerprint))
+		lp.telemetry.record(triggerLogsProcessed, filtered, attribute.Bool("filtered.status", true), attribute.String("filtered.classification", "rule_match"), attribute.String("filtered.service.name", serviceName), attribute.Int64("filtered.fingerprint", fingerprint))
 	}
 
 	return ld, nil

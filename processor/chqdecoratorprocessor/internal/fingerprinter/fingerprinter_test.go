@@ -35,9 +35,11 @@ func TestFingerprinterWithKafkaBroker0(t *testing.T) {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		input := scanner.Text()
-		fp := Fingerprinter{}
-		s := ragel.New("test", strings.NewReader(strings.ToLower(input)), &fp)
-		_ = consumet(t, s, &fp)
+		t.Run(input, func(t *testing.T) {
+			fp := Fingerprinter{}
+			s := ragel.New("test", strings.NewReader(strings.ToLower(input)), &fp)
+			_ = consumet(t, s, &fp)
+		})
 	}
 }
 
@@ -65,86 +67,100 @@ func TestFingerprinter(t *testing.T) {
 		want  string
 	}{
 		{
-			name:  "empty",
-			input: "",
-			want:  "",
+			"empty",
+			"",
+			"",
 		},
 		{
-			name:  "simple",
-			input: "hello world",
-			want:  "hello world",
+			"simple",
+			"hello world",
+			"hello world",
 		},
 		{
-			name:  "date YYYY-MM-DD",
-			input: "2024-01-02",
-			want:  "<Date>",
+			"date YYYY-MM-DD",
+			"2024-01-02",
+			"<Date>",
 		},
 		{
-			name:  "date YYYY/MM/DD",
-			input: "2024/01/02",
-			want:  "<Date>",
+			"date YYYY/MM/DD",
+			"2024/01/02",
+			"<Date>",
 		},
 		{
-			name:  "date DD/MM/YY",
-			input: "02/01/24",
-			want:  "<Date>",
+			"date DD/MM/YY",
+			"02/01/24",
+			"<Date>",
 		},
 		{
-			name:  "time",
-			input: "14:54:12",
-			want:  "<Time>",
+			"time",
+			"14:54:12",
+			"<Time>",
 		},
 		{
-			name:  "uuid",
-			input: "dddddddd-dddd-dddd-dddd-dddddddddddd",
-			want:  "<UUID>",
+			"uuid",
+			"dddddddd-dddd-dddd-dddd-dddddddddddd",
+			"<UUID>",
 		},
 		{
-			name:  "ipv4",
-			input: "10.42.255.254",
-			want:  "<IPv4>",
+			"ipv4",
+			"10.42.255.254",
+			"<IPv4>",
 		},
 		{
-			name:  "simple email address",
-			input: "alice@example.com",
-			want:  "<Email>",
+			"simple email address",
+			"alice@example.com",
+			"<Email>",
 		},
 		{
-			name:  "email with _",
-			input: "alice_smith@example.com",
-			want:  "<Email>",
+			"email with _",
+			"alice_smith@example.com",
+			"<Email>",
 		},
 		{
-			name:  "email with -",
-			input: "alice-smith@example.com",
-			want:  "<Email>",
+			"email with -",
+			"alice-smith@example.com",
+			"<Email>",
 		},
 		{
-			name:  "email with +",
-			input: "alice+smith@example.com",
-			want:  "<Email>",
+			"email with +",
+			"alice+smith@example.com",
+			"<Email>",
 		},
 		{
-			name:  "email with .",
-			input: "alice.smith@example.com",
-			want:  "<Email>",
+			"email with .",
+			"alice.smith@example.com",
+			"<Email>",
 		},
 		{
-			name:  "example.com",
-			input: "example.com",
-			want:  "<FQDN>",
+			"example.com",
+			"example.com",
+			"<FQDN>",
 		},
 		{
-			name:  "path with version",
-			input: "bob /api/v10/endpoint",
-			// should be "bob <Path>"
-			want: "bob api <Path>",
+			"path alone",
+			" /api/v10/endpoint",
+			"<Path>",
 		},
 		{
-			name:  "sample log 1",
-			input: `2024-04-17 00:37:23.147 ERROR 1 --- [lt-dispatcher-5] c.g.d.TelemetryEmitter : Received error code 400, endpoint = /api/v10/endpoint`,
-			// should be ... endpoint <Path>
-			want: "<Date> <Time> <Loglevel> <Number> <Identifier> <FQDN> received <Loglevel> code <Number> endpoint api <Path>",
+			"path with version",
+			"bob /api/v10/endpoint",
+			"bob <Path>",
+		},
+		{
+			"sample log 1",
+			`2024-04-17 00:37:23.147 ERROR 1 --- [lt-dispatcher-5] c.g.d.TelemetryEmitter : Received error code 400, endpoint = /api/v10/endpoint`,
+			"<Date> <Time> <Loglevel> <Number> <Identifier> <FQDN> received <Loglevel> code <Number> endpoint <Path>",
+		},
+		{
+			"sample log 2",
+			`	advertised.listeners = CLIENT://kafka-kraft-broker-0.kafka-kraft-broker-headless.default.svc.cluster.local:9092,INTERNAL://kafka-kraft-broker-0.kafka-kraft-broker-headless.default.svc.cluster.local:9094
+`,
+			"<FQDN> <Url> <Url>",
+		},
+		{
+			"sample log 3",
+			`   foo = CLIENT://:1234,INTERNAL://:5678`,
+			"foo <Url> <Url>",
 		},
 	}
 	for _, tt := range tests {

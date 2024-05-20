@@ -185,7 +185,7 @@ func samplerForType(c LogSamplingConfig) (ruleType LogRuleType, sampler dynsampl
 		case 0, 1:
 			return LogRuleTypeRPS, NewStaticSampler(float64(c.RPS))
 		default:
-			return LogRuleTypeRPS, &dynsampler.AvgSampleWithMin{GoalSampleRate: 1, MinEventsPerSec: c.RPS}
+			return LogRuleTypeRPS, &RPSSampler{MinEventsPerSec: c.RPS}
 		}
 	}
 	return LogRuleTypeUnknown, nil

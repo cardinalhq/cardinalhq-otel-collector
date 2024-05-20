@@ -45,7 +45,7 @@ func TestSamplerForType(t *testing.T) {
 				RPS:      100,
 			},
 			expectedType: LogRuleTypeRPS,
-			expected:     &dynsampler.AvgSampleWithMin{GoalSampleRate: 1, MinEventsPerSec: 100},
+			expected:     &RPSSampler{MinEventsPerSec: 100},
 		},
 		{
 			name: "unknown rule type",

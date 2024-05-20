@@ -16,3 +16,13 @@ spec:
     automated: {}
     syncOptions:
       - CreateNamespace=true
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/template/spec/containers/*/resources/limits/cpu
+        - /spec/template/spec/containers/*/resources/limits/memory
+        - /spec/template/spec/containers/*/resources/limits/ephemeral-storage
+        - /spec/template/spec/containers/*/resources/requests/cpu
+        - /spec/template/spec/containers/*/resources/requests/memory
+        - /spec/template/spec/containers/*/resources/requests/ephemeral-storage

@@ -4,6 +4,7 @@ metadata:
   labels:
     app.kubernetes.io/name: cardinalhq
     app.kubernetes.io/component: collector
+    app.kubernetes.io/instance: collector-gke-dev-customerside
   name: cardinal-collector
 spec:
   ports:
@@ -16,6 +17,7 @@ spec:
   selector:
     app.kubernetes.io/name: cardinalhq
     app.kubernetes.io/component: collector
+    app.kubernetes.io/instance: collector-gke-dev-customerside
 ---
 apiVersion: v1
 kind: Service
@@ -23,6 +25,7 @@ metadata:
   labels:
     app.kubernetes.io/name: cardinalhq
     app.kubernetes.io/component: collector
+    app.kubernetes.io/instance: collector-gke-dev-customerside
   name: cardinal-collector-l2
 spec:
   ports:
@@ -31,4 +34,5 @@ spec:
   selector:
     app.kubernetes.io/name: cardinalhq
     app.kubernetes.io/component: collector
+    app.kubernetes.io/instance: collector-gke-dev-customerside
   clusterIP: None

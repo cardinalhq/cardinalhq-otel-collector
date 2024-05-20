@@ -4,6 +4,7 @@ metadata:
   labels:
     app.kubernetes.io/name: cardinalhq
     app.kubernetes.io/component: collector
+    app.kubernetes.io/instance: collector-gke-dev-customerside
   name: cardinal-collector
 spec:
   replicas: 2
@@ -11,6 +12,7 @@ spec:
     matchLabels:
       app.kubernetes.io/name: cardinalhq
       app.kubernetes.io/component: collector
+      app.kubernetes.io/instance: collector-gke-dev-customerside
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -20,6 +22,7 @@ spec:
       labels:
         app.kubernetes.io/name: cardinalhq
         app.kubernetes.io/component: collector
+        app.kubernetes.io/instance: collector-gke-dev-customerside
     spec:
       securityContext:
         runAsNonRoot: true

@@ -182,7 +182,7 @@ func samplerForType(c LogSamplingConfig, logger *zap.Logger) (ruleType LogRuleTy
 		return LogRuleTypeRandom, &dynsampler.Static{Default: randomToRPS(c.SampleRate)}
 	case "rps":
 		switch c.RPS {
-		case 0, 1:
+		case 0:
 			return LogRuleTypeRPS, NewStaticSampler(float64(c.RPS))
 		default:
 			return LogRuleTypeRPS, &RPSSampler{MinEventsPerSec: c.RPS, Logger: logger}

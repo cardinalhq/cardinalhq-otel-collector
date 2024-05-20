@@ -33,29 +33,15 @@ data:
         traces:
           endpoint: https://intake.cardinalhq.io
 
-      # Exporter for sending telemetry to S3 for later processing by CardinalHQ.
-      # This shuold receive decorated, but otherwise unfiltered telemetry.
-      chqs3/cardinalhq:
-        s3uploader:
-          region: auto
-          s3_bucket: cardinalhq
-          s3_prefix: otel-raw
-          s3_partition: minute
-          endpoint: https://storage.googleapis.com
-        timeboxes:
-          logs:
-            interval: 10000
-            grace_period: 2000
-          metrics:
-            interval: 10000
-            grace_period: 2000
-          traces:
-            interval: 300000
-            grace_period: 2000
-
       otlphttp/cardinalhq:
         endpoint: https://intake.cardinalhq.io/otlp
-        headers: { "dd-api-key": "${env:DATADOG_API_KEY}" }
+        headers: { dd-api-key: "${env:CARDINALHQ_API_KEY}" }
+      otlp/cardinalhq:
+        endpoint: cardinal-collector.collector-chqside.svc.cluster.local:4317
+        tls:
+          insecure: true
+        headers:
+          x-cardinalhq-api-key: "${env:CARDINALHQ_API_KEY}"
 
       loadbalancing/metrics:
         routing_key: "metric"
@@ -111,7 +97,7 @@ data:
       # by CardinalHQ.
       chqdecorator:
         sampler_config_file: https://www.flame.org/~explorer/sampler-config.yaml
-        api_key: ${env:SAMPLER_API_KEY}
+        api_key: ${env:CARDINALHQ_API_KEY}
         traces:
           graph_url: http://microbatch-flows.default.svc.cluster.local:7101/api/v1/flowGraph
           uninteresting_rate: 1000
@@ -161,7 +147,7 @@ data:
         logs/chq:
           receivers: [otlp]
           processors: [memory_limiter, chqdecorator, batch/logs]
-          exporters: [chqs3/cardinalhq, forward/filtered]
+          exporters: [otlp/cardinalhq, forward/filtered]
         logs/filtered:
           receivers: [forward/filtered]
           processors: [filter/chq, attributes/chq]
@@ -181,7 +167,7 @@ data:
           exporters: [forward/mergedmetrics, forward/filtered]
         metrics/chq:
           receivers: [forward/mergedmetrics]
-          exporters: [chqs3/cardinalhq]
+          exporters: [otlp/cardinalhq]
         metrics/filtered:
           receivers: [forward/filtered]
           processors: [filter/chq, attributes/chq]

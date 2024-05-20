@@ -1,0 +1,98 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: cardinalhq
+    app.kubernetes.io/component: collector
+  name: cardinal-collector-config
+data:
+  config.yaml: |-
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    exporters:
+      # Exporter for sending telemetry to S3 for later processing by CardinalHQ.
+      # This shuold receive decorated, but otherwise unfiltered telemetry.
+      chqs3/cardinalhq:
+        s3uploader:
+          region: auto
+          s3_bucket: cardinalhq
+          s3_prefix: otel-raw
+          s3_partition: minute
+          endpoint: https://storage.googleapis.com
+        timeboxes:
+          logs:
+            interval: 10000
+            grace_period: 2000
+          metrics:
+            interval: 10000
+            grace_period: 2000
+          traces:
+            interval: 300000
+            grace_period: 2000
+
+    processors:
+      # Limit collector process memory usage.  This should be the first processor
+      # in the processor list.
+      memory_limiter:
+        limit_mib: 400
+        spike_limit_mib: 100
+        check_interval: 5s
+
+      # Batch processors to limit the size and/or timeframe that telemetry
+      # is batched before being sent to the exporters.  This should be
+      # the last item in the processor list.
+      batch/logs:
+        timeout: 10s
+      batch/metrics:
+        timeout: 10s
+      batch/traces:
+        timeout: 120s
+      batch/spanmetrics:
+        timeout: 10s
+              
+    service:
+      pipelines:
+
+        # log handling.  No need to partition here.
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, batch/logs]
+          exporters: [chqs3/cardinalhq]
+
+        metrics:
+          receivers: [otlp]
+          processors: [memory_limiter, batch/metrics]
+          exporters: [chqs3/cardinalhq]
+
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch/traces]
+          exporters: [chqs3/cardinalhq]
+
+      # Echo telemetry back to ourselves.  This requires more than one replica or
+      # startup and shutdown delays may occur.
+      telemetry:
+        metrics:
+          readers:
+            - periodic:
+                interval: 10000
+                exporter:
+                  otlp:
+                    protocol: grpc/protobuf
+                    endpoint: http://cardinal-collector.collector-chqside.svc.cluster.local:4317
+      extensions:
+        - zpages
+        - health_check
+
+    extensions:
+      zpages:
+        endpoint: "0.0.0.0:55679"
+      health_check:
+        endpoint: "0.0.0.0:13133"
+        path: "/healthz"

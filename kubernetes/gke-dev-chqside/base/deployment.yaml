@@ -41,11 +41,6 @@ spec:
                   fieldPath: status.podIP
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: "Delta"
-            - name: DATADOG_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: cardinal-collector-datadog
-                  key: api-key
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
@@ -67,9 +62,6 @@ spec:
               protocol: TCP
             - name: otlp
               containerPort: 4317
-              protocol: TCP
-            - name: otlp2
-              containerPort: 14317
               protocol: TCP
             - name: zpages
               containerPort: 55679

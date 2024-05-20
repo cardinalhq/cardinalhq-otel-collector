@@ -149,12 +149,11 @@ func (a *RPSSampler) updateMaps() {
 		return
 	}
 
-	samplingPercentage := getSamplingPercentage(targetMinimumCount, sumEvents)
-	updatedGoalSampleRate := getGoalSampleRate(samplingPercentage)
+	updatedGoalSampleRate := math.Ceil(float64(sumEvents) / float64(targetMinimumCount))
 	if a.Logger != nil {
-		a.Logger.Info("updateMaps", zap.Int("samplingPercentage", samplingPercentage), zap.Int("updatedGoalSampleRate", updatedGoalSampleRate))
+		a.Logger.Info("updateMaps", zap.Float64("updatedGoalSampleRate", updatedGoalSampleRate))
 	}
-	goalCount := float64(sumEvents) / float64(updatedGoalSampleRate)
+	goalCount := float64(sumEvents) / updatedGoalSampleRate
 
 	// goalRatio is the goalCount divided by the sum of all the log values - it
 	// determines what percentage of the total event space belongs to each key
@@ -170,14 +169,6 @@ func (a *RPSSampler) updateMaps() {
 	defer a.lock.Unlock()
 	a.savedSampleRates = newSavedSampleRates
 	a.haveData = true
-}
-
-func getGoalSampleRate(samplingPercentage int) int {
-	return int(math.Ceil((1 / float64(samplingPercentage) * 100)))
-}
-
-func getSamplingPercentage(newEventcount float64, currentEventCount float64) int {
-	return int((newEventcount / currentEventCount) * 100)
 }
 
 // GetSampleRate takes a key and returns the appropriate sample rate for that

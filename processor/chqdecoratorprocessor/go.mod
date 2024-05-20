@@ -12,7 +12,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/db47h/ragel/v2 v2.2.4
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/honeycombio/dynsampler-go v0.6.0
 	github.com/stretchr/testify v1.9.0
 	go.opentelemetry.io/collector/component v0.100.0
 	go.opentelemetry.io/collector/consumer v0.100.0

@@ -14,14 +14,12 @@
 
 package sampler
 
-import "github.com/honeycombio/dynsampler-go"
-
 type MockSampler struct {
 	nextret int
 	values  []int
 }
 
-var _ dynsampler.Sampler = (*MockSampler)(nil)
+var _ Sampler = (*MockSampler)(nil)
 
 func (m *MockSampler) Start() error {
 	return nil
@@ -44,20 +42,8 @@ func (m *MockSampler) GetSampleRateMulti(key string, n int) int {
 	return m.GetSampleRate(key)
 }
 
-func (m *MockSampler) SaveState() ([]byte, error) {
-	return nil, nil
-}
-
-func (m *MockSampler) LoadState(state []byte) error {
-	return nil
-}
-
-func (m *MockSampler) GetMetrics(prefix string) map[string]int64 {
-	return nil
-}
-
 //
-// MockRateSampler is a mock implementation of the dynsampler.Sampler interface
+// MockRateSampler is a mock implementation of the Sampler interface
 // that returns a fixed rate for all keys.
 //
 
@@ -65,7 +51,7 @@ type MockRateSampler struct {
 	rate int
 }
 
-var _ dynsampler.Sampler = (*MockRateSampler)(nil)
+var _ Sampler = (*MockRateSampler)(nil)
 
 func (m *MockRateSampler) Start() error {
 	return nil
@@ -81,16 +67,4 @@ func (m *MockRateSampler) GetSampleRate(key string) int {
 
 func (m *MockRateSampler) GetSampleRateMulti(key string, n int) int {
 	return m.rate
-}
-
-func (m *MockRateSampler) SaveState() ([]byte, error) {
-	return nil, nil
-}
-
-func (m *MockRateSampler) LoadState(state []byte) error {
-	return nil
-}
-
-func (m *MockRateSampler) GetMetrics(prefix string) map[string]int64 {
-	return nil
 }

@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: cardinalhq-otel-collector
+  name: collector-gke-dev-customerside
   namespace: argocd
 spec:
   project: default

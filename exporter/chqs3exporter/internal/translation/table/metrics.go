@@ -188,10 +188,9 @@ func asJson[T uint64 | float64](s []T) string {
 
 func ensureExpectedKeysMetrics(m map[string]any) {
 	keys := map[string]any{
-		"_cardinalhq.rule_id":       "",
-		"_cardinalhq.aggregated_by": "",
-		"_cardinalhq.metric_type":   "gauge",
-		"_cardinalhq.hostname":      findHostname(m),
+		"_cardinalhq.ruleconfig":  "",
+		"_cardinalhq.metric_type": "gauge",
+		"_cardinalhq.hostname":    findHostname(m),
 	}
 
 	for key, val := range keys {

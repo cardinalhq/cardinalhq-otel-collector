@@ -16,6 +16,7 @@ package sampler
 
 import (
 	"context"
+	"fmt"
 	"maps"
 	"math/rand"
 	"sync"
@@ -65,12 +66,22 @@ func (ls *LogSamplerImpl) Sample(fingerprint string, rattr pcommon.Map, iattr pc
 	ls.RLock()
 	defer ls.RUnlock()
 
-	return ls.shouldSample(fingerprint, rattr, iattr, lattr)
+	return ls.shouldFilter(fingerprint, rattr, iattr, lattr)
 }
 
-func (ls *LogSamplerImpl) shouldSample(fingerprint string, rattr pcommon.Map, iattr pcommon.Map, lattr pcommon.Map) (droppingRule string) {
+func getServiceName(rattr pcommon.Map) string {
+	serviceName, ok := rattr.Get("service.name")
+	if !ok {
+		return "unknown-service"
+	}
+	return serviceName.AsString()
+}
+
+func (ls *LogSamplerImpl) shouldFilter(fingerprint string, rattr pcommon.Map, iattr pcommon.Map, lattr pcommon.Map) (droppingRule string) {
 	ret := ""
 	matched := false
+
+	serviceName := getServiceName(rattr)
 
 	randval := rand.Float64()
 	for rid, r := range ls.rules {
@@ -83,27 +94,28 @@ func (ls *LogSamplerImpl) shouldSample(fingerprint string, rattr pcommon.Map, ia
 			"instrumentation": iattr,
 			"log":             lattr,
 		}
+		key := fmt.Sprintf("%s:%s", serviceName, fingerprint)
 		if matchscope(r.scope, attrs) {
-			rate := r.sampler.GetSampleRate(fingerprint)
-			switch rate {
-			case 0:
-				if !matched {
-					ret = rid
-					matched = true
-				}
-			case 1:
-				continue
-			default:
-				if randval <= rpsToRandom(rate) {
-					if !matched {
-						ret = rid
-						matched = true
-					}
-				}
+			rate := r.sampler.GetSampleRate(key)
+			wasHit := shouldFilter(float64(rate), randval)
+			if wasHit && !matched {
+				ret = rid
+				matched = true
 			}
 		}
 	}
 	return ret
+}
+
+func shouldFilter(rate float64, randval float64) bool {
+	switch rate {
+	case 0:
+		return true
+	case 1:
+		return false
+	default:
+		return randval > 1/rate
+	}
 }
 
 func rpsToRandom(rate int) float64 {
@@ -127,7 +139,7 @@ func (ls *LogSamplerImpl) configure(config []LogSamplingConfig) {
 		}
 		if currentrule, ok := ls.rules[c.Id]; ok {
 			_ = currentrule.sampler.Stop()
-			updateCurrentRule(currentrule, c)
+			updateCurrentRule(ls.logger, currentrule, c)
 		} else {
 			ls.addRule(c)
 		}
@@ -152,7 +164,7 @@ func (ls *LogSamplerImpl) addRule(c LogSamplingConfig) {
 		ruleType: logRuletypeToInt(c.RuleType),
 		scope:    c.Scope,
 	}
-	r.ruleType, r.sampler = samplerForType(c)
+	r.ruleType, r.sampler = samplerForType(c, ls.logger)
 	if r.sampler == nil {
 		ls.logger.Error("Unknown log sampling rule type", zap.String("type", c.RuleType))
 		return
@@ -164,21 +176,26 @@ func (ls *LogSamplerImpl) addRule(c LogSamplingConfig) {
 	ls.rules[c.Id] = r
 }
 
-func samplerForType(c LogSamplingConfig) (ruleType LogRuleType, sampler dynsampler.Sampler) {
+func samplerForType(c LogSamplingConfig, logger *zap.Logger) (ruleType LogRuleType, sampler dynsampler.Sampler) {
 	switch c.RuleType {
 	case "random":
 		return LogRuleTypeRandom, &dynsampler.Static{Default: randomToRPS(c.SampleRate)}
 	case "rps":
-		return LogRuleTypeRPS, &dynsampler.AvgSampleWithMin{GoalSampleRate: c.RPS}
+		switch c.RPS {
+		case 0:
+			return LogRuleTypeRPS, NewStaticSampler(float64(c.RPS))
+		default:
+			return LogRuleTypeRPS, &RPSSampler{MinEventsPerSec: c.RPS, Logger: logger}
+		}
 	}
 	return LogRuleTypeUnknown, nil
 }
 
 // existing rule must be stopped and started by the caller.
-func updateCurrentRule(r logRule, c LogSamplingConfig) {
+func updateCurrentRule(logger *zap.Logger, r logRule, c LogSamplingConfig) {
 	cps := logRuletypeToInt(c.RuleType)
 	if r.ruleType != cps {
-		r.ruleType, r.sampler = samplerForType(c)
+		r.ruleType, r.sampler = samplerForType(c, logger)
 	}
 	if !maps.Equal(c.Scope, r.scope) {
 		r.scope = c.Scope

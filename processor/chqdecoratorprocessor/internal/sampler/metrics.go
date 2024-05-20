@@ -26,7 +26,7 @@ import (
 type MetricAggregator[T int64 | float64] interface {
 	Emit(now time.Time) map[int64]*AggregationSet[T]
 	Configure(rules []AggregatorConfig)
-	MatchAndAdd(t *time.Time, buckets []T, value []T, aggregationType AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (string, error)
+	MatchAndAdd(t *time.Time, buckets []T, value []T, aggregationType AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (*AggregatorConfig, error)
 }
 
 type MetricAggregatorImpl[T int64 | float64] struct {
@@ -91,7 +91,7 @@ func (m *MetricAggregatorImpl[T]) MatchAndAdd(
 	rattr pcommon.Map,
 	iattr pcommon.Map,
 	mattr pcommon.Map,
-) (string, error) {
+) (*AggregatorConfig, error) {
 	m.rulesLock.RLock()
 	defer m.rulesLock.RUnlock()
 	if t == nil {
@@ -119,10 +119,10 @@ func (m *MetricAggregatorImpl[T]) MatchAndAdd(
 				}
 			}
 			err := m.add(*t, name, buckets, values, aggregationType, attrs)
-			return rule.Id, err
+			return &rule, err
 		}
 	}
-	return "", nil
+	return nil, nil
 }
 
 func matchscopeMap(scope map[string]string, attrs map[string]string) bool {

@@ -24,6 +24,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.26.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -69,5 +70,4 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240515191416-fc5f0ca64291 // indirect
 	google.golang.org/grpc v1.64.0 // indirect
 	google.golang.org/protobuf v1.34.1 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

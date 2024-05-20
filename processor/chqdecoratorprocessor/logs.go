@@ -17,10 +17,13 @@ package chqdecoratorprocessor
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/fingerprinter"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/sampler"
 
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/otel/attribute"
@@ -69,9 +72,18 @@ func newLogsProcessor(set processor.CreateSettings, conf *Config) (*logProcessor
 	return lp, nil
 }
 
+func getServiceName(rattr pcommon.Map) string {
+	if serviceName, ok := rattr.Get("service.name"); ok {
+		return serviceName.AsString()
+	}
+	return "unknown-service"
+}
+
 func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
-	dropped := int64(0)
+	filtered := int64(0)
 	processed := int64(0)
+	filteredKeys := map[string]int64{}
+	processedKeys := map[string]int64{}
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
@@ -83,19 +95,30 @@ func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs,
 				log.Attributes().PutInt("_cardinalhq.fingerprint", fingerprint)
 				log.Attributes().PutStr("_cardinalhq.level", level)
 				rule_match := lp.sampler.Sample(fingerprintString, rl.Resource().Attributes(), sl.Scope().Attributes(), log.Attributes())
+				wasFiltered := rule_match != ""
 				log.Attributes().PutStr("_cardinalhq.rule_match", rule_match)
-				log.Attributes().PutBool("_cardinalhq.filtered", rule_match != "")
-				log.Attributes().PutBool("_cardinalhq.would_filter", rule_match != "")
+				log.Attributes().PutBool("_cardinalhq.filtered", wasFiltered)
+				log.Attributes().PutBool("_cardinalhq.would_filter", wasFiltered)
+				serviceName := getServiceName(rl.Resource().Attributes())
+				key := fmt.Sprintf("%s:%d", serviceName, fingerprint)
 				processed++
-				if rule_match != "" {
-					dropped++
+				processedKeys[key]++
+				if wasFiltered {
+					filtered++
+					filteredKeys[key]++
 				}
 			}
 		}
 	}
 
-	lp.telemetry.record(triggerLogsProcessed, processed-dropped, attribute.Bool("filtered.status", false), attribute.String("filtered.classification", "not_filtered"))
-	lp.telemetry.record(triggerLogsProcessed, dropped, attribute.Bool("filtered.status", true), attribute.String("filtered.classification", "rule_match"))
+	for key, count := range processedKeys {
+		filtered := filteredKeys[key]
+		items := strings.Split(key, ":")
+		serviceName := items[0]
+		fingerprint, _ := strconv.ParseInt(items[1], 10, 64)
+		lp.telemetry.record(triggerLogsProcessed, count-filtered, attribute.Bool("filtered.filtered", false), attribute.String("filtered.classification", "not_filtered"), attribute.String("filtered.service.name", serviceName), attribute.Int64("filtered.fingerprint", fingerprint))
+		lp.telemetry.record(triggerLogsProcessed, filtered, attribute.Bool("filtered.filtered", true), attribute.String("filtered.classification", "rule_match"), attribute.String("filtered.service.name", serviceName), attribute.Int64("filtered.fingerprint", fingerprint))
+	}
 
 	return ld, nil
 }

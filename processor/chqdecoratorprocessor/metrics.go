@@ -16,6 +16,7 @@ package chqdecoratorprocessor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -97,8 +98,8 @@ func (mp *metricProcessor) processMetrics(ctx context.Context, md pmetric.Metric
 	})
 
 	mp.telemetry.record(triggerMetricDataPointsAggregated, aggregated)
-	mp.telemetry.record(triggerMetricsProcessed, processed-aggregated, attribute.Bool("filtered.status", false), attribute.String("filtered.classification", "not_filtered"))
-	mp.telemetry.record(triggerMetricsProcessed, aggregated, attribute.Bool("filtered.status", true), attribute.String("filtered.classification", "aggregated"))
+	mp.telemetry.record(triggerMetricsProcessed, processed-aggregated, attribute.Bool("filtered.filtered", false), attribute.String("filtered.classification", "unaggregated"))
+	mp.telemetry.record(triggerMetricsProcessed, aggregated, attribute.Bool("filtered.filtered", true), attribute.String("filtered.classification", "aggregated"))
 
 	mp.emit()
 
@@ -294,9 +295,12 @@ func (mp *metricProcessor) aggregateGauge(rms pmetric.ResourceMetrics, ils pmetr
 			"metric.description":        metric.Description(),
 			"metric.unit":               metric.Unit(),
 		}
-		if mp.aggregateDatapoint(sampler.AggregationTypeAvg, rms, ils, metric, dp, metadata) {
+		rulematch := mp.aggregateDatapoint(sampler.AggregationTypeAvg, rms, ils, metric, dp, metadata)
+		if rulematch != nil {
 			aggregated++
 			filtered = true
+			b, _ := json.Marshal(rulematch)
+			dp.Attributes().PutStr("_cardinalhq.ruleconfig", string(b))
 		}
 		dp.Attributes().PutBool("_cardinalhq.filtered", filtered)
 		dp.Attributes().PutBool("_cardinalhq.would_filter", filtered)
@@ -321,15 +325,20 @@ func (mp *metricProcessor) aggregateSum(rms pmetric.ResourceMetrics, ils pmetric
 			"metric.ismonotonic":            fmt.Sprintf("%t", metric.Sum().IsMonotonic()),
 			"metric.unit":                   metric.Unit(),
 		}
-		if mp.aggregateDatapoint(sampler.AggregationTypeSum, rms, ils, metric, dp, metadata) {
+		rulematch := mp.aggregateDatapoint(sampler.AggregationTypeSum, rms, ils, metric, dp, metadata)
+		if rulematch != nil {
 			aggregated++
 			filtered = true
+			b, _ := json.Marshal(rulematch)
+			dp.Attributes().PutStr("_cardinalhq.ruleconfig", string(b))
 		}
 		dp.Attributes().PutBool("_cardinalhq.filtered", filtered)
+		dp.Attributes().PutBool("_cardinalhq.would_filter", filtered)
 	}
 	return aggregated
 }
 
+// TODO Made public until we make it work to avoid linting errors
 func (mp *metricProcessor) AggregateHistogram(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric) int64 {
 	aggregated := int64(0)
 	metric.Histogram().DataPoints().RemoveIf(func(dp pmetric.HistogramDataPoint) bool {
@@ -342,14 +351,17 @@ func (mp *metricProcessor) AggregateHistogram(rms pmetric.ResourceMetrics, ils p
 		}
 		t := dp.Timestamp().AsTime()
 		// TODO pass in metadata
-		rmatch, err := mp.aggregatorF.MatchAndAdd(&t, buckets, counts, sampler.AggregationTypeSum, metric.Name(), nil, rms.Resource().Attributes(), ils.Scope().Attributes(), attrs)
+		rulematch, err := mp.aggregatorF.MatchAndAdd(&t, buckets, counts, sampler.AggregationTypeSum, metric.Name(), nil, rms.Resource().Attributes(), ils.Scope().Attributes(), attrs)
 		if err != nil {
 			mp.logger.Error("Error matching and adding histogram datapoint", zap.Error(err))
 			return false
 		}
-		filtered := rmatch != ""
+		filtered := rulematch != nil
 		if filtered {
+			b, _ := json.Marshal(rulematch)
+			dp.Attributes().PutStr("_cardinalhq.ruleconfig", string(b))
 			dp.Attributes().PutBool("_cardinalhq.filtered", true)
+			dp.Attributes().PutBool("_cardinalhq.would_filter", filtered)
 			aggregated++
 		}
 		return false
@@ -364,7 +376,7 @@ func (mp *metricProcessor) aggregateDatapoint(
 	metric pmetric.Metric,
 	dp pmetric.NumberDataPoint,
 	metadata map[string]string,
-) bool {
+) *sampler.AggregatorConfig {
 	t := dp.Timestamp().AsTime()
 	switch dp.ValueType() {
 	case pmetric.NumberDataPointValueTypeInt:
@@ -381,9 +393,9 @@ func (mp *metricProcessor) aggregateDatapoint(
 			dp.Attributes())
 		if err != nil {
 			mp.logger.Error("Error matching and adding int datapoint", zap.Error(err))
-			return false
+			return nil
 		}
-		return rmatch != ""
+		return rmatch
 	case pmetric.NumberDataPointValueTypeDouble:
 		v := dp.DoubleValue()
 		rmatch, err := mp.aggregatorF.MatchAndAdd(&t,
@@ -397,13 +409,13 @@ func (mp *metricProcessor) aggregateDatapoint(
 			dp.Attributes())
 		if err != nil {
 			mp.logger.Error("Error matching and adding float64 datapoint", zap.Error(err))
-			return false
+			return nil
 		}
-		return rmatch != ""
+		return rmatch
 	case pmetric.NumberDataPointValueTypeEmpty:
-		return false
+		return nil
 	default:
-		return false
+		return nil
 	}
 }
 

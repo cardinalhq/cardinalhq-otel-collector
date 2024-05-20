@@ -54,6 +54,7 @@ func ensureExpectedKeysLogs(m map[string]any) {
 		"_cardinalhq.fingerprint": int64(0),
 		"_cardinalhq.filtered":    false,
 		"_cardinalhq.rule_id":     "",
+		"_cardinalhq.ruleconfig":  "",
 		"_cardinalhq.hostname":    findHostname(m),
 		"_cardinalhq.message":     "",
 		"_cardinalhq.value":       float64(1),

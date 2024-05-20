@@ -287,15 +287,13 @@ func TestMatchAndAdd(t *testing.T) {
 		"instrumentation.name": "instrumentation1",
 	}
 
-	expectedId := "rule1"
-
 	ttime := time.UnixMilli(1641024001231)
 	tbox := timebox(ttime, 10)
 
-	actualId, err := m.MatchAndAdd(&ttime, buckets, values, aggregationType, name, nil, rattr, iattr, mattr)
+	actualRule, err := m.MatchAndAdd(&ttime, buckets, values, aggregationType, name, nil, rattr, iattr, mattr)
 	assert.Nil(t, err)
 
-	assert.Equal(t, expectedId, actualId)
+	assert.Equal(t, &conf[0], actualRule)
 	assert.Equal(t, 1, len(m.sets))
 	assert.Equal(t, 1, len(m.sets[tbox].Aggregations))
 	// we don't know what the actual entry is, so we will pull out
@@ -307,9 +305,9 @@ func TestMatchAndAdd(t *testing.T) {
 		assert.Equal(t, uint64(1), v.Count())
 	}
 
-	actualId, err = m.MatchAndAdd(&ttime, buckets, values, aggregationType, "bob", nil, rattr, iattr, mattr)
+	actualRule, err = m.MatchAndAdd(&ttime, buckets, values, aggregationType, "bob", nil, rattr, iattr, mattr)
 	assert.Nil(t, err)
-	assert.Equal(t, "", actualId)
+	assert.Nil(t, actualRule)
 	// should be no changes
 	assert.Equal(t, 1, len(m.sets))
 	assert.Equal(t, 1, len(m.sets[tbox].Aggregations))

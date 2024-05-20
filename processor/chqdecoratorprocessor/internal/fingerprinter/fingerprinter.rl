@@ -90,17 +90,13 @@ func (*Fingerprinter) TokenString(t ragel.Token) string {
 
         ansicode = digit+ (';' digit+)*  uletter;
 
-        protocol = 's3' | 'ws' | 'wss' | 'http' | 'https' | 'ftp';
-        url = protocol '://' alnum_u+ ('.' alnum_u+)* ('/' alnum_u+)* ('.' alnum_u+)* ('/' alnum_u+)*;
-        httpmethod = 'get' | 'post' | 'put' | 'delete' | 'head' | 'patch';
-
         uuid = xdigit{8} [_\-] (xdigit{4} [_\-]){3} xdigit{12};
 
         dnslabel = alnum_u+ ('-' alnum_u+)*;
         fqdn = dnslabel ('.' dnslabel)+;
         email = alnum_u+ (('.' | '-' | '+' | '_') alnum_u+)* '@' fqdn;
 
-        path = ('/' alnum_u+)+ '/'{0,1};
+        path = ('/'{1} alnum_u+)+ '/'{0,1};
 
         durationIdentifier =
             'ns' | 'nano' | 'nanosecond' 
@@ -117,9 +113,19 @@ func (*Fingerprinter) TokenString(t ragel.Token) string {
 
         ipv4 = digit{1,3} '.' digit{1,3} '.' digit{1,3} '.' digit{1,3};
 
+        protocol = alnum_u+;
+        url_creds = (alnum_u+)? ':' (alnum_u+)? '@';
+        url_path = ('/' alnum_u+)*;
+        url_host = fqdn | ipv4;
+        url_port = ':' digit{1,5};
+        url = protocol '://' (url_creds)? url_host? url_port? url_path;
+        httpmethod = 'get' | 'post' | 'put' | 'delete' | 'head' | 'patch';
+
         logLevels = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal' | 'panic';
 
-        skipcharacters = space | newline | punct | cntrl | 0x7f | '(' | ')' | '[' | ']' | '{' | '}' | '<' | '>' | '"' | '\'' | '=';
+        brackets = '(' | ')' | '[' | ']' | '{' | '}' | '<' | '>';
+        punctuation = '.' | ',' | ';' | ':' | '!' | '?' | '"' | '\'' | '*' | '-' | '_' | '@' | '#' | '$' | '%' | '&' | '^' | '|' | '~' | '`' | '+' | '=' | '\\' | '|';
+        skipcharacters = space | newline | cntrl | 0x7f | brackets |  punctuation;
 
         dateyear = digit{4} | digit{2};
         datemonth = digit{2} | 'jan' | 'feb' | 'mar' | 'apr' | 'may' | 'jun' | 'jul' | 'aug' | 'sep' | 'oct' | 'nov' | 'dec';
@@ -136,6 +142,10 @@ func (*Fingerprinter) TokenString(t ragel.Token) string {
 
         # pre-filtering
         ansicode;
+
+        path {
+            s.Emit(ts, TokenPath, string(data[ts:te]))
+        };
 
         ipv4 {
             s.Emit(ts, TokenIPv4, string(data[ts:te]))
@@ -169,10 +179,6 @@ func (*Fingerprinter) TokenString(t ragel.Token) string {
             s.Emit(ts, TokenDuration, string(data[ts:te]))
         };
 
-        path {
-            s.Emit(ts, TokenPath, string(data[ts:te]))
-        };
-
         number {
             s.Emit(ts, TokenNumber, string(data[ts:te]))
         };
@@ -198,6 +204,8 @@ func (*Fingerprinter) TokenString(t ragel.Token) string {
         };
 
         skipcharacters+;
+
+        '/';
     *|;
 }%%
 

@@ -164,7 +164,7 @@ func (ls *LogSamplerImpl) addRule(c LogSamplingConfig) {
 		ruleType: logRuletypeToInt(c.RuleType),
 		scope:    c.Scope,
 	}
-	r.ruleType, r.sampler = samplerForType(c)
+	r.ruleType, r.sampler = samplerForType(c, ls.logger)
 	if r.sampler == nil {
 		ls.logger.Error("Unknown log sampling rule type", zap.String("type", c.RuleType))
 		return
@@ -176,7 +176,7 @@ func (ls *LogSamplerImpl) addRule(c LogSamplingConfig) {
 	ls.rules[c.Id] = r
 }
 
-func samplerForType(c LogSamplingConfig) (ruleType LogRuleType, sampler dynsampler.Sampler) {
+func samplerForType(c LogSamplingConfig, logger *zap.Logger) (ruleType LogRuleType, sampler dynsampler.Sampler) {
 	switch c.RuleType {
 	case "random":
 		return LogRuleTypeRandom, &dynsampler.Static{Default: randomToRPS(c.SampleRate)}
@@ -185,7 +185,7 @@ func samplerForType(c LogSamplingConfig) (ruleType LogRuleType, sampler dynsampl
 		case 0, 1:
 			return LogRuleTypeRPS, NewStaticSampler(float64(c.RPS))
 		default:
-			return LogRuleTypeRPS, &RPSSampler{MinEventsPerSec: c.RPS}
+			return LogRuleTypeRPS, &RPSSampler{MinEventsPerSec: c.RPS, Logger: logger}
 		}
 	}
 	return LogRuleTypeUnknown, nil

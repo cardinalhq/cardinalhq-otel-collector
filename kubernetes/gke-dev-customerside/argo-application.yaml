@@ -20,9 +20,9 @@ spec:
     - group: apps
       kind: Deployment
       jsonPointers:
-        - /spec/template/spec/containers/*/resources/limits/cpu
-        - /spec/template/spec/containers/*/resources/limits/memory
-        - /spec/template/spec/containers/*/resources/limits/ephemeral-storage
-        - /spec/template/spec/containers/*/resources/requests/cpu
-        - /spec/template/spec/containers/*/resources/requests/memory
-        - /spec/template/spec/containers/*/resources/requests/ephemeral-storage
+        - /spec/template/spec/containers/0/resources/limits/cpu
+        - /spec/template/spec/containers/0/resources/limits/memory
+        - /spec/template/spec/containers/0/resources/limits/ephemeral-storage
+        - /spec/template/spec/containers/0/resources/requests/cpu
+        - /spec/template/spec/containers/0/resources/requests/memory
+        - /spec/template/spec/containers/0/resources/requests/ephemeral-storage

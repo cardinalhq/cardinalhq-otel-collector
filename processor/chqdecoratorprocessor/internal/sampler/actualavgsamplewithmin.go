@@ -15,6 +15,7 @@
 package sampler
 
 import (
+	"log"
 	"math"
 	"sort"
 	"sync"
@@ -132,6 +133,7 @@ func (a *RPSSampler) updateMaps() {
 	}
 	// check to see if we fall below the minimum
 	targetMinimumCount := float64(a.MinEventsPerSec) * a.ClearFrequencyDuration.Seconds()
+	log.Printf("sumEvents: %f, targetMinimumCount: %f", sumEvents, targetMinimumCount)
 	if sumEvents < targetMinimumCount {
 		// we still need to go through each key to set sample rates individually
 		for k := range tmpCounts {
@@ -145,6 +147,7 @@ func (a *RPSSampler) updateMaps() {
 
 	samplingPercentage := getSamplingPercentage(targetMinimumCount, sumEvents)
 	updatedGoalSampleRate := getGoalSampleRate(samplingPercentage)
+	log.Printf("samplingPercentage: %d, updatedGoalSampleRate: %d", samplingPercentage, updatedGoalSampleRate)
 	goalCount := float64(sumEvents) / float64(updatedGoalSampleRate)
 
 	// goalRatio is the goalCount divided by the sum of all the log values - it

@@ -59,7 +59,7 @@ func TestSamplerForType(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualType, actualSampler := samplerForType(tc.config)
+			actualType, actualSampler := samplerForType(tc.config, nil)
 			assert.Equal(t, tc.expectedType, actualType)
 			assert.Equal(t, tc.expected, actualSampler)
 		})
@@ -87,7 +87,7 @@ func TestSamplerForCorrectness(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, sampler := samplerForType(tt.ruleConfig)
+			_, sampler := samplerForType(tt.ruleConfig, nil)
 			assert.NotNil(t, sampler)
 			err := sampler.Start()
 			assert.NoError(t, err)

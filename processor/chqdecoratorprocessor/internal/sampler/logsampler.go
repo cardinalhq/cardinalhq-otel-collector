@@ -139,7 +139,7 @@ func (ls *LogSamplerImpl) configure(config []LogSamplingConfig) {
 		}
 		if currentrule, ok := ls.rules[c.Id]; ok {
 			_ = currentrule.sampler.Stop()
-			updateCurrentRule(currentrule, c)
+			updateCurrentRule(ls.logger, currentrule, c)
 		} else {
 			ls.addRule(c)
 		}
@@ -192,10 +192,10 @@ func samplerForType(c LogSamplingConfig, logger *zap.Logger) (ruleType LogRuleTy
 }
 
 // existing rule must be stopped and started by the caller.
-func updateCurrentRule(r logRule, c LogSamplingConfig) {
+func updateCurrentRule(logger *zap.Logger, r logRule, c LogSamplingConfig) {
 	cps := logRuletypeToInt(c.RuleType)
 	if r.ruleType != cps {
-		r.ruleType, r.sampler = samplerForType(c)
+		r.ruleType, r.sampler = samplerForType(c, logger)
 	}
 	if !maps.Equal(c.Scope, r.scope) {
 		r.scope = c.Scope

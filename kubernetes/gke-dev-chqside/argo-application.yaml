@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: 'ssh://git@github.com/cardinalhq/cardinalhq-otel-collector.git'
-    path: kubernetes/gke-dev
+    path: kubernetes/gke-dev-chqside
     targetRevision: main
   destination:
     namespace: collector

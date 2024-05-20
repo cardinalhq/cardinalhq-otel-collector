@@ -46,17 +46,7 @@ spec:
                 secretKeyRef:
                   name: cardinal-collector-datadog
                   key: api-key
-            - name: AWS_ACCESS_KEY_ID
-              valueFrom:
-                secretKeyRef:
-                  name: cardinal-collector-aws
-                  key: access-key-id
-            - name: AWS_SECRET_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: cardinal-collector-aws
-                  key: secret-access-key
-            - name: SAMPLER_API_KEY
+            - name: CARDINALHQ_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: cardinal-collector-chq

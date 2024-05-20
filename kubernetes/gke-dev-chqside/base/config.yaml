@@ -14,25 +14,8 @@ data:
             endpoint: 0.0.0.0:4317
           http:
             endpoint: 0.0.0.0:4318
-      otlp/l2:
-        protocols:
-          grpc:
-            endpoint: 0.0.0.0:14317
 
     exporters:
-
-      # Exporter for sending telemetry CardinalHQ via the Datadog exporters.
-      # TODO This is temporary until S3 ingest works.
-      datadog/cardinalhq:
-        api:
-          key: ${env:DATADOG_API_KEY}
-        metrics:
-          endpoint: https://intake.cardinalhq.io
-        logs:
-          endpoint: https://intake.cardinalhq.io
-        traces:
-          endpoint: https://intake.cardinalhq.io
-
       # Exporter for sending telemetry to S3 for later processing by CardinalHQ.
       # This shuold receive decorated, but otherwise unfiltered telemetry.
       chqs3/cardinalhq:
@@ -53,32 +36,6 @@ data:
             interval: 300000
             grace_period: 2000
 
-      otlphttp/cardinalhq:
-        endpoint: https://intake.cardinalhq.io/otlp
-        headers: { "dd-api-key": "${env:DATADOG_API_KEY}" }
-
-      loadbalancing/metrics:
-        routing_key: "metric"
-        protocol:
-          otlp:
-            tls:
-              insecure: true
-        resolver:
-          dns:
-            hostname: cardinal-collector-l2.collector.svc.cluster.local
-            port: 14317
-
-      loadbalancing/traces:
-        routing_key: "traceID"
-        protocol:
-          otlp:
-            tls:
-              insecure: true
-        resolver:
-          dns:
-            hostname: cardinal-collector-l2.collector.svc.cluster.local
-            port: 14317
-
     processors:
       # Limit collector process memory usage.  This should be the first processor
       # in the processor list.
@@ -98,114 +55,25 @@ data:
         timeout: 120s
       batch/spanmetrics:
         timeout: 10s
-      
-      # Group by trace processor to group trace data by trace ID.
-      groupbytrace:
-        wait_duration: 60s
-
-      # This processor should be added to the list of processors before
-      # the filter/chq, and the exporters that write to S3 or to upstream
-      # providers, such as Datadog.  It will add attributes to the telemetry
-      # which will allow selectively sending metrics on to the upstream
-      # provider.  This markup is also written to S3 for later processing
-      # by CardinalHQ.
-      chqdecorator:
-        sampler_config_file: https://www.flame.org/~explorer/sampler-config.yaml
-        api_key: ${env:SAMPLER_API_KEY}
-        traces:
-          graph_url: http://microbatch-flows.default.svc.cluster.local:7101/api/v1/flowGraph
-          uninteresting_rate: 1000
-          has_error_rate: 4
-
-      # This processor should be added to the list of processors that
-      # are in the pipeline destined to the upstream provider, such as
-      # Datadog.  It should NOT be used to filter output to S3 for
-      # later processing by CardinalHQ.
-      filter/chq:
-        error_mode: ignore
-        logs:
-          log_record:
-            - 'attributes["_cardinalhq.filtered"] == true'
-        metrics:
-          datapoint:
-            - 'attributes["_cardinalhq.filtered"] == true'
-        traces:
-          span:
-            - 'attributes["_cardinalhq.filtered"] == true'
-      attributes/chq:
-        actions:
-          - action: delete
-            pattern: '^_cardinalhq.*'
-
-    connectors:
-      forward/filtered:
-      forward/mergedmetrics:
-      spanmetrics/chq:
-        aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
-        metrics_expiration: 1h
-        metrics_flush_interval: 10s
-        histogram:
-          exponential:
-        dimensions:
-          - name: "_cardinalhq.fingerprint"
-            default: 0
-          - name: "_cardinalhq.telemetry_source"
-            default: "span_metrics_processor"
-          - name: "_cardinalhq.trace_has_error"
-          - name: "_cardinalhq.is_root_span"
-        
+              
     service:
       pipelines:
 
         # log handling.  No need to partition here.
-        logs/chq:
+        logs:
           receivers: [otlp]
-          processors: [memory_limiter, chqdecorator, batch/logs]
-          exporters: [chqs3/cardinalhq, forward/filtered]
-        logs/filtered:
-          receivers: [forward/filtered]
-          processors: [filter/chq, attributes/chq]
-          exporters: [otlphttp/cardinalhq]
-
-        # metric handling.  Partition on metric name so aggregations
-        # work properly.  TODO: modify aggregator to add artificial attribute
-        # for the host that processed the aggregation, and let the receiver
-        # just get more than one time series for our aggregation.
-        metrics/l1:
-          receivers: [otlp]
-          processors: [memory_limiter]
-          exporters: [loadbalancing/metrics]
-        metrics/decoration:
-          receivers: [otlp/l2]
-          processors: [memory_limiter, chqdecorator, batch/metrics]
-          exporters: [forward/mergedmetrics, forward/filtered]
-        metrics/chq:
-          receivers: [forward/mergedmetrics]
+          processors: [memory_limiter, batch/logs]
           exporters: [chqs3/cardinalhq]
-        metrics/filtered:
-          receivers: [forward/filtered]
-          processors: [filter/chq, attributes/chq]
-          exporters: [datadog/cardinalhq]
 
-        # trace handling.  Partition on trace ID so we can group traces
-        # and filter based on the entire trace, not individual spans.
-        traces/l1:
+        metrics:
           receivers: [otlp]
-          processors: [memory_limiter]
-          exporters: [loadbalancing/traces]
-        traces/chq:
-          receivers: [otlp/l2]
-          processors: [memory_limiter, groupbytrace, chqdecorator, batch/traces]
-          exporters: [forward/filtered, spanmetrics/chq]
-        traces/filtered:
-          receivers: [forward/filtered]
-          processors: [filter/chq, attributes/chq]
-          exporters: [datadog/cardinalhq]
+          processors: [memory_limiter, batch/metrics]
+          exporters: [chqs3/cardinalhq]
 
-        metrics/spanmetrics:
-          receivers: [spanmetrics/chq]
-          processors: [batch/spanmetrics]
-          exporters: [forward/mergedmetrics]
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch/traces]
+          exporters: [chqs3/cardinalhq]
 
       # Echo telemetry back to ourselves.  This requires more than one replica or
       # startup and shutdown delays may occur.
@@ -217,7 +85,7 @@ data:
                 exporter:
                   otlp:
                     protocol: grpc/protobuf
-                    endpoint: http://cardinal-collector.collector.svc.cluster.local:4317
+                    endpoint: http://cardinal-collector.collector-chqside.svc.cluster.local:4317
       extensions:
         - zpages
         - health_check

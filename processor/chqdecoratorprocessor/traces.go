@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/ptrace"
@@ -42,6 +43,7 @@ type spansProcessor struct {
 	estimatorInterval   int64
 
 	estimators           map[uint64]*SlidingEstimatorStat
+	estimatorLock        sync.Mutex
 	sentFingerprints     fingerprintTracker
 	slowSampler          dynsampler.Sampler
 	hasErrorSampler      dynsampler.Sampler
@@ -159,6 +161,8 @@ func (sp *spansProcessor) isSlow(td ptrace.Traces, fingerprint uint64) bool {
 }
 
 func (sp *spansProcessor) findSketch(fingerprint uint64) *SlidingEstimatorStat {
+	sp.estimatorLock.Lock()
+	defer sp.estimatorLock.Unlock()
 	sketch, ok := sp.estimators[fingerprint]
 	if !ok {
 		estimator := NewSlidingEstimatorStat(sp.estimatorWindowSize, sp.estimatorInterval)

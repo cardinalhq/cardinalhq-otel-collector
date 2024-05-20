@@ -18,7 +18,6 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/honeycombio/dynsampler-go"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,7 +26,7 @@ func TestSamplerForType(t *testing.T) {
 		name         string
 		config       LogSamplingConfig
 		expectedType LogRuleType
-		expected     dynsampler.Sampler
+		expected     Sampler
 	}{
 		{
 			name: "random rule type",
@@ -36,7 +35,7 @@ func TestSamplerForType(t *testing.T) {
 				SampleRate: 0.5,
 			},
 			expectedType: LogRuleTypeRandom,
-			expected:     &dynsampler.Static{Default: 2},
+			expected:     &StaticSampler{fixedRate: 2},
 		},
 		{
 			name: "rps rule type",

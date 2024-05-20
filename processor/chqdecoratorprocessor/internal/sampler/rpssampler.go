@@ -20,9 +20,19 @@ import (
 	"sync"
 	"time"
 
-	"github.com/honeycombio/dynsampler-go"
 	"go.uber.org/zap"
 )
+
+type Sampler interface {
+	// Start starts the sampler
+	Start() error
+	// Stop stops the sampler
+	Stop() error
+	// GetSampleRate returns the sample rate for a given key
+	GetSampleRate(key string) int
+	// GetSampleRateMulti returns the sample rate for a given key with a count
+	GetSampleRateMulti(key string, count int) int
+}
 
 // RPSSampler implements Sampler and attempts to average a given sample
 // rate, with a minimum number of events per second (i.e. it will reduce
@@ -71,7 +81,7 @@ type RPSSampler struct {
 }
 
 // Ensure we implement the sampler interface
-var _ dynsampler.Sampler = (*RPSSampler)(nil)
+var _ Sampler = (*RPSSampler)(nil)
 
 func (a *RPSSampler) Start() error {
 	// apply defaults
@@ -202,27 +212,6 @@ func (a *RPSSampler) GetSampleRateMulti(key string, count int) int {
 		return rate
 	}
 	return 1
-}
-
-// SaveState is not implemented
-func (a *RPSSampler) SaveState() ([]byte, error) {
-	return nil, nil
-}
-
-// LoadState is not implemented
-func (a *RPSSampler) LoadState(state []byte) error {
-	return nil
-}
-
-func (a *RPSSampler) GetMetrics(prefix string) map[string]int64 {
-	a.lock.Lock()
-	defer a.lock.Unlock()
-	mets := map[string]int64{
-		prefix + "request_count": a.requestCount,
-		prefix + "event_count":   a.eventCount,
-		prefix + "keyspace_size": int64(len(a.currentCounts)),
-	}
-	return mets
 }
 
 // This is an extraction of common calculation logic for all the key-based samplers.

@@ -21,59 +21,39 @@ import (
 )
 
 func TestNewStaticSampler(t *testing.T) {
-	s := NewStaticSampler(0.5)
-	assert.Equal(t, 2, s.fixedRate)
+	s := NewStaticSampler(123)
+	assert.Equal(t, 123, s.fixedRate)
 }
 
 func TestStaticSampler_GetSampleRate(t *testing.T) {
-	s := NewStaticSampler(0.5)
-	assert.Equal(t, 2, s.GetSampleRate(""))
+	s := NewStaticSampler(123)
+	assert.Equal(t, 123, s.GetSampleRate(""))
 }
 
 func TestStaticSampler_GetSampleRateMulti(t *testing.T) {
-	s := NewStaticSampler(0.5)
-	assert.Equal(t, 2, s.GetSampleRateMulti("", 1))
-}
-
-func TestStaticSampler_SaveState(t *testing.T) {
-	s := NewStaticSampler(0.5)
-	state, err := s.SaveState()
-	assert.NoError(t, err)
-	assert.Nil(t, state)
-}
-
-func TestStaticSampler_LoadState(t *testing.T) {
-	s := NewStaticSampler(0.5)
-	err := s.LoadState(nil)
-	assert.NoError(t, err)
-}
-
-func TestStaticSampler_GetMetrics(t *testing.T) {
-	s := NewStaticSampler(0.5)
-	metrics := s.GetMetrics("test")
-	assert.Equal(t, map[string]int64{
-		"test.fixed_rate": 2,
-	}, metrics)
+	s := NewStaticSampler(123)
+	assert.Equal(t, 123, s.GetSampleRateMulti("", 1))
 }
 
 func TestStaticSampler_Start(t *testing.T) {
-	s := NewStaticSampler(0.5)
+	s := NewStaticSampler(123)
 	err := s.Start()
 	assert.NoError(t, err)
+	_ = s.Stop()
 }
 
 func TestStaticSampler_Stop(t *testing.T) {
-	s := NewStaticSampler(0.5)
+	s := NewStaticSampler(123)
 	err := s.Stop()
 	assert.NoError(t, err)
 }
 
 func TestStaticSamplerEdgeCases(t *testing.T) {
-	s := NewStaticSampler(0.0)
+	s := NewStaticSampler(0)
 	assert.Equal(t, 0, s.GetSampleRate(""))
 	assert.Equal(t, 0, s.GetSampleRateMulti("", 10))
 
-	s = NewStaticSampler(1.0)
+	s = NewStaticSampler(1)
 	assert.Equal(t, 1, s.GetSampleRate(""))
 	assert.Equal(t, 1, s.GetSampleRateMulti("", 10))
 }

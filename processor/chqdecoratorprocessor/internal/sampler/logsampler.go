@@ -21,7 +21,6 @@ import (
 	"math/rand"
 	"sync"
 
-	"github.com/honeycombio/dynsampler-go"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.uber.org/zap"
 )
@@ -43,7 +42,7 @@ type LogSamplerImpl struct {
 type logRule struct {
 	id       string
 	ruleType LogRuleType
-	sampler  dynsampler.Sampler
+	sampler  Sampler
 	scope    map[string]string
 }
 
@@ -176,14 +175,14 @@ func (ls *LogSamplerImpl) addRule(c LogSamplingConfig) {
 	ls.rules[c.Id] = r
 }
 
-func samplerForType(c LogSamplingConfig, logger *zap.Logger) (ruleType LogRuleType, sampler dynsampler.Sampler) {
+func samplerForType(c LogSamplingConfig, logger *zap.Logger) (ruleType LogRuleType, sampler Sampler) {
 	switch c.RuleType {
 	case "random":
-		return LogRuleTypeRandom, &dynsampler.Static{Default: randomToRPS(c.SampleRate)}
+		return LogRuleTypeRandom, NewStaticSampler(int(1 / c.SampleRate))
 	case "rps":
 		switch c.RPS {
 		case 0:
-			return LogRuleTypeRPS, NewStaticSampler(float64(c.RPS))
+			return LogRuleTypeRPS, NewStaticSampler(c.RPS)
 		default:
 			return LogRuleTypeRPS, &RPSSampler{MinEventsPerSec: c.RPS, Logger: logger}
 		}

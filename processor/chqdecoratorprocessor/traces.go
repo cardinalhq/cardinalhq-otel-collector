@@ -29,9 +29,9 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/zap"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/sampler"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/spantagger"
 	"github.com/hashicorp/go-multierror"
-	"github.com/honeycombio/dynsampler-go"
 )
 
 type spansProcessor struct {
@@ -45,9 +45,9 @@ type spansProcessor struct {
 	estimators           map[uint64]*SlidingEstimatorStat
 	estimatorLock        sync.Mutex
 	sentFingerprints     fingerprintTracker
-	slowSampler          dynsampler.Sampler
-	hasErrorSampler      dynsampler.Sampler
-	uninterestingSampler dynsampler.Sampler
+	slowSampler          sampler.Sampler
+	hasErrorSampler      sampler.Sampler
+	uninterestingSampler sampler.Sampler
 }
 
 func newSpansProcessor(set processor.CreateSettings, config *Config) (*spansProcessor, error) {
@@ -59,9 +59,9 @@ func newSpansProcessor(set processor.CreateSettings, config *Config) (*spansProc
 		estimatorWindowSize:  *config.TraceConfig.EstimatorWindowSize,
 		estimatorInterval:    *config.TraceConfig.EstimatorInterval,
 		sentFingerprints:     *newFingerprintTracker(),
-		slowSampler:          &dynsampler.AvgSampleWithMin{GoalSampleRate: *config.TraceConfig.SlowRate},
-		hasErrorSampler:      &dynsampler.AvgSampleWithMin{GoalSampleRate: *config.TraceConfig.HasErrorRate},
-		uninterestingSampler: &dynsampler.AvgSampleWithMin{GoalSampleRate: *config.TraceConfig.UninterestingRate},
+		slowSampler:          &sampler.RPSSampler{MinEventsPerSec: *config.TraceConfig.SlowRate},
+		hasErrorSampler:      &sampler.RPSSampler{MinEventsPerSec: *config.TraceConfig.HasErrorRate},
+		uninterestingSampler: &sampler.RPSSampler{MinEventsPerSec: *config.TraceConfig.UninterestingRate},
 	}
 
 	dpt, err := newProcessorTelemetry(set)

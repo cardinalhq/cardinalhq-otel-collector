@@ -14,21 +14,13 @@
 
 package sampler
 
-import (
-	"github.com/honeycombio/dynsampler-go"
-)
-
 type StaticSampler struct {
 	fixedRate int
 }
 
-var _ dynsampler.Sampler = (*StaticSampler)(nil)
+var _ Sampler = (*StaticSampler)(nil)
 
-func NewStaticSampler(sampleRate float64) *StaticSampler {
-	rate := 0
-	if sampleRate > 0 {
-		rate = int(1 / sampleRate)
-	}
+func NewStaticSampler(rate int) *StaticSampler {
 	return &StaticSampler{
 		fixedRate: rate,
 	}
@@ -48,18 +40,4 @@ func (s *StaticSampler) GetSampleRate(_ string) int {
 
 func (s *StaticSampler) GetSampleRateMulti(_ string, _ int) int {
 	return s.fixedRate
-}
-
-func (s *StaticSampler) SaveState() ([]byte, error) {
-	return nil, nil
-}
-
-func (s *StaticSampler) LoadState(state []byte) error {
-	return nil
-}
-
-func (s *StaticSampler) GetMetrics(prefix string) map[string]int64 {
-	return map[string]int64{
-		prefix + ".fixed_rate": int64(s.fixedRate),
-	}
 }

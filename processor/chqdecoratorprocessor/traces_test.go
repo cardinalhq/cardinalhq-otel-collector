@@ -22,12 +22,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/honeycombio/dynsampler-go"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.uber.org/zap"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/sampler"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/spantagger"
 )
 
@@ -251,9 +251,9 @@ type constantSamplerMock struct {
 	rate int
 }
 
-var _ dynsampler.Sampler = (*constantSamplerMock)(nil)
+var _ sampler.Sampler = (*constantSamplerMock)(nil)
 
-func constantSampler(rate int) dynsampler.Sampler {
+func constantSampler(rate int) sampler.Sampler {
 	return &constantSamplerMock{
 		rate: rate,
 	}
@@ -273,18 +273,6 @@ func (s *constantSamplerMock) Start() error {
 
 func (s *constantSamplerMock) Stop() error {
 	return nil
-}
-
-func (s *constantSamplerMock) GetMetrics(_ string) map[string]int64 {
-	return nil
-}
-
-func (s *constantSamplerMock) LoadState(_ []byte) error {
-	return nil
-}
-
-func (s *constantSamplerMock) SaveState() ([]byte, error) {
-	return nil, nil
 }
 
 func TestFindRootDuration(t *testing.T) {

@@ -23,7 +23,9 @@ package fingerprinter
 
 import (
     "fmt"
+    "strings"
 
+    "github.com/cespare/xxhash/v2"
     "github.com/db47h/ragel/v2"
 )
 
@@ -62,13 +64,24 @@ var TokenNames = map[ragel.Token]string{
     TokenFQDN:        "FQDN",
 }
 
+type Fingerprinter interface {
+    TokenString(t ragel.Token) string
+    IsWord(word string) bool
+    Fingerprint(input string) (fingerprint int64, level string)
+}
+
+
+type fingerprinterImpl struct {
+    wordlist map[string]bool
+}
+
 // make golangci-lint happy
 var (
     _ = fingerprinter_en_main
     _ = fingerprinter_error
 )
 
-func (*Fingerprinter) TokenString(t ragel.Token) string {
+func (*fingerprinterImpl) TokenString(t ragel.Token) string {
     if t < 0 || t >= ragel.Token(len(TokenNames)) {
         return "Token(" + fmt.Sprintf("%d", t) + ")"
     }
@@ -77,25 +90,33 @@ func (*Fingerprinter) TokenString(t ragel.Token) string {
 
 // ragel state machine definition.
 
-//line internal/fingerprinter/fingerprinter.rl:210
+//line internal/fingerprinter/fingerprinter.rl:223
 
 
 
-//line internal/fingerprinter/fingerprinter.go:85
+//line internal/fingerprinter/fingerprinter.go:98
 const fingerprinter_start int = 5798
 const fingerprinter_error int = 0
 
 const fingerprinter_en_main int = 5798
 
 
-//line internal/fingerprinter/fingerprinter.rl:213
+//line internal/fingerprinter/fingerprinter.rl:226
 
-type Fingerprinter struct {}
+func NewFingerprinter() *fingerprinterImpl {
+    fp := fingerprinterImpl{
+        wordlist: make(map[string]bool),
+    }
+    for _, word := range englishWords {
+        fp.wordlist[word] = true
+    }
+    return &fp
+}
 
-func (Fingerprinter) Init(s *ragel.State) (int, int) {
+func (fingerprinterImpl) Init(s *ragel.State) (int, int) {
     var cs, ts, te, act int
     
-//line internal/fingerprinter/fingerprinter.go:99
+//line internal/fingerprinter/fingerprinter.go:120
 	{
 	cs = fingerprinter_start
 	ts = 0
@@ -103,15 +124,15 @@ func (Fingerprinter) Init(s *ragel.State) (int, int) {
 	act = 0
 	}
 
-//line internal/fingerprinter/fingerprinter.rl:219
+//line internal/fingerprinter/fingerprinter.rl:240
     s.SaveVars(cs, ts, te, act)
     return 5798, 0
 }
 
-func (Fingerprinter) Run(s *ragel.State, p, pe, eof int) (int, int) {
+func (fingerprinterImpl) Run(s *ragel.State, p, pe, eof int) (int, int) {
     cs, ts, te, act, data := s.GetVars()
     
-//line internal/fingerprinter/fingerprinter.go:115
+//line internal/fingerprinter/fingerprinter.go:136
 	{
 	if p == pe {
 		goto _test_eof
@@ -12396,65 +12417,65 @@ tr0:
 	
 	goto st5798
 tr261:
-//line internal/fingerprinter/fingerprinter.rl:182
+//line internal/fingerprinter/fingerprinter.rl:195
 p = (te) - 1
 {
             s.Emit(ts, TokenNumber, string(data[ts:te]))
         }
 	goto st5798
 tr274:
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 te = p+1
 {
             s.Emit(ts, TokenDuration, string(data[ts:te]))
         }
 	goto st5798
 tr285:
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 p = (te) - 1
 {
             s.Emit(ts, TokenDuration, string(data[ts:te]))
         }
 	goto st5798
 tr1158:
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 p = (te) - 1
 {
             s.Emit(ts, TokenIdentifier, string(data[ts:te]))
         }
 	goto st5798
 tr2460:
-//line internal/fingerprinter/fingerprinter.rl:174
+//line internal/fingerprinter/fingerprinter.rl:187
 te = p+1
 {
             s.Emit(ts, TokenDate, string(data[ts:te]))
         }
 	goto st5798
 tr2487:
-//line internal/fingerprinter/fingerprinter.rl:158
+//line internal/fingerprinter/fingerprinter.rl:171
 p = (te) - 1
 {
             s.Emit(ts, TokenUrl, string(data[ts:te]))
         }
 	goto st5798
 tr3920:
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 te = p+1
 
 	goto st5798
 tr4754:
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 p = (te) - 1
 
 	goto st5798
 tr5607:
-//line internal/fingerprinter/fingerprinter.rl:206
+//line internal/fingerprinter/fingerprinter.rl:219
 te = p
 p--
 
 	goto st5798
 tr5609:
-//line internal/fingerprinter/fingerprinter.rl:182
+//line internal/fingerprinter/fingerprinter.rl:195
 te = p
 p--
 {
@@ -12462,7 +12483,7 @@ p--
         }
 	goto st5798
 tr5635:
-//line internal/fingerprinter/fingerprinter.rl:146
+//line internal/fingerprinter/fingerprinter.rl:159
 te = p
 p--
 {
@@ -12470,7 +12491,7 @@ p--
         }
 	goto st5798
 tr5673:
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 te = p
 p--
 {
@@ -12478,7 +12499,7 @@ p--
         }
 	goto st5798
 tr5683:
-//line internal/fingerprinter/fingerprinter.rl:162
+//line internal/fingerprinter/fingerprinter.rl:175
 te = p
 p--
 {
@@ -12486,7 +12507,7 @@ p--
         }
 	goto st5798
 tr5684:
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 te = p
 p--
 {
@@ -12494,7 +12515,7 @@ p--
         }
 	goto st5798
 tr5812:
-//line internal/fingerprinter/fingerprinter.rl:166
+//line internal/fingerprinter/fingerprinter.rl:179
 te = p
 p--
 {
@@ -12502,7 +12523,7 @@ p--
         }
 	goto st5798
 tr5819:
-//line internal/fingerprinter/fingerprinter.rl:150
+//line internal/fingerprinter/fingerprinter.rl:163
 te = p
 p--
 {
@@ -12510,7 +12531,7 @@ p--
         }
 	goto st5798
 tr5862:
-//line internal/fingerprinter/fingerprinter.rl:170
+//line internal/fingerprinter/fingerprinter.rl:183
 te = p
 p--
 {
@@ -12518,14 +12539,14 @@ p--
         }
 	goto st5798
 tr5870:
-//line internal/fingerprinter/fingerprinter.rl:170
+//line internal/fingerprinter/fingerprinter.rl:183
 te = p+1
 {
             s.Emit(ts, TokenTime, string(data[ts:te]))
         }
 	goto st5798
 tr5927:
-//line internal/fingerprinter/fingerprinter.rl:158
+//line internal/fingerprinter/fingerprinter.rl:171
 te = p
 p--
 {
@@ -12533,13 +12554,13 @@ p--
         }
 	goto st5798
 tr5964:
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 te = p
 p--
 
 	goto st5798
 tr6015:
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 te = p
 p--
 {
@@ -12547,7 +12568,7 @@ p--
         }
 	goto st5798
 tr6019:
-//line internal/fingerprinter/fingerprinter.rl:194
+//line internal/fingerprinter/fingerprinter.rl:207
 te = p+1
 {
             s.Emit(ts, TokenString, string(data[ts:te]))
@@ -12567,7 +12588,7 @@ act = 0
 //line NONE:1
 ts = p
 
-//line internal/fingerprinter/fingerprinter.go:12571
+//line internal/fingerprinter/fingerprinter.go:12592
 		switch data[p] {
 		case 10:
 			goto tr5565
@@ -12706,7 +12727,7 @@ ts = p
 		}
 		goto st0
 tr5565:
-//line internal/fingerprinter/fingerprinter.rl:83
+//line internal/fingerprinter/fingerprinter.rl:96
  s.Newline(p) 
 	goto st5799
 	st5799:
@@ -12714,7 +12735,7 @@ tr5565:
 			goto _test_eof5799
 		}
 	st_case_5799:
-//line internal/fingerprinter/fingerprinter.go:12718
+//line internal/fingerprinter/fingerprinter.go:12739
 		if data[p] == 10 {
 			goto tr5565
 		}
@@ -12780,14 +12801,14 @@ tr5636:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:146
+//line internal/fingerprinter/fingerprinter.rl:159
 act = 2;
 	goto st5802
 tr5567:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:208
+//line internal/fingerprinter/fingerprinter.rl:221
 act = 18;
 	goto st5802
 	st5802:
@@ -12795,7 +12816,7 @@ act = 18;
 			goto _test_eof5802
 		}
 	st_case_5802:
-//line internal/fingerprinter/fingerprinter.go:12799
+//line internal/fingerprinter/fingerprinter.go:12820
 		switch data[p] {
 		case 95:
 			goto tr1
@@ -12885,7 +12906,7 @@ tr1:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:146
+//line internal/fingerprinter/fingerprinter.rl:159
 act = 2;
 	goto st5803
 	st5803:
@@ -12893,7 +12914,7 @@ act = 2;
 			goto _test_eof5803
 		}
 	st_case_5803:
-//line internal/fingerprinter/fingerprinter.go:12897
+//line internal/fingerprinter/fingerprinter.go:12918
 		switch data[p] {
 		case 47:
 			goto tr5636
@@ -17991,7 +18012,7 @@ tr5568:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:182
+//line internal/fingerprinter/fingerprinter.rl:195
 act = 11;
 	goto st5804
 	st5804:
@@ -17999,7 +18020,7 @@ act = 11;
 			goto _test_eof5804
 		}
 	st_case_5804:
-//line internal/fingerprinter/fingerprinter.go:18003
+//line internal/fingerprinter/fingerprinter.go:18024
 		switch data[p] {
 		case 32:
 			goto st285
@@ -18180,7 +18201,7 @@ tr272:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 act = 10;
 	goto st5805
 	st5805:
@@ -18188,7 +18209,7 @@ act = 10;
 			goto _test_eof5805
 		}
 	st_case_5805:
-//line internal/fingerprinter/fingerprinter.go:18192
+//line internal/fingerprinter/fingerprinter.go:18213
 		switch data[p] {
 		case 40:
 			goto st288
@@ -18218,7 +18239,7 @@ tr279:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 act = 10;
 	goto st5806
 	st5806:
@@ -18226,7 +18247,7 @@ act = 10;
 			goto _test_eof5806
 		}
 	st_case_5806:
-//line internal/fingerprinter/fingerprinter.go:18230
+//line internal/fingerprinter/fingerprinter.go:18251
 		switch data[p] {
 		case 40:
 			goto st288
@@ -18311,7 +18332,7 @@ tr284:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 act = 10;
 	goto st5807
 	st5807:
@@ -18319,7 +18340,7 @@ act = 10;
 			goto _test_eof5807
 		}
 	st_case_5807:
-//line internal/fingerprinter/fingerprinter.go:18323
+//line internal/fingerprinter/fingerprinter.go:18344
 		switch data[p] {
 		case 40:
 			goto st288
@@ -18337,7 +18358,7 @@ te = p+1
 			goto _test_eof5808
 		}
 	st_case_5808:
-//line internal/fingerprinter/fingerprinter.go:18341
+//line internal/fingerprinter/fingerprinter.go:18362
 		if data[p] == 101 {
 			goto st297
 		}
@@ -18382,7 +18403,7 @@ tr281:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 act = 10;
 	goto st5809
 	st5809:
@@ -18390,7 +18411,7 @@ act = 10;
 			goto _test_eof5809
 		}
 	st_case_5809:
-//line internal/fingerprinter/fingerprinter.go:18394
+//line internal/fingerprinter/fingerprinter.go:18415
 		switch data[p] {
 		case 40:
 			goto st288
@@ -18413,7 +18434,7 @@ tr289:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 act = 10;
 	goto st5810
 	st5810:
@@ -18421,7 +18442,7 @@ act = 10;
 			goto _test_eof5810
 		}
 	st_case_5810:
-//line internal/fingerprinter/fingerprinter.go:18425
+//line internal/fingerprinter/fingerprinter.go:18446
 		switch data[p] {
 		case 40:
 			goto st288
@@ -18433,7 +18454,7 @@ tr5678:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 act = 10;
 	goto st5811
 	st5811:
@@ -18441,7 +18462,7 @@ act = 10;
 			goto _test_eof5811
 		}
 	st_case_5811:
-//line internal/fingerprinter/fingerprinter.go:18445
+//line internal/fingerprinter/fingerprinter.go:18466
 		switch data[p] {
 		case 40:
 			goto st288
@@ -18491,7 +18512,7 @@ tr282:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 act = 10;
 	goto st5812
 	st5812:
@@ -18499,7 +18520,7 @@ act = 10;
 			goto _test_eof5812
 		}
 	st_case_5812:
-//line internal/fingerprinter/fingerprinter.go:18503
+//line internal/fingerprinter/fingerprinter.go:18524
 		switch data[p] {
 		case 40:
 			goto st288
@@ -18540,7 +18561,7 @@ tr294:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 act = 10;
 	goto st5813
 	st5813:
@@ -18548,7 +18569,7 @@ act = 10;
 			goto _test_eof5813
 		}
 	st_case_5813:
-//line internal/fingerprinter/fingerprinter.go:18552
+//line internal/fingerprinter/fingerprinter.go:18573
 		switch data[p] {
 		case 40:
 			goto st288
@@ -18592,7 +18613,7 @@ tr267:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 act = 10;
 	goto st5814
 	st5814:
@@ -18600,7 +18621,7 @@ act = 10;
 			goto _test_eof5814
 		}
 	st_case_5814:
-//line internal/fingerprinter/fingerprinter.go:18604
+//line internal/fingerprinter/fingerprinter.go:18625
 		switch data[p] {
 		case 40:
 			goto st288
@@ -18623,7 +18644,7 @@ tr296:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 act = 10;
 	goto st5815
 	st5815:
@@ -18631,7 +18652,7 @@ act = 10;
 			goto _test_eof5815
 		}
 	st_case_5815:
-//line internal/fingerprinter/fingerprinter.go:18635
+//line internal/fingerprinter/fingerprinter.go:18656
 		switch data[p] {
 		case 40:
 			goto st288
@@ -19161,7 +19182,7 @@ tr363:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:162
+//line internal/fingerprinter/fingerprinter.rl:175
 act = 6;
 	goto st5816
 	st5816:
@@ -19169,7 +19190,7 @@ act = 6;
 			goto _test_eof5816
 		}
 	st_case_5816:
-//line internal/fingerprinter/fingerprinter.go:19173
+//line internal/fingerprinter/fingerprinter.go:19194
 		switch data[p] {
 		case 95:
 			goto tr363
@@ -34281,7 +34302,7 @@ tr4205:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5817
 	st5817:
@@ -34289,7 +34310,7 @@ act = 15;
 			goto _test_eof5817
 		}
 	st_case_5817:
-//line internal/fingerprinter/fingerprinter.go:34293
+//line internal/fingerprinter/fingerprinter.go:34314
 		switch data[p] {
 		case 64:
 			goto tr1159
@@ -34391,7 +34412,7 @@ te = p+1
 			goto _test_eof5818
 		}
 	st_case_5818:
-//line internal/fingerprinter/fingerprinter.go:34395
+//line internal/fingerprinter/fingerprinter.go:34416
 		switch data[p] {
 		case 95:
 			goto tr1159
@@ -39491,21 +39512,21 @@ tr2199:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5819
 tr5844:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:174
+//line internal/fingerprinter/fingerprinter.rl:187
 act = 9;
 	goto st5819
 tr5926:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:154
+//line internal/fingerprinter/fingerprinter.rl:167
 act = 4;
 	goto st5819
 	st5819:
@@ -39513,7 +39534,7 @@ act = 4;
 			goto _test_eof5819
 		}
 	st_case_5819:
-//line internal/fingerprinter/fingerprinter.go:39517
+//line internal/fingerprinter/fingerprinter.go:39538
 		switch data[p] {
 		case 43:
 			goto st319
@@ -39611,7 +39632,7 @@ tr4206:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5820
 	st5820:
@@ -39619,7 +39640,7 @@ act = 15;
 			goto _test_eof5820
 		}
 	st_case_5820:
-//line internal/fingerprinter/fingerprinter.go:39623
+//line internal/fingerprinter/fingerprinter.go:39644
 		switch data[p] {
 		case 64:
 			goto tr1159
@@ -39715,14 +39736,14 @@ tr1939:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:166
+//line internal/fingerprinter/fingerprinter.rl:179
 act = 7;
 	goto st5821
 tr5821:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:150
+//line internal/fingerprinter/fingerprinter.rl:163
 act = 3;
 	goto st5821
 	st5821:
@@ -39730,7 +39751,7 @@ act = 3;
 			goto _test_eof5821
 		}
 	st_case_5821:
-//line internal/fingerprinter/fingerprinter.go:39734
+//line internal/fingerprinter/fingerprinter.go:39755
 		switch data[p] {
 		case 43:
 			goto st319
@@ -39834,7 +39855,7 @@ te = p+1
 			goto _test_eof5822
 		}
 	st_case_5822:
-//line internal/fingerprinter/fingerprinter.go:39838
+//line internal/fingerprinter/fingerprinter.go:39859
 		switch data[p] {
 		case 64:
 			goto tr1159
@@ -39936,7 +39957,7 @@ te = p+1
 			goto _test_eof5823
 		}
 	st_case_5823:
-//line internal/fingerprinter/fingerprinter.go:39940
+//line internal/fingerprinter/fingerprinter.go:39961
 		switch data[p] {
 		case 45:
 			goto tr4209
@@ -40032,7 +40053,7 @@ tr5785:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5824
 	st5824:
@@ -40040,7 +40061,7 @@ act = 15;
 			goto _test_eof5824
 		}
 	st_case_5824:
-//line internal/fingerprinter/fingerprinter.go:40044
+//line internal/fingerprinter/fingerprinter.go:40065
 		switch data[p] {
 		case 64:
 			goto tr1159
@@ -40136,7 +40157,7 @@ tr1419:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:162
+//line internal/fingerprinter/fingerprinter.rl:175
 act = 6;
 	goto st5825
 	st5825:
@@ -40144,7 +40165,7 @@ act = 6;
 			goto _test_eof5825
 		}
 	st_case_5825:
-//line internal/fingerprinter/fingerprinter.go:40148
+//line internal/fingerprinter/fingerprinter.go:40169
 		switch data[p] {
 		case 64:
 			goto tr1159
@@ -60264,7 +60285,7 @@ tr5637:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:182
+//line internal/fingerprinter/fingerprinter.rl:195
 act = 11;
 	goto st5826
 	st5826:
@@ -60272,7 +60293,7 @@ act = 11;
 			goto _test_eof5826
 		}
 	st_case_5826:
-//line internal/fingerprinter/fingerprinter.go:60276
+//line internal/fingerprinter/fingerprinter.go:60297
 		switch data[p] {
 		case 64:
 			goto tr1159
@@ -60368,7 +60389,7 @@ tr5811:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:166
+//line internal/fingerprinter/fingerprinter.rl:179
 act = 7;
 	goto st5827
 	st5827:
@@ -60376,7 +60397,7 @@ act = 7;
 			goto _test_eof5827
 		}
 	st_case_5827:
-//line internal/fingerprinter/fingerprinter.go:60380
+//line internal/fingerprinter/fingerprinter.go:60401
 		switch data[p] {
 		case 43:
 			goto st319
@@ -60474,7 +60495,7 @@ tr5813:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5828
 	st5828:
@@ -60482,7 +60503,7 @@ act = 15;
 			goto _test_eof5828
 		}
 	st_case_5828:
-//line internal/fingerprinter/fingerprinter.go:60486
+//line internal/fingerprinter/fingerprinter.go:60507
 		switch data[p] {
 		case 64:
 			goto tr1159
@@ -60578,7 +60599,7 @@ tr5815:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:166
+//line internal/fingerprinter/fingerprinter.rl:179
 act = 7;
 	goto st5829
 	st5829:
@@ -60586,7 +60607,7 @@ act = 7;
 			goto _test_eof5829
 		}
 	st_case_5829:
-//line internal/fingerprinter/fingerprinter.go:60590
+//line internal/fingerprinter/fingerprinter.go:60611
 		switch data[p] {
 		case 43:
 			goto st319
@@ -60684,7 +60705,7 @@ tr5816:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5830
 	st5830:
@@ -60692,7 +60713,7 @@ act = 15;
 			goto _test_eof5830
 		}
 	st_case_5830:
-//line internal/fingerprinter/fingerprinter.go:60696
+//line internal/fingerprinter/fingerprinter.go:60717
 		switch data[p] {
 		case 64:
 			goto tr1159
@@ -60788,7 +60809,7 @@ tr5818:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:150
+//line internal/fingerprinter/fingerprinter.rl:163
 act = 3;
 	goto st5831
 	st5831:
@@ -60796,7 +60817,7 @@ act = 3;
 			goto _test_eof5831
 		}
 	st_case_5831:
-//line internal/fingerprinter/fingerprinter.go:60800
+//line internal/fingerprinter/fingerprinter.go:60821
 		switch data[p] {
 		case 43:
 			goto st319
@@ -60894,7 +60915,7 @@ tr5820:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:150
+//line internal/fingerprinter/fingerprinter.rl:163
 act = 3;
 	goto st5832
 	st5832:
@@ -60902,7 +60923,7 @@ act = 3;
 			goto _test_eof5832
 		}
 	st_case_5832:
-//line internal/fingerprinter/fingerprinter.go:60906
+//line internal/fingerprinter/fingerprinter.go:60927
 		switch data[p] {
 		case 43:
 			goto st319
@@ -61000,7 +61021,7 @@ tr5817:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:166
+//line internal/fingerprinter/fingerprinter.rl:179
 act = 7;
 	goto st5833
 	st5833:
@@ -61008,7 +61029,7 @@ act = 7;
 			goto _test_eof5833
 		}
 	st_case_5833:
-//line internal/fingerprinter/fingerprinter.go:61012
+//line internal/fingerprinter/fingerprinter.go:61033
 		switch data[p] {
 		case 43:
 			goto st319
@@ -61106,7 +61127,7 @@ tr5822:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:166
+//line internal/fingerprinter/fingerprinter.rl:179
 act = 7;
 	goto st5834
 	st5834:
@@ -61114,7 +61135,7 @@ act = 7;
 			goto _test_eof5834
 		}
 	st_case_5834:
-//line internal/fingerprinter/fingerprinter.go:61118
+//line internal/fingerprinter/fingerprinter.go:61139
 		switch data[p] {
 		case 43:
 			goto st319
@@ -61212,7 +61233,7 @@ tr5814:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:166
+//line internal/fingerprinter/fingerprinter.rl:179
 act = 7;
 	goto st5835
 	st5835:
@@ -61220,7 +61241,7 @@ act = 7;
 			goto _test_eof5835
 		}
 	st_case_5835:
-//line internal/fingerprinter/fingerprinter.go:61224
+//line internal/fingerprinter/fingerprinter.go:61245
 		switch data[p] {
 		case 43:
 			goto st319
@@ -61318,7 +61339,7 @@ tr5823:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:166
+//line internal/fingerprinter/fingerprinter.rl:179
 act = 7;
 	goto st5836
 	st5836:
@@ -61326,7 +61347,7 @@ act = 7;
 			goto _test_eof5836
 		}
 	st_case_5836:
-//line internal/fingerprinter/fingerprinter.go:61330
+//line internal/fingerprinter/fingerprinter.go:61351
 		switch data[p] {
 		case 43:
 			goto st319
@@ -61424,7 +61445,7 @@ tr5824:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:166
+//line internal/fingerprinter/fingerprinter.rl:179
 act = 7;
 	goto st5837
 	st5837:
@@ -61432,7 +61453,7 @@ act = 7;
 			goto _test_eof5837
 		}
 	st_case_5837:
-//line internal/fingerprinter/fingerprinter.go:61436
+//line internal/fingerprinter/fingerprinter.go:61457
 		switch data[p] {
 		case 43:
 			goto st319
@@ -61530,7 +61551,7 @@ tr5638:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:182
+//line internal/fingerprinter/fingerprinter.rl:195
 act = 11;
 	goto st5838
 	st5838:
@@ -61538,7 +61559,7 @@ act = 11;
 			goto _test_eof5838
 		}
 	st_case_5838:
-//line internal/fingerprinter/fingerprinter.go:61542
+//line internal/fingerprinter/fingerprinter.go:61563
 		switch data[p] {
 		case 32:
 			goto st285
@@ -61674,7 +61695,7 @@ tr5825:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5839
 	st5839:
@@ -61682,7 +61703,7 @@ act = 15;
 			goto _test_eof5839
 		}
 	st_case_5839:
-//line internal/fingerprinter/fingerprinter.go:61686
+//line internal/fingerprinter/fingerprinter.go:61707
 		switch data[p] {
 		case 64:
 			goto tr1159
@@ -61794,7 +61815,7 @@ tr5832:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5840
 	st5840:
@@ -61802,7 +61823,7 @@ act = 15;
 			goto _test_eof5840
 		}
 	st_case_5840:
-//line internal/fingerprinter/fingerprinter.go:61806
+//line internal/fingerprinter/fingerprinter.go:61827
 		switch data[p] {
 		case 43:
 			goto st319
@@ -61900,7 +61921,7 @@ tr5841:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5841
 	st5841:
@@ -61908,7 +61929,7 @@ act = 15;
 			goto _test_eof5841
 		}
 	st_case_5841:
-//line internal/fingerprinter/fingerprinter.go:61912
+//line internal/fingerprinter/fingerprinter.go:61933
 		switch data[p] {
 		case 43:
 			goto st319
@@ -62008,7 +62029,7 @@ tr5842:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5842
 	st5842:
@@ -62016,7 +62037,7 @@ act = 15;
 			goto _test_eof5842
 		}
 	st_case_5842:
-//line internal/fingerprinter/fingerprinter.go:62020
+//line internal/fingerprinter/fingerprinter.go:62041
 		switch data[p] {
 		case 64:
 			goto tr1159
@@ -62112,7 +62133,7 @@ tr5843:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5843
 	st5843:
@@ -62120,7 +62141,7 @@ act = 15;
 			goto _test_eof5843
 		}
 	st_case_5843:
-//line internal/fingerprinter/fingerprinter.go:62124
+//line internal/fingerprinter/fingerprinter.go:62145
 		switch data[p] {
 		case 43:
 			goto st319
@@ -62236,7 +62257,7 @@ tr5833:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5844
 	st5844:
@@ -62244,7 +62265,7 @@ act = 15;
 			goto _test_eof5844
 		}
 	st_case_5844:
-//line internal/fingerprinter/fingerprinter.go:62248
+//line internal/fingerprinter/fingerprinter.go:62269
 		switch data[p] {
 		case 43:
 			goto st319
@@ -62346,7 +62367,7 @@ tr5845:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5845
 	st5845:
@@ -62354,7 +62375,7 @@ act = 15;
 			goto _test_eof5845
 		}
 	st_case_5845:
-//line internal/fingerprinter/fingerprinter.go:62358
+//line internal/fingerprinter/fingerprinter.go:62379
 		switch data[p] {
 		case 43:
 			goto st319
@@ -62454,7 +62475,7 @@ tr5846:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5846
 	st5846:
@@ -62462,7 +62483,7 @@ act = 15;
 			goto _test_eof5846
 		}
 	st_case_5846:
-//line internal/fingerprinter/fingerprinter.go:62466
+//line internal/fingerprinter/fingerprinter.go:62487
 		switch data[p] {
 		case 43:
 			goto st319
@@ -62562,7 +62583,7 @@ tr5834:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5847
 	st5847:
@@ -62570,7 +62591,7 @@ act = 15;
 			goto _test_eof5847
 		}
 	st_case_5847:
-//line internal/fingerprinter/fingerprinter.go:62574
+//line internal/fingerprinter/fingerprinter.go:62595
 		switch data[p] {
 		case 43:
 			goto st319
@@ -62670,7 +62691,7 @@ tr5847:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5848
 	st5848:
@@ -62678,7 +62699,7 @@ act = 15;
 			goto _test_eof5848
 		}
 	st_case_5848:
-//line internal/fingerprinter/fingerprinter.go:62682
+//line internal/fingerprinter/fingerprinter.go:62703
 		switch data[p] {
 		case 43:
 			goto st319
@@ -62778,7 +62799,7 @@ tr5835:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5849
 	st5849:
@@ -62786,7 +62807,7 @@ act = 15;
 			goto _test_eof5849
 		}
 	st_case_5849:
-//line internal/fingerprinter/fingerprinter.go:62790
+//line internal/fingerprinter/fingerprinter.go:62811
 		switch data[p] {
 		case 43:
 			goto st319
@@ -62886,7 +62907,7 @@ tr5848:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5850
 	st5850:
@@ -62894,7 +62915,7 @@ act = 15;
 			goto _test_eof5850
 		}
 	st_case_5850:
-//line internal/fingerprinter/fingerprinter.go:62898
+//line internal/fingerprinter/fingerprinter.go:62919
 		switch data[p] {
 		case 43:
 			goto st319
@@ -62994,7 +63015,7 @@ tr5836:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5851
 	st5851:
@@ -63002,7 +63023,7 @@ act = 15;
 			goto _test_eof5851
 		}
 	st_case_5851:
-//line internal/fingerprinter/fingerprinter.go:63006
+//line internal/fingerprinter/fingerprinter.go:63027
 		switch data[p] {
 		case 43:
 			goto st319
@@ -63104,7 +63125,7 @@ tr5849:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5852
 	st5852:
@@ -63112,7 +63133,7 @@ act = 15;
 			goto _test_eof5852
 		}
 	st_case_5852:
-//line internal/fingerprinter/fingerprinter.go:63116
+//line internal/fingerprinter/fingerprinter.go:63137
 		switch data[p] {
 		case 43:
 			goto st319
@@ -63212,7 +63233,7 @@ tr5850:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5853
 	st5853:
@@ -63220,7 +63241,7 @@ act = 15;
 			goto _test_eof5853
 		}
 	st_case_5853:
-//line internal/fingerprinter/fingerprinter.go:63224
+//line internal/fingerprinter/fingerprinter.go:63245
 		switch data[p] {
 		case 43:
 			goto st319
@@ -63322,7 +63343,7 @@ tr5837:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5854
 	st5854:
@@ -63330,7 +63351,7 @@ act = 15;
 			goto _test_eof5854
 		}
 	st_case_5854:
-//line internal/fingerprinter/fingerprinter.go:63334
+//line internal/fingerprinter/fingerprinter.go:63355
 		switch data[p] {
 		case 43:
 			goto st319
@@ -63430,7 +63451,7 @@ tr5851:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5855
 	st5855:
@@ -63438,7 +63459,7 @@ act = 15;
 			goto _test_eof5855
 		}
 	st_case_5855:
-//line internal/fingerprinter/fingerprinter.go:63442
+//line internal/fingerprinter/fingerprinter.go:63463
 		switch data[p] {
 		case 43:
 			goto st319
@@ -63540,7 +63561,7 @@ tr5838:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5856
 	st5856:
@@ -63548,7 +63569,7 @@ act = 15;
 			goto _test_eof5856
 		}
 	st_case_5856:
-//line internal/fingerprinter/fingerprinter.go:63552
+//line internal/fingerprinter/fingerprinter.go:63573
 		switch data[p] {
 		case 43:
 			goto st319
@@ -63648,7 +63669,7 @@ tr5852:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5857
 	st5857:
@@ -63656,7 +63677,7 @@ act = 15;
 			goto _test_eof5857
 		}
 	st_case_5857:
-//line internal/fingerprinter/fingerprinter.go:63660
+//line internal/fingerprinter/fingerprinter.go:63681
 		switch data[p] {
 		case 43:
 			goto st319
@@ -63756,7 +63777,7 @@ tr5839:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5858
 	st5858:
@@ -63764,7 +63785,7 @@ act = 15;
 			goto _test_eof5858
 		}
 	st_case_5858:
-//line internal/fingerprinter/fingerprinter.go:63768
+//line internal/fingerprinter/fingerprinter.go:63789
 		switch data[p] {
 		case 43:
 			goto st319
@@ -63864,7 +63885,7 @@ tr5853:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5859
 	st5859:
@@ -63872,7 +63893,7 @@ act = 15;
 			goto _test_eof5859
 		}
 	st_case_5859:
-//line internal/fingerprinter/fingerprinter.go:63876
+//line internal/fingerprinter/fingerprinter.go:63897
 		switch data[p] {
 		case 43:
 			goto st319
@@ -63972,7 +63993,7 @@ tr5840:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5860
 	st5860:
@@ -63980,7 +64001,7 @@ act = 15;
 			goto _test_eof5860
 		}
 	st_case_5860:
-//line internal/fingerprinter/fingerprinter.go:63984
+//line internal/fingerprinter/fingerprinter.go:64005
 		switch data[p] {
 		case 43:
 			goto st319
@@ -64080,7 +64101,7 @@ tr5854:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5861
 	st5861:
@@ -64088,7 +64109,7 @@ act = 15;
 			goto _test_eof5861
 		}
 	st_case_5861:
-//line internal/fingerprinter/fingerprinter.go:64092
+//line internal/fingerprinter/fingerprinter.go:64113
 		switch data[p] {
 		case 43:
 			goto st319
@@ -64188,7 +64209,7 @@ tr5826:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:182
+//line internal/fingerprinter/fingerprinter.rl:195
 act = 11;
 	goto st5862
 	st5862:
@@ -64196,7 +64217,7 @@ act = 11;
 			goto _test_eof5862
 		}
 	st_case_5862:
-//line internal/fingerprinter/fingerprinter.go:64200
+//line internal/fingerprinter/fingerprinter.go:64221
 		switch data[p] {
 		case 64:
 			goto tr1159
@@ -64292,7 +64313,7 @@ tr5855:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:166
+//line internal/fingerprinter/fingerprinter.rl:179
 act = 7;
 	goto st5863
 	st5863:
@@ -64300,7 +64321,7 @@ act = 7;
 			goto _test_eof5863
 		}
 	st_case_5863:
-//line internal/fingerprinter/fingerprinter.go:64304
+//line internal/fingerprinter/fingerprinter.go:64325
 		switch data[p] {
 		case 43:
 			goto st319
@@ -64398,7 +64419,7 @@ tr5856:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:166
+//line internal/fingerprinter/fingerprinter.rl:179
 act = 7;
 	goto st5864
 	st5864:
@@ -64406,7 +64427,7 @@ act = 7;
 			goto _test_eof5864
 		}
 	st_case_5864:
-//line internal/fingerprinter/fingerprinter.go:64410
+//line internal/fingerprinter/fingerprinter.go:64431
 		switch data[p] {
 		case 43:
 			goto st319
@@ -64506,7 +64527,7 @@ tr5857:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5865
 	st5865:
@@ -64514,7 +64535,7 @@ act = 15;
 			goto _test_eof5865
 		}
 	st_case_5865:
-//line internal/fingerprinter/fingerprinter.go:64518
+//line internal/fingerprinter/fingerprinter.go:64539
 		switch data[p] {
 		case 64:
 			goto tr1159
@@ -64610,7 +64631,7 @@ tr5858:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:166
+//line internal/fingerprinter/fingerprinter.rl:179
 act = 7;
 	goto st5866
 	st5866:
@@ -64618,7 +64639,7 @@ act = 7;
 			goto _test_eof5866
 		}
 	st_case_5866:
-//line internal/fingerprinter/fingerprinter.go:64622
+//line internal/fingerprinter/fingerprinter.go:64643
 		switch data[p] {
 		case 43:
 			goto st319
@@ -64716,7 +64737,7 @@ tr5859:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:166
+//line internal/fingerprinter/fingerprinter.rl:179
 act = 7;
 	goto st5867
 	st5867:
@@ -64724,7 +64745,7 @@ act = 7;
 			goto _test_eof5867
 		}
 	st_case_5867:
-//line internal/fingerprinter/fingerprinter.go:64728
+//line internal/fingerprinter/fingerprinter.go:64749
 		switch data[p] {
 		case 43:
 			goto st319
@@ -64905,7 +64926,7 @@ tr5861:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5876
 	st5876:
@@ -64913,7 +64934,7 @@ act = 15;
 			goto _test_eof5876
 		}
 	st_case_5876:
-//line internal/fingerprinter/fingerprinter.go:64917
+//line internal/fingerprinter/fingerprinter.go:64938
 		switch data[p] {
 		case 64:
 			goto tr1159
@@ -65009,7 +65030,7 @@ tr5871:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:150
+//line internal/fingerprinter/fingerprinter.rl:163
 act = 3;
 	goto st5877
 	st5877:
@@ -65017,7 +65038,7 @@ act = 3;
 			goto _test_eof5877
 		}
 	st_case_5877:
-//line internal/fingerprinter/fingerprinter.go:65021
+//line internal/fingerprinter/fingerprinter.go:65042
 		switch data[p] {
 		case 43:
 			goto st319
@@ -65115,7 +65136,7 @@ tr5872:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:150
+//line internal/fingerprinter/fingerprinter.rl:163
 act = 3;
 	goto st5878
 	st5878:
@@ -65123,7 +65144,7 @@ act = 3;
 			goto _test_eof5878
 		}
 	st_case_5878:
-//line internal/fingerprinter/fingerprinter.go:65127
+//line internal/fingerprinter/fingerprinter.go:65148
 		switch data[p] {
 		case 43:
 			goto st319
@@ -65221,7 +65242,7 @@ tr5873:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:150
+//line internal/fingerprinter/fingerprinter.rl:163
 act = 3;
 	goto st5879
 	st5879:
@@ -65229,7 +65250,7 @@ act = 3;
 			goto _test_eof5879
 		}
 	st_case_5879:
-//line internal/fingerprinter/fingerprinter.go:65233
+//line internal/fingerprinter/fingerprinter.go:65254
 		switch data[p] {
 		case 43:
 			goto st319
@@ -65327,7 +65348,7 @@ tr5874:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:166
+//line internal/fingerprinter/fingerprinter.rl:179
 act = 7;
 	goto st5880
 	st5880:
@@ -65335,7 +65356,7 @@ act = 7;
 			goto _test_eof5880
 		}
 	st_case_5880:
-//line internal/fingerprinter/fingerprinter.go:65339
+//line internal/fingerprinter/fingerprinter.go:65360
 		switch data[p] {
 		case 43:
 			goto st319
@@ -65433,7 +65454,7 @@ tr5875:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:166
+//line internal/fingerprinter/fingerprinter.rl:179
 act = 7;
 	goto st5881
 	st5881:
@@ -65441,7 +65462,7 @@ act = 7;
 			goto _test_eof5881
 		}
 	st_case_5881:
-//line internal/fingerprinter/fingerprinter.go:65445
+//line internal/fingerprinter/fingerprinter.go:65466
 		switch data[p] {
 		case 43:
 			goto st319
@@ -65539,7 +65560,7 @@ tr5876:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:166
+//line internal/fingerprinter/fingerprinter.rl:179
 act = 7;
 	goto st5882
 	st5882:
@@ -65547,7 +65568,7 @@ act = 7;
 			goto _test_eof5882
 		}
 	st_case_5882:
-//line internal/fingerprinter/fingerprinter.go:65551
+//line internal/fingerprinter/fingerprinter.go:65572
 		switch data[p] {
 		case 43:
 			goto st319
@@ -65645,7 +65666,7 @@ tr5877:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:166
+//line internal/fingerprinter/fingerprinter.rl:179
 act = 7;
 	goto st5883
 	st5883:
@@ -65653,7 +65674,7 @@ act = 7;
 			goto _test_eof5883
 		}
 	st_case_5883:
-//line internal/fingerprinter/fingerprinter.go:65657
+//line internal/fingerprinter/fingerprinter.go:65678
 		switch data[p] {
 		case 43:
 			goto st319
@@ -65751,7 +65772,7 @@ tr5878:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:166
+//line internal/fingerprinter/fingerprinter.rl:179
 act = 7;
 	goto st5884
 	st5884:
@@ -65759,7 +65780,7 @@ act = 7;
 			goto _test_eof5884
 		}
 	st_case_5884:
-//line internal/fingerprinter/fingerprinter.go:65763
+//line internal/fingerprinter/fingerprinter.go:65784
 		switch data[p] {
 		case 43:
 			goto st319
@@ -65875,7 +65896,7 @@ tr2463:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:170
+//line internal/fingerprinter/fingerprinter.rl:183
 act = 8;
 	goto st5885
 	st5885:
@@ -65883,7 +65904,7 @@ act = 8;
 			goto _test_eof5885
 		}
 	st_case_5885:
-//line internal/fingerprinter/fingerprinter.go:65887
+//line internal/fingerprinter/fingerprinter.go:65908
 		switch data[p] {
 		case 44:
 			goto st2598
@@ -66117,7 +66138,7 @@ tr5828:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:182
+//line internal/fingerprinter/fingerprinter.rl:195
 act = 11;
 	goto st5886
 	st5886:
@@ -66125,7 +66146,7 @@ act = 11;
 			goto _test_eof5886
 		}
 	st_case_5886:
-//line internal/fingerprinter/fingerprinter.go:66129
+//line internal/fingerprinter/fingerprinter.go:66150
 		switch data[p] {
 		case 32:
 			goto st285
@@ -66259,7 +66280,7 @@ tr5879:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:182
+//line internal/fingerprinter/fingerprinter.rl:195
 act = 11;
 	goto st5887
 	st5887:
@@ -66267,7 +66288,7 @@ act = 11;
 			goto _test_eof5887
 		}
 	st_case_5887:
-//line internal/fingerprinter/fingerprinter.go:66271
+//line internal/fingerprinter/fingerprinter.go:66292
 		switch data[p] {
 		case 32:
 			goto st285
@@ -66403,7 +66424,7 @@ tr5882:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:182
+//line internal/fingerprinter/fingerprinter.rl:195
 act = 11;
 	goto st5888
 	st5888:
@@ -66411,7 +66432,7 @@ act = 11;
 			goto _test_eof5888
 		}
 	st_case_5888:
-//line internal/fingerprinter/fingerprinter.go:66415
+//line internal/fingerprinter/fingerprinter.go:66436
 		switch data[p] {
 		case 64:
 			goto tr1159
@@ -66507,7 +66528,7 @@ tr5883:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:182
+//line internal/fingerprinter/fingerprinter.rl:195
 act = 11;
 	goto st5889
 	st5889:
@@ -66515,7 +66536,7 @@ act = 11;
 			goto _test_eof5889
 		}
 	st_case_5889:
-//line internal/fingerprinter/fingerprinter.go:66519
+//line internal/fingerprinter/fingerprinter.go:66540
 		switch data[p] {
 		case 32:
 			goto st285
@@ -66649,7 +66670,7 @@ tr5886:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:182
+//line internal/fingerprinter/fingerprinter.rl:195
 act = 11;
 	goto st5890
 	st5890:
@@ -66657,7 +66678,7 @@ act = 11;
 			goto _test_eof5890
 		}
 	st_case_5890:
-//line internal/fingerprinter/fingerprinter.go:66661
+//line internal/fingerprinter/fingerprinter.go:66682
 		switch data[p] {
 		case 32:
 			goto st285
@@ -66791,7 +66812,7 @@ tr5889:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:182
+//line internal/fingerprinter/fingerprinter.rl:195
 act = 11;
 	goto st5891
 	st5891:
@@ -66799,7 +66820,7 @@ act = 11;
 			goto _test_eof5891
 		}
 	st_case_5891:
-//line internal/fingerprinter/fingerprinter.go:66803
+//line internal/fingerprinter/fingerprinter.go:66824
 		switch data[p] {
 		case 32:
 			goto st285
@@ -66933,7 +66954,7 @@ tr5892:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:182
+//line internal/fingerprinter/fingerprinter.rl:195
 act = 11;
 	goto st5892
 	st5892:
@@ -66941,7 +66962,7 @@ act = 11;
 			goto _test_eof5892
 		}
 	st_case_5892:
-//line internal/fingerprinter/fingerprinter.go:66945
+//line internal/fingerprinter/fingerprinter.go:66966
 		switch data[p] {
 		case 32:
 			goto st285
@@ -67065,7 +67086,7 @@ tr5034:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5893
 	st5893:
@@ -67073,7 +67094,7 @@ act = 15;
 			goto _test_eof5893
 		}
 	st_case_5893:
-//line internal/fingerprinter/fingerprinter.go:67077
+//line internal/fingerprinter/fingerprinter.go:67098
 		switch data[p] {
 		case 64:
 			goto tr1159
@@ -67179,7 +67200,7 @@ tr5897:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5894
 	st5894:
@@ -67187,7 +67208,7 @@ act = 15;
 			goto _test_eof5894
 		}
 	st_case_5894:
-//line internal/fingerprinter/fingerprinter.go:67191
+//line internal/fingerprinter/fingerprinter.go:67212
 		switch data[p] {
 		case 43:
 			goto st319
@@ -67294,7 +67315,7 @@ tr5898:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5895
 	st5895:
@@ -67302,7 +67323,7 @@ act = 15;
 			goto _test_eof5895
 		}
 	st_case_5895:
-//line internal/fingerprinter/fingerprinter.go:67306
+//line internal/fingerprinter/fingerprinter.go:67327
 		switch data[p] {
 		case 43:
 			goto st319
@@ -67409,7 +67430,7 @@ tr5899:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5896
 	st5896:
@@ -67417,7 +67438,7 @@ act = 15;
 			goto _test_eof5896
 		}
 	st_case_5896:
-//line internal/fingerprinter/fingerprinter.go:67421
+//line internal/fingerprinter/fingerprinter.go:67442
 		switch data[p] {
 		case 43:
 			goto st319
@@ -67524,7 +67545,7 @@ tr5900:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5897
 	st5897:
@@ -67532,7 +67553,7 @@ act = 15;
 			goto _test_eof5897
 		}
 	st_case_5897:
-//line internal/fingerprinter/fingerprinter.go:67536
+//line internal/fingerprinter/fingerprinter.go:67557
 		switch data[p] {
 		case 43:
 			goto st319
@@ -67630,7 +67651,7 @@ tr5901:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5898
 	st5898:
@@ -67638,7 +67659,7 @@ act = 15;
 			goto _test_eof5898
 		}
 	st_case_5898:
-//line internal/fingerprinter/fingerprinter.go:67642
+//line internal/fingerprinter/fingerprinter.go:67663
 		switch data[p] {
 		case 64:
 			goto tr1159
@@ -67744,7 +67765,7 @@ tr5903:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5899
 	st5899:
@@ -67752,7 +67773,7 @@ act = 15;
 			goto _test_eof5899
 		}
 	st_case_5899:
-//line internal/fingerprinter/fingerprinter.go:67756
+//line internal/fingerprinter/fingerprinter.go:67777
 		switch data[p] {
 		case 43:
 			goto st319
@@ -67859,7 +67880,7 @@ tr5904:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5900
 	st5900:
@@ -67867,7 +67888,7 @@ act = 15;
 			goto _test_eof5900
 		}
 	st_case_5900:
-//line internal/fingerprinter/fingerprinter.go:67871
+//line internal/fingerprinter/fingerprinter.go:67892
 		switch data[p] {
 		case 43:
 			goto st319
@@ -67974,7 +67995,7 @@ tr5905:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5901
 	st5901:
@@ -67982,7 +68003,7 @@ act = 15;
 			goto _test_eof5901
 		}
 	st_case_5901:
-//line internal/fingerprinter/fingerprinter.go:67986
+//line internal/fingerprinter/fingerprinter.go:68007
 		switch data[p] {
 		case 43:
 			goto st319
@@ -68089,7 +68110,7 @@ tr5906:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5902
 	st5902:
@@ -68097,7 +68118,7 @@ act = 15;
 			goto _test_eof5902
 		}
 	st_case_5902:
-//line internal/fingerprinter/fingerprinter.go:68101
+//line internal/fingerprinter/fingerprinter.go:68122
 		switch data[p] {
 		case 43:
 			goto st319
@@ -68195,7 +68216,7 @@ tr5907:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5903
 	st5903:
@@ -68203,7 +68224,7 @@ act = 15;
 			goto _test_eof5903
 		}
 	st_case_5903:
-//line internal/fingerprinter/fingerprinter.go:68207
+//line internal/fingerprinter/fingerprinter.go:68228
 		switch data[p] {
 		case 64:
 			goto tr1159
@@ -68309,7 +68330,7 @@ tr5909:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5904
 	st5904:
@@ -68317,7 +68338,7 @@ act = 15;
 			goto _test_eof5904
 		}
 	st_case_5904:
-//line internal/fingerprinter/fingerprinter.go:68321
+//line internal/fingerprinter/fingerprinter.go:68342
 		switch data[p] {
 		case 43:
 			goto st319
@@ -68424,7 +68445,7 @@ tr5910:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5905
 	st5905:
@@ -68432,7 +68453,7 @@ act = 15;
 			goto _test_eof5905
 		}
 	st_case_5905:
-//line internal/fingerprinter/fingerprinter.go:68436
+//line internal/fingerprinter/fingerprinter.go:68457
 		switch data[p] {
 		case 43:
 			goto st319
@@ -68539,7 +68560,7 @@ tr5911:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5906
 	st5906:
@@ -68547,7 +68568,7 @@ act = 15;
 			goto _test_eof5906
 		}
 	st_case_5906:
-//line internal/fingerprinter/fingerprinter.go:68551
+//line internal/fingerprinter/fingerprinter.go:68572
 		switch data[p] {
 		case 43:
 			goto st319
@@ -68654,7 +68675,7 @@ tr5912:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5907
 	st5907:
@@ -68662,7 +68683,7 @@ act = 15;
 			goto _test_eof5907
 		}
 	st_case_5907:
-//line internal/fingerprinter/fingerprinter.go:68666
+//line internal/fingerprinter/fingerprinter.go:68687
 		switch data[p] {
 		case 43:
 			goto st319
@@ -68760,7 +68781,7 @@ tr5913:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5908
 	st5908:
@@ -68768,7 +68789,7 @@ act = 15;
 			goto _test_eof5908
 		}
 	st_case_5908:
-//line internal/fingerprinter/fingerprinter.go:68772
+//line internal/fingerprinter/fingerprinter.go:68793
 		switch data[p] {
 		case 64:
 			goto tr1159
@@ -68874,7 +68895,7 @@ tr5915:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5909
 	st5909:
@@ -68882,7 +68903,7 @@ act = 15;
 			goto _test_eof5909
 		}
 	st_case_5909:
-//line internal/fingerprinter/fingerprinter.go:68886
+//line internal/fingerprinter/fingerprinter.go:68907
 		switch data[p] {
 		case 43:
 			goto st319
@@ -68989,7 +69010,7 @@ tr5916:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5910
 	st5910:
@@ -68997,7 +69018,7 @@ act = 15;
 			goto _test_eof5910
 		}
 	st_case_5910:
-//line internal/fingerprinter/fingerprinter.go:69001
+//line internal/fingerprinter/fingerprinter.go:69022
 		switch data[p] {
 		case 43:
 			goto st319
@@ -69104,7 +69125,7 @@ tr5917:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5911
 	st5911:
@@ -69112,7 +69133,7 @@ act = 15;
 			goto _test_eof5911
 		}
 	st_case_5911:
-//line internal/fingerprinter/fingerprinter.go:69116
+//line internal/fingerprinter/fingerprinter.go:69137
 		switch data[p] {
 		case 43:
 			goto st319
@@ -69219,7 +69240,7 @@ tr5918:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5912
 	st5912:
@@ -69227,7 +69248,7 @@ act = 15;
 			goto _test_eof5912
 		}
 	st_case_5912:
-//line internal/fingerprinter/fingerprinter.go:69231
+//line internal/fingerprinter/fingerprinter.go:69252
 		switch data[p] {
 		case 43:
 			goto st319
@@ -69334,7 +69355,7 @@ tr5919:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5913
 	st5913:
@@ -69342,7 +69363,7 @@ act = 15;
 			goto _test_eof5913
 		}
 	st_case_5913:
-//line internal/fingerprinter/fingerprinter.go:69346
+//line internal/fingerprinter/fingerprinter.go:69367
 		switch data[p] {
 		case 43:
 			goto st319
@@ -69449,7 +69470,7 @@ tr5920:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5914
 	st5914:
@@ -69457,7 +69478,7 @@ act = 15;
 			goto _test_eof5914
 		}
 	st_case_5914:
-//line internal/fingerprinter/fingerprinter.go:69461
+//line internal/fingerprinter/fingerprinter.go:69482
 		switch data[p] {
 		case 43:
 			goto st319
@@ -69564,7 +69585,7 @@ tr5921:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5915
 	st5915:
@@ -69572,7 +69593,7 @@ act = 15;
 			goto _test_eof5915
 		}
 	st_case_5915:
-//line internal/fingerprinter/fingerprinter.go:69576
+//line internal/fingerprinter/fingerprinter.go:69597
 		switch data[p] {
 		case 43:
 			goto st319
@@ -69679,7 +69700,7 @@ tr5922:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5916
 	st5916:
@@ -69687,7 +69708,7 @@ act = 15;
 			goto _test_eof5916
 		}
 	st_case_5916:
-//line internal/fingerprinter/fingerprinter.go:69691
+//line internal/fingerprinter/fingerprinter.go:69712
 		switch data[p] {
 		case 43:
 			goto st319
@@ -69794,7 +69815,7 @@ tr5923:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5917
 	st5917:
@@ -69802,7 +69823,7 @@ act = 15;
 			goto _test_eof5917
 		}
 	st_case_5917:
-//line internal/fingerprinter/fingerprinter.go:69806
+//line internal/fingerprinter/fingerprinter.go:69827
 		switch data[p] {
 		case 43:
 			goto st319
@@ -69909,7 +69930,7 @@ tr5924:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5918
 	st5918:
@@ -69917,7 +69938,7 @@ act = 15;
 			goto _test_eof5918
 		}
 	st_case_5918:
-//line internal/fingerprinter/fingerprinter.go:69921
+//line internal/fingerprinter/fingerprinter.go:69942
 		switch data[p] {
 		case 43:
 			goto st319
@@ -70024,7 +70045,7 @@ tr5925:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5919
 	st5919:
@@ -70032,7 +70053,7 @@ act = 15;
 			goto _test_eof5919
 		}
 	st_case_5919:
-//line internal/fingerprinter/fingerprinter.go:70036
+//line internal/fingerprinter/fingerprinter.go:70057
 		switch data[p] {
 		case 43:
 			goto st319
@@ -70139,7 +70160,7 @@ tr5914:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5920
 	st5920:
@@ -70147,7 +70168,7 @@ act = 15;
 			goto _test_eof5920
 		}
 	st_case_5920:
-//line internal/fingerprinter/fingerprinter.go:70151
+//line internal/fingerprinter/fingerprinter.go:70172
 		switch data[p] {
 		case 43:
 			goto st319
@@ -70254,7 +70275,7 @@ tr5908:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5921
 	st5921:
@@ -70262,7 +70283,7 @@ act = 15;
 			goto _test_eof5921
 		}
 	st_case_5921:
-//line internal/fingerprinter/fingerprinter.go:70266
+//line internal/fingerprinter/fingerprinter.go:70287
 		switch data[p] {
 		case 43:
 			goto st319
@@ -70369,7 +70390,7 @@ tr5902:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5922
 	st5922:
@@ -70377,7 +70398,7 @@ act = 15;
 			goto _test_eof5922
 		}
 	st_case_5922:
-//line internal/fingerprinter/fingerprinter.go:70381
+//line internal/fingerprinter/fingerprinter.go:70402
 		switch data[p] {
 		case 43:
 			goto st319
@@ -70484,7 +70505,7 @@ tr5895:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:182
+//line internal/fingerprinter/fingerprinter.rl:195
 act = 11;
 	goto st5923
 	st5923:
@@ -70492,7 +70513,7 @@ act = 11;
 			goto _test_eof5923
 		}
 	st_case_5923:
-//line internal/fingerprinter/fingerprinter.go:70496
+//line internal/fingerprinter/fingerprinter.go:70517
 		switch data[p] {
 		case 32:
 			goto st285
@@ -70640,7 +70661,7 @@ te = p+1
 			goto _test_eof5924
 		}
 	st_case_5924:
-//line internal/fingerprinter/fingerprinter.go:70644
+//line internal/fingerprinter/fingerprinter.go:70665
 		switch data[p] {
 		case 47:
 			goto st2624
@@ -70830,7 +70851,7 @@ te = p+1
 			goto _test_eof5925
 		}
 	st_case_5925:
-//line internal/fingerprinter/fingerprinter.go:70834
+//line internal/fingerprinter/fingerprinter.go:70855
 		switch data[p] {
 		case 47:
 			goto st2624
@@ -76304,7 +76325,7 @@ te = p+1
 			goto _test_eof5926
 		}
 	st_case_5926:
-//line internal/fingerprinter/fingerprinter.go:76308
+//line internal/fingerprinter/fingerprinter.go:76329
 		switch data[p] {
 		case 47:
 			goto st2624
@@ -76417,7 +76438,7 @@ te = p+1
 			goto _test_eof5927
 		}
 	st_case_5927:
-//line internal/fingerprinter/fingerprinter.go:76421
+//line internal/fingerprinter/fingerprinter.go:76442
 		if data[p] == 47 {
 			goto st2624
 		}
@@ -76435,7 +76456,7 @@ te = p+1
 			goto _test_eof5928
 		}
 	st_case_5928:
-//line internal/fingerprinter/fingerprinter.go:76439
+//line internal/fingerprinter/fingerprinter.go:76460
 		if data[p] == 47 {
 			goto st2624
 		}
@@ -76453,7 +76474,7 @@ te = p+1
 			goto _test_eof5929
 		}
 	st_case_5929:
-//line internal/fingerprinter/fingerprinter.go:76457
+//line internal/fingerprinter/fingerprinter.go:76478
 		if data[p] == 47 {
 			goto st2624
 		}
@@ -76471,7 +76492,7 @@ te = p+1
 			goto _test_eof5930
 		}
 	st_case_5930:
-//line internal/fingerprinter/fingerprinter.go:76475
+//line internal/fingerprinter/fingerprinter.go:76496
 		if data[p] == 47 {
 			goto st2624
 		}
@@ -76489,7 +76510,7 @@ te = p+1
 			goto _test_eof5931
 		}
 	st_case_5931:
-//line internal/fingerprinter/fingerprinter.go:76493
+//line internal/fingerprinter/fingerprinter.go:76514
 		if data[p] == 47 {
 			goto st2624
 		}
@@ -86608,7 +86629,7 @@ te = p+1
 			goto _test_eof5932
 		}
 	st_case_5932:
-//line internal/fingerprinter/fingerprinter.go:86612
+//line internal/fingerprinter/fingerprinter.go:86633
 		switch data[p] {
 		case 47:
 			goto st2624
@@ -96812,7 +96833,7 @@ te = p+1
 			goto _test_eof5933
 		}
 	st_case_5933:
-//line internal/fingerprinter/fingerprinter.go:96816
+//line internal/fingerprinter/fingerprinter.go:96837
 		switch data[p] {
 		case 47:
 			goto st2624
@@ -96912,7 +96933,7 @@ te = p+1
 			goto _test_eof5934
 		}
 	st_case_5934:
-//line internal/fingerprinter/fingerprinter.go:96916
+//line internal/fingerprinter/fingerprinter.go:96937
 		switch data[p] {
 		case 47:
 			goto st2624
@@ -97012,7 +97033,7 @@ te = p+1
 			goto _test_eof5935
 		}
 	st_case_5935:
-//line internal/fingerprinter/fingerprinter.go:97016
+//line internal/fingerprinter/fingerprinter.go:97037
 		switch data[p] {
 		case 47:
 			goto st2624
@@ -97112,7 +97133,7 @@ te = p+1
 			goto _test_eof5936
 		}
 	st_case_5936:
-//line internal/fingerprinter/fingerprinter.go:97116
+//line internal/fingerprinter/fingerprinter.go:97137
 		switch data[p] {
 		case 47:
 			goto st2624
@@ -97212,7 +97233,7 @@ te = p+1
 			goto _test_eof5937
 		}
 	st_case_5937:
-//line internal/fingerprinter/fingerprinter.go:97216
+//line internal/fingerprinter/fingerprinter.go:97237
 		switch data[p] {
 		case 47:
 			goto st2624
@@ -102411,14 +102432,14 @@ tr5966:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 act = 10;
 	goto st5938
 tr4774:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5938
 	st5938:
@@ -102426,7 +102447,7 @@ act = 1;
 			goto _test_eof5938
 		}
 	st_case_5938:
-//line internal/fingerprinter/fingerprinter.go:102430
+//line internal/fingerprinter/fingerprinter.go:102451
 		switch data[p] {
 		case 43:
 			goto st319
@@ -102626,14 +102647,14 @@ tr4210:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5939
 tr6007:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:154
+//line internal/fingerprinter/fingerprinter.rl:167
 act = 4;
 	goto st5939
 	st5939:
@@ -102641,7 +102662,7 @@ act = 4;
 			goto _test_eof5939
 		}
 	st_case_5939:
-//line internal/fingerprinter/fingerprinter.go:102645
+//line internal/fingerprinter/fingerprinter.go:102666
 		switch data[p] {
 		case 43:
 			goto st319
@@ -112753,7 +112774,7 @@ tr5896:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5940
 	st5940:
@@ -112761,7 +112782,7 @@ act = 1;
 			goto _test_eof5940
 		}
 	st_case_5940:
-//line internal/fingerprinter/fingerprinter.go:112765
+//line internal/fingerprinter/fingerprinter.go:112786
 		switch data[p] {
 		case 43:
 			goto st319
@@ -112965,7 +112986,7 @@ tr4755:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 act = 10;
 	goto st5941
 	st5941:
@@ -112973,7 +112994,7 @@ act = 10;
 			goto _test_eof5941
 		}
 	st_case_5941:
-//line internal/fingerprinter/fingerprinter.go:112977
+//line internal/fingerprinter/fingerprinter.go:112998
 		switch data[p] {
 		case 40:
 			goto st288
@@ -113077,7 +113098,7 @@ tr4765:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 act = 10;
 	goto st5942
 	st5942:
@@ -113085,7 +113106,7 @@ act = 10;
 			goto _test_eof5942
 		}
 	st_case_5942:
-//line internal/fingerprinter/fingerprinter.go:113089
+//line internal/fingerprinter/fingerprinter.go:113110
 		switch data[p] {
 		case 40:
 			goto st288
@@ -113189,7 +113210,7 @@ tr5641:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5943
 	st5943:
@@ -113197,7 +113218,7 @@ act = 1;
 			goto _test_eof5943
 		}
 	st_case_5943:
-//line internal/fingerprinter/fingerprinter.go:113201
+//line internal/fingerprinter/fingerprinter.go:113222
 		switch data[p] {
 		case 43:
 			goto st319
@@ -113503,7 +113524,7 @@ tr5642:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5944
 	st5944:
@@ -113511,7 +113532,7 @@ act = 1;
 			goto _test_eof5944
 		}
 	st_case_5944:
-//line internal/fingerprinter/fingerprinter.go:113515
+//line internal/fingerprinter/fingerprinter.go:113536
 		switch data[p] {
 		case 43:
 			goto st319
@@ -113927,7 +113948,7 @@ tr4761:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 act = 10;
 	goto st5945
 	st5945:
@@ -113935,7 +113956,7 @@ act = 10;
 			goto _test_eof5945
 		}
 	st_case_5945:
-//line internal/fingerprinter/fingerprinter.go:113939
+//line internal/fingerprinter/fingerprinter.go:113960
 		switch data[p] {
 		case 40:
 			goto st288
@@ -114039,7 +114060,7 @@ tr5970:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 act = 10;
 	goto st5946
 	st5946:
@@ -114047,7 +114068,7 @@ act = 10;
 			goto _test_eof5946
 		}
 	st_case_5946:
-//line internal/fingerprinter/fingerprinter.go:114051
+//line internal/fingerprinter/fingerprinter.go:114072
 		switch data[p] {
 		case 43:
 			goto st319
@@ -114557,7 +114578,7 @@ tr4758:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 act = 10;
 	goto st5947
 	st5947:
@@ -114565,7 +114586,7 @@ act = 10;
 			goto _test_eof5947
 		}
 	st_case_5947:
-//line internal/fingerprinter/fingerprinter.go:114569
+//line internal/fingerprinter/fingerprinter.go:114590
 		switch data[p] {
 		case 40:
 			goto st288
@@ -114773,7 +114794,7 @@ tr4766:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 act = 10;
 	goto st5948
 	st5948:
@@ -114781,7 +114802,7 @@ act = 10;
 			goto _test_eof5948
 		}
 	st_case_5948:
-//line internal/fingerprinter/fingerprinter.go:114785
+//line internal/fingerprinter/fingerprinter.go:114806
 		switch data[p] {
 		case 40:
 			goto st288
@@ -114885,7 +114906,7 @@ tr5973:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 act = 10;
 	goto st5949
 	st5949:
@@ -114893,7 +114914,7 @@ act = 10;
 			goto _test_eof5949
 		}
 	st_case_5949:
-//line internal/fingerprinter/fingerprinter.go:114897
+//line internal/fingerprinter/fingerprinter.go:114918
 		switch data[p] {
 		case 40:
 			goto st288
@@ -115407,7 +115428,7 @@ tr4759:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 act = 10;
 	goto st5950
 	st5950:
@@ -115415,7 +115436,7 @@ act = 10;
 			goto _test_eof5950
 		}
 	st_case_5950:
-//line internal/fingerprinter/fingerprinter.go:115419
+//line internal/fingerprinter/fingerprinter.go:115440
 		switch data[p] {
 		case 40:
 			goto st288
@@ -115827,7 +115848,7 @@ tr4771:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 act = 10;
 	goto st5951
 	st5951:
@@ -115835,7 +115856,7 @@ act = 10;
 			goto _test_eof5951
 		}
 	st_case_5951:
-//line internal/fingerprinter/fingerprinter.go:115839
+//line internal/fingerprinter/fingerprinter.go:115860
 		switch data[p] {
 		case 40:
 			goto st288
@@ -116043,7 +116064,7 @@ tr5643:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5952
 	st5952:
@@ -116051,7 +116072,7 @@ act = 1;
 			goto _test_eof5952
 		}
 	st_case_5952:
-//line internal/fingerprinter/fingerprinter.go:116055
+//line internal/fingerprinter/fingerprinter.go:116076
 		switch data[p] {
 		case 43:
 			goto st319
@@ -116257,7 +116278,7 @@ tr5644:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5953
 	st5953:
@@ -116265,7 +116286,7 @@ act = 1;
 			goto _test_eof5953
 		}
 	st_case_5953:
-//line internal/fingerprinter/fingerprinter.go:116269
+//line internal/fingerprinter/fingerprinter.go:116290
 		switch data[p] {
 		case 40:
 			goto st288
@@ -116473,7 +116494,7 @@ tr4772:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:178
+//line internal/fingerprinter/fingerprinter.rl:191
 act = 10;
 	goto st5954
 	st5954:
@@ -116481,7 +116502,7 @@ act = 10;
 			goto _test_eof5954
 		}
 	st_case_5954:
-//line internal/fingerprinter/fingerprinter.go:116485
+//line internal/fingerprinter/fingerprinter.go:116506
 		switch data[p] {
 		case 40:
 			goto st288
@@ -116587,7 +116608,7 @@ tr5645:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5955
 	st5955:
@@ -116595,7 +116616,7 @@ act = 1;
 			goto _test_eof5955
 		}
 	st_case_5955:
-//line internal/fingerprinter/fingerprinter.go:116599
+//line internal/fingerprinter/fingerprinter.go:116620
 		switch data[p] {
 		case 43:
 			goto st319
@@ -116697,7 +116718,7 @@ tr5646:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5956
 	st5956:
@@ -116705,7 +116726,7 @@ act = 1;
 			goto _test_eof5956
 		}
 	st_case_5956:
-//line internal/fingerprinter/fingerprinter.go:116709
+//line internal/fingerprinter/fingerprinter.go:116730
 		switch data[p] {
 		case 43:
 			goto st319
@@ -117011,7 +117032,7 @@ tr5647:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5957
 	st5957:
@@ -117019,7 +117040,7 @@ act = 1;
 			goto _test_eof5957
 		}
 	st_case_5957:
-//line internal/fingerprinter/fingerprinter.go:117023
+//line internal/fingerprinter/fingerprinter.go:117044
 		switch data[p] {
 		case 43:
 			goto st319
@@ -122229,7 +122250,7 @@ tr5035:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5958
 	st5958:
@@ -122237,7 +122258,7 @@ act = 15;
 			goto _test_eof5958
 		}
 	st_case_5958:
-//line internal/fingerprinter/fingerprinter.go:122241
+//line internal/fingerprinter/fingerprinter.go:122262
 		switch data[p] {
 		case 43:
 			goto st319
@@ -122346,7 +122367,7 @@ tr5981:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5959
 	st5959:
@@ -122354,7 +122375,7 @@ act = 15;
 			goto _test_eof5959
 		}
 	st_case_5959:
-//line internal/fingerprinter/fingerprinter.go:122358
+//line internal/fingerprinter/fingerprinter.go:122379
 		switch data[p] {
 		case 43:
 			goto st319
@@ -122463,7 +122484,7 @@ tr5982:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5960
 	st5960:
@@ -122471,7 +122492,7 @@ act = 15;
 			goto _test_eof5960
 		}
 	st_case_5960:
-//line internal/fingerprinter/fingerprinter.go:122475
+//line internal/fingerprinter/fingerprinter.go:122496
 		switch data[p] {
 		case 43:
 			goto st319
@@ -122580,7 +122601,7 @@ tr5983:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5961
 	st5961:
@@ -122588,7 +122609,7 @@ act = 15;
 			goto _test_eof5961
 		}
 	st_case_5961:
-//line internal/fingerprinter/fingerprinter.go:122592
+//line internal/fingerprinter/fingerprinter.go:122613
 		switch data[p] {
 		case 43:
 			goto st319
@@ -122697,7 +122718,7 @@ tr5984:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5962
 	st5962:
@@ -122705,7 +122726,7 @@ act = 15;
 			goto _test_eof5962
 		}
 	st_case_5962:
-//line internal/fingerprinter/fingerprinter.go:122709
+//line internal/fingerprinter/fingerprinter.go:122730
 		switch data[p] {
 		case 43:
 			goto st319
@@ -122805,7 +122826,7 @@ tr5985:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5963
 	st5963:
@@ -122813,7 +122834,7 @@ act = 15;
 			goto _test_eof5963
 		}
 	st_case_5963:
-//line internal/fingerprinter/fingerprinter.go:122817
+//line internal/fingerprinter/fingerprinter.go:122838
 		switch data[p] {
 		case 43:
 			goto st319
@@ -122922,7 +122943,7 @@ tr5986:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5964
 	st5964:
@@ -122930,7 +122951,7 @@ act = 15;
 			goto _test_eof5964
 		}
 	st_case_5964:
-//line internal/fingerprinter/fingerprinter.go:122934
+//line internal/fingerprinter/fingerprinter.go:122955
 		switch data[p] {
 		case 43:
 			goto st319
@@ -123039,7 +123060,7 @@ tr5987:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5965
 	st5965:
@@ -123047,7 +123068,7 @@ act = 15;
 			goto _test_eof5965
 		}
 	st_case_5965:
-//line internal/fingerprinter/fingerprinter.go:123051
+//line internal/fingerprinter/fingerprinter.go:123072
 		switch data[p] {
 		case 43:
 			goto st319
@@ -123156,7 +123177,7 @@ tr5988:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5966
 	st5966:
@@ -123164,7 +123185,7 @@ act = 15;
 			goto _test_eof5966
 		}
 	st_case_5966:
-//line internal/fingerprinter/fingerprinter.go:123168
+//line internal/fingerprinter/fingerprinter.go:123189
 		switch data[p] {
 		case 43:
 			goto st319
@@ -123273,7 +123294,7 @@ tr5989:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5967
 	st5967:
@@ -123281,7 +123302,7 @@ act = 15;
 			goto _test_eof5967
 		}
 	st_case_5967:
-//line internal/fingerprinter/fingerprinter.go:123285
+//line internal/fingerprinter/fingerprinter.go:123306
 		switch data[p] {
 		case 43:
 			goto st319
@@ -123381,7 +123402,7 @@ tr5990:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5968
 	st5968:
@@ -123389,7 +123410,7 @@ act = 15;
 			goto _test_eof5968
 		}
 	st_case_5968:
-//line internal/fingerprinter/fingerprinter.go:123393
+//line internal/fingerprinter/fingerprinter.go:123414
 		switch data[p] {
 		case 43:
 			goto st319
@@ -123498,7 +123519,7 @@ tr5991:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5969
 	st5969:
@@ -123506,7 +123527,7 @@ act = 15;
 			goto _test_eof5969
 		}
 	st_case_5969:
-//line internal/fingerprinter/fingerprinter.go:123510
+//line internal/fingerprinter/fingerprinter.go:123531
 		switch data[p] {
 		case 43:
 			goto st319
@@ -123615,7 +123636,7 @@ tr5992:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5970
 	st5970:
@@ -123623,7 +123644,7 @@ act = 15;
 			goto _test_eof5970
 		}
 	st_case_5970:
-//line internal/fingerprinter/fingerprinter.go:123627
+//line internal/fingerprinter/fingerprinter.go:123648
 		switch data[p] {
 		case 43:
 			goto st319
@@ -123732,7 +123753,7 @@ tr5993:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5971
 	st5971:
@@ -123740,7 +123761,7 @@ act = 15;
 			goto _test_eof5971
 		}
 	st_case_5971:
-//line internal/fingerprinter/fingerprinter.go:123744
+//line internal/fingerprinter/fingerprinter.go:123765
 		switch data[p] {
 		case 43:
 			goto st319
@@ -123849,7 +123870,7 @@ tr5994:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5972
 	st5972:
@@ -123857,7 +123878,7 @@ act = 15;
 			goto _test_eof5972
 		}
 	st_case_5972:
-//line internal/fingerprinter/fingerprinter.go:123861
+//line internal/fingerprinter/fingerprinter.go:123882
 		switch data[p] {
 		case 43:
 			goto st319
@@ -123957,7 +123978,7 @@ tr5995:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5973
 	st5973:
@@ -123965,7 +123986,7 @@ act = 15;
 			goto _test_eof5973
 		}
 	st_case_5973:
-//line internal/fingerprinter/fingerprinter.go:123969
+//line internal/fingerprinter/fingerprinter.go:123990
 		switch data[p] {
 		case 43:
 			goto st319
@@ -124074,7 +124095,7 @@ tr5996:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5974
 	st5974:
@@ -124082,7 +124103,7 @@ act = 15;
 			goto _test_eof5974
 		}
 	st_case_5974:
-//line internal/fingerprinter/fingerprinter.go:124086
+//line internal/fingerprinter/fingerprinter.go:124107
 		switch data[p] {
 		case 43:
 			goto st319
@@ -124191,7 +124212,7 @@ tr5997:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5975
 	st5975:
@@ -124199,7 +124220,7 @@ act = 15;
 			goto _test_eof5975
 		}
 	st_case_5975:
-//line internal/fingerprinter/fingerprinter.go:124203
+//line internal/fingerprinter/fingerprinter.go:124224
 		switch data[p] {
 		case 43:
 			goto st319
@@ -124308,7 +124329,7 @@ tr5998:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5976
 	st5976:
@@ -124316,7 +124337,7 @@ act = 15;
 			goto _test_eof5976
 		}
 	st_case_5976:
-//line internal/fingerprinter/fingerprinter.go:124320
+//line internal/fingerprinter/fingerprinter.go:124341
 		switch data[p] {
 		case 43:
 			goto st319
@@ -124425,7 +124446,7 @@ tr5999:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5977
 	st5977:
@@ -124433,7 +124454,7 @@ act = 15;
 			goto _test_eof5977
 		}
 	st_case_5977:
-//line internal/fingerprinter/fingerprinter.go:124437
+//line internal/fingerprinter/fingerprinter.go:124458
 		switch data[p] {
 		case 43:
 			goto st319
@@ -124542,7 +124563,7 @@ tr6000:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5978
 	st5978:
@@ -124550,7 +124571,7 @@ act = 15;
 			goto _test_eof5978
 		}
 	st_case_5978:
-//line internal/fingerprinter/fingerprinter.go:124554
+//line internal/fingerprinter/fingerprinter.go:124575
 		switch data[p] {
 		case 43:
 			goto st319
@@ -124659,7 +124680,7 @@ tr6001:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5979
 	st5979:
@@ -124667,7 +124688,7 @@ act = 15;
 			goto _test_eof5979
 		}
 	st_case_5979:
-//line internal/fingerprinter/fingerprinter.go:124671
+//line internal/fingerprinter/fingerprinter.go:124692
 		switch data[p] {
 		case 43:
 			goto st319
@@ -124776,7 +124797,7 @@ tr6002:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5980
 	st5980:
@@ -124784,7 +124805,7 @@ act = 15;
 			goto _test_eof5980
 		}
 	st_case_5980:
-//line internal/fingerprinter/fingerprinter.go:124788
+//line internal/fingerprinter/fingerprinter.go:124809
 		switch data[p] {
 		case 43:
 			goto st319
@@ -124893,7 +124914,7 @@ tr6003:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5981
 	st5981:
@@ -124901,7 +124922,7 @@ act = 15;
 			goto _test_eof5981
 		}
 	st_case_5981:
-//line internal/fingerprinter/fingerprinter.go:124905
+//line internal/fingerprinter/fingerprinter.go:124926
 		switch data[p] {
 		case 43:
 			goto st319
@@ -125010,7 +125031,7 @@ tr6004:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5982
 	st5982:
@@ -125018,7 +125039,7 @@ act = 15;
 			goto _test_eof5982
 		}
 	st_case_5982:
-//line internal/fingerprinter/fingerprinter.go:125022
+//line internal/fingerprinter/fingerprinter.go:125043
 		switch data[p] {
 		case 43:
 			goto st319
@@ -125127,7 +125148,7 @@ tr6005:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5983
 	st5983:
@@ -125135,7 +125156,7 @@ act = 15;
 			goto _test_eof5983
 		}
 	st_case_5983:
-//line internal/fingerprinter/fingerprinter.go:125139
+//line internal/fingerprinter/fingerprinter.go:125160
 		switch data[p] {
 		case 43:
 			goto st319
@@ -125244,7 +125265,7 @@ tr6006:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st5984
 	st5984:
@@ -125252,7 +125273,7 @@ act = 15;
 			goto _test_eof5984
 		}
 	st_case_5984:
-//line internal/fingerprinter/fingerprinter.go:125256
+//line internal/fingerprinter/fingerprinter.go:125277
 		switch data[p] {
 		case 43:
 			goto st319
@@ -125361,7 +125382,7 @@ tr5893:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5985
 	st5985:
@@ -125369,7 +125390,7 @@ act = 1;
 			goto _test_eof5985
 		}
 	st_case_5985:
-//line internal/fingerprinter/fingerprinter.go:125373
+//line internal/fingerprinter/fingerprinter.go:125394
 		switch data[p] {
 		case 43:
 			goto st319
@@ -125469,7 +125490,7 @@ tr5894:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5986
 	st5986:
@@ -125477,7 +125498,7 @@ act = 1;
 			goto _test_eof5986
 		}
 	st_case_5986:
-//line internal/fingerprinter/fingerprinter.go:125481
+//line internal/fingerprinter/fingerprinter.go:125502
 		switch data[p] {
 		case 43:
 			goto st319
@@ -125579,7 +125600,7 @@ tr5890:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5987
 	st5987:
@@ -125587,7 +125608,7 @@ act = 1;
 			goto _test_eof5987
 		}
 	st_case_5987:
-//line internal/fingerprinter/fingerprinter.go:125591
+//line internal/fingerprinter/fingerprinter.go:125612
 		switch data[p] {
 		case 43:
 			goto st319
@@ -125796,7 +125817,7 @@ tr5891:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5988
 	st5988:
@@ -125804,7 +125825,7 @@ act = 1;
 			goto _test_eof5988
 		}
 	st_case_5988:
-//line internal/fingerprinter/fingerprinter.go:125808
+//line internal/fingerprinter/fingerprinter.go:125829
 		switch data[p] {
 		case 43:
 			goto st319
@@ -126017,7 +126038,7 @@ tr5887:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5989
 	st5989:
@@ -126025,7 +126046,7 @@ act = 1;
 			goto _test_eof5989
 		}
 	st_case_5989:
-//line internal/fingerprinter/fingerprinter.go:126029
+//line internal/fingerprinter/fingerprinter.go:126050
 		switch data[p] {
 		case 43:
 			goto st319
@@ -126243,7 +126264,7 @@ tr5888:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5990
 	st5990:
@@ -126251,7 +126272,7 @@ act = 1;
 			goto _test_eof5990
 		}
 	st_case_5990:
-//line internal/fingerprinter/fingerprinter.go:126255
+//line internal/fingerprinter/fingerprinter.go:126276
 		switch data[p] {
 		case 43:
 			goto st319
@@ -126473,7 +126494,7 @@ tr5884:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5991
 	st5991:
@@ -126481,7 +126502,7 @@ act = 1;
 			goto _test_eof5991
 		}
 	st_case_5991:
-//line internal/fingerprinter/fingerprinter.go:126485
+//line internal/fingerprinter/fingerprinter.go:126506
 		switch data[p] {
 		case 43:
 			goto st319
@@ -126699,7 +126720,7 @@ tr5885:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5992
 	st5992:
@@ -126707,7 +126728,7 @@ act = 1;
 			goto _test_eof5992
 		}
 	st_case_5992:
-//line internal/fingerprinter/fingerprinter.go:126711
+//line internal/fingerprinter/fingerprinter.go:126732
 		switch data[p] {
 		case 43:
 			goto st319
@@ -126929,7 +126950,7 @@ tr5880:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5993
 	st5993:
@@ -126937,7 +126958,7 @@ act = 1;
 			goto _test_eof5993
 		}
 	st_case_5993:
-//line internal/fingerprinter/fingerprinter.go:126941
+//line internal/fingerprinter/fingerprinter.go:126962
 		switch data[p] {
 		case 43:
 			goto st319
@@ -127155,7 +127176,7 @@ tr5881:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5994
 	st5994:
@@ -127163,7 +127184,7 @@ act = 1;
 			goto _test_eof5994
 		}
 	st_case_5994:
-//line internal/fingerprinter/fingerprinter.go:127167
+//line internal/fingerprinter/fingerprinter.go:127188
 		switch data[p] {
 		case 43:
 			goto st319
@@ -127418,7 +127439,7 @@ tr5830:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5995
 	st5995:
@@ -127426,7 +127447,7 @@ act = 1;
 			goto _test_eof5995
 		}
 	st_case_5995:
-//line internal/fingerprinter/fingerprinter.go:127430
+//line internal/fingerprinter/fingerprinter.go:127451
 		switch data[p] {
 		case 43:
 			goto st319
@@ -127644,7 +127665,7 @@ tr5831:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5996
 	st5996:
@@ -127652,7 +127673,7 @@ act = 1;
 			goto _test_eof5996
 		}
 	st_case_5996:
-//line internal/fingerprinter/fingerprinter.go:127656
+//line internal/fingerprinter/fingerprinter.go:127677
 		switch data[p] {
 		case 43:
 			goto st319
@@ -127874,7 +127895,7 @@ tr5639:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5997
 	st5997:
@@ -127882,7 +127903,7 @@ act = 1;
 			goto _test_eof5997
 		}
 	st_case_5997:
-//line internal/fingerprinter/fingerprinter.go:127886
+//line internal/fingerprinter/fingerprinter.go:127907
 		switch data[p] {
 		case 43:
 			goto st319
@@ -128100,7 +128121,7 @@ tr5640:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:144
+//line internal/fingerprinter/fingerprinter.rl:157
 act = 1;
 	goto st5998
 	st5998:
@@ -128108,7 +128129,7 @@ act = 1;
 			goto _test_eof5998
 		}
 	st_case_5998:
-//line internal/fingerprinter/fingerprinter.go:128112
+//line internal/fingerprinter/fingerprinter.go:128133
 		switch data[p] {
 		case 43:
 			goto st319
@@ -128330,7 +128351,7 @@ tr5569:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st5999
 	st5999:
@@ -128338,7 +128359,7 @@ act = 16;
 			goto _test_eof5999
 		}
 	st_case_5999:
-//line internal/fingerprinter/fingerprinter.go:128342
+//line internal/fingerprinter/fingerprinter.go:128363
 		switch data[p] {
 		case 43:
 			goto st319
@@ -128447,7 +128468,7 @@ tr6016:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6000
 	st6000:
@@ -128455,7 +128476,7 @@ act = 15;
 			goto _test_eof6000
 		}
 	st_case_6000:
-//line internal/fingerprinter/fingerprinter.go:128459
+//line internal/fingerprinter/fingerprinter.go:128480
 		switch data[p] {
 		case 32:
 			goto tr6019
@@ -128553,7 +128574,7 @@ tr6017:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6001
 	st6001:
@@ -128561,7 +128582,7 @@ act = 16;
 			goto _test_eof6001
 		}
 	st_case_6001:
-//line internal/fingerprinter/fingerprinter.go:128565
+//line internal/fingerprinter/fingerprinter.go:128586
 		switch data[p] {
 		case 43:
 			goto st319
@@ -128670,7 +128691,7 @@ tr6020:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6002
 	st6002:
@@ -128678,7 +128699,7 @@ act = 16;
 			goto _test_eof6002
 		}
 	st_case_6002:
-//line internal/fingerprinter/fingerprinter.go:128682
+//line internal/fingerprinter/fingerprinter.go:128703
 		switch data[p] {
 		case 43:
 			goto st319
@@ -128787,7 +128808,7 @@ tr6021:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6003
 	st6003:
@@ -128795,7 +128816,7 @@ act = 16;
 			goto _test_eof6003
 		}
 	st_case_6003:
-//line internal/fingerprinter/fingerprinter.go:128799
+//line internal/fingerprinter/fingerprinter.go:128820
 		switch data[p] {
 		case 43:
 			goto st319
@@ -128904,7 +128925,7 @@ tr6022:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6004
 	st6004:
@@ -128912,7 +128933,7 @@ act = 16;
 			goto _test_eof6004
 		}
 	st_case_6004:
-//line internal/fingerprinter/fingerprinter.go:128916
+//line internal/fingerprinter/fingerprinter.go:128937
 		switch data[p] {
 		case 43:
 			goto st319
@@ -129021,7 +129042,7 @@ tr6023:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6005
 	st6005:
@@ -129029,7 +129050,7 @@ act = 16;
 			goto _test_eof6005
 		}
 	st_case_6005:
-//line internal/fingerprinter/fingerprinter.go:129033
+//line internal/fingerprinter/fingerprinter.go:129054
 		switch data[p] {
 		case 43:
 			goto st319
@@ -129138,7 +129159,7 @@ tr6024:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6006
 	st6006:
@@ -129146,7 +129167,7 @@ act = 16;
 			goto _test_eof6006
 		}
 	st_case_6006:
-//line internal/fingerprinter/fingerprinter.go:129150
+//line internal/fingerprinter/fingerprinter.go:129171
 		switch data[p] {
 		case 43:
 			goto st319
@@ -129255,7 +129276,7 @@ tr6025:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6007
 	st6007:
@@ -129263,7 +129284,7 @@ act = 16;
 			goto _test_eof6007
 		}
 	st_case_6007:
-//line internal/fingerprinter/fingerprinter.go:129267
+//line internal/fingerprinter/fingerprinter.go:129288
 		switch data[p] {
 		case 43:
 			goto st319
@@ -129363,7 +129384,7 @@ tr5304:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6008
 	st6008:
@@ -129371,7 +129392,7 @@ act = 16;
 			goto _test_eof6008
 		}
 	st_case_6008:
-//line internal/fingerprinter/fingerprinter.go:129375
+//line internal/fingerprinter/fingerprinter.go:129396
 		switch data[p] {
 		case 43:
 			goto st319
@@ -129471,14 +129492,14 @@ tr5044:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6009
 tr6078:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:154
+//line internal/fingerprinter/fingerprinter.rl:167
 act = 4;
 	goto st6009
 	st6009:
@@ -129486,7 +129507,7 @@ act = 4;
 			goto _test_eof6009
 		}
 	st_case_6009:
-//line internal/fingerprinter/fingerprinter.go:129490
+//line internal/fingerprinter/fingerprinter.go:129511
 		switch data[p] {
 		case 43:
 			goto st319
@@ -139598,7 +139619,7 @@ tr6026:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6010
 	st6010:
@@ -139606,7 +139627,7 @@ act = 15;
 			goto _test_eof6010
 		}
 	st_case_6010:
-//line internal/fingerprinter/fingerprinter.go:139610
+//line internal/fingerprinter/fingerprinter.go:139631
 		switch data[p] {
 		case 43:
 			goto st319
@@ -139715,7 +139736,7 @@ tr6052:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6011
 	st6011:
@@ -139723,7 +139744,7 @@ act = 15;
 			goto _test_eof6011
 		}
 	st_case_6011:
-//line internal/fingerprinter/fingerprinter.go:139727
+//line internal/fingerprinter/fingerprinter.go:139748
 		switch data[p] {
 		case 43:
 			goto st319
@@ -139832,7 +139853,7 @@ tr6053:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6012
 	st6012:
@@ -139840,7 +139861,7 @@ act = 15;
 			goto _test_eof6012
 		}
 	st_case_6012:
-//line internal/fingerprinter/fingerprinter.go:139844
+//line internal/fingerprinter/fingerprinter.go:139865
 		switch data[p] {
 		case 43:
 			goto st319
@@ -139949,7 +139970,7 @@ tr6054:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6013
 	st6013:
@@ -139957,7 +139978,7 @@ act = 15;
 			goto _test_eof6013
 		}
 	st_case_6013:
-//line internal/fingerprinter/fingerprinter.go:139961
+//line internal/fingerprinter/fingerprinter.go:139982
 		switch data[p] {
 		case 43:
 			goto st319
@@ -140066,7 +140087,7 @@ tr6055:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6014
 	st6014:
@@ -140074,7 +140095,7 @@ act = 15;
 			goto _test_eof6014
 		}
 	st_case_6014:
-//line internal/fingerprinter/fingerprinter.go:140078
+//line internal/fingerprinter/fingerprinter.go:140099
 		switch data[p] {
 		case 43:
 			goto st319
@@ -140174,7 +140195,7 @@ tr6056:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6015
 	st6015:
@@ -140182,7 +140203,7 @@ act = 15;
 			goto _test_eof6015
 		}
 	st_case_6015:
-//line internal/fingerprinter/fingerprinter.go:140186
+//line internal/fingerprinter/fingerprinter.go:140207
 		switch data[p] {
 		case 43:
 			goto st319
@@ -140291,7 +140312,7 @@ tr6057:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6016
 	st6016:
@@ -140299,7 +140320,7 @@ act = 15;
 			goto _test_eof6016
 		}
 	st_case_6016:
-//line internal/fingerprinter/fingerprinter.go:140303
+//line internal/fingerprinter/fingerprinter.go:140324
 		switch data[p] {
 		case 43:
 			goto st319
@@ -140408,7 +140429,7 @@ tr6058:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6017
 	st6017:
@@ -140416,7 +140437,7 @@ act = 15;
 			goto _test_eof6017
 		}
 	st_case_6017:
-//line internal/fingerprinter/fingerprinter.go:140420
+//line internal/fingerprinter/fingerprinter.go:140441
 		switch data[p] {
 		case 43:
 			goto st319
@@ -140525,7 +140546,7 @@ tr6059:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6018
 	st6018:
@@ -140533,7 +140554,7 @@ act = 15;
 			goto _test_eof6018
 		}
 	st_case_6018:
-//line internal/fingerprinter/fingerprinter.go:140537
+//line internal/fingerprinter/fingerprinter.go:140558
 		switch data[p] {
 		case 43:
 			goto st319
@@ -140642,7 +140663,7 @@ tr6060:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6019
 	st6019:
@@ -140650,7 +140671,7 @@ act = 15;
 			goto _test_eof6019
 		}
 	st_case_6019:
-//line internal/fingerprinter/fingerprinter.go:140654
+//line internal/fingerprinter/fingerprinter.go:140675
 		switch data[p] {
 		case 43:
 			goto st319
@@ -140750,7 +140771,7 @@ tr6061:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6020
 	st6020:
@@ -140758,7 +140779,7 @@ act = 15;
 			goto _test_eof6020
 		}
 	st_case_6020:
-//line internal/fingerprinter/fingerprinter.go:140762
+//line internal/fingerprinter/fingerprinter.go:140783
 		switch data[p] {
 		case 43:
 			goto st319
@@ -140867,7 +140888,7 @@ tr6062:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6021
 	st6021:
@@ -140875,7 +140896,7 @@ act = 15;
 			goto _test_eof6021
 		}
 	st_case_6021:
-//line internal/fingerprinter/fingerprinter.go:140879
+//line internal/fingerprinter/fingerprinter.go:140900
 		switch data[p] {
 		case 43:
 			goto st319
@@ -140984,7 +141005,7 @@ tr6063:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6022
 	st6022:
@@ -140992,7 +141013,7 @@ act = 15;
 			goto _test_eof6022
 		}
 	st_case_6022:
-//line internal/fingerprinter/fingerprinter.go:140996
+//line internal/fingerprinter/fingerprinter.go:141017
 		switch data[p] {
 		case 43:
 			goto st319
@@ -141101,7 +141122,7 @@ tr6064:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6023
 	st6023:
@@ -141109,7 +141130,7 @@ act = 15;
 			goto _test_eof6023
 		}
 	st_case_6023:
-//line internal/fingerprinter/fingerprinter.go:141113
+//line internal/fingerprinter/fingerprinter.go:141134
 		switch data[p] {
 		case 43:
 			goto st319
@@ -141218,7 +141239,7 @@ tr6065:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6024
 	st6024:
@@ -141226,7 +141247,7 @@ act = 15;
 			goto _test_eof6024
 		}
 	st_case_6024:
-//line internal/fingerprinter/fingerprinter.go:141230
+//line internal/fingerprinter/fingerprinter.go:141251
 		switch data[p] {
 		case 43:
 			goto st319
@@ -141326,7 +141347,7 @@ tr6066:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6025
 	st6025:
@@ -141334,7 +141355,7 @@ act = 15;
 			goto _test_eof6025
 		}
 	st_case_6025:
-//line internal/fingerprinter/fingerprinter.go:141338
+//line internal/fingerprinter/fingerprinter.go:141359
 		switch data[p] {
 		case 43:
 			goto st319
@@ -141443,7 +141464,7 @@ tr6067:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6026
 	st6026:
@@ -141451,7 +141472,7 @@ act = 15;
 			goto _test_eof6026
 		}
 	st_case_6026:
-//line internal/fingerprinter/fingerprinter.go:141455
+//line internal/fingerprinter/fingerprinter.go:141476
 		switch data[p] {
 		case 43:
 			goto st319
@@ -141560,7 +141581,7 @@ tr6068:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6027
 	st6027:
@@ -141568,7 +141589,7 @@ act = 15;
 			goto _test_eof6027
 		}
 	st_case_6027:
-//line internal/fingerprinter/fingerprinter.go:141572
+//line internal/fingerprinter/fingerprinter.go:141593
 		switch data[p] {
 		case 43:
 			goto st319
@@ -141677,7 +141698,7 @@ tr6069:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6028
 	st6028:
@@ -141685,7 +141706,7 @@ act = 15;
 			goto _test_eof6028
 		}
 	st_case_6028:
-//line internal/fingerprinter/fingerprinter.go:141689
+//line internal/fingerprinter/fingerprinter.go:141710
 		switch data[p] {
 		case 43:
 			goto st319
@@ -141794,7 +141815,7 @@ tr6070:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6029
 	st6029:
@@ -141802,7 +141823,7 @@ act = 15;
 			goto _test_eof6029
 		}
 	st_case_6029:
-//line internal/fingerprinter/fingerprinter.go:141806
+//line internal/fingerprinter/fingerprinter.go:141827
 		switch data[p] {
 		case 43:
 			goto st319
@@ -141911,7 +141932,7 @@ tr6071:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6030
 	st6030:
@@ -141919,7 +141940,7 @@ act = 15;
 			goto _test_eof6030
 		}
 	st_case_6030:
-//line internal/fingerprinter/fingerprinter.go:141923
+//line internal/fingerprinter/fingerprinter.go:141944
 		switch data[p] {
 		case 43:
 			goto st319
@@ -142028,7 +142049,7 @@ tr6072:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6031
 	st6031:
@@ -142036,7 +142057,7 @@ act = 15;
 			goto _test_eof6031
 		}
 	st_case_6031:
-//line internal/fingerprinter/fingerprinter.go:142040
+//line internal/fingerprinter/fingerprinter.go:142061
 		switch data[p] {
 		case 43:
 			goto st319
@@ -142145,7 +142166,7 @@ tr6073:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6032
 	st6032:
@@ -142153,7 +142174,7 @@ act = 15;
 			goto _test_eof6032
 		}
 	st_case_6032:
-//line internal/fingerprinter/fingerprinter.go:142157
+//line internal/fingerprinter/fingerprinter.go:142178
 		switch data[p] {
 		case 43:
 			goto st319
@@ -142262,7 +142283,7 @@ tr6074:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6033
 	st6033:
@@ -142270,7 +142291,7 @@ act = 15;
 			goto _test_eof6033
 		}
 	st_case_6033:
-//line internal/fingerprinter/fingerprinter.go:142274
+//line internal/fingerprinter/fingerprinter.go:142295
 		switch data[p] {
 		case 43:
 			goto st319
@@ -142379,7 +142400,7 @@ tr6075:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6034
 	st6034:
@@ -142387,7 +142408,7 @@ act = 15;
 			goto _test_eof6034
 		}
 	st_case_6034:
-//line internal/fingerprinter/fingerprinter.go:142391
+//line internal/fingerprinter/fingerprinter.go:142412
 		switch data[p] {
 		case 43:
 			goto st319
@@ -142496,7 +142517,7 @@ tr6076:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6035
 	st6035:
@@ -142504,7 +142525,7 @@ act = 15;
 			goto _test_eof6035
 		}
 	st_case_6035:
-//line internal/fingerprinter/fingerprinter.go:142508
+//line internal/fingerprinter/fingerprinter.go:142529
 		switch data[p] {
 		case 43:
 			goto st319
@@ -142613,7 +142634,7 @@ tr6077:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6036
 	st6036:
@@ -142621,7 +142642,7 @@ act = 15;
 			goto _test_eof6036
 		}
 	st_case_6036:
-//line internal/fingerprinter/fingerprinter.go:142625
+//line internal/fingerprinter/fingerprinter.go:142646
 		switch data[p] {
 		case 43:
 			goto st319
@@ -142730,7 +142751,7 @@ tr6018:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6037
 	st6037:
@@ -142738,7 +142759,7 @@ act = 16;
 			goto _test_eof6037
 		}
 	st_case_6037:
-//line internal/fingerprinter/fingerprinter.go:142742
+//line internal/fingerprinter/fingerprinter.go:142763
 		switch data[p] {
 		case 43:
 			goto st319
@@ -142847,7 +142868,7 @@ tr6079:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6038
 	st6038:
@@ -142855,7 +142876,7 @@ act = 16;
 			goto _test_eof6038
 		}
 	st_case_6038:
-//line internal/fingerprinter/fingerprinter.go:142859
+//line internal/fingerprinter/fingerprinter.go:142880
 		switch data[p] {
 		case 43:
 			goto st319
@@ -142964,7 +142985,7 @@ tr6080:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6039
 	st6039:
@@ -142972,7 +142993,7 @@ act = 16;
 			goto _test_eof6039
 		}
 	st_case_6039:
-//line internal/fingerprinter/fingerprinter.go:142976
+//line internal/fingerprinter/fingerprinter.go:142997
 		switch data[p] {
 		case 43:
 			goto st319
@@ -143081,7 +143102,7 @@ tr6081:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6040
 	st6040:
@@ -143089,7 +143110,7 @@ act = 16;
 			goto _test_eof6040
 		}
 	st_case_6040:
-//line internal/fingerprinter/fingerprinter.go:143093
+//line internal/fingerprinter/fingerprinter.go:143114
 		switch data[p] {
 		case 43:
 			goto st319
@@ -143198,7 +143219,7 @@ tr6082:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6041
 	st6041:
@@ -143206,7 +143227,7 @@ act = 16;
 			goto _test_eof6041
 		}
 	st_case_6041:
-//line internal/fingerprinter/fingerprinter.go:143210
+//line internal/fingerprinter/fingerprinter.go:143231
 		switch data[p] {
 		case 43:
 			goto st319
@@ -143315,7 +143336,7 @@ tr6083:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6042
 	st6042:
@@ -143323,7 +143344,7 @@ act = 16;
 			goto _test_eof6042
 		}
 	st_case_6042:
-//line internal/fingerprinter/fingerprinter.go:143327
+//line internal/fingerprinter/fingerprinter.go:143348
 		switch data[p] {
 		case 43:
 			goto st319
@@ -143432,7 +143453,7 @@ tr6084:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6043
 	st6043:
@@ -143440,7 +143461,7 @@ act = 16;
 			goto _test_eof6043
 		}
 	st_case_6043:
-//line internal/fingerprinter/fingerprinter.go:143444
+//line internal/fingerprinter/fingerprinter.go:143465
 		switch data[p] {
 		case 43:
 			goto st319
@@ -143540,21 +143561,21 @@ tr5570:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6044
 tr6106:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:186
+//line internal/fingerprinter/fingerprinter.rl:199
 act = 12;
 	goto st6044
 tr6109:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:190
+//line internal/fingerprinter/fingerprinter.rl:203
 act = 13;
 	goto st6044
 	st6044:
@@ -143562,7 +143583,7 @@ act = 13;
 			goto _test_eof6044
 		}
 	st_case_6044:
-//line internal/fingerprinter/fingerprinter.go:143566
+//line internal/fingerprinter/fingerprinter.go:143587
 		switch data[p] {
 		case 43:
 			goto st319
@@ -143662,7 +143683,7 @@ tr5571:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6045
 	st6045:
@@ -143670,7 +143691,7 @@ act = 16;
 			goto _test_eof6045
 		}
 	st_case_6045:
-//line internal/fingerprinter/fingerprinter.go:143674
+//line internal/fingerprinter/fingerprinter.go:143695
 		switch data[p] {
 		case 10:
 			goto tr5565
@@ -143791,7 +143812,7 @@ tr6085:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:206
+//line internal/fingerprinter/fingerprinter.rl:219
 act = 17;
 	goto st6046
 	st6046:
@@ -143799,7 +143820,7 @@ act = 17;
 			goto _test_eof6046
 		}
 	st_case_6046:
-//line internal/fingerprinter/fingerprinter.go:143803
+//line internal/fingerprinter/fingerprinter.go:143824
 		switch data[p] {
 		case 10:
 			goto tr5565
@@ -143910,7 +143931,7 @@ tr6091:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:206
+//line internal/fingerprinter/fingerprinter.rl:219
 act = 17;
 	goto st6047
 	st6047:
@@ -143918,7 +143939,7 @@ act = 17;
 			goto _test_eof6047
 		}
 	st_case_6047:
-//line internal/fingerprinter/fingerprinter.go:143922
+//line internal/fingerprinter/fingerprinter.go:143943
 		switch data[p] {
 		case 10:
 			goto tr5565
@@ -144038,7 +144059,7 @@ tr6092:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:206
+//line internal/fingerprinter/fingerprinter.rl:219
 act = 17;
 	goto st6048
 	st6048:
@@ -144046,7 +144067,7 @@ act = 17;
 			goto _test_eof6048
 		}
 	st_case_6048:
-//line internal/fingerprinter/fingerprinter.go:144050
+//line internal/fingerprinter/fingerprinter.go:144071
 		switch data[p] {
 		case 10:
 			goto tr5565
@@ -144157,7 +144178,7 @@ tr6093:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:206
+//line internal/fingerprinter/fingerprinter.rl:219
 act = 17;
 	goto st6049
 	st6049:
@@ -144165,7 +144186,7 @@ act = 17;
 			goto _test_eof6049
 		}
 	st_case_6049:
-//line internal/fingerprinter/fingerprinter.go:144169
+//line internal/fingerprinter/fingerprinter.go:144190
 		switch data[p] {
 		case 10:
 			goto tr5565
@@ -144280,7 +144301,7 @@ tr6094:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:206
+//line internal/fingerprinter/fingerprinter.rl:219
 act = 17;
 	goto st6050
 	st6050:
@@ -144288,7 +144309,7 @@ act = 17;
 			goto _test_eof6050
 		}
 	st_case_6050:
-//line internal/fingerprinter/fingerprinter.go:144292
+//line internal/fingerprinter/fingerprinter.go:144313
 		switch data[p] {
 		case 10:
 			goto tr5565
@@ -144399,7 +144420,7 @@ tr6095:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:162
+//line internal/fingerprinter/fingerprinter.rl:175
 act = 6;
 	goto st6051
 	st6051:
@@ -144407,7 +144428,7 @@ act = 6;
 			goto _test_eof6051
 		}
 	st_case_6051:
-//line internal/fingerprinter/fingerprinter.go:144411
+//line internal/fingerprinter/fingerprinter.go:144432
 		switch data[p] {
 		case 10:
 			goto tr5565
@@ -144523,7 +144544,7 @@ tr6086:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6052
 	st6052:
@@ -144531,7 +144552,7 @@ act = 15;
 			goto _test_eof6052
 		}
 	st_case_6052:
-//line internal/fingerprinter/fingerprinter.go:144535
+//line internal/fingerprinter/fingerprinter.go:144556
 		switch data[p] {
 		case 10:
 			goto tr5565
@@ -144655,7 +144676,7 @@ te = p+1
 			goto _test_eof6053
 		}
 	st_case_6053:
-//line internal/fingerprinter/fingerprinter.go:144659
+//line internal/fingerprinter/fingerprinter.go:144680
 		switch data[p] {
 		case 10:
 			goto tr5565
@@ -144773,7 +144794,7 @@ tr6097:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6054
 	st6054:
@@ -144781,7 +144802,7 @@ act = 15;
 			goto _test_eof6054
 		}
 	st_case_6054:
-//line internal/fingerprinter/fingerprinter.go:144785
+//line internal/fingerprinter/fingerprinter.go:144806
 		switch data[p] {
 		case 10:
 			goto tr5565
@@ -144900,7 +144921,7 @@ tr6087:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6055
 	st6055:
@@ -144908,7 +144929,7 @@ act = 15;
 			goto _test_eof6055
 		}
 	st_case_6055:
-//line internal/fingerprinter/fingerprinter.go:144912
+//line internal/fingerprinter/fingerprinter.go:144933
 		switch data[p] {
 		case 10:
 			goto tr5565
@@ -145026,7 +145047,7 @@ tr6098:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:166
+//line internal/fingerprinter/fingerprinter.rl:179
 act = 7;
 	goto st6056
 	st6056:
@@ -145034,7 +145055,7 @@ act = 7;
 			goto _test_eof6056
 		}
 	st_case_6056:
-//line internal/fingerprinter/fingerprinter.go:145038
+//line internal/fingerprinter/fingerprinter.go:145059
 		switch data[p] {
 		case 10:
 			goto tr5565
@@ -145160,7 +145181,7 @@ te = p+1
 			goto _test_eof6057
 		}
 	st_case_6057:
-//line internal/fingerprinter/fingerprinter.go:145164
+//line internal/fingerprinter/fingerprinter.go:145185
 		switch data[p] {
 		case 10:
 			goto tr5565
@@ -145284,7 +145305,7 @@ te = p+1
 			goto _test_eof6058
 		}
 	st_case_6058:
-//line internal/fingerprinter/fingerprinter.go:145288
+//line internal/fingerprinter/fingerprinter.go:145309
 		switch data[p] {
 		case 10:
 			goto tr5565
@@ -145401,7 +145422,7 @@ tr6100:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6059
 	st6059:
@@ -145409,7 +145430,7 @@ act = 15;
 			goto _test_eof6059
 		}
 	st_case_6059:
-//line internal/fingerprinter/fingerprinter.go:145413
+//line internal/fingerprinter/fingerprinter.go:145434
 		switch data[p] {
 		case 10:
 			goto tr5565
@@ -145527,7 +145548,7 @@ tr6101:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:162
+//line internal/fingerprinter/fingerprinter.rl:175
 act = 6;
 	goto st6060
 	st6060:
@@ -145535,7 +145556,7 @@ act = 6;
 			goto _test_eof6060
 		}
 	st_case_6060:
-//line internal/fingerprinter/fingerprinter.go:145539
+//line internal/fingerprinter/fingerprinter.go:145560
 		switch data[p] {
 		case 10:
 			goto tr5565
@@ -145653,7 +145674,7 @@ tr6088:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:206
+//line internal/fingerprinter/fingerprinter.rl:219
 act = 17;
 	goto st6061
 	st6061:
@@ -145661,7 +145682,7 @@ act = 17;
 			goto _test_eof6061
 		}
 	st_case_6061:
-//line internal/fingerprinter/fingerprinter.go:145665
+//line internal/fingerprinter/fingerprinter.go:145686
 		switch data[p] {
 		case 10:
 			goto tr5565
@@ -145690,7 +145711,7 @@ tr6090:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:198
+//line internal/fingerprinter/fingerprinter.rl:211
 act = 15;
 	goto st6062
 	st6062:
@@ -145698,7 +145719,7 @@ act = 15;
 			goto _test_eof6062
 		}
 	st_case_6062:
-//line internal/fingerprinter/fingerprinter.go:145702
+//line internal/fingerprinter/fingerprinter.go:145723
 		switch data[p] {
 		case 10:
 			goto tr5565
@@ -145819,7 +145840,7 @@ tr5572:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6063
 	st6063:
@@ -145827,7 +145848,7 @@ act = 16;
 			goto _test_eof6063
 		}
 	st_case_6063:
-//line internal/fingerprinter/fingerprinter.go:145831
+//line internal/fingerprinter/fingerprinter.go:145852
 		switch data[p] {
 		case 43:
 			goto st319
@@ -145938,7 +145959,7 @@ tr6102:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6064
 	st6064:
@@ -145946,7 +145967,7 @@ act = 16;
 			goto _test_eof6064
 		}
 	st_case_6064:
-//line internal/fingerprinter/fingerprinter.go:145950
+//line internal/fingerprinter/fingerprinter.go:145971
 		switch data[p] {
 		case 43:
 			goto st319
@@ -146059,7 +146080,7 @@ tr6103:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6065
 	st6065:
@@ -146067,7 +146088,7 @@ act = 16;
 			goto _test_eof6065
 		}
 	st_case_6065:
-//line internal/fingerprinter/fingerprinter.go:146071
+//line internal/fingerprinter/fingerprinter.go:146092
 		switch data[p] {
 		case 43:
 			goto st319
@@ -146178,7 +146199,7 @@ tr6105:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6066
 	st6066:
@@ -146186,7 +146207,7 @@ act = 16;
 			goto _test_eof6066
 		}
 	st_case_6066:
-//line internal/fingerprinter/fingerprinter.go:146190
+//line internal/fingerprinter/fingerprinter.go:146211
 		switch data[p] {
 		case 43:
 			goto st319
@@ -146288,7 +146309,7 @@ tr6104:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6067
 	st6067:
@@ -146296,7 +146317,7 @@ act = 16;
 			goto _test_eof6067
 		}
 	st_case_6067:
-//line internal/fingerprinter/fingerprinter.go:146300
+//line internal/fingerprinter/fingerprinter.go:146321
 		switch data[p] {
 		case 43:
 			goto st319
@@ -146398,7 +146419,7 @@ tr6107:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6068
 	st6068:
@@ -146406,7 +146427,7 @@ act = 16;
 			goto _test_eof6068
 		}
 	st_case_6068:
-//line internal/fingerprinter/fingerprinter.go:146410
+//line internal/fingerprinter/fingerprinter.go:146431
 		switch data[p] {
 		case 43:
 			goto st319
@@ -146508,7 +146529,7 @@ tr6108:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6069
 	st6069:
@@ -146516,7 +146537,7 @@ act = 16;
 			goto _test_eof6069
 		}
 	st_case_6069:
-//line internal/fingerprinter/fingerprinter.go:146520
+//line internal/fingerprinter/fingerprinter.go:146541
 		switch data[p] {
 		case 43:
 			goto st319
@@ -146618,7 +146639,7 @@ tr5573:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6070
 	st6070:
@@ -146626,7 +146647,7 @@ act = 16;
 			goto _test_eof6070
 		}
 	st_case_6070:
-//line internal/fingerprinter/fingerprinter.go:146630
+//line internal/fingerprinter/fingerprinter.go:146651
 		switch data[p] {
 		case 43:
 			goto st319
@@ -146737,7 +146758,7 @@ tr6110:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6071
 	st6071:
@@ -146745,7 +146766,7 @@ act = 16;
 			goto _test_eof6071
 		}
 	st_case_6071:
-//line internal/fingerprinter/fingerprinter.go:146749
+//line internal/fingerprinter/fingerprinter.go:146770
 		switch data[p] {
 		case 43:
 			goto st319
@@ -146847,7 +146868,7 @@ tr6111:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6072
 	st6072:
@@ -146855,7 +146876,7 @@ act = 16;
 			goto _test_eof6072
 		}
 	st_case_6072:
-//line internal/fingerprinter/fingerprinter.go:146859
+//line internal/fingerprinter/fingerprinter.go:146880
 		switch data[p] {
 		case 43:
 			goto st319
@@ -146957,7 +146978,7 @@ tr6112:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6073
 	st6073:
@@ -146965,7 +146986,7 @@ act = 16;
 			goto _test_eof6073
 		}
 	st_case_6073:
-//line internal/fingerprinter/fingerprinter.go:146969
+//line internal/fingerprinter/fingerprinter.go:146990
 		switch data[p] {
 		case 43:
 			goto st319
@@ -147067,7 +147088,7 @@ tr5574:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6074
 	st6074:
@@ -147075,7 +147096,7 @@ act = 16;
 			goto _test_eof6074
 		}
 	st_case_6074:
-//line internal/fingerprinter/fingerprinter.go:147079
+//line internal/fingerprinter/fingerprinter.go:147100
 		switch data[p] {
 		case 43:
 			goto st319
@@ -147186,7 +147207,7 @@ tr6113:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6075
 	st6075:
@@ -147194,7 +147215,7 @@ act = 16;
 			goto _test_eof6075
 		}
 	st_case_6075:
-//line internal/fingerprinter/fingerprinter.go:147198
+//line internal/fingerprinter/fingerprinter.go:147219
 		switch data[p] {
 		case 43:
 			goto st319
@@ -147305,7 +147326,7 @@ tr6114:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6076
 	st6076:
@@ -147313,7 +147334,7 @@ act = 16;
 			goto _test_eof6076
 		}
 	st_case_6076:
-//line internal/fingerprinter/fingerprinter.go:147317
+//line internal/fingerprinter/fingerprinter.go:147338
 		switch data[p] {
 		case 43:
 			goto st319
@@ -147415,7 +147436,7 @@ tr6115:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6077
 	st6077:
@@ -147423,7 +147444,7 @@ act = 16;
 			goto _test_eof6077
 		}
 	st_case_6077:
-//line internal/fingerprinter/fingerprinter.go:147427
+//line internal/fingerprinter/fingerprinter.go:147448
 		switch data[p] {
 		case 43:
 			goto st319
@@ -147525,7 +147546,7 @@ tr5575:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6078
 	st6078:
@@ -147533,7 +147554,7 @@ act = 16;
 			goto _test_eof6078
 		}
 	st_case_6078:
-//line internal/fingerprinter/fingerprinter.go:147537
+//line internal/fingerprinter/fingerprinter.go:147558
 		switch data[p] {
 		case 43:
 			goto st319
@@ -147635,7 +147656,7 @@ tr6116:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6079
 	st6079:
@@ -147643,7 +147664,7 @@ act = 16;
 			goto _test_eof6079
 		}
 	st_case_6079:
-//line internal/fingerprinter/fingerprinter.go:147647
+//line internal/fingerprinter/fingerprinter.go:147668
 		switch data[p] {
 		case 43:
 			goto st319
@@ -147745,7 +147766,7 @@ tr5576:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6080
 	st6080:
@@ -147753,7 +147774,7 @@ act = 16;
 			goto _test_eof6080
 		}
 	st_case_6080:
-//line internal/fingerprinter/fingerprinter.go:147757
+//line internal/fingerprinter/fingerprinter.go:147778
 		switch data[p] {
 		case 43:
 			goto st319
@@ -147855,7 +147876,7 @@ tr6117:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6081
 	st6081:
@@ -147863,7 +147884,7 @@ act = 16;
 			goto _test_eof6081
 		}
 	st_case_6081:
-//line internal/fingerprinter/fingerprinter.go:147867
+//line internal/fingerprinter/fingerprinter.go:147888
 		switch data[p] {
 		case 43:
 			goto st319
@@ -147965,7 +147986,7 @@ tr6118:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6082
 	st6082:
@@ -147973,7 +147994,7 @@ act = 16;
 			goto _test_eof6082
 		}
 	st_case_6082:
-//line internal/fingerprinter/fingerprinter.go:147977
+//line internal/fingerprinter/fingerprinter.go:147998
 		switch data[p] {
 		case 43:
 			goto st319
@@ -148075,7 +148096,7 @@ tr5577:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6083
 	st6083:
@@ -148083,7 +148104,7 @@ act = 16;
 			goto _test_eof6083
 		}
 	st_case_6083:
-//line internal/fingerprinter/fingerprinter.go:148087
+//line internal/fingerprinter/fingerprinter.go:148108
 		switch data[p] {
 		case 43:
 			goto st319
@@ -148185,7 +148206,7 @@ tr6119:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6084
 	st6084:
@@ -148193,7 +148214,7 @@ act = 16;
 			goto _test_eof6084
 		}
 	st_case_6084:
-//line internal/fingerprinter/fingerprinter.go:148197
+//line internal/fingerprinter/fingerprinter.go:148218
 		switch data[p] {
 		case 43:
 			goto st319
@@ -148295,7 +148316,7 @@ tr6120:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6085
 	st6085:
@@ -148303,7 +148324,7 @@ act = 16;
 			goto _test_eof6085
 		}
 	st_case_6085:
-//line internal/fingerprinter/fingerprinter.go:148307
+//line internal/fingerprinter/fingerprinter.go:148328
 		switch data[p] {
 		case 43:
 			goto st319
@@ -148405,7 +148426,7 @@ tr5578:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6086
 	st6086:
@@ -148413,7 +148434,7 @@ act = 16;
 			goto _test_eof6086
 		}
 	st_case_6086:
-//line internal/fingerprinter/fingerprinter.go:148417
+//line internal/fingerprinter/fingerprinter.go:148438
 		switch data[p] {
 		case 43:
 			goto st319
@@ -148519,7 +148540,7 @@ tr6121:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6087
 	st6087:
@@ -148527,7 +148548,7 @@ act = 16;
 			goto _test_eof6087
 		}
 	st_case_6087:
-//line internal/fingerprinter/fingerprinter.go:148531
+//line internal/fingerprinter/fingerprinter.go:148552
 		switch data[p] {
 		case 43:
 			goto st319
@@ -148631,7 +148652,7 @@ tr6123:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6088
 	st6088:
@@ -148639,7 +148660,7 @@ act = 16;
 			goto _test_eof6088
 		}
 	st_case_6088:
-//line internal/fingerprinter/fingerprinter.go:148643
+//line internal/fingerprinter/fingerprinter.go:148664
 		switch data[p] {
 		case 43:
 			goto st319
@@ -148741,7 +148762,7 @@ tr6125:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6089
 	st6089:
@@ -148749,7 +148770,7 @@ act = 16;
 			goto _test_eof6089
 		}
 	st_case_6089:
-//line internal/fingerprinter/fingerprinter.go:148753
+//line internal/fingerprinter/fingerprinter.go:148774
 		switch data[p] {
 		case 43:
 			goto st319
@@ -148851,7 +148872,7 @@ tr6124:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6090
 	st6090:
@@ -148859,7 +148880,7 @@ act = 16;
 			goto _test_eof6090
 		}
 	st_case_6090:
-//line internal/fingerprinter/fingerprinter.go:148863
+//line internal/fingerprinter/fingerprinter.go:148884
 		switch data[p] {
 		case 43:
 			goto st319
@@ -148961,7 +148982,7 @@ tr6126:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6091
 	st6091:
@@ -148969,7 +148990,7 @@ act = 16;
 			goto _test_eof6091
 		}
 	st_case_6091:
-//line internal/fingerprinter/fingerprinter.go:148973
+//line internal/fingerprinter/fingerprinter.go:148994
 		switch data[p] {
 		case 43:
 			goto st319
@@ -149071,7 +149092,7 @@ tr6122:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6092
 	st6092:
@@ -149079,7 +149100,7 @@ act = 16;
 			goto _test_eof6092
 		}
 	st_case_6092:
-//line internal/fingerprinter/fingerprinter.go:149083
+//line internal/fingerprinter/fingerprinter.go:149104
 		switch data[p] {
 		case 43:
 			goto st319
@@ -149181,7 +149202,7 @@ tr5579:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6093
 	st6093:
@@ -149189,7 +149210,7 @@ act = 16;
 			goto _test_eof6093
 		}
 	st_case_6093:
-//line internal/fingerprinter/fingerprinter.go:149193
+//line internal/fingerprinter/fingerprinter.go:149214
 		switch data[p] {
 		case 43:
 			goto st319
@@ -149291,7 +149312,7 @@ tr6127:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6094
 	st6094:
@@ -149299,7 +149320,7 @@ act = 16;
 			goto _test_eof6094
 		}
 	st_case_6094:
-//line internal/fingerprinter/fingerprinter.go:149303
+//line internal/fingerprinter/fingerprinter.go:149324
 		switch data[p] {
 		case 43:
 			goto st319
@@ -149401,7 +149422,7 @@ tr6128:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6095
 	st6095:
@@ -149409,7 +149430,7 @@ act = 16;
 			goto _test_eof6095
 		}
 	st_case_6095:
-//line internal/fingerprinter/fingerprinter.go:149413
+//line internal/fingerprinter/fingerprinter.go:149434
 		switch data[p] {
 		case 43:
 			goto st319
@@ -149511,7 +149532,7 @@ tr6129:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6096
 	st6096:
@@ -149519,7 +149540,7 @@ act = 16;
 			goto _test_eof6096
 		}
 	st_case_6096:
-//line internal/fingerprinter/fingerprinter.go:149523
+//line internal/fingerprinter/fingerprinter.go:149544
 		switch data[p] {
 		case 43:
 			goto st319
@@ -149621,7 +149642,7 @@ tr5580:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6097
 	st6097:
@@ -149629,7 +149650,7 @@ act = 16;
 			goto _test_eof6097
 		}
 	st_case_6097:
-//line internal/fingerprinter/fingerprinter.go:149633
+//line internal/fingerprinter/fingerprinter.go:149654
 		switch data[p] {
 		case 43:
 			goto st319
@@ -149731,7 +149752,7 @@ tr6130:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6098
 	st6098:
@@ -149739,7 +149760,7 @@ act = 16;
 			goto _test_eof6098
 		}
 	st_case_6098:
-//line internal/fingerprinter/fingerprinter.go:149743
+//line internal/fingerprinter/fingerprinter.go:149764
 		switch data[p] {
 		case 43:
 			goto st319
@@ -149841,7 +149862,7 @@ tr6131:
 //line NONE:1
 te = p+1
 
-//line internal/fingerprinter/fingerprinter.rl:202
+//line internal/fingerprinter/fingerprinter.rl:215
 act = 16;
 	goto st6099
 	st6099:
@@ -149849,7 +149870,7 @@ act = 16;
 			goto _test_eof6099
 		}
 	st_case_6099:
-//line internal/fingerprinter/fingerprinter.go:149853
+//line internal/fingerprinter/fingerprinter.go:149874
 		switch data[p] {
 		case 43:
 			goto st319
@@ -168257,7 +168278,41 @@ st_case_0:
 	_out: {}
 	}
 
-//line internal/fingerprinter/fingerprinter.rl:226
+//line internal/fingerprinter/fingerprinter.rl:247
     s.SaveVars(cs, ts, te, act)
     return p, pe
+}
+
+func (fp *fingerprinterImpl) Fingerprint(input string) (fingerprint int64, level string) {
+	l := strings.TrimSpace(input)
+	l = strings.ToLower(l)
+	s, level := fp.tokenize(l)
+	return int64(xxhash.Sum64String(s)), level
+}
+
+func (fp *fingerprinterImpl) IsWord(word string) bool {
+    return fp.wordlist[word]
+}
+
+func (fp *fingerprinterImpl) tokenize(input string) (string, string) {
+	s := ragel.New("test", strings.NewReader(input), fp)
+	items := []string{}
+	level := ""
+	for {
+		_, tok, literal := s.Next()
+		switch tok {
+		case ragel.EOF:
+			return strings.Join(items, " "), level
+		case ragel.Error:
+		// TODO should increment a counter here...
+		case TokenLoglevel:
+			level = literal
+		case TokenString:
+            if fp.wordlist[literal] {
+                items = append(items, literal)
+            }
+		default:
+			items = append(items, "<"+fp.TokenString(tok)+">")
+		}
+	}
 }

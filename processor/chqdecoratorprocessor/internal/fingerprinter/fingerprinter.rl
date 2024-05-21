@@ -21,7 +21,9 @@ package fingerprinter
 
 import (
     "fmt"
+    "strings"
 
+    "github.com/cespare/xxhash/v2"
     "github.com/db47h/ragel/v2"
 )
 
@@ -60,13 +62,24 @@ var TokenNames = map[ragel.Token]string{
     TokenFQDN:        "FQDN",
 }
 
+type Fingerprinter interface {
+    TokenString(t ragel.Token) string
+    IsWord(word string) bool
+    Fingerprint(input string) (fingerprint int64, level string)
+}
+
+
+type fingerprinterImpl struct {
+    wordlist map[string]bool
+}
+
 // make golangci-lint happy
 var (
     _ = fingerprinter_en_main
     _ = fingerprinter_error
 )
 
-func (*Fingerprinter) TokenString(t ragel.Token) string {
+func (*fingerprinterImpl) TokenString(t ragel.Token) string {
     if t < 0 || t >= ragel.Token(len(TokenNames)) {
         return "Token(" + fmt.Sprintf("%d", t) + ")"
     }
@@ -211,18 +224,60 @@ func (*Fingerprinter) TokenString(t ragel.Token) string {
 
 %%write data nofinal;
 
-type Fingerprinter struct {}
+func NewFingerprinter() *fingerprinterImpl {
+    fp := fingerprinterImpl{
+        wordlist: make(map[string]bool),
+    }
+    for _, word := range englishWords {
+        fp.wordlist[word] = true
+    }
+    return &fp
+}
 
-func (Fingerprinter) Init(s *ragel.State) (int, int) {
+func (fingerprinterImpl) Init(s *ragel.State) (int, int) {
     var cs, ts, te, act int
     %%write init;
     s.SaveVars(cs, ts, te, act)
     return %%{ write start; }%%, %%{ write error; }%%
 }
 
-func (Fingerprinter) Run(s *ragel.State, p, pe, eof int) (int, int) {
+func (fingerprinterImpl) Run(s *ragel.State, p, pe, eof int) (int, int) {
     cs, ts, te, act, data := s.GetVars()
     %%write exec;
     s.SaveVars(cs, ts, te, act)
     return p, pe
+}
+
+func (fp *fingerprinterImpl) Fingerprint(input string) (fingerprint int64, level string) {
+	l := strings.TrimSpace(input)
+	l = strings.ToLower(l)
+	s, level := fp.tokenize(l)
+	return int64(xxhash.Sum64String(s)), level
+}
+
+func (fp *fingerprinterImpl) IsWord(word string) bool {
+    return fp.wordlist[word]
+}
+
+func (fp *fingerprinterImpl) tokenize(input string) (string, string) {
+	s := ragel.New("test", strings.NewReader(input), fp)
+	items := []string{}
+	level := ""
+	for {
+		_, tok, literal := s.Next()
+		switch tok {
+		case ragel.EOF:
+			return strings.Join(items, " "), level
+		case ragel.Error:
+		// TODO should increment a counter here...
+		case TokenLoglevel:
+			level = literal
+		case TokenString:
+            if fp.wordlist[literal] {
+                items = append(items, literal)
+            }
+		default:
+			items = append(items, "<"+fp.TokenString(tok)+">")
+		}
+	}
 }

@@ -24,6 +24,7 @@ spec:
         app.kubernetes.io/component: collector
         app.kubernetes.io/instance: collector-gke-dev-customerside
     spec:
+      serviceAccountName: loadbalancer
       securityContext:
         runAsNonRoot: true
         runAsUser: 2000
@@ -36,12 +37,11 @@ spec:
             - "--config=/app/config/config.yaml"
           env:
             - name: GOMEMLIMIT
-              value: "500MiB"
-            - name: MY_POD_IP
+              value: "400MiB"
+            - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
-                  apiVersion: v1
-                  fieldPath: status.podIP
+                  fieldPath: metadata.namespace
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: "Delta"
             - name: DATADOG_API_KEY
@@ -83,10 +83,10 @@ spec:
               type: RuntimeDefault
           resources:
             limits:
-              cpu: 400m
+              cpu: 500m
               memory: 600Mi
             requests:
-              cpu: 400m
+              cpu: 500m
               memory: 600Mi
           volumeMounts:
             - name: config

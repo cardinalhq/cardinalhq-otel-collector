@@ -51,8 +51,8 @@ data:
             tls:
               insecure: true
         resolver:
-          dns:
-            hostname: cardinal-collector-l2.collector.svc.cluster.local
+          k8s:
+            service: cardinal-collector-l2."${POD_NAMESPACE}"
             port: 14317
 
       loadbalancing/traces:
@@ -62,8 +62,8 @@ data:
             tls:
               insecure: true
         resolver:
-          dns:
-            hostname: cardinal-collector-l2.collector.svc.cluster.local
+          k8s:
+            service: cardinal-collector-l2."${POD_NAMESPACE}"
             port: 14317
 
     processors:

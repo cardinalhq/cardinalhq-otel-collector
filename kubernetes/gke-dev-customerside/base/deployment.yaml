@@ -37,7 +37,7 @@ spec:
             - "--config=/app/config/config.yaml"
           env:
             - name: GOMEMLIMIT
-              value: "700MiB"
+              value: "500MiB"
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:

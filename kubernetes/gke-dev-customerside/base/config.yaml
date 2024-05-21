@@ -53,6 +53,8 @@ data:
         resolver:
           k8s:
             service: "cardinal-collector-l2.${POD_NAMESPACE}"
+            ports:
+              - 14317
 
       loadbalancing/traces:
         routing_key: "traceID"
@@ -63,6 +65,8 @@ data:
         resolver:
           k8s:
             service: "cardinal-collector-l2.${POD_NAMESPACE}"
+            ports:
+              - 14317
 
     processors:
       # Limit collector process memory usage.  This should be the first processor

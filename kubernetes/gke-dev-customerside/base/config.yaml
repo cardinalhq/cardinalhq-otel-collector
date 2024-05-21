@@ -121,6 +121,17 @@ data:
         traces:
           span:
             - 'attributes["_cardinalhq.filtered"] == true'
+      filter/chqhq:
+        error_mode: ignore
+        logs:
+          log_record:
+            - 'attributes["_cardinalhq.aggregated"] == true'
+        metrics:
+          datapoint:
+            - 'attributes["_cardinalhq.aggregated"] == true'
+        traces:
+          span:
+            - 'attributes["_cardinalhq.aggregated"] == true'
       attributes/chq:
         actions:
           - action: delete
@@ -170,6 +181,7 @@ data:
           exporters: [forward/mergedmetrics, forward/filtered]
         metrics/chq:
           receivers: [forward/mergedmetrics]
+          processors: [filter/chqhq]
           exporters: [otlp/cardinalhq]
         metrics/filtered:
           receivers: [forward/filtered]

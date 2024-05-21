@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/fingerprinter"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/sampler"
@@ -36,6 +37,7 @@ type logProcessor struct {
 	logger        *zap.Logger
 	configManager sampler.ConfigManager
 	updaterId     int
+	finger        fingerprinter.Fingerprinter
 }
 
 func newLogsProcessor(set processor.CreateSettings, conf *Config) (*logProcessor, error) {
@@ -69,6 +71,8 @@ func newLogsProcessor(set processor.CreateSettings, conf *Config) (*logProcessor
 		"Decorator processor configured",
 	)
 
+	lp.finger = fingerprinter.NewFingerprinter()
+
 	return lp, nil
 }
 
@@ -77,6 +81,19 @@ func getServiceName(rattr pcommon.Map) string {
 		return serviceName.AsString()
 	}
 	return "unknown-service"
+}
+
+var (
+	newFingerprintLock sync.Mutex
+	fingerprints       = map[int64]int64{}
+)
+
+func addFingerprint(fingerprint int64) int64 {
+	newFingerprintLock.Lock()
+	defer newFingerprintLock.Unlock()
+	val := fingerprints[fingerprint]
+	fingerprints[fingerprint] = val + 1
+	return val
 }
 
 func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
@@ -90,7 +107,11 @@ func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs,
 			sl := rl.ScopeLogs().At(j)
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				log := sl.LogRecords().At(k)
-				fingerprint, level := fingerprinter.Fingerprint(log.Body().AsString())
+				serviceName := getServiceName(rl.Resource().Attributes())
+				fingerprint, level := lp.finger.Fingerprint(log.Body().AsString())
+				if addFingerprint(fingerprint) == 0 {
+					lp.logger.Debug("New fingerprint", zap.Int64("fingerprint", fingerprint), zap.String("service", serviceName), zap.String("level", level))
+				}
 				fingerprintString := fmt.Sprintf("%d", fingerprint)
 				log.Attributes().PutInt("_cardinalhq.fingerprint", fingerprint)
 				log.Attributes().PutStr("_cardinalhq.level", level)
@@ -99,7 +120,6 @@ func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs,
 				log.Attributes().PutStr("_cardinalhq.rule_match", rule_match)
 				log.Attributes().PutBool("_cardinalhq.filtered", wasFiltered)
 				log.Attributes().PutBool("_cardinalhq.would_filter", wasFiltered)
-				serviceName := getServiceName(rl.Resource().Attributes())
 				key := fmt.Sprintf("%s:%d", serviceName, fingerprint)
 				processed++
 				processedKeys[key]++

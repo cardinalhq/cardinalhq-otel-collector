@@ -33,17 +33,17 @@ func TestFingerprinterWithKafkaBroker0(t *testing.T) {
 	}
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
+	fp := NewFingerprinter()
 	for scanner.Scan() {
 		input := scanner.Text()
 		t.Run(input, func(t *testing.T) {
-			fp := Fingerprinter{}
-			s := ragel.New("test", strings.NewReader(strings.ToLower(input)), &fp)
-			_ = consumet(t, s, &fp)
+			s := ragel.New("test", strings.NewReader(strings.ToLower(input)), fp)
+			_ = consumet(t, s, fp)
 		})
 	}
 }
 
-func consumet(t *testing.T, s *ragel.Scanner, fingerprinter *Fingerprinter) string {
+func consumet(t *testing.T, s *ragel.Scanner, fp Fingerprinter) string {
 	items := []string{}
 	for {
 		pos, tok, literal := s.Next()
@@ -53,9 +53,11 @@ func consumet(t *testing.T, s *ragel.Scanner, fingerprinter *Fingerprinter) stri
 		case ragel.Error:
 			t.Fatalf("scan error: %v: %v\n", s.Pos(pos), literal)
 		case TokenString:
-			items = append(items, literal)
+			if fp.IsWord(literal) {
+				items = append(items, literal)
+			}
 		default:
-			items = append(items, "<"+fingerprinter.TokenString(tok)+">")
+			items = append(items, "<"+fp.TokenString(tok)+">")
 		}
 	}
 }
@@ -162,12 +164,17 @@ func TestFingerprinter(t *testing.T) {
 			`   foo = CLIENT://:1234,INTERNAL://:5678`,
 			"foo <Url> <Url>",
 		},
+		{
+			"sample log 4",
+			`Receive ListRecommendations for product ids:['OLJCESPC7Z', '6E92ZMYYFZ', '1YMWWN1N4O', 'L9ECAV7KIM', '2ZYFJ3GM2N']`,
+			"receive for product ids",
+		},
 	}
 	for _, tt := range tests {
+		fp := NewFingerprinter()
 		t.Run(tt.name, func(t *testing.T) {
-			fp := Fingerprinter{}
 			s := ragel.New("test", strings.NewReader(strings.ToLower(tt.input)), fp)
-			got := consumet(t, s, &fp)
+			got := consumet(t, s, fp)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -175,17 +182,17 @@ func TestFingerprinter(t *testing.T) {
 
 func BenchmarkFingerprinter1(b *testing.B) {
 	input := "[2024-04-06 21:23:32,742] INFO [GroupCoordinator 100]: Preparing to rebalance group metadata.ingest.stats.consumer in state PreparingRebalance with old generation 14 (__consumer_offsets-14) (reason: Adding new member metadata.ingest.stats.consumer-0-e78065b6-0f83-4397-92ae-965997f4b1a2 with group instance id Some(metadata.ingest.stats.consumer-0); client reason: not provided) (kafka.coordinator.group.GroupCoordinator)"
-	fingerprinter := &Fingerprinter{}
-	s := ragel.New("test", strings.NewReader(strings.ToLower(input)), fingerprinter)
+	fp := NewFingerprinter()
+	s := ragel.New("test", strings.NewReader(strings.ToLower(input)), fp)
 	log.Printf("Running loop for %d times", b.N)
 	for i := 0; i < b.N; i++ {
 		s.Reset()
-		line := consumeb(b, s, fingerprinter)
+		line := consumeb(b, s, fp)
 		xxhash.Sum64String(line)
 	}
 }
 
-func consumeb(b *testing.B, s *ragel.Scanner, fingerprinter *Fingerprinter) string {
+func consumeb(b *testing.B, s *ragel.Scanner, fp Fingerprinter) string {
 	items := []string{}
 	for {
 		pos, tok, literal := s.Next()
@@ -195,9 +202,11 @@ func consumeb(b *testing.B, s *ragel.Scanner, fingerprinter *Fingerprinter) stri
 		case ragel.Error:
 			b.Fatalf("scan error: %v: %v\n", s.Pos(pos), literal)
 		case TokenString:
-			items = append(items, literal)
+			if fp.IsWord(literal) {
+				items = append(items, literal)
+			}
 		default:
-			items = append(items, "<"+fingerprinter.TokenString(tok)+">")
+			items = append(items, "<"+fp.TokenString(tok)+">")
 		}
 	}
 }

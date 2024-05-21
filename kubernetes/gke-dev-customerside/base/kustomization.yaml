@@ -6,3 +6,15 @@ resources:
   - service.yaml
   - deployment.yaml
   - config.yaml
+  - rbac.yaml
+patchesJson6902:
+- patch: |-
+    - op: add
+      path: /subjects/0/namespace
+      value: 
+        collector
+  target:
+    group: rbac.authorization.k8s.io
+    kind: RoleBinding
+    version: v1
+    name: loadbalancer-rolebinding

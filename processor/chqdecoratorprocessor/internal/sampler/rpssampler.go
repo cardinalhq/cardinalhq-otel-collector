@@ -146,7 +146,7 @@ func (a *RPSSampler) updateMaps() {
 	// check to see if we fall below the minimum
 	targetMinimumCount := float64(a.MinEventsPerSec) * a.ClearFrequencyDuration.Seconds()
 	if a.Logger != nil {
-		a.Logger.Info("updateMaps", zap.Float64("sumEvents", sumEvents), zap.Float64("targetMinimumCount", targetMinimumCount))
+		a.Logger.Debug("updateMaps", zap.Float64("sumEvents", sumEvents), zap.Float64("targetMinimumCount", targetMinimumCount))
 	}
 	if sumEvents < targetMinimumCount {
 		// we still need to go through each key to set sample rates individually
@@ -161,7 +161,7 @@ func (a *RPSSampler) updateMaps() {
 
 	updatedGoalSampleRate := math.Ceil(float64(sumEvents) / float64(targetMinimumCount))
 	if a.Logger != nil {
-		a.Logger.Info("updateMaps", zap.Float64("updatedGoalSampleRate", updatedGoalSampleRate))
+		a.Logger.Debug("updateMaps", zap.Float64("updatedGoalSampleRate", updatedGoalSampleRate))
 	}
 	goalCount := float64(sumEvents) / updatedGoalSampleRate
 

@@ -184,7 +184,7 @@ func samplerForType(c LogSamplingConfig, logger *zap.Logger) (ruleType LogRuleTy
 		case 0:
 			return LogRuleTypeRPS, NewStaticSampler(c.RPS)
 		default:
-			return LogRuleTypeRPS, &RPSSampler{MinEventsPerSec: c.RPS, Logger: logger}
+			return LogRuleTypeRPS, NewRPSSampler(WithMinEventsPerSec(c.RPS), WithLogger(logger))
 		}
 	}
 	return LogRuleTypeUnknown, nil

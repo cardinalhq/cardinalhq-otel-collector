@@ -52,7 +52,7 @@ data:
               insecure: true
         resolver:
           k8s:
-            service: cardinal-collector-l2."${POD_NAMESPACE}"
+            service: "cardinal-collector-l2.${POD_NAMESPACE}"
 
       loadbalancing/traces:
         routing_key: "traceID"
@@ -62,7 +62,7 @@ data:
               insecure: true
         resolver:
           k8s:
-            service: cardinal-collector-l2."${POD_NAMESPACE}"
+            service: "cardinal-collector-l2.${POD_NAMESPACE}"
 
     processors:
       # Limit collector process memory usage.  This should be the first processor

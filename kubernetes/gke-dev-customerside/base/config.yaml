@@ -121,25 +121,40 @@ data:
         traces:
           span:
             - 'attributes["_cardinalhq.filtered"] == true'
+
+      # Items marked with _cardinalhq.aggregated_output are not sent to
+      # CardinalHQ, as the metrics they represent would already be
+      # included in the detailed metrics.
       filter/chqhq:
         error_mode: ignore
         logs:
           log_record:
-            - 'attributes["_cardinalhq.aggregated"] == true'
+            - 'attributes["_cardinalhq.aggregated_output"] == true'
         metrics:
           datapoint:
-            - 'attributes["_cardinalhq.aggregated"] == true'
+            - 'attributes["_cardinalhq.aggregated_output"] == true'
         traces:
           span:
-            - 'attributes["_cardinalhq.aggregated"] == true'
+            - 'attributes["_cardinalhq.aggregated_output"] == true'
+
+      # This processor should be added to the list of processors that
+      # are in the pipeline destined to the upstream provider, such as
+      # Datadog.  It should NOT be used to filter output sent to
+      # CardinalHQ.
       attributes/chq:
         actions:
           - action: delete
             pattern: '^_cardinalhq.*'
 
     connectors:
+      # Simple forwarders to make us do less overall work.
       forward/filtered:
       forward/mergedmetrics:
+
+      # Span metrics processor.  This is a special processor that
+      # takes trace data and generates metrics from it.
+      # This is used by CardinalHQ, and its output should be sent
+      # to the CardinalHQ exporter.
       spanmetrics/chq:
         aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
         metrics_expiration: 1h

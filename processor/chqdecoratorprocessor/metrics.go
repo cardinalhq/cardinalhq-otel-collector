@@ -205,6 +205,7 @@ func setTags(res pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, metric pmetri
 			setMetadata(res, sm, metric, tagname, v)
 		}
 	}
+	dp.Attributes().PutBool("_cardinalhq.aggregated_output", true)
 }
 
 func setMetadata(res pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, metric pmetric.Metric, tagname string, v string) {

@@ -7,7 +7,7 @@ metadata:
     app.kubernetes.io/instance: collector-gke-dev-customerside
   name: cardinal-collector
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: cardinalhq

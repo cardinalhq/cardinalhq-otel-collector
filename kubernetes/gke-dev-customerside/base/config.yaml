@@ -9,13 +9,13 @@ metadata:
 data:
   config.yaml: |-
     receivers:
-      otlp/l2:
+      otlp:
         protocols:
           grpc:
             endpoint: 0.0.0.0:4317
           http:
             endpoint: 0.0.0.0:4318
-      otlp:
+      otlp/l2:
         protocols:
           grpc:
             endpoint: 0.0.0.0:14317

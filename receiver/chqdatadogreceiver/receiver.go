@@ -14,6 +14,7 @@ import (
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/receiver"
 	"go.opentelemetry.io/collector/receiver/receiverhelper"
+	"go.uber.org/zap"
 )
 
 type datadogReceiver struct {
@@ -140,10 +141,16 @@ func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request)
 	ddLogs, err := handleLogsPayload(req)
 	if err != nil {
 		http.Error(w, "Unable to unmarshal reqs", http.StatusBadRequest)
-		ddr.params.Logger.Error("Unable to unmarshal reqs")
+		ddr.params.Logger.Error("Unable to unmarshal reqs", zap.Error(err))
 		return
 	}
 	logCount = len(ddLogs)
+	err = ddr.processLogs(ddLogs)
+	if err != nil {
+		http.Error(w, "Log consumer errored out", http.StatusInternalServerError)
+		ddr.params.Logger.Error("processLogs", zap.Error(err))
+		return
+	}
 
 	_, _ = w.Write([]byte("OK"))
 }

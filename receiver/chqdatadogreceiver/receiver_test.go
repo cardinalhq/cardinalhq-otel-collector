@@ -20,7 +20,6 @@ import (
 )
 
 func TestDatadogReceiver_Lifecycle(t *testing.T) {
-
 	factory := NewFactory()
 	cfg := factory.CreateDefaultConfig()
 	cfg.(*Config).Endpoint = "localhost:0"
@@ -39,9 +38,9 @@ func TestDatadogServer(t *testing.T) {
 	cfg.Endpoint = "localhost:0" // Using a randomly assigned address
 	dd, err := newDataDogReceiver(
 		cfg,
-		consumertest.NewNop(),
 		receivertest.NewNopCreateSettings(),
 	)
+	dd.(*datadogReceiver).nextTraceConsumer = consumertest.NewNop()
 	require.NoError(t, err, "Must not error when creating receiver")
 
 	ctx, cancel := context.WithCancel(context.Background())

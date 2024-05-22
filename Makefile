@@ -29,7 +29,7 @@ BINARIES = cardinalhq-otel-collector
 # Dockerfiles should have a target that ends in -image, e.g. agent-image.
 IMAGE_TARGETS = cardinalhq-otel-collector
 
-LINT_TEST_SOURCE_PATHS = processor/...
+LINT_TEST_SOURCE_PATHS = processor/chqdecoratorprocessor exporter/chqs3exporter receiver/chqdatadogreceiver
 
 #
 # Below here lies magic...
@@ -59,7 +59,9 @@ generate:
 #
 check: test
 	license-eye header check
-	golangci-lint run $(LINT_TEST_SOURCE_PATHS)
+	for i in $(LINT_TEST_SOURCE_PATHS); do \
+		(echo ============ linting $$i ... ; cd $$i && golangci-lint run) \
+	done
 
 #
 # make a buildtime directory to hold the build timestamp files
@@ -104,7 +106,9 @@ image-names:
 
 .PHONY: test
 test: generate
-	go test -v ${LINT_TEST_SOURCE_PATHS}
+	for i in $(LINT_TEST_SOURCE_PATHS); do \
+		(echo ============ testing $$i ... ; cd $$i && go test ./...) \
+	done
 
 #
 # Clean the world.

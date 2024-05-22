@@ -21,16 +21,10 @@ func NewFactory() receiver.Factory {
 	return receiver.NewFactory(
 		metadata.Type,
 		createDefaultConfig,
-		receiver.WithTraces(createTracesReceiver, metadata.TracesStability),
 		receiver.WithLogs(createLogsReceiver, metadata.LogsStability),
+		receiver.WithTraces(createTracesReceiver, metadata.TracesStability),
 	)
-
 }
-
-var (
-	_ receiver.Traces = (*datadogReceiver)(nil)
-	_ receiver.Logs   = (*datadogReceiver)(nil)
-)
 
 func createDefaultConfig() component.Config {
 	return &Config{
@@ -42,16 +36,19 @@ func createDefaultConfig() component.Config {
 }
 
 func createTracesReceiver(_ context.Context, params receiver.CreateSettings, cfg component.Config, consumer consumer.Traces) (ret receiver.Traces, err error) {
+	params.Logger.Info("Creating traces receiver")
 	rcfg := cfg.(*Config)
 	r := receivers.GetOrAdd(cfg, func() component.Component {
 		dd, _ := newDataDogReceiver(rcfg, params)
 		return dd
 	})
+
 	r.Unwrap().(*datadogReceiver).nextTraceConsumer = consumer
 	return r, nil
 }
 
 func createLogsReceiver(_ context.Context, params receiver.CreateSettings, cfg component.Config, consumer consumer.Logs) (ret receiver.Logs, err error) {
+	params.Logger.Info("Creating logs receiver")
 	rcfg := cfg.(*Config)
 	r := receivers.GetOrAdd(cfg, func() component.Component {
 		dd, _ := newDataDogReceiver(rcfg, params)

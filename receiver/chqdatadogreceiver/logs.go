@@ -20,7 +20,9 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
@@ -48,9 +50,9 @@ func handleLogsPayload(req *http.Request) (ret []*DDLog, err error) {
 	return ddLogs, nil
 }
 
-func (ddr *datadogReceiver) processLogs(logs []*DDLog) error {
+func (ddr *datadogReceiver) processLogs(t pcommon.Timestamp, logs []*DDLog) error {
 	for _, log := range logs {
-		otelLog, err := ddr.convertLog(log)
+		otelLog, err := ddr.convertLog(t, log)
 		if err != nil {
 			return err
 		}
@@ -61,18 +63,67 @@ func (ddr *datadogReceiver) processLogs(logs []*DDLog) error {
 	return nil
 }
 
-func (ddr *datadogReceiver) convertLog(log *DDLog) (plog.Logs, error) {
+func splitTags(tags string) map[string]string {
+	tagMap := make(map[string]string)
+	if tags == "" {
+		return tagMap
+	}
+	for _, tag := range strings.Split(tags, ",") {
+		kv := strings.Split(tag, ":")
+		if len(kv) == 2 {
+			tagMap[kv[0]] = kv[1]
+		}
+	}
+	return tagMap
+}
+
+func (ddr *datadogReceiver) convertLog(t pcommon.Timestamp, log *DDLog) (plog.Logs, error) {
 	lm := plog.NewLogs()
 	rl := lm.ResourceLogs().AppendEmpty()
-	rlAttr := rl.Resource().Attributes()
-	rlAttr.PutStr(string(semconv.ServiceNameKey), log.Service)
-	rlAttr.PutStr(string(semconv.HostNameKey), log.Hostname)
-	ill := rl.ScopeLogs().AppendEmpty()
-	logRecord := ill.LogRecords().AppendEmpty()
+	rAttr := rl.Resource().Attributes()
+	rAttr.PutStr(string(semconv.ServiceNameKey), log.Service)
+	rAttr.PutStr(string(semconv.HostNameKey), log.Hostname)
+	scope := rl.ScopeLogs().AppendEmpty()
+	sAttr := scope.Scope().Attributes()
+	logRecord := scope.LogRecords().AppendEmpty()
+	logRecord.SetObservedTimestamp(t)
 	logRecord.Body().SetStr(log.Message)
-	logRecord.Attributes().PutStr("ddsource", log.DDSource)
-	logRecord.Attributes().PutStr("ddtags", log.DDTags)
-	logRecord.Attributes().PutStr("hostname", log.Hostname)
-	logRecord.Attributes().PutStr("service", log.Service)
+	lAttr := logRecord.Attributes()
+	lAttr.PutStr("dd.source", log.DDSource)
+
+	tags := splitTags(log.DDTags)
+	if v, ok := tags["status"]; ok {
+		v = strings.ToLower(v)
+		switch v {
+		case "error":
+			logRecord.SetSeverityNumber(plog.SeverityNumberError)
+		case "warn":
+			logRecord.SetSeverityNumber(plog.SeverityNumberWarn)
+		case "info":
+			logRecord.SetSeverityNumber(plog.SeverityNumberInfo)
+		case "debug":
+			logRecord.SetSeverityNumber(plog.SeverityNumberDebug)
+		case "trace":
+			logRecord.SetSeverityNumber(plog.SeverityNumberTrace)
+		default:
+			logRecord.SetSeverityNumber(plog.SeverityNumberUnspecified)
+		}
+		logRecord.SetSeverityText(v)
+		delete(tags, "status")
+	}
+	for k, v := range tags {
+		decorate(k, v, rAttr, sAttr, lAttr)
+	}
 	return lm, nil
+}
+
+func decorate(k, v string, rAttr, sAttr, lAttr pcommon.Map) {
+	switch k {
+	case "env":
+		rAttr.PutStr(string(semconv.DeploymentEnvironmentKey), v)
+	case "language":
+		sAttr.PutStr(string(semconv.TelemetrySDKLanguageKey), v)
+	default:
+		lAttr.PutStr("dd."+k, v)
+	}
 }

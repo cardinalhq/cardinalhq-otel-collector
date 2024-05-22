@@ -18,7 +18,6 @@ dist:
   output_path: ./bin
 
 receivers:
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/datadogreceiver v0.100.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/hostmetricsreceiver v0.100.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/jaegerreceiver v0.100.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/kafkareceiver v0.100.0
@@ -27,6 +26,8 @@ receivers:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/zipkinreceiver v0.100.0
   - gomod: go.opentelemetry.io/collector/receiver/nopreceiver v0.100.0
   - gomod: go.opentelemetry.io/collector/receiver/otlpreceiver v0.100.0
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver v0.31.0
+    path: ./receiver/chqdatadogreceiver
 
 exporters:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awss3exporter v0.100.0

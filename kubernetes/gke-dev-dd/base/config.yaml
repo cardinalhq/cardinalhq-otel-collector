@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: cardinalhq
+    app.kubernetes.io/component: collector
+    app.kubernetes.io/instance: collector-gke-dev-dd
+  name: cardinal-collector-config
+data:
+  config.yaml: |-
+    receivers:
+      chqdatadog:
+        endpoint: 0.0.0.0:8126
+    exporters:
+      debug:
+        verbosity: detailed
+        sampling_initial: 9999999
+        sampling_thereafter: 1
+
+    service:
+      pipelines:
+        traces:
+          receivers: [chqdatadog]
+          exporters: [debug]
+        logs:
+          receivers: [chqdatadog]
+          exporters: [debug]

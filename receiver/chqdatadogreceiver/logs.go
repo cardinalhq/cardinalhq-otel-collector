@@ -15,9 +15,9 @@
 package datadogreceiver
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -37,13 +37,19 @@ type DDLog struct {
 
 func handleLogsPayload(req *http.Request) (ret []*DDLog, err error) {
 	ret = make([]*DDLog, 0)
-	defer func() {
-		_, errs := io.Copy(io.Discard, req.Body)
-		err = errors.Join(err, errs, req.Body.Close())
-	}()
+
+	var from io.ReadCloser = req.Body
+	defer req.Body.Close()
+	if req.Header.Get("Content-Encoding") == "gzip" {
+		from, err = gzip.NewReader(req.Body)
+		if err != nil {
+			return nil, err
+		}
+		defer from.Close()
+	}
 
 	var ddLogs []*DDLog
-	err = json.NewDecoder(req.Body).Decode(&ddLogs)
+	err = json.NewDecoder(from).Decode(&ddLogs)
 	if err != nil {
 		return nil, err
 	}

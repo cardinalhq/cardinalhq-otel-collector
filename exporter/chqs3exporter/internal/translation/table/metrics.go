@@ -235,6 +235,8 @@ type DDWrapper struct {
 	Attributes     map[string]any
 }
 
+// TODO this is likely going to be useful someday, but not today...
+// nolint:unused
 func convertToDDSketch(dp pmetric.ExponentialHistogramDataPoint) (*DDWrapper, error) {
 	// Create a new DDSketch with a relative accuracy of 0.01
 	sketch, err := ddsketch.NewDefaultDDSketch(0.01)

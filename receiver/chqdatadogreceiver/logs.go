@@ -123,7 +123,33 @@ func decorate(k, v string, rAttr, sAttr, lAttr pcommon.Map) {
 		rAttr.PutStr(string(semconv.DeploymentEnvironmentKey), v)
 	case "language":
 		sAttr.PutStr(string(semconv.TelemetrySDKLanguageKey), v)
+	case "image_name":
+		rAttr.PutStr(string(semconv.ContainerImageNameKey), v)
+	case "image_tag":
+		rAttr.PutStr(string(semconv.ContainerImageTagKey), v)
+	case "pod_name":
+		rAttr.PutStr(string(semconv.K8SPodNameKey), v)
+	case "kube_deployment":
+		rAttr.PutStr(string(semconv.K8SDeploymentNameKey), v)
+	case "kube_qos":
+		rAttr.PutStr("dd.kube_qos", v)
+	case "pod_phase":
+		rAttr.PutStr("dd.pod_phase", v)
+	case "kube_namespace":
+		rAttr.PutStr(string(semconv.K8SNamespaceNameKey), v)
+	case "kube_replica_set":
+		rAttr.PutStr(string(semconv.K8SReplicasetNameKey), v)
+	case "kube_ownerref_kind":
+		rAttr.PutStr("dd.kube_ownerref_kind", v)
+	case "kube_service":
+		rAttr.PutStr("dd.kube_service", v)
+	case "short_image":
+		rAttr.PutStr("dd.short_image", v)
+	case "kube_container_name":
+		rAttr.PutStr(string(semconv.ContainerNameKey), v)
+	case "contianer_id":
+		rAttr.PutStr(string(semconv.ContainerIDKey), v)
 	default:
-		lAttr.PutStr("dd."+k, v)
+		rAttr.PutStr("dd."+k, v)
 	}
 }

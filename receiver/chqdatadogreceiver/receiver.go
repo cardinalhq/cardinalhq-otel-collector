@@ -137,6 +137,9 @@ func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request)
 		http.Error(w, "Invalid content type", http.StatusUnsupportedMediaType)
 		return
 	}
+	contentEncoding := req.Header.Get("Content-Encoding")
+	ddr.params.Logger.Info("Content-Encoding", zap.String("Content-Encoding", contentEncoding))
+
 	obsCtx := ddr.tReceiver.StartLogsOp(req.Context())
 	var err error
 	var logCount int

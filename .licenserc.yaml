@@ -5,7 +5,6 @@ header:
 
   paths-ignore:
     - 'bin'
-    - internal
     - receiver/chqdatadogreceiver
     - 'buildtime'
     - '**/*.md'

@@ -12,8 +12,8 @@ import (
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/receiver"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sharedcomponent"
-	"github.com/cardinalhq/cardinalhq-otel-collector/receiver/datadogreceiver/internal/metadata"
+	"github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver/internal/metadata"
+	"github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver/internal/sharedcomponent"
 )
 
 // NewFactory creates a factory for DataDog receiver.

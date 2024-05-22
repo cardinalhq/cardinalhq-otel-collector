@@ -1,10 +1,9 @@
-module github.com/cardinalhq/cardinalhq-otel-collector/receiver/datadogreceiver
+module github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver
 
 go 1.21.0
 
 require (
 	github.com/DataDog/datadog-agent/pkg/proto v0.54.0-rc.4
-	github.com/cardinalhq/cardinalhq-otel-collector/internal/sharedcomponent v0.101.0
 	github.com/stretchr/testify v1.9.0
 	github.com/vmihailenco/msgpack/v4 v4.3.13
 	go.opentelemetry.io/collector/component v0.101.0
@@ -77,8 +76,6 @@ require (
 	google.golang.org/grpc v1.63.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/cardinalhq/cardinalhq-otel-collector/internal/sharedcomponent => ../../internal/sharedcomponent
 
 retract (
 	v0.76.2

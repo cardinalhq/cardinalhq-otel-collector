@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-TARGETS=
+TARGETS=bin/cardinalhq-otel-collector
 PLATFORM=linux/amd64,linux/arm64
 BUILDX=docker buildx build --pull --platform ${PLATFORM}
 IMAGE_PREFIX=us-central1-docker.pkg.dev/profound-ship-384422/cardinalhq/
@@ -63,6 +63,11 @@ check: test
 		(echo ============ linting $$i ... ; cd $$i && golangci-lint run) \
 	done
 
+
+# requires otel builder to be installed.
+# go install go.opentelemetry.io/collector/cmd/builder@latest
+bin/cardinalhq-otel-collector: cardinalhq-otel-collector.yaml
+	CGO_ENABLED=0 go run go.opentelemetry.io/collector/cmd/builder@latest --config cardinalhq-otel-collector.yaml 
 #
 # make a buildtime directory to hold the build timestamp files
 buildtime:

@@ -37,7 +37,7 @@ spec:
             - "--config=/app/config/config.yaml"
           env:
             - name: GOMEMLIMIT
-              value: "500MiB"
+              value: "100MiB"
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -67,11 +67,11 @@ spec:
               type: RuntimeDefault
           resources:
             limits:
-              cpu: 500m
-              memory: 1000Mi
+              cpu: 200m
+              memory: 200Mi
             requests:
-              cpu: 500m
-              memory: 1000Mi
+              cpu: 200m
+              memory: 200Mi
           volumeMounts:
             - name: config
               mountPath: /app/config

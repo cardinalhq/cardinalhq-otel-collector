@@ -70,8 +70,8 @@ func splitTags(tags string) map[string]string {
 	}
 	for _, tag := range strings.Split(tags, ",") {
 		kv := strings.Split(tag, ":")
-		if len(kv) == 2 {
-			tagMap[kv[0]] = kv[1]
+		if len(kv) == 2 && kv[1] != "" && kv[0] != "" {
+			tagMap[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
 		}
 	}
 	return tagMap

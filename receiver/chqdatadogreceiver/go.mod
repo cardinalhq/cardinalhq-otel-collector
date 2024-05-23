@@ -4,6 +4,7 @@ go 1.21.0
 
 require (
 	github.com/DataDog/datadog-agent/pkg/proto v0.54.0-rc.4
+	github.com/barweiss/go-tuple v1.1.2
 	github.com/stretchr/testify v1.9.0
 	github.com/vmihailenco/msgpack/v4 v4.3.13
 	go.opentelemetry.io/collector/component v0.101.0
@@ -18,6 +19,8 @@ require (
 	go.uber.org/goleak v1.3.0
 	google.golang.org/protobuf v1.34.1
 )
+
+require golang.org/x/exp v0.0.0-20220314205449-43aec2f8a4e7 // indirect
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect

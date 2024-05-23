@@ -5,29 +5,26 @@ package datadogreceiver // import "github.com/open-telemetry/opentelemetry-colle
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
 	ddpbtrace "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
-	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/receiver"
 	"go.opentelemetry.io/collector/receiver/receiverhelper"
-	"go.uber.org/zap"
 )
 
 type datadogReceiver struct {
-	address           string
-	config            *Config
-	params            receiver.CreateSettings
-	nextTraceConsumer consumer.Traces
-	nextLogConsumer   consumer.Logs
-	server            *http.Server
-	tReceiver         *receiverhelper.ObsReport
+	address            string
+	config             *Config
+	params             receiver.CreateSettings
+	nextTraceConsumer  consumer.Traces
+	nextLogConsumer    consumer.Logs
+	nextMetricConsumer consumer.Metrics
+	server             *http.Server
+	tReceiver          *receiverhelper.ObsReport
 }
 
 func newDataDogReceiver(config *Config, params receiver.CreateSettings) (component.Component, error) {
@@ -47,16 +44,18 @@ func newDataDogReceiver(config *Config, params receiver.CreateSettings) (compone
 }
 
 func (ddr *datadogReceiver) Start(ctx context.Context, host component.Host) error {
-	ddr.params.Logger.Info("Starting Datadog receiver", zap.String("address", ddr.address))
-	ddr.params.Logger.Info("next", zap.Any("nextTraceConsumer", ddr.nextTraceConsumer), zap.Any("nextLogConsumer", ddr.nextLogConsumer))
-
 	ddmux := http.NewServeMux()
 	ddmux.HandleFunc("/v0.3/traces", ddr.handleTraces)
 	ddmux.HandleFunc("/v0.4/traces", ddr.handleTraces)
 	ddmux.HandleFunc("/v0.5/traces", ddr.handleTraces)
 	ddmux.HandleFunc("/v0.7/traces", ddr.handleTraces)
 	ddmux.HandleFunc("/api/v0.2/traces", ddr.handleTraces)
+
 	ddmux.HandleFunc("/api/v2/logs", ddr.handleLogs)
+
+	ddmux.HandleFunc("/api/v1/series", ddr.handleV1Series)
+	ddmux.HandleFunc("/api/v2/series", ddr.handleV2Series)
+
 	ddmux.HandleFunc("/api/v1/validate", ddr.handleV1Validate)
 	ddmux.HandleFunc("/intake", ddr.handleIntake)
 
@@ -126,69 +125,4 @@ func (ddr *datadogReceiver) handleTraces(w http.ResponseWriter, req *http.Reques
 	}
 
 	_, _ = w.Write([]byte("OK"))
-}
-
-func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		http.Error(w, "Invalid method", http.StatusMethodNotAllowed)
-		return
-	}
-	if req.Header.Get("Content-Type") != "application/json" {
-		http.Error(w, "Invalid content type", http.StatusUnsupportedMediaType)
-		return
-	}
-	contentEncoding := req.Header.Get("Content-Encoding")
-	ddr.params.Logger.Info("Content-Encoding", zap.String("Content-Encoding", contentEncoding))
-
-	obsCtx := ddr.tReceiver.StartLogsOp(req.Context())
-	var err error
-	var logCount int
-	defer func(logCount *int) {
-		ddr.tReceiver.EndLogsOp(obsCtx, "datadog", *logCount, err)
-	}(&logCount)
-
-	ddLogs, err := handleLogsPayload(req)
-	if err != nil {
-		http.Error(w, "Unable to unmarshal reqs", http.StatusBadRequest)
-		ddr.params.Logger.Error("Unable to unmarshal reqs", zap.Error(err))
-		return
-	}
-	logCount = len(ddLogs)
-	t := pcommon.NewTimestampFromTime(time.Now())
-	err = ddr.processLogs(t, ddLogs)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err)
-		ddr.params.Logger.Error("processLogs", zap.Error(err))
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusAccepted)
-	_, _ = w.Write([]byte(""))
-}
-
-type DDErrorWrapper struct {
-	Errors []DDError `json:"errors"`
-}
-
-type DDError struct {
-	Detail string `json:"detail"`
-	Status string `json:"status"`
-	Title  string `json:"title"`
-}
-
-func writeError(w http.ResponseWriter, code int, err error) {
-	e := DDErrorWrapper{
-		Errors: []DDError{
-			{
-				Detail: err.Error(),
-				Status: fmt.Sprintf("%d", code),
-				Title:  http.StatusText(code),
-			},
-		},
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	b, _ := json.Marshal(e)
-	_, _ = w.Write(b)
 }

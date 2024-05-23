@@ -23,6 +23,7 @@ func NewFactory() receiver.Factory {
 		createDefaultConfig,
 		receiver.WithLogs(createLogsReceiver, metadata.LogsStability),
 		receiver.WithTraces(createTracesReceiver, metadata.TracesStability),
+		receiver.WithMetrics(createMetricsReceiver, metadata.MetricsStability),
 	)
 }
 
@@ -55,6 +56,18 @@ func createLogsReceiver(_ context.Context, params receiver.CreateSettings, cfg c
 		return dd
 	})
 	r.Unwrap().(*datadogReceiver).nextLogConsumer = consumer
+
+	return r, nil
+}
+
+func createMetricsReceiver(_ context.Context, params receiver.CreateSettings, cfg component.Config, consumer consumer.Metrics) (ret receiver.Metrics, err error) {
+	params.Logger.Info("Creating metrics receiver")
+	rcfg := cfg.(*Config)
+	r := receivers.GetOrAdd(cfg, func() component.Component {
+		dd, _ := newDataDogReceiver(rcfg, params)
+		return dd
+	})
+	r.Unwrap().(*datadogReceiver).nextMetricConsumer = consumer
 
 	return r, nil
 }

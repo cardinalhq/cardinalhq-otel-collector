@@ -19,10 +19,7 @@ data:
 
     service:
       pipelines:
-        traces:
-          receivers: [chqdatadog]
-          exporters: [debug]
-        logs:
+        metrics:
           receivers: [chqdatadog]
           exporters: [debug]
       extensions:

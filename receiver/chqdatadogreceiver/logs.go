@@ -24,7 +24,7 @@ import (
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
-	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.25.0"
 )
 
 type DDLog struct {
@@ -87,6 +87,7 @@ func (ddr *datadogReceiver) convertLog(t pcommon.Timestamp, log *DDLog) (plog.Lo
 	lm := plog.NewLogs()
 	rl := lm.ResourceLogs().AppendEmpty()
 	rAttr := rl.Resource().Attributes()
+	rl.SetSchemaUrl(semconv.SchemaURL)
 	rAttr.PutStr(string(semconv.ServiceNameKey), log.Service)
 	rAttr.PutStr(string(semconv.HostNameKey), log.Hostname)
 	scope := rl.ScopeLogs().AppendEmpty()
@@ -138,7 +139,7 @@ var (
 		"helm_version":            "k8s.helm.release.version",
 		"horizontalpodautoscaler": "k8s.horizontalpodautoscaler.name",
 		"image_name":              string(semconv.ContainerImageNameKey),
-		"image_tag":               string(semconv.ContainerImageTagKey),
+		"image_tag":               string(semconv.ContainerImageTagsKey),
 		"kube_app_component":      "k8s.app.component",
 		"kube_app_instance":       "k8s.app.instance",
 		"kube_app_managed_by":     "k8s.app.managed_by",
@@ -147,7 +148,7 @@ var (
 		"kube_app_version":        "k8s.app.version",
 		"kube_cluster":            string(semconv.CloudProviderKey),
 		"kube_container_name":     string(semconv.ContainerNameKey),
-		"kube_daemonset":          string(semconv.K8SDaemonsetNameKey),
+		"kube_daemonset":          string(semconv.K8SDaemonSetNameKey),
 		"kube_deployment":         string(semconv.K8SDeploymentNameKey),
 		"kube_job":                string(semconv.K8SJobNameKey),
 		"kube_namespace":          string(semconv.K8SNamespaceNameKey),
@@ -157,9 +158,9 @@ var (
 		"kube_pod_uid":            string(semconv.K8SPodUIDKey),
 		"kube_qos":                "k8s.pod.quality_of_service",
 		"kube_region":             string(semconv.CloudRegionKey),
-		"kube_replica_set":        string(semconv.K8SReplicasetNameKey),
+		"kube_replica_set":        string(semconv.K8SReplicaSetNameKey),
 		"kube_service":            "k8s.service.name",
-		"kube_statefulset":        string(semconv.K8SStatefulsetNameKey),
+		"kube_statefulset":        string(semconv.K8SStatefulSetNameKey),
 		"kube_zone":               string(semconv.CloudAvailabilityZoneKey),
 		"pod_name":                string(semconv.K8SPodNameKey),
 		"pod_phase":               "k8s.pod.phase",
@@ -179,6 +180,8 @@ var (
 		"storageclass":            "k8s.storageclass.name",
 		"access_mode":             "k8s.persistentvolume.access_mode",
 		"secret":                  "k8s.secret.name",
+		"filename":                string(semconv.LogFileNameKey),
+		"dirname":                 string(semconv.LogFilePathKey),
 	}
 
 	sAttrMap = map[string]string{

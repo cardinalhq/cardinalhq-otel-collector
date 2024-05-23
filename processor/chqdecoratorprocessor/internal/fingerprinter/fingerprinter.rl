@@ -22,6 +22,7 @@ package fingerprinter
 import (
     "fmt"
     "strings"
+    "unicode"
 
     "github.com/cespare/xxhash/v2"
     "github.com/db47h/ragel/v2"
@@ -65,7 +66,8 @@ var TokenNames = map[ragel.Token]string{
 type Fingerprinter interface {
     TokenString(t ragel.Token) string
     IsWord(word string) bool
-    Fingerprint(input string) (fingerprint int64, level string)
+    Fingerprint(input string) (fingerprint int64, level string, err error)
+    Tokenize(input string) (string, string, error)
 }
 
 
@@ -112,7 +114,7 @@ func (*fingerprinterImpl) TokenString(t ragel.Token) string {
         path = ('/'{1} alnum_u+)+ '/'{0,1};
 
         durationIdentifier =
-            'ns' | 'nano' | 'nanosecond' 
+            [Nn][Ss] | [Nn] 'ano' | [Nn] 'nano' [Ss] 'econd' 
             | 'us' | 'micro' | 'microsecond'
             | 'ms' | 'mil' | 'mils' | 'milli' | 'millis' | 'millisecond' | 'milliseconds'
             | 's' | 'sec' | 'secs' | 'second' | 'seconds'
@@ -132,9 +134,9 @@ func (*fingerprinterImpl) TokenString(t ragel.Token) string {
         url_host = fqdn | ipv4;
         url_port = ':' digit{1,5};
         url = protocol '://' (url_creds)? url_host? url_port? url_path;
-        httpmethod = 'get' | 'post' | 'put' | 'delete' | 'head' | 'patch';
+        httpmethod = [Gg][Ee][Tt] | [Pp][Oo][Ss][Tt] | [Pp][Uu][Tt] | [Dd][Ee][Ll][Ee][Tt][Ee] | [Hh][Ee][Aa][Dd] | [Pp][Aa][Tt][Cc][Hh];
 
-        logLevels = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal' | 'panic';
+        logLevels = [Tt][Rr][Aa][Cc][Ee] | [Dd][Ee][Bb][Uu][Gg] | [Ii][Nn][Ff][Oo] | [Ww][Aa][Rr][Nn] | [Ee][Rr][Rr][Oo][Rr] | [Ff][Aa][Tt][Aa][Ll] | [Pp][Aa][Nn][Ii][Cc];
 
         brackets = '(' | ')' | '[' | ']' | '{' | '}' | '<' | '>';
         punctuation = '.' | ',' | ';' | ':' | '!' | '?' | '"' | '\'' | '*' | '-' | '_' | '@' | '#' | '$' | '%' | '&' | '^' | '|' | '~' | '`' | '+' | '=' | '\\' | '|';
@@ -248,18 +250,35 @@ func (fingerprinterImpl) Run(s *ragel.State, p, pe, eof int) (int, int) {
     return p, pe
 }
 
-func (fp *fingerprinterImpl) Fingerprint(input string) (fingerprint int64, level string) {
+func (fp *fingerprinterImpl) Fingerprint(input string) (fingerprint int64, level string, err error) {
 	l := strings.TrimSpace(input)
 	l = strings.ToLower(l)
-	s, level := fp.tokenize(l)
-	return int64(xxhash.Sum64String(s)), level
+	s, level, err := fp.Tokenize(l)
+    if err != nil {
+        return 0, "", err
+    }
+	return int64(xxhash.Sum64String(s)), level, nil
 }
 
 func (fp *fingerprinterImpl) IsWord(word string) bool {
-    return fp.wordlist[word]
+    if _, ok := fp.wordlist[word]; ok {
+        return true
+    }
+    // If the word is entirely uppercase or entirely lowercase, it needs to fully match.
+    if strings.ToUpper(word) == word || strings.ToLower(word) == word {
+        return false
+    }
+    words := splitWords(word)
+    wordcount := 0
+    for _, w := range words {
+        if _, ok := fp.wordlist[w]; ok {
+            wordcount++
+        }
+    }
+    return wordcount == len(words)
 }
 
-func (fp *fingerprinterImpl) tokenize(input string) (string, string) {
+func (fp *fingerprinterImpl) Tokenize(input string) (string, string, error) {
 	s := ragel.New("test", strings.NewReader(input), fp)
 	items := []string{}
 	level := ""
@@ -267,17 +286,56 @@ func (fp *fingerprinterImpl) tokenize(input string) (string, string) {
 		_, tok, literal := s.Next()
 		switch tok {
 		case ragel.EOF:
-			return strings.Join(items, " "), level
+			return strings.Join(items, " "), strings.ToLower(level), nil
 		case ragel.Error:
-		// TODO should increment a counter here...
+            return "", "", fmt.Errorf("error: %s", literal)
 		case TokenLoglevel:
-			level = literal
+            if level == "" {
+    			level = literal
+                items = append(items, "<Loglevel>")
+            } else {
+                items = append(items, strings.ToLower(literal))
+            }
 		case TokenString:
-            if fp.wordlist[literal] {
-                items = append(items, literal)
+            if fp.IsWord(literal) {
+                items = append(items, strings.ToLower(literal))
             }
 		default:
 			items = append(items, "<"+fp.TokenString(tok)+">")
 		}
 	}
+}
+
+func splitWords(input string) []string {
+    var result []string
+    var word strings.Builder
+
+    for i, r := range input {
+        // Check if the character is uppercase
+        if unicode.IsUpper(r) {
+            // If it's not the first character and the previous character is not an underscore,
+            // it indicates the start of a new word
+            if i != 0 && input[i-1] != '_' {
+                result = append(result, word.String())
+                word.Reset()
+            }
+            word.WriteRune(unicode.ToLower(r))
+        } else if r == '_' {
+            // If underscore is encountered, add the current word to the result
+            if word.Len() > 0 {
+                result = append(result, word.String())
+                word.Reset()
+            }
+        } else {
+            // Append lowercase characters to the current word
+            word.WriteRune(r)
+        }
+    }
+
+    // Add the last word
+    if word.Len() > 0 {
+        result = append(result, word.String())
+    }
+
+    return result
 }

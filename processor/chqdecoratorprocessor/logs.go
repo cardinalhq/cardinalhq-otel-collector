@@ -108,7 +108,11 @@ func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs,
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				log := sl.LogRecords().At(k)
 				serviceName := getServiceName(rl.Resource().Attributes())
-				fingerprint, level := lp.finger.Fingerprint(log.Body().AsString())
+				fingerprint, level, err := lp.finger.Fingerprint(log.Body().AsString())
+				if err != nil {
+					lp.logger.Debug("Error fingerprinting log", zap.Error(err))
+					continue
+				}
 				if addFingerprint(fingerprint) == 0 {
 					lp.logger.Debug("New fingerprint", zap.Int64("fingerprint", fingerprint), zap.String("service", serviceName), zap.String("level", level))
 				}

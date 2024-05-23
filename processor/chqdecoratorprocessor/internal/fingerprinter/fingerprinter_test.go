@@ -21,8 +21,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cespare/xxhash/v2"
-	"github.com/db47h/ragel/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -37,39 +35,22 @@ func TestFingerprinterWithKafkaBroker0(t *testing.T) {
 	for scanner.Scan() {
 		input := scanner.Text()
 		t.Run(input, func(t *testing.T) {
-			s := ragel.New("test", strings.NewReader(strings.ToLower(input)), fp)
-			_ = consumet(t, s, fp)
+			_, _, err := fp.Tokenize(strings.ToLower(input))
+			assert.NoError(t, err)
 		})
-	}
-}
-
-func consumet(t *testing.T, s *ragel.Scanner, fp Fingerprinter) string {
-	items := []string{}
-	for {
-		pos, tok, literal := s.Next()
-		switch tok {
-		case ragel.EOF:
-			return strings.Join(items, " ")
-		case ragel.Error:
-			t.Fatalf("scan error: %v: %v\n", s.Pos(pos), literal)
-		case TokenString:
-			if fp.IsWord(literal) {
-				items = append(items, literal)
-			}
-		default:
-			items = append(items, "<"+fp.TokenString(tok)+">")
-		}
 	}
 }
 
 func TestFingerprinter(t *testing.T) {
 	tests := []struct {
-		name  string
-		input string
-		want  string
+		name      string
+		input     string
+		want      string
+		wantLevel string
 	}{
 		{
 			"empty",
+			"",
 			"",
 			"",
 		},
@@ -77,105 +58,125 @@ func TestFingerprinter(t *testing.T) {
 			"simple",
 			"hello world",
 			"hello world",
+			"",
 		},
 		{
 			"date YYYY-MM-DD",
 			"2024-01-02",
 			"<Date>",
+			"",
 		},
 		{
 			"date YYYY/MM/DD",
 			"2024/01/02",
 			"<Date>",
+			"",
 		},
 		{
 			"date DD/MM/YY",
 			"02/01/24",
 			"<Date>",
+			"",
 		},
 		{
 			"time",
 			"14:54:12",
 			"<Time>",
+			"",
 		},
 		{
 			"uuid",
 			"dddddddd-dddd-dddd-dddd-dddddddddddd",
 			"<UUID>",
+			"",
 		},
 		{
 			"ipv4",
 			"10.42.255.254",
 			"<IPv4>",
+			"",
 		},
 		{
 			"simple email address",
 			"alice@example.com",
 			"<Email>",
+			"",
 		},
 		{
 			"email with _",
 			"alice_smith@example.com",
 			"<Email>",
+			"",
 		},
 		{
 			"email with -",
 			"alice-smith@example.com",
 			"<Email>",
+			"",
 		},
 		{
 			"email with +",
 			"alice+smith@example.com",
 			"<Email>",
+			"",
 		},
 		{
 			"email with .",
 			"alice.smith@example.com",
 			"<Email>",
+			"",
 		},
 		{
 			"example.com",
 			"example.com",
 			"<FQDN>",
+			"",
 		},
 		{
 			"path alone",
 			" /api/v10/endpoint",
 			"<Path>",
+			"",
 		},
 		{
 			"path with version",
 			"bob /api/v10/endpoint",
 			"bob <Path>",
+			"",
 		},
 		{
 			"sample log 1",
 			`2024-04-17 00:37:23.147 ERROR 1 --- [lt-dispatcher-5] c.g.d.TelemetryEmitter : Received error code 400, endpoint = /api/v10/endpoint`,
-			"<Date> <Time> <Loglevel> <Number> <Identifier> <FQDN> received <Loglevel> code <Number> endpoint <Path>",
+			"<Date> <Time> <Loglevel> <Number> <Identifier> <FQDN> received error code <Number> endpoint <Path>",
+			"error",
 		},
 		{
 			"sample log 2",
 			`	advertised.listeners = CLIENT://kafka-kraft-broker-0.kafka-kraft-broker-headless.default.svc.cluster.local:9092,INTERNAL://kafka-kraft-broker-0.kafka-kraft-broker-headless.default.svc.cluster.local:9094
 `,
 			"<FQDN> <Url> <Url>",
+			"",
 		},
 		{
 			"sample log 3",
 			`   foo = CLIENT://:1234,INTERNAL://:5678`,
 			"foo <Url> <Url>",
+			"",
 		},
 		{
 			"sample log 4",
 			`Receive ListRecommendations for product ids:['OLJCESPC7Z', '6E92ZMYYFZ', '1YMWWN1N4O', 'L9ECAV7KIM', '2ZYFJ3GM2N']`,
-			"receive for product ids",
+			"receive listrecommendations for product ids",
+			"",
 		},
 	}
 	for _, tt := range tests {
 		fp := NewFingerprinter()
 		t.Run(tt.name, func(t *testing.T) {
-			s := ragel.New("test", strings.NewReader(strings.ToLower(tt.input)), fp)
-			got := consumet(t, s, fp)
-			assert.Equal(t, tt.want, got)
+			tokens, level, err := fp.Tokenize(tt.input)
+			assert.NoError(t, err, "input: %s", tt.input)
+			assert.Equal(t, tt.want, tokens, "input: %s", tt.input)
+			assert.Equal(t, tt.wantLevel, level, "input: %s", tt.input)
 		})
 	}
 }
@@ -183,30 +184,66 @@ func TestFingerprinter(t *testing.T) {
 func BenchmarkFingerprinter1(b *testing.B) {
 	input := "[2024-04-06 21:23:32,742] INFO [GroupCoordinator 100]: Preparing to rebalance group metadata.ingest.stats.consumer in state PreparingRebalance with old generation 14 (__consumer_offsets-14) (reason: Adding new member metadata.ingest.stats.consumer-0-e78065b6-0f83-4397-92ae-965997f4b1a2 with group instance id Some(metadata.ingest.stats.consumer-0); client reason: not provided) (kafka.coordinator.group.GroupCoordinator)"
 	fp := NewFingerprinter()
-	s := ragel.New("test", strings.NewReader(strings.ToLower(input)), fp)
 	log.Printf("Running loop for %d times", b.N)
 	for i := 0; i < b.N; i++ {
-		s.Reset()
-		line := consumeb(b, s, fp)
-		xxhash.Sum64String(line)
+		_, _, err := fp.Fingerprint(input)
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
-func consumeb(b *testing.B, s *ragel.Scanner, fp Fingerprinter) string {
-	items := []string{}
-	for {
-		pos, tok, literal := s.Next()
-		switch tok {
-		case ragel.EOF:
-			return strings.Join(items, " ")
-		case ragel.Error:
-			b.Fatalf("scan error: %v: %v\n", s.Pos(pos), literal)
-		case TokenString:
-			if fp.IsWord(literal) {
-				items = append(items, literal)
-			}
-		default:
-			items = append(items, "<"+fp.TokenString(tok)+">")
-		}
+func TestSplitWords(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected []string
+	}{
+		{
+			"empty",
+			"",
+			nil,
+		},
+		{
+			"snake_case",
+			"hello_world",
+			[]string{"hello", "world"},
+		},
+		{
+			"camelCase",
+			"helloWorld",
+			[]string{"hello", "world"},
+		},
+		{
+			"CamelCase",
+			"HelloWorld",
+			[]string{"hello", "world"},
+		},
+		{
+			"longer_snake_case",
+			"hello_world_this_is_a_test",
+			[]string{"hello", "world", "this", "is", "a", "test"},
+		},
+		{
+			"longer_camelCase",
+			"helloWorldThisIsATest",
+			[]string{"hello", "world", "this", "is", "a", "test"},
+		},
+		{
+			"longer_CamelCase",
+			"HelloWorldThisIsATest",
+			[]string{"hello", "world", "this", "is", "a", "test"},
+		},
+		{
+			"THISIsATest",
+			"THISIsATest",
+			[]string{"t", "h", "i", "s", "is", "a", "test"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, splitWords(tt.input))
+		})
 	}
 }

@@ -72,7 +72,7 @@ func (ddr *datadogReceiver) handleV2Series(w http.ResponseWriter, req *http.Requ
 		ddr.tReceiver.EndMetricsOp(obsCtx, "datadog", *metricCount, err)
 	}(&metricCount)
 
-	ddMetrics, httpCode, err := handleMetricsV2Payload(req)
+	ddMetrics, httpCode, err := ddr.handleMetricsV2Payload(req)
 	if err != nil {
 		writeError(w, httpCode, err)
 		ddr.params.Logger.Error("Unable to unmarshal reqs", zap.Error(err))

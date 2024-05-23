@@ -114,13 +114,22 @@ func (ddr *datadogReceiver) showBodyIfJson(req *http.Request, source string) {
 
 func (ddr *datadogReceiver) showDatadogApiHeaders(req *http.Request, source string) {
 	apikey := req.Header.Get("DD-API-KEY")
+	req.Header.Del("DD-API-KEY")
+	if apikey == "" {
+		apikey = req.URL.Query().Get("DD-API-KEY")
+		req.URL.Query().Del("DD-API-KEY")
+	}
 	if apikey != "" {
 		keylen := len(apikey)
 		if keylen > 4 {
 			apikey = apikey[:4] + "..."
 		}
 	}
-	req.Header.Del("DD-API-KEY")
+
+	query := make(map[string]string)
+	for k, v := range req.URL.Query() {
+		query[k] = v[0]
+	}
 
 	headers := make(map[string]string)
 	for k, v := range req.Header {
@@ -130,7 +139,8 @@ func (ddr *datadogReceiver) showDatadogApiHeaders(req *http.Request, source stri
 	ddr.params.Logger.Info("datadog api headers",
 		zap.String("source", source),
 		zap.String("DD-API-KEY", apikey),
-		zap.Any("headers", headers))
+		zap.Any("headers", headers),
+		zap.Any("query", query))
 }
 
 func (ddr *datadogReceiver) handleV1Validate(w http.ResponseWriter, req *http.Request) {

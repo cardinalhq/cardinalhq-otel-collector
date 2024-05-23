@@ -22,6 +22,7 @@ import (
 
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	semconv "go.opentelemetry.io/collector/semconv/v1.25.0"
+	"go.uber.org/zap"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
@@ -30,7 +31,7 @@ import (
 
 var bpool = NewBufferPool("datadog-receiver", 5*1024*1024) // 5MB buffer pool (max message size)
 
-func handleMetricsV2Payload(req *http.Request) (ret []*ddpb.MetricPayload_MetricSeries, httpCode int, err error) {
+func (ddr *datadogReceiver) handleMetricsV2Payload(req *http.Request) (ret []*ddpb.MetricPayload_MetricSeries, httpCode int, err error) {
 	buf := bpool.Get()
 	defer bpool.Put(buf)
 
@@ -70,6 +71,7 @@ func handleMetricsV2Payload(req *http.Request) (ret []*ddpb.MetricPayload_Metric
 			return nil, http.StatusUnprocessableEntity, err
 		}
 	default:
+		ddr.params.Logger.Warn("unsupported content type", zap.String("content-type", req.Header.Get("Content-Type")))
 		return nil, http.StatusUnsupportedMediaType, err
 	}
 

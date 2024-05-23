@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"go.opentelemetry.io/collector/pdata/plog"
 )
 
 func TestSplitTags(t *testing.T) {
@@ -68,6 +69,60 @@ func TestSplitTags(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.expected, splitTags(tt.tags))
+		})
+	}
+}
+
+func TestToSeverity(t *testing.T) {
+	tests := []struct {
+		name           string
+		severityString string
+		expectedNumber plog.SeverityNumber
+		expectedString string
+	}{
+		{
+			"error",
+			"error",
+			plog.SeverityNumberError,
+			"error",
+		},
+		{
+			"warn",
+			"warn",
+			plog.SeverityNumberWarn,
+			"warn",
+		},
+		{
+			"info",
+			"info",
+			plog.SeverityNumberInfo,
+			"info",
+		},
+		{
+			"debug",
+			"debug",
+			plog.SeverityNumberDebug,
+			"debug",
+		},
+		{
+			"trace",
+			"trace",
+			plog.SeverityNumberTrace,
+			"trace",
+		},
+		{
+			"unspecified",
+			"unknown",
+			plog.SeverityNumberUnspecified,
+			"unknown",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			number, str := toSeverity(tt.severityString)
+			assert.Equal(t, tt.expectedNumber, number)
+			assert.Equal(t, tt.expectedString, str)
 		})
 	}
 }

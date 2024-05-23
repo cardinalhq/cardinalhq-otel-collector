@@ -43,6 +43,7 @@ func (ddr *datadogReceiver) handleMetricsV2Payload(req *http.Request) (ret []*dd
 			return nil, http.StatusInternalServerError, err
 		}
 		defer from.Close()
+		req.Header.Del("Content-Encoding")
 	}
 
 	rl := io.LimitReader(from, int64(bpool.size))

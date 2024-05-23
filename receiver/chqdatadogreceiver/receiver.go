@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 
 	ddpbtrace "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
@@ -69,6 +70,7 @@ func (ddr *datadogReceiver) Start(ctx context.Context, host component.Host) erro
 
 	ddmux.HandleFunc("/api/v1/validate", ddr.handleV1Validate)
 	ddmux.HandleFunc("/intake", ddr.handleIntake)
+	ddmux.HandleFunc("/intake/", ddr.handleIntake)
 
 	var err error
 	ddr.server, err = ddr.config.ServerConfig.ToServer(
@@ -102,13 +104,19 @@ func (ddr *datadogReceiver) Shutdown(ctx context.Context) (err error) {
 func (ddr *datadogReceiver) showBodyIfJson(req *http.Request, source string) {
 	switch req.Header.Get("Content-Type") {
 	case "application/json":
-		buffer := make([]byte, req.ContentLength)
-		_, _ = req.Body.Read(buffer)
-		ddr.params.Logger.Info("message body", zap.String("endpoint", source), zap.String("json", string(buffer)))
+		b, err := io.ReadAll(req.Body)
+		if err != nil {
+			ddr.params.Logger.Error("failed to read request body", zap.Error(err))
+			return
+		}
+		ddr.params.Logger.Info("message body", zap.String("endpoint", source), zap.String("json", string(b)))
 	case "text/plain":
-		buffer := make([]byte, req.ContentLength)
-		_, _ = req.Body.Read(buffer)
-		ddr.params.Logger.Info("message body", zap.String("endpoint", source), zap.String("text", string(buffer)))
+		b, err := io.ReadAll(req.Body)
+		if err != nil {
+			ddr.params.Logger.Error("failed to read request body", zap.Error(err))
+			return
+		}
+		ddr.params.Logger.Info("message body", zap.String("endpoint", source), zap.String("text", string(b)))
 	}
 }
 

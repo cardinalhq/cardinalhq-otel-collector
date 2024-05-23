@@ -35,6 +35,7 @@ spec:
           command:
             - "/app/bin/cardinalhq-otel-collector"
             - "--config=/app/config/config.yaml"
+            - "--feature-gates=component.UseLocalHostAsDefaultHost"
           env:
             - name: GOMEMLIMIT
               value: "100MiB"

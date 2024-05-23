@@ -45,16 +45,23 @@ func newDataDogReceiver(config *Config, params receiver.CreateSettings) (compone
 
 func (ddr *datadogReceiver) Start(ctx context.Context, host component.Host) error {
 	ddmux := http.NewServeMux()
-	ddmux.HandleFunc("/v0.3/traces", ddr.handleTraces)
-	ddmux.HandleFunc("/v0.4/traces", ddr.handleTraces)
-	ddmux.HandleFunc("/v0.5/traces", ddr.handleTraces)
-	ddmux.HandleFunc("/v0.7/traces", ddr.handleTraces)
-	ddmux.HandleFunc("/api/v0.2/traces", ddr.handleTraces)
 
-	ddmux.HandleFunc("/api/v2/logs", ddr.handleLogs)
+	if ddr.nextTraceConsumer != nil {
+		ddmux.HandleFunc("/v0.3/traces", ddr.handleTraces)
+		ddmux.HandleFunc("/v0.4/traces", ddr.handleTraces)
+		ddmux.HandleFunc("/v0.5/traces", ddr.handleTraces)
+		ddmux.HandleFunc("/v0.7/traces", ddr.handleTraces)
+		ddmux.HandleFunc("/api/v0.2/traces", ddr.handleTraces)
+	}
 
-	ddmux.HandleFunc("/api/v1/series", ddr.handleV1Series)
-	ddmux.HandleFunc("/api/v2/series", ddr.handleV2Series)
+	if ddr.nextLogConsumer != nil {
+		ddmux.HandleFunc("/api/v2/logs", ddr.handleLogs)
+	}
+
+	if ddr.nextMetricConsumer != nil {
+		ddmux.HandleFunc("/api/v1/series", ddr.handleV1Series)
+		ddmux.HandleFunc("/api/v2/series", ddr.handleV2Series)
+	}
 
 	ddmux.HandleFunc("/api/v1/validate", ddr.handleV1Validate)
 	ddmux.HandleFunc("/intake", ddr.handleIntake)
@@ -89,11 +96,13 @@ func (ddr *datadogReceiver) Shutdown(ctx context.Context) (err error) {
 }
 
 func (ddr *datadogReceiver) handleV1Validate(w http.ResponseWriter, req *http.Request) {
+	ddr.params.Logger.Info("/api/v1/validate called")
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write([]byte(`{"valid":"ok"}`))
 }
 
 func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Request) {
+	ddr.params.Logger.Info("/intake called")
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }

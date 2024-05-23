@@ -112,91 +112,92 @@ func (ddr *datadogReceiver) convertLog(t pcommon.Timestamp, log *DDLog) (plog.Lo
 
 func toSeverity(s string) (plog.SeverityNumber, string) {
 	s = strings.ToLower(s)
+	number := plog.SeverityNumberUnspecified
 	switch s {
 	case "error":
-		return plog.SeverityNumberError, s
+		number = plog.SeverityNumberError
 	case "warn":
-		return plog.SeverityNumberWarn, s
+		number = plog.SeverityNumberWarn
 	case "info":
-		return plog.SeverityNumberInfo, s
+		number = plog.SeverityNumberInfo
 	case "debug":
-		return plog.SeverityNumberDebug, s
+		number = plog.SeverityNumberDebug
 	case "trace":
-		return plog.SeverityNumberTrace, s
-	default:
-		return plog.SeverityNumberUnspecified, s
+		number = plog.SeverityNumberTrace
 	}
+	return number, number.String()
 }
 
-func decorate(k, v string, rAttr pcommon.Map, sAttr pcommon.Map) {
-	switch k {
-	case "container_id":
-		rAttr.PutStr(string(semconv.ContainerIDKey), v)
-	case "container_name":
-		rAttr.PutStr(string(semconv.ContainerNameKey), v)
-	case "env":
-		rAttr.PutStr(string(semconv.DeploymentEnvironmentKey), v)
-	case "image_name":
-		rAttr.PutStr(string(semconv.ContainerImageNameKey), v)
-	case "image_tag":
-		rAttr.PutStr(string(semconv.ContainerImageTagKey), v)
-	case "kube_container_name":
-		rAttr.PutStr(string(semconv.ContainerNameKey), v)
-	case "kube_deployment":
-		rAttr.PutStr(string(semconv.K8SDeploymentNameKey), v)
-	case "kube_namespace":
-		rAttr.PutStr(string(semconv.K8SNamespaceNameKey), v)
-	case "kube_ownerref_kind":
-		rAttr.PutStr("dd.kube_ownerref_kind", v)
-	case "kube_qos":
-		rAttr.PutStr("k8s.pod.quality_of_service", v)
-	case "kube_replica_set":
-		rAttr.PutStr(string(semconv.K8SReplicasetNameKey), v)
-	case "kube_statefulset":
-		rAttr.PutStr(string(semconv.K8SStatefulsetNameKey), v)
-	case "kube_daemonset":
-		rAttr.PutStr(string(semconv.K8SDaemonsetNameKey), v)
-	case "kube_job":
-		rAttr.PutStr(string(semconv.K8SJobNameKey), v)
-	case "kube_node":
-		rAttr.PutStr(string(semconv.K8SNodeNameKey), v)
-	case "kube_pod_uid":
-		rAttr.PutStr(string(semconv.K8SPodUIDKey), v)
-	case "kube_service":
-		rAttr.PutStr("dd.kube_service", v)
-	case "kube_pod_name":
-		rAttr.PutStr(string(semconv.K8SPodNameKey), v)
-	case "language":
-		sAttr.PutStr(string(semconv.TelemetrySDKLanguageKey), v)
-	case "pod_phase":
-		rAttr.PutStr("k8s.pod.phase", v)
-	case "short_image":
-		rAttr.PutStr("container.image.short_name", v)
-	case "horizontalpodautoscaler":
-		rAttr.PutStr("k8s.hpa.name", v)
-	case "verticalpodautoscaler":
-		rAttr.PutStr("k8s.vpa.name", v)
-	case "kube_app_name":
-		rAttr.PutStr("k8s.app.name", v)
-	case "kube_app_instance":
-		rAttr.PutStr("k8s.app.instance", v)
-	case "kube_app_version":
-		rAttr.PutStr("k8s.app.version", v)
-	case "kube_app_component":
-		rAttr.PutStr("k8s.app.component", v)
-	case "kube_app_part_of":
-		rAttr.PutStr("k8s.app.part_of", v)
-	case "kube_app_managed_by":
-		rAttr.PutStr("k8s.app.managed_by", v)
-	case "helm_chart":
-		rAttr.PutStr("k8s.helm.chart", v)
-	case "kube_region":
-		rAttr.PutStr(string(semconv.CloudRegionKey), v)
-	case "kube_zone":
-		rAttr.PutStr(string(semconv.CloudAvailabilityZoneKey), v)
-	case "kube_cluster":
-		rAttr.PutStr(string(semconv.CloudProviderKey), v)
-	default:
-		rAttr.PutStr("dd_translated."+k, v)
+var (
+	rAttrMap = map[string]string{
+		"container_id":            string(semconv.ContainerIDKey),
+		"container_name":          string(semconv.ContainerNameKey),
+		"env":                     string(semconv.DeploymentEnvironmentKey),
+		"helm_chart":              "k8s.helm.chart.name",
+		"helm_release":            "k8s.helm.release.name",
+		"helm_version":            "k8s.helm.release.version",
+		"horizontalpodautoscaler": "k8s.horizontalpodautoscaler.name",
+		"image_name":              string(semconv.ContainerImageNameKey),
+		"image_tag":               string(semconv.ContainerImageTagKey),
+		"kube_app_component":      "k8s.app.component",
+		"kube_app_instance":       "k8s.app.instance",
+		"kube_app_managed_by":     "k8s.app.managed_by",
+		"kube_app_name":           "k8s.app.name",
+		"kube_app_part_of":        "k8s.app.part_of",
+		"kube_app_version":        "k8s.app.version",
+		"kube_cluster":            string(semconv.CloudProviderKey),
+		"kube_container_name":     string(semconv.ContainerNameKey),
+		"kube_daemonset":          string(semconv.K8SDaemonsetNameKey),
+		"kube_deployment":         string(semconv.K8SDeploymentNameKey),
+		"kube_job":                string(semconv.K8SJobNameKey),
+		"kube_namespace":          string(semconv.K8SNamespaceNameKey),
+		"kube_node":               string(semconv.K8SNodeNameKey),
+		"kube_ownerref_kind":      "k8s.ownerref.kind",
+		"kube_pod_name":           string(semconv.K8SPodNameKey),
+		"kube_pod_uid":            string(semconv.K8SPodUIDKey),
+		"kube_qos":                "k8s.pod.quality_of_service",
+		"kube_region":             string(semconv.CloudRegionKey),
+		"kube_replica_set":        string(semconv.K8SReplicasetNameKey),
+		"kube_service":            "k8s.service.name",
+		"kube_statefulset":        string(semconv.K8SStatefulsetNameKey),
+		"kube_zone":               string(semconv.CloudAvailabilityZoneKey),
+		"pod_name":                string(semconv.K8SPodNameKey),
+		"pod_phase":               "k8s.pod.phase",
+		"short_image":             "container.image.short_name",
+		"verticalpodautoscaler":   "k8s.verticalpodautoscaler.name",
+		"kube_service_port":       "k8s.service.port",
+		"kube_ingress_path":       "k8s.ingress.path",
+		"kube_ingress":            "k8s.ingress.name",
+		"kube_ingress_host":       "k8s.ingress.host",
+		"os_image":                string(semconv.HostImageNameKey),
+		"kernel_version":          "host.kernel.version",
+		"kubelet_version":         "k8s.kubelet.version",
+		"node":                    string(semconv.K8SNodeNameKey),
+		"poddisruptionbudget":     "k8s.poddisruptionbudget.name",
+		"persistentvolume":        "k8s.persistentvolume.name",
+		"persistentvolumeclaim":   "k8s.persistentvolumeclaim.name",
+		"storageclass":            "k8s.storageclass.name",
+		"access_mode":             "k8s.persistentvolume.access_mode",
+		"secret":                  "k8s.secret.name",
 	}
+
+	sAttrMap = map[string]string{
+		"language": string(semconv.TelemetrySDKLanguageKey),
+	}
+)
+
+func decorate(k, v string, rAttr pcommon.Map, sAttr pcommon.Map) {
+	rmap, ok := rAttrMap[k]
+	if ok {
+		rAttr.PutStr(rmap, v)
+		return
+	}
+
+	smap, ok := sAttrMap[k]
+	if ok {
+		sAttr.PutStr(smap, v)
+		return
+	}
+
+	rAttr.PutStr("dd."+k, v)
 }

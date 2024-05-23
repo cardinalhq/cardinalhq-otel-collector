@@ -16,19 +16,19 @@ data:
         verbosity: detailed
         sampling_initial: 10
         sampling_thereafter: 1001
-      noop:
+      nop:
 
     service:
       pipelines:
         logs:
           receivers: [chqdatadog]
-          exporters: [noop]
+          exporters: [nop]
         metrics:
           receivers: [chqdatadog]
           exporters: [debug]
         traces:
           receivers: [chqdatadog]
-          exporters: [noop]
+          exporters: [nop]
       extensions:
         - zpages
         - health_check

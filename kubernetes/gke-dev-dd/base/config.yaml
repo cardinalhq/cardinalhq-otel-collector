@@ -14,8 +14,8 @@ data:
     exporters:
       debug:
         verbosity: detailed
-        sampling_initial: 9999999
-        sampling_thereafter: 1
+        sampling_initial: 10
+        sampling_thereafter: 1001
 
     service:
       pipelines:

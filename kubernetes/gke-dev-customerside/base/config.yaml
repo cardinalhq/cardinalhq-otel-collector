@@ -37,6 +37,7 @@ data:
       otlphttp/cardinalhq:
         endpoint: https://intake.cardinalhq.io/otlp
         headers: { dd-api-key: "${env:CARDINALHQ_API_KEY}" }
+
       otlp/cardinalhq:
         endpoint: cardinal-collector.collector-chqside.svc.cluster.local:4317
         tls:
@@ -91,6 +92,8 @@ data:
       # Group by trace processor to group trace data by trace ID.
       groupbytrace:
         wait_duration: 60s
+
+      cumulativetodelta:
 
       # This processor should be added to the list of processors before
       # the filter/chq, and the exporters that write to S3 or to upstream
@@ -192,7 +195,7 @@ data:
           exporters: [loadbalancing/metrics]
         metrics/decoration:
           receivers: [otlp/l2]
-          processors: [memory_limiter, chqdecorator, batch/metrics]
+          processors: [memory_limiter, cumulativetodelta, chqdecorator, batch/metrics]
           exporters: [forward/mergedmetrics, forward/filtered]
         metrics/chq:
           receivers: [forward/mergedmetrics]

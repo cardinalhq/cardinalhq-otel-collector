@@ -100,10 +100,15 @@ func (ddr *datadogReceiver) Shutdown(ctx context.Context) (err error) {
 }
 
 func (ddr *datadogReceiver) showBodyIfJson(req *http.Request, source string) {
-	if req.Header.Get("Content-Type") == "application/json" {
+	switch req.Header.Get("Content-Type") {
+	case "application/json":
 		buffer := make([]byte, req.ContentLength)
 		_, _ = req.Body.Read(buffer)
 		ddr.params.Logger.Info("message body", zap.String("endpoint", source), zap.String("json", string(buffer)))
+	case "text/plain":
+		buffer := make([]byte, req.ContentLength)
+		_, _ = req.Body.Read(buffer)
+		ddr.params.Logger.Info("message body", zap.String("endpoint", source), zap.String("text", string(buffer)))
 	}
 }
 
@@ -115,20 +120,46 @@ func (ddr *datadogReceiver) showDatadogApiHeaders(req *http.Request, source stri
 			apikey = apikey[:4] + "..."
 		}
 	}
-	ddr.params.Logger.Info("datadog api headers", zap.String("source", source), zap.String("DD-API-KEY", apikey), zap.String("content-type", req.Header.Get("Content-Type")), zap.String("content-encoding", req.Header.Get("Content-Encoding")))
+	req.Header.Del("DD-API-KEY")
+
+	headers := make(map[string]string)
+	for k, v := range req.Header {
+		headers[k] = v[0]
+	}
+
+	ddr.params.Logger.Info("datadog api headers",
+		zap.String("source", source),
+		zap.String("DD-API-KEY", apikey),
+		zap.Any("headers", headers))
 }
 
 func (ddr *datadogReceiver) handleV1Validate(w http.ResponseWriter, req *http.Request) {
 	ddr.showDatadogApiHeaders(req, "/api/v1/validate")
 	ddr.showBodyIfJson(req, "/api/v1/validate")
 	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write([]byte(`{"valid":"ok"}`))
+
+	apikey := req.Header.Get("DD-API-KEY")
+	if apikey == "" {
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
+		return
+	}
+
+	_, _ = w.Write([]byte(`{"valid":"true"}`))
 }
 
 func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Request) {
 	ddr.showDatadogApiHeaders(req, "/intake")
 	ddr.showBodyIfJson(req, "/intake")
 	w.Header().Set("Content-Type", "application/json")
+
+	apikey := req.Header.Get("DD-API-KEY")
+	if apikey == "" {
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
+		return
+	}
+
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }
 

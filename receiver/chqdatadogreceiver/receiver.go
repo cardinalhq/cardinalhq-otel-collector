@@ -47,6 +47,7 @@ func (ddr *datadogReceiver) Start(ctx context.Context, host component.Host) erro
 	ddmux := http.NewServeMux()
 
 	if ddr.nextTraceConsumer != nil {
+		ddr.params.Logger.Info("datadog receiver listening for traces")
 		ddmux.HandleFunc("/v0.3/traces", ddr.handleTraces)
 		ddmux.HandleFunc("/v0.4/traces", ddr.handleTraces)
 		ddmux.HandleFunc("/v0.5/traces", ddr.handleTraces)
@@ -55,10 +56,12 @@ func (ddr *datadogReceiver) Start(ctx context.Context, host component.Host) erro
 	}
 
 	if ddr.nextLogConsumer != nil {
+		ddr.params.Logger.Info("datadog receiver listening for logs")
 		ddmux.HandleFunc("/api/v2/logs", ddr.handleLogs)
 	}
 
 	if ddr.nextMetricConsumer != nil {
+		ddr.params.Logger.Info("datadog receiver listening for metrics")
 		ddmux.HandleFunc("/api/v1/series", ddr.handleV1Series)
 		ddmux.HandleFunc("/api/v2/series", ddr.handleV2Series)
 	}

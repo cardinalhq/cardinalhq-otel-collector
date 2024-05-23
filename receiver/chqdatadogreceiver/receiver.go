@@ -14,6 +14,7 @@ import (
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/receiver"
 	"go.opentelemetry.io/collector/receiver/receiverhelper"
+	"go.uber.org/zap"
 )
 
 type datadogReceiver struct {
@@ -98,14 +99,35 @@ func (ddr *datadogReceiver) Shutdown(ctx context.Context) (err error) {
 	return ddr.server.Shutdown(ctx)
 }
 
+func (ddr *datadogReceiver) showBodyIfJson(req *http.Request, source string) {
+	if req.Header.Get("Content-Type") == "application/json" {
+		buffer := make([]byte, req.ContentLength)
+		_, _ = req.Body.Read(buffer)
+		ddr.params.Logger.Info("message body", zap.String("endpoint", source), zap.String("json", string(buffer)))
+	}
+}
+
+func (ddr *datadogReceiver) showDatadogApiHeaders(req *http.Request, source string) {
+	apikey := req.Header.Get("DD-API-KEY")
+	if apikey != "" {
+		keylen := len(apikey)
+		if keylen > 4 {
+			apikey = apikey[:4] + "..."
+		}
+	}
+	ddr.params.Logger.Info("datadog api headers", zap.String("source", source), zap.String("DD-API-KEY", apikey), zap.String("content-type", req.Header.Get("Content-Type")), zap.String("content-encoding", req.Header.Get("Content-Encoding")))
+}
+
 func (ddr *datadogReceiver) handleV1Validate(w http.ResponseWriter, req *http.Request) {
-	ddr.params.Logger.Info("/api/v1/validate called")
+	ddr.showDatadogApiHeaders(req, "/api/v1/validate")
+	ddr.showBodyIfJson(req, "/api/v1/validate")
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write([]byte(`{"valid":"ok"}`))
 }
 
 func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Request) {
-	ddr.params.Logger.Info("/intake called")
+	ddr.showDatadogApiHeaders(req, "/intake")
+	ddr.showBodyIfJson(req, "/intake")
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }

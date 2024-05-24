@@ -93,7 +93,7 @@ func (ddr *datadogReceiver) convertLog(t pcommon.Timestamp, log DDLog) (plog.Log
 	logRecord.SetSeverityText(severityString)
 	delete(tags, "status")
 	for k, v := range tags {
-		decorate(k, v, rAttr, sAttr)
+		decorateItem(k, v, rAttr, sAttr, lAttr)
 	}
 	return lm, nil
 }

@@ -92,10 +92,11 @@ func (ddr *datadogReceiver) convertMetricV1(v1 SeriesV1) (pmetric.Metrics, error
 	metric.SetName(v1.Metric)
 	metric.SetUnit("1")
 
+	lAttr := pcommon.NewMap()
 	for _, tag := range v1.Tags {
 		kv := splitTags(tag)
 		for k, v := range kv {
-			decorate(k, v, rAttr, sAttr)
+			decorateItem(k, v, rAttr, sAttr, lAttr)
 		}
 	}
 
@@ -108,6 +109,7 @@ func (ddr *datadogReceiver) convertMetricV1(v1 SeriesV1) (pmetric.Metrics, error
 		g := metric.SetEmptyGauge()
 		for _, point := range v1.Points {
 			dp := g.DataPoints().AppendEmpty()
+			lAttr.CopyTo(dp.Attributes())
 			populateDatapoint(&dp, point.V1, v1.Interval, point.V2)
 		}
 	case "count":
@@ -116,6 +118,7 @@ func (ddr *datadogReceiver) convertMetricV1(v1 SeriesV1) (pmetric.Metrics, error
 		c.SetAggregationTemporality(pmetric.AggregationTemporalityDelta)
 		for _, point := range v1.Points {
 			dp := c.DataPoints().AppendEmpty()
+			lAttr.CopyTo(dp.Attributes())
 			populateDatapoint(&dp, point.V1, v1.Interval, point.V2)
 		}
 	}

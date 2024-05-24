@@ -19,6 +19,7 @@ import (
 	"io"
 	"net/http"
 
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	semconv "go.opentelemetry.io/collector/semconv/v1.25.0"
 	"go.uber.org/zap"
@@ -93,10 +94,11 @@ func (ddr *datadogReceiver) convertMetricV2(v2 *ddpb.MetricPayload_MetricSeries)
 		rAttr.PutInt("dd.origin.service", int64(v2.Metadata.Origin.OriginService))
 	}
 
+	lAttr := pcommon.NewMap()
 	for _, tag := range v2.Tags {
 		kv := splitTags(tag)
 		for k, v := range kv {
-			decorate(k, v, rAttr, sAttr)
+			decorateItem(k, v, rAttr, sAttr, lAttr)
 		}
 	}
 
@@ -114,7 +116,8 @@ func (ddr *datadogReceiver) convertMetricV2(v2 *ddpb.MetricPayload_MetricSeries)
 		g := metric.SetEmptyGauge()
 		for _, point := range v2.Points {
 			gdp := g.DataPoints().AppendEmpty()
-			populateDatapoint(&gdp, point.Timestamp, &v2.Interval, point.Value)
+			lAttr.CopyTo(gdp.Attributes())
+			populateDatapoint(&gdp, point.Timestamp*1000, &v2.Interval, point.Value)
 		}
 	case ddpb.MetricPayload_COUNT:
 		c := metric.SetEmptySum()
@@ -122,7 +125,8 @@ func (ddr *datadogReceiver) convertMetricV2(v2 *ddpb.MetricPayload_MetricSeries)
 		c.SetAggregationTemporality(pmetric.AggregationTemporalityDelta)
 		for _, point := range v2.Points {
 			cdp := c.DataPoints().AppendEmpty()
-			populateDatapoint(&cdp, point.Timestamp, &v2.Interval, point.Value)
+			lAttr.CopyTo(cdp.Attributes())
+			populateDatapoint(&cdp, point.Timestamp*1000, &v2.Interval, point.Value)
 		}
 	}
 

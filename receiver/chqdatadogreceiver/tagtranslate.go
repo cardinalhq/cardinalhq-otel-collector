@@ -99,3 +99,19 @@ func decorate(k, v string, rAttr pcommon.Map, sAttr pcommon.Map) {
 
 	rAttr.PutStr("dd."+k, v)
 }
+
+func decorateItem(k, v string, rAttr pcommon.Map, sAttr pcommon.Map, lAttr pcommon.Map) {
+	rmap, ok := rAttrMap[k]
+	if ok {
+		rAttr.PutStr(rmap, v)
+		return
+	}
+
+	smap, ok := sAttrMap[k]
+	if ok {
+		sAttr.PutStr(smap, v)
+		return
+	}
+
+	lAttr.PutStr("dd."+k, v)
+}

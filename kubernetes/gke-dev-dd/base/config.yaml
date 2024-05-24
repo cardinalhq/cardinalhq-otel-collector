@@ -14,8 +14,8 @@ data:
     processors:
       batch:
         timeout: 10s
-        send_batch_size: 100
-        send_batch_max_size: 1000
+        send_batch_size: 50
+        send_batch_max_size: 500
       memory_limiter:
         limit_mib: 1000
         check_interval: 1s
@@ -46,7 +46,6 @@ data:
           exporters: [datadog, datadog/chq]
         metrics:
           receivers: [chqdatadog]
-          processors: [memory_limiter, batch]
           exporters: [nop]
         traces:
           receivers: [chqdatadog]

@@ -16,8 +16,12 @@ package chqstatsexporter
 
 import (
 	"context"
+	"time"
 
 	"go.opentelemetry.io/collector/component"
+	"go.opentelemetry.io/collector/config/configcompression"
+	"go.opentelemetry.io/collector/config/confighttp"
+	"go.opentelemetry.io/collector/config/configopaque"
 	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/collector/exporter/exporterhelper"
 
@@ -36,16 +40,26 @@ func NewFactory() exporter.Factory {
 }
 
 func createDefaultConfig() component.Config {
-	return &Config{}
+	return &Config{
+		ClientConfig: confighttp.ClientConfig{
+			Timeout:  5 * time.Second,
+			Endpoint: "https://api.cardinalhq.com",
+			Headers: map[string]configopaque.String{
+				"User-Agent": "cardinalhq-otel-collector",
+			},
+			Compression: configcompression.TypeGzip,
+		},
+	}
 }
 
 func createLogsExporter(ctx context.Context,
 	params exporter.CreateSettings,
 	config component.Config) (exporter.Logs, error) {
 	e := newStatsExporter(config.(*Config), params)
-	return exporterhelper.NewLogsExporter(ctx, params,
-		config,
+	return exporterhelper.NewLogsExporter(
+		ctx, params, config,
 		e.ConsumeLogs,
+		exporterhelper.WithStart(e.Start),
 		exporterhelper.WithCapabilities(e.Capabilities()))
 }
 
@@ -53,9 +67,10 @@ func createMetricsExporter(ctx context.Context,
 	params exporter.CreateSettings,
 	config component.Config) (exporter.Metrics, error) {
 	e := newStatsExporter(config.(*Config), params)
-	return exporterhelper.NewMetricsExporter(ctx, params,
-		config,
+	return exporterhelper.NewMetricsExporter(
+		ctx, params, config,
 		e.ConsumeMetrics,
+		exporterhelper.WithStart(e.Start),
 		exporterhelper.WithCapabilities(e.Capabilities()))
 }
 
@@ -63,9 +78,9 @@ func createTracesExporter(ctx context.Context,
 	params exporter.CreateSettings,
 	config component.Config) (exporter.Traces, error) {
 	e := newStatsExporter(config.(*Config), params)
-	return exporterhelper.NewTracesExporter(ctx,
-		params,
-		config,
+	return exporterhelper.NewTracesExporter(
+		ctx, params, config,
 		e.ConsumeTraces,
+		exporterhelper.WithStart(e.Start),
 		exporterhelper.WithCapabilities(e.Capabilities()))
 }

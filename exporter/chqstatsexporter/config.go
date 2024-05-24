@@ -18,6 +18,8 @@ import (
 	"errors"
 	"time"
 
+	"go.opentelemetry.io/collector/config/confighttp"
+	"go.opentelemetry.io/collector/config/configopaque"
 	"go.uber.org/multierr"
 )
 
@@ -34,7 +36,10 @@ type TimeboxesConfig struct {
 
 // Config contains the main configuration options for the s3 exporter
 type Config struct {
-	Timeboxes TimeboxesConfig `mapstructure:"timeboxes"`
+	confighttp.ClientConfig `mapstructure:",squash"`
+
+	APIKey    configopaque.String `mapstructure:"api_key"`
+	Timeboxes TimeboxesConfig     `mapstructure:"timeboxes"`
 }
 
 func (c *Config) Validate() error {

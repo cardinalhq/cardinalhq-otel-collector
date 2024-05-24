@@ -46,6 +46,8 @@ exporters:
   - gomod: go.opentelemetry.io/collector/exporter/otlphttpexporter v0.101.0
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v0.31.0
     path: ./exporter/chqs3exporter
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqstatsexporter v0.31.0
+    path: ./exporter/chqstatsexporter
 
 extensions:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/healthcheckextension v0.101.0

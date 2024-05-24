@@ -11,21 +11,34 @@ data:
     receivers:
       chqdatadog:
         endpoint: 0.0.0.0:8126
+    processors:
+      batch:
+        timeout: 10s
+        send_batch_size: 100
+        send_batch_max_size: 1000
+      memory_limiter:
+        limit_mib: 1000
+        check_interval: 1s
     exporters:
       debug:
         verbosity: detailed
         sampling_initial: 10
         sampling_thereafter: 1001
       nop:
+      datadog:
+        api_key: ${env:DD_API_KEY}
+        site: us3.datadoghq.com
 
     service:
       pipelines:
         logs:
           receivers: [chqdatadog]
-          exporters: [nop]
+          processors: [memory_limiter, batch]
+          exporters: [datadog]
         metrics:
           receivers: [chqdatadog]
-          exporters: [nop]
+          processors: [memory_limiter, batch]
+          exporters: [datadog]
         traces:
           receivers: [chqdatadog]
           exporters: [nop]

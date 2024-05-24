@@ -97,7 +97,9 @@ func decorate(k, v string, rAttr pcommon.Map, sAttr pcommon.Map) {
 		return
 	}
 
-	rAttr.PutStr("dd."+k, v)
+	if _, exists := rAttr.Get(k); !exists {
+		rAttr.PutStr(k, v)
+	}
 }
 
 func decorateItem(k, v string, rAttr pcommon.Map, sAttr pcommon.Map, lAttr pcommon.Map) {
@@ -113,5 +115,5 @@ func decorateItem(k, v string, rAttr pcommon.Map, sAttr pcommon.Map, lAttr pcomm
 		return
 	}
 
-	lAttr.PutStr("dd."+k, v)
+	lAttr.PutStr(k, v)
 }

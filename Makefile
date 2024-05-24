@@ -29,7 +29,7 @@ BINARIES = cardinalhq-otel-collector
 # Dockerfiles should have a target that ends in -image, e.g. agent-image.
 IMAGE_TARGETS = cardinalhq-otel-collector
 
-LINT_TEST_SOURCE_PATHS = processor/chqdecoratorprocessor exporter/chqs3exporter receiver/chqdatadogreceiver
+LINT_TEST_SOURCE_PATHS = processor/chqdecoratorprocessor exporter/chqs3exporter exporter/chqstatsexporter receiver/chqdatadogreceiver
 
 #
 # Below here lies magic...

@@ -23,6 +23,16 @@ import (
 )
 
 func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request) {
+	apikey := ddr.showDatadogApiHeaders(req, "V1LOGS")
+	w.Header().Set("Content-Type", "application/json")
+
+	obsCtx := ddr.tReceiver.StartLogsOp(req.Context())
+	var err error
+	var logCount int
+	defer func(logCount *int) {
+		ddr.tReceiver.EndLogsOp(obsCtx, "datadog", *logCount, err)
+	}(&logCount)
+
 	if req.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, nil)
 		return
@@ -32,12 +42,12 @@ func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	obsCtx := ddr.tReceiver.StartLogsOp(req.Context())
-	var err error
-	var logCount int
-	defer func(logCount *int) {
-		ddr.tReceiver.EndLogsOp(obsCtx, "datadog", *logCount, err)
-	}(&logCount)
+	if apikey == "" {
+		ddr.params.Logger.Info("V1LOGS No API key found in request")
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
+		return
+	}
 
 	ddLogs, err := handleLogsPayload(req)
 	if err != nil {
@@ -54,7 +64,6 @@ func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
 	_, _ = w.Write([]byte(""))
 }

@@ -9,12 +9,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/component/componenttest"
+	"go.opentelemetry.io/collector/config/configopaque"
 	"go.opentelemetry.io/collector/consumer/consumertest"
 	"go.opentelemetry.io/collector/receiver/receivertest"
 )
@@ -86,4 +88,34 @@ func TestDatadogServer(t *testing.T) {
 			assert.Equal(t, tc.expectCode, resp.StatusCode, "Must match the expected status code")
 		})
 	}
+}
+
+func TestGetDDAPIKey(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/validate", nil)
+
+	// Test case 1: DD-API-KEY header is present
+	req.Header.Set("DD-API-KEY", "api_key_value")
+	apiKey := getDDAPIKey(req)
+	assert.Equal(t, configopaque.String("api_key_value"), apiKey)
+
+	// Test case 2: DD-API-KEY header is empty
+	req.Header.Set("DD-API-KEY", "")
+	apiKey = getDDAPIKey(req)
+	assert.Equal(t, configopaque.String(""), apiKey)
+
+	// Test case 3: DD-API-KEY header is not present, but DD-API-KEY query parameter is present
+	req.Header.Del("DD-API-KEY")
+	req.URL.RawQuery = "DD-API-KEY=query_param_value"
+	apiKey = getDDAPIKey(req)
+	assert.Equal(t, configopaque.String("query_param_value"), apiKey)
+
+	// Test case 4: DD-API-KEY header and DD-API-KEY query parameter are not present, but api_key query parameter is present
+	req.URL.RawQuery = "api_key=query_param_value"
+	apiKey = getDDAPIKey(req)
+	assert.Equal(t, configopaque.String("query_param_value"), apiKey)
+
+	// Test case 5: No API key is present
+	req.URL.RawQuery = ""
+	apiKey = getDDAPIKey(req)
+	assert.Equal(t, configopaque.String(""), apiKey)
 }

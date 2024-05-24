@@ -71,6 +71,7 @@ func (ddr *datadogReceiver) Start(ctx context.Context, host component.Host) erro
 	ddmux.HandleFunc("/intake", ddr.handleIntake)
 	ddmux.HandleFunc("/intake/", ddr.handleIntake)
 	ddmux.HandleFunc("/api/v1/check_run", ddr.handleCheckRun)
+	ddmux.HandleFunc("/api/v1/metadata", ddr.handleMetadata)
 
 	var err error
 	ddr.server, err = ddr.config.ServerConfig.ToServer(
@@ -121,16 +122,6 @@ func getDDAPIKey(req *http.Request) string {
 	return ""
 }
 
-func maskAPIKey(apikey string) string {
-	if apikey == "" {
-		return ""
-	}
-	if len(apikey) > 4 {
-		apikey = apikey[:4] + "..."
-	}
-	return apikey
-}
-
 func hexdump(data []byte) {
 	var line string
 	for _, b := range data {
@@ -139,9 +130,8 @@ func hexdump(data []byte) {
 	fmt.Println(line)
 }
 
-func (ddr *datadogReceiver) showDatadogApiHeaders(req *http.Request, source string) {
+func (ddr *datadogReceiver) showDatadogApiHeaders(req *http.Request, source string) string {
 	apikey := getDDAPIKey(req)
-	apikey = maskAPIKey(apikey)
 
 	query := make(map[string][]string)
 	for k, v := range req.URL.Query() {
@@ -153,63 +143,80 @@ func (ddr *datadogReceiver) showDatadogApiHeaders(req *http.Request, source stri
 		headers[k] = v
 	}
 
+	redactedKey := string(apikey)
+	if len(redactedKey) > 4 {
+		redactedKey = redactedKey[0:4] + "..."
+	}
+
 	ddr.params.Logger.Info("datadog api headers",
 		zap.String("source", source),
-		zap.String("masked-api-key", apikey),
+		zap.String("dd-api-key", redactedKey),
 		zap.Any("headers", headers),
 		zap.Any("query", query))
+
+	return apikey
 }
 
 func (ddr *datadogReceiver) handleV1Validate(w http.ResponseWriter, req *http.Request) {
-	ddr.showDatadogApiHeaders(req, "/api/v1/validate")
-	//ddr.showBodyIfJson(req, "/api/v1/validate")
+	apikey := ddr.showDatadogApiHeaders(req, "/api/v1/validate")
 	w.Header().Set("Content-Type", "application/json")
-
-	apikey := getDDAPIKey(req)
 	if apikey == "" {
+		ddr.params.Logger.Info("/api/v1/validate No API key found in request")
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
 		return
 	}
-
-	w.WriteHeader(http.StatusAccepted)
+	ddr.params.Logger.Info("/api/v1/validate returning 200")
+	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(`{"valid":"true"}`))
 }
 
 func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Request) {
-	ddr.showDatadogApiHeaders(req, "/intake")
-	//ddr.showBodyIfJson(req, "/intake")
+	apikey := ddr.showDatadogApiHeaders(req, "/intake")
 	w.Header().Set("Content-Type", "application/json")
-
-	apikey := getDDAPIKey(req)
 	if apikey == "" {
+		ddr.params.Logger.Info("/intake No API key found in request")
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
 		return
 	}
-
-	w.WriteHeader(http.StatusAccepted)
+	ddr.params.Logger.Info("/intake returning 200")
+	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }
 
 func (ddr *datadogReceiver) handleCheckRun(w http.ResponseWriter, req *http.Request) {
-	ddr.showDatadogApiHeaders(req, "/api/v1/check_run")
-	//ddr.showBodyIfJson(req, "/api/v1/check_run")
+	apikey := ddr.showDatadogApiHeaders(req, "/api/v1/check_run")
 	w.Header().Set("Content-Type", "application/json")
-
-	apikey := getDDAPIKey(req)
 	if apikey == "" {
+		ddr.params.Logger.Info("/api/v1/check_run No API key found in request")
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
 		return
 	}
+	ddr.params.Logger.Info("/api/v1/check_run returning 202")
+	w.WriteHeader(http.StatusAccepted)
+	_, _ = w.Write([]byte(`{"status":"ok"}`))
+}
 
+func (ddr *datadogReceiver) handleMetadata(w http.ResponseWriter, req *http.Request) {
+	apikey := ddr.showDatadogApiHeaders(req, "/api/v1/metadata")
+	w.Header().Set("Content-Type", "application/json")
+	if apikey == "" {
+		ddr.params.Logger.Info("/api/v1/metadata No API key found in request")
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
+		return
+	}
+	ddr.params.Logger.Info("/api/v1/metadata returning 200")
 	w.WriteHeader(http.StatusAccepted)
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }
 
 func (ddr *datadogReceiver) handleTraces(w http.ResponseWriter, req *http.Request) {
-	ddr.showDatadogApiHeaders(req, "TRACES")
+	apikey := ddr.showDatadogApiHeaders(req, "TRACES")
+	w.Header().Set("Content-Type", "application/json")
+
 	obsCtx := ddr.tReceiver.StartTracesOp(req.Context())
 	var err error
 	var spanCount int
@@ -218,6 +225,14 @@ func (ddr *datadogReceiver) handleTraces(w http.ResponseWriter, req *http.Reques
 	}(&spanCount)
 
 	var ddTraces []*ddpbtrace.TracerPayload
+
+	if apikey == "" {
+		ddr.params.Logger.Info("TRACES No API key found in request")
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
+		return
+	}
+
 	ddTraces, err = handlePayload(req)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
@@ -235,7 +250,6 @@ func (ddr *datadogReceiver) handleTraces(w http.ResponseWriter, req *http.Reques
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }

@@ -4,7 +4,7 @@ scope_name: otelcol/datadogreceiver
 status:
   class: receiver
   stability:
-    alpha: [logs,traces]
+    alpha: [logs,traces,metrics]
   distributions: [contrib]
   codeowners:
     active: [boostchicken, gouthamve, jpkrohling, MovieStoreGuy]

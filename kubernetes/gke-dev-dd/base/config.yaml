@@ -25,7 +25,7 @@ data:
           exporters: [nop]
         metrics:
           receivers: [chqdatadog]
-          exporters: [debug]
+          exporters: [nop]
         traces:
           receivers: [chqdatadog]
           exporters: [nop]

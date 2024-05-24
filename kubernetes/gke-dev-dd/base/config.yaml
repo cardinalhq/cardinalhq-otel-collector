@@ -50,7 +50,7 @@ data:
         metrics:
           readers:
             - periodic:
-                interval: 10s
+                interval: 10000
                 exporter:
                   otlp:
                     protocol: grpc/protobuf

@@ -71,6 +71,7 @@ func (ddr *datadogReceiver) Start(ctx context.Context, host component.Host) erro
 	ddmux.HandleFunc("/api/v1/validate", ddr.handleV1Validate)
 	ddmux.HandleFunc("/intake", ddr.handleIntake)
 	ddmux.HandleFunc("/intake/", ddr.handleIntake)
+	ddmux.HandleFunc("/api/v1/check_run", ddr.handleCheckRun)
 
 	var err error
 	ddr.server, err = ddr.config.ServerConfig.ToServer(
@@ -120,68 +121,111 @@ func (ddr *datadogReceiver) showBodyIfJson(req *http.Request, source string) {
 	}
 }
 
-func (ddr *datadogReceiver) showDatadogApiHeaders(req *http.Request, source string) {
-	apikey := req.Header.Get("DD-API-KEY")
-	req.Header.Del("DD-API-KEY")
-	if apikey == "" {
-		apikey = req.URL.Query().Get("DD-API-KEY")
+func getDDAPIKey(req *http.Request) string {
+	if apikey := req.Header.Get("DD-API-KEY"); apikey != "" {
+		req.Header.Del("DD-API-KEY")
+		return apikey
+	}
+	if apikey := req.URL.Query().Get("DD-API-KEY"); apikey != "" {
 		req.URL.Query().Del("DD-API-KEY")
+		return apikey
 	}
-	if apikey != "" {
-		keylen := len(apikey)
-		if keylen > 4 {
-			apikey = apikey[:4] + "..."
-		}
+	if apikey := req.URL.Query().Get("api_key"); apikey != "" {
+		req.URL.Query().Del("api_key")
+		return apikey
 	}
+	return ""
+}
 
-	query := make(map[string]string)
+func maskAPIKey(apikey string) string {
+	if apikey == "" {
+		return ""
+	}
+	if len(apikey) > 4 {
+		apikey = apikey[:4] + "..."
+	}
+	return apikey
+}
+
+func hexdump(data []byte) {
+	var line string
+	for _, b := range data {
+		line += fmt.Sprintf("%02x", b)
+	}
+	fmt.Println(line)
+}
+
+func (ddr *datadogReceiver) showDatadogApiHeaders(req *http.Request, source string) {
+	apikey := getDDAPIKey(req)
+	apikey = maskAPIKey(apikey)
+
+	query := make(map[string][]string)
 	for k, v := range req.URL.Query() {
-		query[k] = v[0]
+		query[k] = v
 	}
 
-	headers := make(map[string]string)
+	headers := make(map[string][]string)
 	for k, v := range req.Header {
-		headers[k] = v[0]
+		headers[k] = v
 	}
 
 	ddr.params.Logger.Info("datadog api headers",
 		zap.String("source", source),
-		zap.String("DD-API-KEY", apikey),
+		zap.String("masked-api-key", apikey),
 		zap.Any("headers", headers),
 		zap.Any("query", query))
 }
 
 func (ddr *datadogReceiver) handleV1Validate(w http.ResponseWriter, req *http.Request) {
 	ddr.showDatadogApiHeaders(req, "/api/v1/validate")
-	ddr.showBodyIfJson(req, "/api/v1/validate")
+	//ddr.showBodyIfJson(req, "/api/v1/validate")
 	w.Header().Set("Content-Type", "application/json")
 
-	apikey := req.Header.Get("DD-API-KEY")
+	apikey := getDDAPIKey(req)
 	if apikey == "" {
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
 		return
 	}
 
+	w.WriteHeader(http.StatusAccepted)
 	_, _ = w.Write([]byte(`{"valid":"true"}`))
 }
 
 func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Request) {
 	ddr.showDatadogApiHeaders(req, "/intake")
-	ddr.showBodyIfJson(req, "/intake")
+	//ddr.showBodyIfJson(req, "/intake")
 	w.Header().Set("Content-Type", "application/json")
 
-	apikey := req.Header.Get("DD-API-KEY")
+	apikey := getDDAPIKey(req)
 	if apikey == "" {
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
 		return
 	}
 
+	w.WriteHeader(http.StatusAccepted)
+	_, _ = w.Write([]byte(`{"status":"ok"}`))
+}
+
+func (ddr *datadogReceiver) handleCheckRun(w http.ResponseWriter, req *http.Request) {
+	ddr.showDatadogApiHeaders(req, "/api/v1/check_run")
+	//ddr.showBodyIfJson(req, "/api/v1/check_run")
+	w.Header().Set("Content-Type", "application/json")
+
+	apikey := getDDAPIKey(req)
+	if apikey == "" {
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
+		return
+	}
+
+	w.WriteHeader(http.StatusAccepted)
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }
 
 func (ddr *datadogReceiver) handleTraces(w http.ResponseWriter, req *http.Request) {
+	ddr.showDatadogApiHeaders(req, "TRACES")
 	obsCtx := ddr.tReceiver.StartTracesOp(req.Context())
 	var err error
 	var spanCount int
@@ -192,7 +236,7 @@ func (ddr *datadogReceiver) handleTraces(w http.ResponseWriter, req *http.Reques
 	var ddTraces []*ddpbtrace.TracerPayload
 	ddTraces, err = handlePayload(req)
 	if err != nil {
-		http.Error(w, "Unable to unmarshal reqs", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, err)
 		ddr.params.Logger.Error("Unable to unmarshal reqs")
 		return
 	}
@@ -201,11 +245,13 @@ func (ddr *datadogReceiver) handleTraces(w http.ResponseWriter, req *http.Reques
 		spanCount = otelTraces.SpanCount()
 		err = ddr.nextTraceConsumer.ConsumeTraces(obsCtx, otelTraces)
 		if err != nil {
-			http.Error(w, "Trace consumer errored out", http.StatusInternalServerError)
+			writeError(w, http.StatusInternalServerError, err)
 			ddr.params.Logger.Error("Trace consumer errored out")
 			return
 		}
 	}
 
-	_, _ = w.Write([]byte("OK"))
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }

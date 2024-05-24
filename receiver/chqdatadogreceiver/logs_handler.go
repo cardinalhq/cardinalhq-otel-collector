@@ -24,11 +24,11 @@ import (
 
 func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
-		http.Error(w, "Invalid method", http.StatusMethodNotAllowed)
+		writeError(w, http.StatusMethodNotAllowed, nil)
 		return
 	}
 	if req.Header.Get("Content-Type") != "application/json" {
-		http.Error(w, "Invalid content type", http.StatusUnsupportedMediaType)
+		writeError(w, http.StatusUnsupportedMediaType, nil)
 		return
 	}
 
@@ -41,7 +41,7 @@ func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request)
 
 	ddLogs, err := handleLogsPayload(req)
 	if err != nil {
-		http.Error(w, "Unable to unmarshal reqs", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, err)
 		ddr.params.Logger.Error("Unable to unmarshal reqs", zap.Error(err))
 		return
 	}

@@ -21,12 +21,9 @@ import (
 )
 
 func (ddr *datadogReceiver) handleV1Series(w http.ResponseWriter, req *http.Request) {
+	ddr.showDatadogApiHeaders(req, "V1SERIES")
 	if req.Method != http.MethodPost && req.Method != http.MethodPut {
-		http.Error(w, "Invalid method", http.StatusMethodNotAllowed)
-		return
-	}
-	if req.Header.Get("Content-Type") != "application/json" {
-		http.Error(w, "Invalid content type", http.StatusUnsupportedMediaType)
+		writeError(w, http.StatusMethodNotAllowed, nil)
 		return
 	}
 
@@ -53,15 +50,13 @@ func (ddr *datadogReceiver) handleV1Series(w http.ResponseWriter, req *http.Requ
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
+	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }
 
 func (ddr *datadogReceiver) handleV2Series(w http.ResponseWriter, req *http.Request) {
+	ddr.showDatadogApiHeaders(req, "V2SERIES")
 	if req.Method != http.MethodPost {
-		http.Error(w, "Invalid method", http.StatusMethodNotAllowed)
-		return
-	}
-	if req.Header.Get("Content-Type") != "application/json" {
-		http.Error(w, "Invalid content type", http.StatusUnsupportedMediaType)
+		writeError(w, http.StatusMethodNotAllowed, nil)
 		return
 	}
 
@@ -74,18 +69,19 @@ func (ddr *datadogReceiver) handleV2Series(w http.ResponseWriter, req *http.Requ
 
 	ddMetrics, httpCode, err := ddr.handleMetricsV2Payload(req)
 	if err != nil {
-		writeError(w, httpCode, err)
 		ddr.params.Logger.Error("Unable to unmarshal reqs", zap.Error(err))
+		writeError(w, httpCode, err)
 		return
 	}
 	metricCount = len(ddMetrics)
 	err = ddr.processMetricsV2(ddMetrics)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err)
 		ddr.params.Logger.Error("processMetrics", zap.Error(err))
+		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
+	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }

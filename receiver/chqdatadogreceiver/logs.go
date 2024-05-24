@@ -15,10 +15,8 @@
 package datadogreceiver
 
 import (
-	"compress/gzip"
 	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"strings"
 
@@ -35,28 +33,16 @@ type DDLog struct {
 	Service  string `json:"service,omitempty"`
 }
 
-func handleLogsPayload(req *http.Request) (ret []*DDLog, err error) {
-	ret = make([]*DDLog, 0)
-
-	var from io.ReadCloser = req.Body
-	defer req.Body.Close()
-	if req.Header.Get("Content-Encoding") == "gzip" {
-		from, err = gzip.NewReader(req.Body)
-		if err != nil {
-			return nil, err
-		}
-		defer from.Close()
-	}
-
-	var ddLogs []*DDLog
-	err = json.NewDecoder(from).Decode(&ddLogs)
+func handleLogsPayload(req *http.Request) (ddLogs []DDLog, err error) {
+	ddLogs = make([]DDLog, 0)
+	err = json.NewDecoder(req.Body).Decode(&ddLogs)
 	if err != nil {
 		return nil, err
 	}
 	return ddLogs, nil
 }
 
-func (ddr *datadogReceiver) processLogs(t pcommon.Timestamp, logs []*DDLog) error {
+func (ddr *datadogReceiver) processLogs(t pcommon.Timestamp, logs []DDLog) error {
 	for _, log := range logs {
 		otelLog, err := ddr.convertLog(t, log)
 		if err != nil {
@@ -83,7 +69,7 @@ func splitTags(tags string) map[string]string {
 	return tagMap
 }
 
-func (ddr *datadogReceiver) convertLog(t pcommon.Timestamp, log *DDLog) (plog.Logs, error) {
+func (ddr *datadogReceiver) convertLog(t pcommon.Timestamp, log DDLog) (plog.Logs, error) {
 	lm := plog.NewLogs()
 	rl := lm.ResourceLogs().AppendEmpty()
 	rAttr := rl.Resource().Attributes()

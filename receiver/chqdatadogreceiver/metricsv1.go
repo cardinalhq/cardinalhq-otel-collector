@@ -15,10 +15,8 @@
 package datadogreceiver
 
 import (
-	"compress/gzip"
 	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 
 	"github.com/barweiss/go-tuple"
@@ -43,22 +41,16 @@ type SeriesV1 struct {
 }
 
 func handleMetricsV1Payload(req *http.Request) (ret []SeriesV1, httpCode int, err error) {
-	var from io.ReadCloser = req.Body
-	defer req.Body.Close()
-	if req.Header.Get("Content-Encoding") == "gzip" {
-		from, err = gzip.NewReader(req.Body)
-		if err != nil {
-			return nil, http.StatusInternalServerError, err
-		}
-		defer from.Close()
+	if req.Header.Get("Content-Type") != "application/json" {
+		return nil, http.StatusUnsupportedMediaType, nil
 	}
 
 	wrapper := MetricsPayloadV1{}
-	err = json.NewDecoder(from).Decode(&wrapper)
+	err = json.NewDecoder(req.Body).Decode(&wrapper)
 	if err != nil {
 		return nil, http.StatusUnprocessableEntity, err
 	}
-	return wrapper.Series, 0, nil
+	return wrapper.Series, http.StatusAccepted, nil
 }
 
 func (ddr *datadogReceiver) processMetricsV1(ddMetrics []SeriesV1) error {

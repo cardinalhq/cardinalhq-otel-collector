@@ -15,7 +15,6 @@
 package datadogreceiver
 
 import (
-	"compress/gzip"
 	"context"
 	"io"
 	"net/http"
@@ -29,46 +28,29 @@ import (
 	ddpb "github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver/internal/ddpb"
 )
 
-var bpool = NewBufferPool("datadog-receiver", 5*1024*1024) // 5MB buffer pool (max message size)
+const maxreceivesize = 5 * 1024 * 1024 // 5MB
 
 func (ddr *datadogReceiver) handleMetricsV2Payload(req *http.Request) (ret []*ddpb.MetricPayload_MetricSeries, httpCode int, err error) {
-	buf := bpool.Get()
-	defer bpool.Put(buf)
+	buf := getBuffer()
+	defer putBuffer(buf)
 
-	var from io.ReadCloser = req.Body
-	defer req.Body.Close()
-	if req.Header.Get("Content-Encoding") == "gzip" {
-		from, err = gzip.NewReader(req.Body)
-		if err != nil {
-			return nil, http.StatusInternalServerError, err
-		}
-		defer from.Close()
-		req.Header.Del("Content-Encoding")
-	}
-
-	rl := io.LimitReader(from, int64(bpool.size))
-	n, err := rl.Read(buf.buf)
-	if n == 0 || err != nil && err != io.EOF {
-		return nil, http.StatusUnprocessableEntity, err
-	}
-	buf.buf = buf.buf[:n]
-
-	if n >= bpool.size {
-		return nil, http.StatusRequestEntityTooLarge, err
-	}
+	n, err := io.Copy(buf, req.Body)
 	if err != nil {
 		return nil, http.StatusInternalServerError, err
 	}
+	if n > maxreceivesize {
+		return nil, http.StatusRequestEntityTooLarge, err
+	}
 
 	var message ddpb.MetricPayload
-
 	switch req.Header.Get("Content-Type") {
 	case "application/json":
-		if err := protojson.Unmarshal(buf.buf, &message); err != nil {
+		if err := protojson.Unmarshal(buf.Bytes(), &message); err != nil {
 			return nil, http.StatusUnprocessableEntity, err
 		}
 	case "application/x-protobuf":
-		if err := proto.Unmarshal(buf.buf, &message); err != nil {
+		if err := proto.Unmarshal(buf.Bytes(), &message); err != nil {
+			hexdump(buf.Bytes())
 			return nil, http.StatusUnprocessableEntity, err
 		}
 	default:
@@ -76,7 +58,7 @@ func (ddr *datadogReceiver) handleMetricsV2Payload(req *http.Request) (ret []*dd
 		return nil, http.StatusUnsupportedMediaType, err
 	}
 
-	return message.Series, 0, nil
+	return message.Series, http.StatusAccepted, nil
 }
 
 func (ddr *datadogReceiver) processMetricsV2(ddMetrics []*ddpb.MetricPayload_MetricSeries) error {
@@ -120,7 +102,7 @@ func (ddr *datadogReceiver) convertMetricV2(v2 *ddpb.MetricPayload_MetricSeries)
 
 	if v2.Resources != nil {
 		for _, resource := range v2.Resources {
-			decorate(resource.Name, resource.Type, rAttr, sAttr)
+			decorate(resource.Type, resource.Name, rAttr, sAttr)
 		}
 	}
 

@@ -4,7 +4,6 @@
 package datadogreceiver // import "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/datadogreceiver"
 
 import (
-	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -13,7 +12,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 
 	pb "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -179,22 +177,6 @@ func translateDataDogKeyToOtel(k string) string {
 		return k
 	}
 
-}
-
-var bufferPool = sync.Pool{
-	New: func() any {
-		return new(bytes.Buffer)
-	},
-}
-
-func getBuffer() *bytes.Buffer {
-	buffer := bufferPool.Get().(*bytes.Buffer)
-	buffer.Reset()
-	return buffer
-}
-
-func putBuffer(buffer *bytes.Buffer) {
-	bufferPool.Put(buffer)
 }
 
 func handlePayload(req *http.Request) (tp []*pb.TracerPayload, err error) {

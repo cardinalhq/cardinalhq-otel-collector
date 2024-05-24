@@ -31,6 +31,9 @@ type DDError struct {
 }
 
 func writeError(w http.ResponseWriter, code int, err error) {
+	if err == nil {
+		err = fmt.Errorf(http.StatusText(code))
+	}
 	e := DDErrorWrapper{
 		Errors: []DDError{
 			{

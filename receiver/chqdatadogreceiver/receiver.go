@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 
 	ddpbtrace "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
@@ -102,36 +101,21 @@ func (ddr *datadogReceiver) Shutdown(ctx context.Context) (err error) {
 	return ddr.server.Shutdown(ctx)
 }
 
-func (ddr *datadogReceiver) showBodyIfJson(req *http.Request, source string) {
-	switch req.Header.Get("Content-Type") {
-	case "application/json":
-		b, err := io.ReadAll(req.Body)
-		if err != nil {
-			ddr.params.Logger.Error("failed to read request body", zap.Error(err))
-			return
-		}
-		ddr.params.Logger.Info("message body", zap.String("endpoint", source), zap.String("json", string(b)))
-	case "text/plain":
-		b, err := io.ReadAll(req.Body)
-		if err != nil {
-			ddr.params.Logger.Error("failed to read request body", zap.Error(err))
-			return
-		}
-		ddr.params.Logger.Info("message body", zap.String("endpoint", source), zap.String("text", string(b)))
-	}
-}
-
 func getDDAPIKey(req *http.Request) string {
 	if apikey := req.Header.Get("DD-API-KEY"); apikey != "" {
 		req.Header.Del("DD-API-KEY")
 		return apikey
 	}
 	if apikey := req.URL.Query().Get("DD-API-KEY"); apikey != "" {
-		req.URL.Query().Del("DD-API-KEY")
+		q := req.URL.Query()
+		q.Del("DD-API-KEY")
+		req.URL.RawQuery = q.Encode()
 		return apikey
 	}
 	if apikey := req.URL.Query().Get("api_key"); apikey != "" {
-		req.URL.Query().Del("api_key")
+		q := req.URL.Query()
+		q.Del("api_key")
+		req.URL.RawQuery = q.Encode()
 		return apikey
 	}
 	return ""

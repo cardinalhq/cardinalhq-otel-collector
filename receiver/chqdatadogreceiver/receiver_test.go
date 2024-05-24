@@ -62,7 +62,7 @@ func TestDatadogServer(t *testing.T) {
 			name:          "invalid data",
 			op:            strings.NewReader("{"),
 			expectCode:    http.StatusBadRequest,
-			expectContent: "Unable to unmarshal reqs\n",
+			expectContent: `{"errors":[{"detail":"msgp: attempted to decode type \"int\" with method for \"map\"","status":"400","title":"Bad Request"}]}`,
 		},
 	} {
 		tc := tc

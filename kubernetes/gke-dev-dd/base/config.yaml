@@ -33,11 +33,11 @@ data:
         logs:
           receivers: [chqdatadog]
           processors: [memory_limiter, batch]
-          exporters: [datadog, debug]
+          exporters: [datadog]
         metrics:
           receivers: [chqdatadog]
           processors: [memory_limiter, batch]
-          exporters: [datadog, debug]
+          exporters: [datadog]
         traces:
           receivers: [chqdatadog]
           exporters: [nop]

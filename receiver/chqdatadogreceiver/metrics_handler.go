@@ -35,7 +35,7 @@ func (ddr *datadogReceiver) handleV1Series(w http.ResponseWriter, req *http.Requ
 	}(&metricCount)
 
 	if apikey == "" {
-		ddr.params.Logger.Info("V1SERIES No API key found in request")
+		ddr.metricLogger.Info("V1SERIES No API key found in request")
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
 		return
@@ -44,14 +44,14 @@ func (ddr *datadogReceiver) handleV1Series(w http.ResponseWriter, req *http.Requ
 	ddMetrics, httpCode, err := handleMetricsV1Payload(req)
 	if err != nil {
 		writeError(w, httpCode, err)
-		ddr.params.Logger.Error("Unable to unmarshal reqs", zap.Error(err))
+		ddr.metricLogger.Error("Unable to unmarshal reqs", zap.Error(err))
 		return
 	}
 	metricCount = len(ddMetrics)
 	err = ddr.processMetricsV1(ddMetrics)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
-		ddr.params.Logger.Error("processMetrics", zap.Error(err))
+		ddr.metricLogger.Error("processMetrics", zap.Error(err))
 		return
 	}
 
@@ -75,7 +75,7 @@ func (ddr *datadogReceiver) handleV2Series(w http.ResponseWriter, req *http.Requ
 	}(&metricCount)
 
 	if apikey == "" {
-		ddr.params.Logger.Info("V2SERIES No API key found in request")
+		ddr.metricLogger.Info("V2SERIES No API key found in request")
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
 		return
@@ -83,14 +83,14 @@ func (ddr *datadogReceiver) handleV2Series(w http.ResponseWriter, req *http.Requ
 
 	ddMetrics, httpCode, err := ddr.handleMetricsV2Payload(req)
 	if err != nil {
-		ddr.params.Logger.Error("Unable to unmarshal reqs", zap.Error(err))
+		ddr.metricLogger.Error("Unable to unmarshal reqs", zap.Error(err))
 		writeError(w, httpCode, err)
 		return
 	}
 	metricCount = len(ddMetrics)
 	err = ddr.processMetricsV2(ddMetrics)
 	if err != nil {
-		ddr.params.Logger.Error("processMetrics", zap.Error(err))
+		ddr.metricLogger.Error("processMetrics", zap.Error(err))
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}

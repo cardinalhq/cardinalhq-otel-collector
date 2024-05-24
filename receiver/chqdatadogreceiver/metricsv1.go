@@ -103,7 +103,7 @@ func (ddr *datadogReceiver) convertMetricV1(v1 SeriesV1) (pmetric.Metrics, error
 	switch mtype {
 	case "gauge", "rate":
 		if mtype == "rate" {
-			ddr.params.Logger.Warn("Rate type is not supported by OpenTelemetry, converting to gauge")
+			ddr.metricLogger.Warn("Rate type is not supported by OpenTelemetry, converting to gauge")
 		}
 		g := metric.SetEmptyGauge()
 		for _, point := range v1.Points {

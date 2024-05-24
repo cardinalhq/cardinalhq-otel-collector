@@ -54,7 +54,7 @@ func (ddr *datadogReceiver) handleMetricsV2Payload(req *http.Request) (ret []*dd
 			return nil, http.StatusUnprocessableEntity, err
 		}
 	default:
-		ddr.params.Logger.Warn("unsupported content type", zap.String("content-type", req.Header.Get("Content-Type")))
+		ddr.metricLogger.Warn("unsupported content type", zap.String("content-type", req.Header.Get("Content-Type")))
 		return nil, http.StatusUnsupportedMediaType, err
 	}
 
@@ -109,7 +109,7 @@ func (ddr *datadogReceiver) convertMetricV2(v2 *ddpb.MetricPayload_MetricSeries)
 	switch v2.Type {
 	case ddpb.MetricPayload_GAUGE, ddpb.MetricPayload_RATE, ddpb.MetricPayload_UNSPECIFIED:
 		if v2.Type == ddpb.MetricPayload_RATE {
-			ddr.params.Logger.Warn("Rate metric type is not supported in OTLP, converting to gauge")
+			ddr.metricLogger.Warn("Rate metric type is not supported in OTLP, converting to gauge")
 		}
 		g := metric.SetEmptyGauge()
 		for _, point := range v2.Points {

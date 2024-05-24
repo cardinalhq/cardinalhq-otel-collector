@@ -46,7 +46,7 @@ func createTracesReceiver(_ context.Context, params receiver.CreateSettings, cfg
 
 	ddr := r.Unwrap().(*datadogReceiver)
 	ddr.nextTraceConsumer = consumer
-	ddr.params = params
+	ddr.traceLogger = params.Logger
 	return r, nil
 }
 
@@ -59,7 +59,7 @@ func createLogsReceiver(_ context.Context, params receiver.CreateSettings, cfg c
 	})
 	ddr := r.Unwrap().(*datadogReceiver)
 	ddr.nextLogConsumer = consumer
-	ddr.params = params
+	ddr.logLogger = params.Logger
 	return r, nil
 }
 
@@ -72,7 +72,7 @@ func createMetricsReceiver(_ context.Context, params receiver.CreateSettings, cf
 	})
 	ddr := r.Unwrap().(*datadogReceiver)
 	ddr.nextMetricConsumer = consumer
-	ddr.params = params
+	ddr.metricLogger = params.Logger
 	return r, nil
 }
 

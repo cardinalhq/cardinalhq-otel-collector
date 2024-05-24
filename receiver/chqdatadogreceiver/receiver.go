@@ -20,10 +20,14 @@ import (
 type datadogReceiver struct {
 	address            string
 	config             *Config
-	params             receiver.CreateSettings
 	nextTraceConsumer  consumer.Traces
 	nextLogConsumer    consumer.Logs
 	nextMetricConsumer consumer.Metrics
+	traceLogger        *zap.Logger
+	logLogger          *zap.Logger
+	metricLogger       *zap.Logger
+	gpLogger           *zap.Logger
+	telemetrySettings  component.TelemetrySettings
 	server             *http.Server
 	tReceiver          *receiverhelper.ObsReport
 }
@@ -34,21 +38,25 @@ func newDataDogReceiver(config *Config, params receiver.CreateSettings) (compone
 		return nil, err
 	}
 
-	return &datadogReceiver{
-		params: params,
-		config: config,
+	ddr := &datadogReceiver{
+		telemetrySettings: params.TelemetrySettings,
+		config:            config,
 		server: &http.Server{
 			ReadTimeout: config.ReadTimeout,
 		},
 		tReceiver: instance,
-	}, nil
+	}
+	if ddr.gpLogger == nil {
+		ddr.gpLogger = params.Logger.With(zap.String("data_type", "internal"))
+	}
+	return ddr, nil
 }
 
 func (ddr *datadogReceiver) Start(ctx context.Context, host component.Host) error {
 	ddmux := http.NewServeMux()
 
 	if ddr.nextTraceConsumer != nil {
-		ddr.params.Logger.Info("datadog receiver listening for traces")
+		ddr.traceLogger.Info("datadog receiver listening for traces")
 		ddmux.HandleFunc("/v0.3/traces", ddr.handleTraces)
 		ddmux.HandleFunc("/v0.4/traces", ddr.handleTraces)
 		ddmux.HandleFunc("/v0.5/traces", ddr.handleTraces)
@@ -57,12 +65,12 @@ func (ddr *datadogReceiver) Start(ctx context.Context, host component.Host) erro
 	}
 
 	if ddr.nextLogConsumer != nil {
-		ddr.params.Logger.Info("datadog receiver listening for logs")
+		ddr.logLogger.Info("datadog receiver listening for logs")
 		ddmux.HandleFunc("/api/v2/logs", ddr.handleLogs)
 	}
 
 	if ddr.nextMetricConsumer != nil {
-		ddr.params.Logger.Info("datadog receiver listening for metrics")
+		ddr.metricLogger.Info("datadog receiver listening for metrics")
 		ddmux.HandleFunc("/api/v1/series", ddr.handleV1Series)
 		ddmux.HandleFunc("/api/v2/series", ddr.handleV2Series)
 	}
@@ -77,7 +85,7 @@ func (ddr *datadogReceiver) Start(ctx context.Context, host component.Host) erro
 	ddr.server, err = ddr.config.ServerConfig.ToServer(
 		ctx,
 		host,
-		ddr.params.TelemetrySettings,
+		ddr.telemetrySettings,
 		ddmux,
 	)
 	if err != nil {
@@ -92,7 +100,7 @@ func (ddr *datadogReceiver) Start(ctx context.Context, host component.Host) erro
 
 	go func() {
 		if err := ddr.server.Serve(hln); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			ddr.params.TelemetrySettings.ReportStatus(component.NewFatalErrorEvent(fmt.Errorf("error starting datadog receiver: %w", err)))
+			ddr.telemetrySettings.ReportStatus(component.NewFatalErrorEvent(fmt.Errorf("error starting datadog receiver: %w", err)))
 		}
 	}()
 	return nil
@@ -148,7 +156,7 @@ func (ddr *datadogReceiver) showDatadogApiHeaders(req *http.Request, source stri
 		redactedKey = redactedKey[0:4] + "..."
 	}
 
-	ddr.params.Logger.Info("datadog api headers",
+	ddr.gpLogger.Info("datadog api headers",
 		zap.String("source", source),
 		zap.String("dd-api-key", redactedKey),
 		zap.Any("headers", headers),
@@ -161,12 +169,12 @@ func (ddr *datadogReceiver) handleV1Validate(w http.ResponseWriter, req *http.Re
 	apikey := ddr.showDatadogApiHeaders(req, "/api/v1/validate")
 	w.Header().Set("Content-Type", "application/json")
 	if apikey == "" {
-		ddr.params.Logger.Info("/api/v1/validate No API key found in request")
+		ddr.gpLogger.Info("/api/v1/validate No API key found in request")
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
 		return
 	}
-	ddr.params.Logger.Info("/api/v1/validate returning 200")
+	ddr.gpLogger.Info("/api/v1/validate returning 200")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(`{"valid":"true"}`))
 }
@@ -175,12 +183,12 @@ func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Reques
 	apikey := ddr.showDatadogApiHeaders(req, "/intake")
 	w.Header().Set("Content-Type", "application/json")
 	if apikey == "" {
-		ddr.params.Logger.Info("/intake No API key found in request")
+		ddr.gpLogger.Info("/intake No API key found in request")
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
 		return
 	}
-	ddr.params.Logger.Info("/intake returning 200")
+	ddr.gpLogger.Info("/intake returning 200")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }
@@ -189,12 +197,12 @@ func (ddr *datadogReceiver) handleCheckRun(w http.ResponseWriter, req *http.Requ
 	apikey := ddr.showDatadogApiHeaders(req, "/api/v1/check_run")
 	w.Header().Set("Content-Type", "application/json")
 	if apikey == "" {
-		ddr.params.Logger.Info("/api/v1/check_run No API key found in request")
+		ddr.gpLogger.Info("/api/v1/check_run No API key found in request")
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
 		return
 	}
-	ddr.params.Logger.Info("/api/v1/check_run returning 202")
+	ddr.gpLogger.Info("/api/v1/check_run returning 202")
 	w.WriteHeader(http.StatusAccepted)
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }
@@ -203,12 +211,12 @@ func (ddr *datadogReceiver) handleMetadata(w http.ResponseWriter, req *http.Requ
 	apikey := ddr.showDatadogApiHeaders(req, "/api/v1/metadata")
 	w.Header().Set("Content-Type", "application/json")
 	if apikey == "" {
-		ddr.params.Logger.Info("/api/v1/metadata No API key found in request")
+		ddr.gpLogger.Info("/api/v1/metadata No API key found in request")
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
 		return
 	}
-	ddr.params.Logger.Info("/api/v1/metadata returning 200")
+	ddr.gpLogger.Info("/api/v1/metadata returning 200")
 	w.WriteHeader(http.StatusAccepted)
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }
@@ -227,7 +235,7 @@ func (ddr *datadogReceiver) handleTraces(w http.ResponseWriter, req *http.Reques
 	var ddTraces []*ddpbtrace.TracerPayload
 
 	if apikey == "" {
-		ddr.params.Logger.Info("TRACES No API key found in request")
+		ddr.traceLogger.Info("TRACES No API key found in request")
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
 		return
@@ -236,7 +244,7 @@ func (ddr *datadogReceiver) handleTraces(w http.ResponseWriter, req *http.Reques
 	ddTraces, err = handlePayload(req)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
-		ddr.params.Logger.Error("Unable to unmarshal reqs")
+		ddr.traceLogger.Error("Unable to unmarshal reqs")
 		return
 	}
 	for _, ddTrace := range ddTraces {
@@ -245,7 +253,7 @@ func (ddr *datadogReceiver) handleTraces(w http.ResponseWriter, req *http.Reques
 		err = ddr.nextTraceConsumer.ConsumeTraces(obsCtx, otelTraces)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err)
-			ddr.params.Logger.Error("Trace consumer errored out")
+			ddr.traceLogger.Error("Trace consumer errored out")
 			return
 		}
 	}

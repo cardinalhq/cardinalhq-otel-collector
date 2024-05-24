@@ -43,7 +43,7 @@ func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request)
 	}
 
 	if apikey == "" {
-		ddr.params.Logger.Info("V1LOGS No API key found in request")
+		ddr.logLogger.Info("V1LOGS No API key found in request")
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
 		return
@@ -52,7 +52,7 @@ func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request)
 	ddLogs, err := handleLogsPayload(req)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
-		ddr.params.Logger.Error("Unable to unmarshal reqs", zap.Error(err))
+		ddr.logLogger.Error("Unable to unmarshal reqs", zap.Error(err))
 		return
 	}
 	logCount = len(ddLogs)
@@ -60,7 +60,7 @@ func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request)
 	err = ddr.processLogs(t, ddLogs)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
-		ddr.params.Logger.Error("processLogs", zap.Error(err))
+		ddr.logLogger.Error("processLogs", zap.Error(err))
 		return
 	}
 

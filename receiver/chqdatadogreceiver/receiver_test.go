@@ -16,9 +16,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/component/componenttest"
-	"go.opentelemetry.io/collector/config/configopaque"
 	"go.opentelemetry.io/collector/consumer/consumertest"
 	"go.opentelemetry.io/collector/receiver/receivertest"
+	"go.uber.org/zap"
 )
 
 func TestDatadogReceiver_Lifecycle(t *testing.T) {
@@ -43,6 +43,7 @@ func TestDatadogServer(t *testing.T) {
 		receivertest.NewNopCreateSettings(),
 	)
 	dd.(*datadogReceiver).nextTraceConsumer = consumertest.NewNop()
+	dd.(*datadogReceiver).traceLogger = zap.NewNop()
 	require.NoError(t, err, "Must not error when creating receiver")
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -76,6 +77,7 @@ func TestDatadogServer(t *testing.T) {
 				fmt.Sprintf("http://%s/v0.7/traces", dd.(*datadogReceiver).address),
 				tc.op,
 			)
+			req.Header.Set("DD-API-KEY", "testing")
 			require.NoError(t, err, "Must not error when creating request")
 
 			resp, err := http.DefaultClient.Do(req)
@@ -96,26 +98,26 @@ func TestGetDDAPIKey(t *testing.T) {
 	// Test case 1: DD-API-KEY header is present
 	req.Header.Set("DD-API-KEY", "api_key_value")
 	apiKey := getDDAPIKey(req)
-	assert.Equal(t, configopaque.String("api_key_value"), apiKey)
+	assert.Equal(t, "api_key_value", apiKey)
 
 	// Test case 2: DD-API-KEY header is empty
 	req.Header.Set("DD-API-KEY", "")
 	apiKey = getDDAPIKey(req)
-	assert.Equal(t, configopaque.String(""), apiKey)
+	assert.Equal(t, "", apiKey)
 
 	// Test case 3: DD-API-KEY header is not present, but DD-API-KEY query parameter is present
 	req.Header.Del("DD-API-KEY")
 	req.URL.RawQuery = "DD-API-KEY=query_param_value"
 	apiKey = getDDAPIKey(req)
-	assert.Equal(t, configopaque.String("query_param_value"), apiKey)
+	assert.Equal(t, "query_param_value", apiKey)
 
 	// Test case 4: DD-API-KEY header and DD-API-KEY query parameter are not present, but api_key query parameter is present
 	req.URL.RawQuery = "api_key=query_param_value"
 	apiKey = getDDAPIKey(req)
-	assert.Equal(t, configopaque.String("query_param_value"), apiKey)
+	assert.Equal(t, "query_param_value", apiKey)
 
 	// Test case 5: No API key is present
 	req.URL.RawQuery = ""
 	apiKey = getDDAPIKey(req)
-	assert.Equal(t, configopaque.String(""), apiKey)
+	assert.Equal(t, "", apiKey)
 }

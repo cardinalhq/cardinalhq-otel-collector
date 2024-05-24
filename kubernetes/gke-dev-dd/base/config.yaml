@@ -22,8 +22,6 @@ data:
     exporters:
       debug:
         verbosity: detailed
-        sampling_initial: 10
-        sampling_thereafter: 1001
       nop:
       datadog:
         api:
@@ -35,11 +33,11 @@ data:
         logs:
           receivers: [chqdatadog]
           processors: [memory_limiter, batch]
-          exporters: [datadog]
+          exporters: [datadog, debug]
         metrics:
           receivers: [chqdatadog]
           processors: [memory_limiter, batch]
-          exporters: [datadog]
+          exporters: [datadog, debug]
         traces:
           receivers: [chqdatadog]
           exporters: [nop]

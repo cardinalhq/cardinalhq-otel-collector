@@ -31,6 +31,12 @@ data:
         api:
           key: ${env:DD_API_KEY}
           site: intake.cardinalhq.com
+        logs:
+          endpoint: https://intake.cardinalhq.com
+        metrics:
+          endpoint: https://intake.cardinalhq.com
+        traces:
+          endpoint: https://intake.cardinalhq.com
 
     service:
       pipelines:

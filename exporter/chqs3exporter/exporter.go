@@ -20,7 +20,6 @@ import (
 	"strconv"
 	"time"
 
-	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/collector/pdata/plog"
@@ -54,10 +53,6 @@ func newS3Exporter(config *Config, params exporter.CreateSettings) *s3Exporter {
 		metadata:   metadata,
 	}
 	return s3Exporter
-}
-
-func (e *s3Exporter) start(_ context.Context, host component.Host) error {
-	return nil
 }
 
 func (e *s3Exporter) Capabilities() consumer.Capabilities {

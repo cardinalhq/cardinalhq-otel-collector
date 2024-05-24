@@ -42,7 +42,8 @@ func createLogsExporter(ctx context.Context,
 	return exporterhelper.NewLogsExporter(ctx, params,
 		config,
 		s3Exporter.ConsumeLogs,
-		exporterhelper.WithStart(s3Exporter.start))
+		exporterhelper.WithShutdown(s3Exporter.Shutdown),
+		exporterhelper.WithCapabilities(s3Exporter.Capabilities()))
 }
 
 func createMetricsExporter(ctx context.Context,
@@ -54,7 +55,8 @@ func createMetricsExporter(ctx context.Context,
 	return exporterhelper.NewMetricsExporter(ctx, params,
 		config,
 		s3Exporter.ConsumeMetrics,
-		exporterhelper.WithStart(s3Exporter.start))
+		exporterhelper.WithShutdown(s3Exporter.Shutdown),
+		exporterhelper.WithCapabilities(s3Exporter.Capabilities()))
 }
 
 func createTracesExporter(ctx context.Context,
@@ -67,5 +69,6 @@ func createTracesExporter(ctx context.Context,
 		params,
 		config,
 		s3Exporter.ConsumeTraces,
-		exporterhelper.WithStart(s3Exporter.start))
+		exporterhelper.WithShutdown(s3Exporter.Shutdown),
+		exporterhelper.WithCapabilities(s3Exporter.Capabilities()))
 }

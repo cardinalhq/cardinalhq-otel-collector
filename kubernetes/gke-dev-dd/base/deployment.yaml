@@ -46,6 +46,11 @@ spec:
                   fieldPath: metadata.namespace
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: "Delta"
+            - name: DATADOG_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cardinal-collector-datadog
+                  key: api-key
           ports:
             - name: datadog
               containerPort: 8126

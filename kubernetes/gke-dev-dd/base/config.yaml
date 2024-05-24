@@ -27,17 +27,21 @@ data:
         api:
           key: ${env:DD_API_KEY}
           site: us3.datadoghq.com
+      datadog/chq:
+        api:
+          key: ${env:DD_API_KEY}
+          site: intake.cardinalhq.com
 
     service:
       pipelines:
         logs:
           receivers: [chqdatadog]
           processors: [memory_limiter, batch]
-          exporters: [datadog]
+          exporters: [datadog, datadog/chq]
         metrics:
           receivers: [chqdatadog]
           processors: [memory_limiter, batch]
-          exporters: [datadog]
+          exporters: [nop]
         traces:
           receivers: [chqdatadog]
           exporters: [nop]

@@ -48,6 +48,8 @@ exporters:
     path: ./exporter/chqs3exporter
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqstatsexporter v0.31.0
     path: ./exporter/chqstatsexporter
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.31.0
+    path: ./exporter/chqdatadogexporter
 
 extensions:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/healthcheckextension v0.101.0

@@ -31,6 +31,7 @@ type MetricAggregator[T int64 | float64] interface {
 
 type MetricAggregatorImpl[T int64 | float64] struct {
 	sets      map[int64]*AggregationSet[T]
+	setsLock  sync.Mutex
 	rules     []AggregatorConfig
 	rulesLock sync.RWMutex
 	interval  int64
@@ -51,6 +52,8 @@ func (m *MetricAggregatorImpl[T]) Emit(now time.Time) map[int64]*AggregationSet[
 	nnow := now.UTC().UnixMilli()
 	// TODO add grace rather than just emitting previous interval
 	interval := nnow - (nnow % m.interval) - m.interval
+	m.setsLock.Lock()
+	defer m.setsLock.Unlock()
 	for k, v := range m.sets {
 		if k < interval {
 			ret[k] = v
@@ -73,6 +76,8 @@ func timebox(t time.Time, interval int64) int64 {
 
 func (m *MetricAggregatorImpl[T]) add(t time.Time, name string, buckets []T, values []T, aggregationType AggregationType, tags map[string]string) error {
 	interval := timebox(t, m.interval)
+	m.setsLock.Lock()
+	defer m.setsLock.Unlock()
 	set, ok := m.sets[interval]
 	if !ok {
 		set = NewAggregationSet[T](interval, m.interval)

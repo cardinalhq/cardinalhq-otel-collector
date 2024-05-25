@@ -11,8 +11,6 @@ data:
     receivers:
       chqdatadog:
         endpoint: 0.0.0.0:8126
-        retry_on_failure:
-          enabled: true
     processors:
       cumulativetodelta:
       batch:

@@ -54,7 +54,7 @@ data:
         logs/ddremap:
           receivers: [forward/ddremap]
           processors: [resource/ddremap]
-          exporters: [datadog, debug]
+          exporters: [datadog]
         metrics:
           receivers: [chqdatadog]
           exporters: [nop]

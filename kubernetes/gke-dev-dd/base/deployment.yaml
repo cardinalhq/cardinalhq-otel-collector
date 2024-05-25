@@ -74,10 +74,10 @@ spec:
               type: RuntimeDefault
           resources:
             limits:
-              cpu: 512m
+              cpu: 2000m
               memory: 1Gi
             requests:
-              cpu: 512m
+              cpu: 2000m
               memory: 1Gi
           volumeMounts:
             - name: config

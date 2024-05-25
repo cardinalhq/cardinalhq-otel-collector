@@ -43,16 +43,16 @@ data:
         traces:
           endpoint: https://intake.cardinalhq.io
     connectors:
-      forwarder/ddremap:
+      forward/ddremap:
 
     service:
       pipelines:
         logs:
           receivers: [chqdatadog]
           processors: [memory_limiter, batch]
-          exporters: [forwarder/ddremap, datadog/chq]
+          exporters: [forward/ddremap, datadog/chq]
         logs/ddremap:
-          receivers: [forwarder/ddremap]
+          receivers: [forward/ddremap]
           processors: [attributes/ddremap]
           exporters: [datadog]
         metrics:

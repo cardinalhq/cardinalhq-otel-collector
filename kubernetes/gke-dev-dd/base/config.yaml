@@ -14,7 +14,7 @@ data:
     processors:
       cumulativetodelta:
       batch:
-        timeout: 10s
+        timeout: 0s
         send_batch_size: 10
         send_batch_max_size: 50
       memory_limiter:
@@ -69,24 +69,6 @@ data:
             pattern: '^_cardinalhq.*'
     exporters:
       nop:
-      datadog:
-        retry_on_failure:
-          enabled: true
-        api:
-          key: ${env:DD_API_KEY}
-          site: us3.datadoghq.com
-      datadog/cardinalhq:
-        retry_on_failure:
-          enabled: true
-        api:
-          key: ${env:DD_API_KEY}
-          site: intake.cardinalhq.io
-        logs:
-          endpoint: https://intake.cardinalhq.io
-        metrics:
-          endpoint: https://intake.cardinalhq.io
-        traces:
-          endpoint: https://intake.cardinalhq.io
       chqdatadog/cardinalhq:
         api_key: ${env:DD_API_KEY}
         logs:
@@ -124,7 +106,7 @@ data:
         metrics/chq:
           receivers: [forward/mergedmetrics]
           processors: [filter/cardinalhq]
-          exporters: [datadog/cardinalhq]
+          exporters: [chqdatadog/cardinalhq]
         metrics/filtered:
           receivers: [forward/filtered]
           processors: [filter/export, attributes/export]

@@ -24,8 +24,6 @@ data:
           - key: service
             action: upsert
             from_attribute: service.name
-          - key: service.name
-            action: delete
     exporters:
       debug:
         verbosity: detailed

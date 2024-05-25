@@ -12,6 +12,7 @@ data:
       chqdatadog:
         endpoint: 0.0.0.0:8126
     processors:
+      cumulativetodelta:
       batch:
         timeout: 10s
         send_batch_size: 10

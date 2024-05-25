@@ -116,7 +116,7 @@ data:
         metrics/chq:
           receivers: [forward/mergedmetrics]
           processors: [filter/cardinalhq]
-          exporters: [dtadog/cardinalhq]
+          exporters: [datadog/cardinalhq]
         metrics/filtered:
           receivers: [forward/filtered]
           processors: [filter/export, attributes/export]

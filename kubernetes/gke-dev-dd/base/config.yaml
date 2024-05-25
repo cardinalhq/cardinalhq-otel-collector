@@ -95,6 +95,14 @@ data:
           endpoint: https://intake.cardinalhq.io
         traces:
           endpoint: https://intake.cardinalhq.io
+      chqdatadog/datadog:
+        api_key: ${env:DD_API_KEY}
+        logs:
+          endpoint: https://http-intake.logs.us3.datadoghq.com
+        metrics:
+          endpoint: https://api.us3.datadoghq.com
+        traces:
+          endpoint: https://intake.cardinalhq.io
     connectors:
       forward/filtered:
       forward/mergedmetrics:
@@ -108,7 +116,7 @@ data:
         logs/filtered:
           receivers: [forward/filtered]
           processors: [filter/export, attributes/export]
-          exporters: [datadog]
+          exporters: [chqdatadog/datadog]
         metrics:
           receivers: [chqdatadog]
           processors: [memory_limiter, cumulativetodelta, chqdecorator, batch]

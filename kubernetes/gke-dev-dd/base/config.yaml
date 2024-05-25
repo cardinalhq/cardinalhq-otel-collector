@@ -19,6 +19,11 @@ data:
       memory_limiter:
         limit_mib: 1000
         check_interval: 1s
+      attributes/ddremap:
+        actions:
+          - key: service
+            action: upsert
+            from_attribute: service.name
     exporters:
       debug:
         verbosity: detailed
@@ -37,13 +42,19 @@ data:
           endpoint: https://intake.cardinalhq.io
         traces:
           endpoint: https://intake.cardinalhq.io
+    connectors:
+      forwarder/ddremap:
 
     service:
       pipelines:
         logs:
           receivers: [chqdatadog]
           processors: [memory_limiter, batch]
-          exporters: [datadog, datadog/chq]
+          exporters: [forwarder/ddremap, datadog/chq]
+        logs/ddremap:
+          receivers: [forwarder/ddremap]
+          processors: [attributes/ddremap]
+          exporters: [datadog]
         metrics:
           receivers: [chqdatadog]
           exporters: [nop]

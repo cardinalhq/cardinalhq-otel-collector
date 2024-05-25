@@ -19,8 +19,8 @@ data:
       memory_limiter:
         limit_mib: 1000
         check_interval: 1s
-      attributes/ddremap:
-        actions:
+      resource/ddremap:
+        attributes:
           - key: service
             action: upsert
             from_attribute: service.name
@@ -55,7 +55,7 @@ data:
           exporters: [forward/ddremap, datadog/chq]
         logs/ddremap:
           receivers: [forward/ddremap]
-          processors: [attributes/ddremap]
+          processors: [resource/ddremap]
           exporters: [datadog, debug]
         metrics:
           receivers: [chqdatadog]

@@ -18,7 +18,7 @@ data:
         send_batch_size: 10
         send_batch_max_size: 50
       memory_limiter:
-        limit_mib: 1000
+        limit_mib: 800
         check_interval: 1s
       chqdecorator:
         sampler_config_file: https://www.flame.org/~explorer/sampler-config.yaml

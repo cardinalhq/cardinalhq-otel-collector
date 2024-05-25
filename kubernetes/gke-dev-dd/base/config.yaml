@@ -22,7 +22,7 @@ data:
         check_interval: 1s
       chqdecorator:
         sampler_config_file: https://www.flame.org/~explorer/sampler-config.yaml
-        api_key: ${env:DATADOG_API_KEY}
+        api_key: ${env:DD_API_KEY}
         traces:
           graph_url: http://microbatch-flows.default.svc.cluster.local:7101/api/v1/flowGraph
           uninteresting_rate: 1000
@@ -73,12 +73,16 @@ data:
         api:
           key: ${env:DD_API_KEY}
           site: us3.datadoghq.com
-      otlp/cardinalhq:
-        endpoint: cardinal-collector.collector-chqside.svc.cluster.local:4317
-        tls:
-          insecure: true
-        headers:
-          x-cardinalhq-api-key: "${env:CARDINALHQ_API_KEY}"
+      datadog/cardinalhq:
+        api:
+          key: ${env:DD_API_KEY}
+          site: intake.cardinalhq.io
+        logs:
+          endpoint: https://intake.cardinalhq.io
+        metrics:
+          endpoint: https://intake.cardinalhq.io
+        traces:
+          endpoint: https://intake.cardinalhq.io
 
     connectors:
       forward/filtered:
@@ -89,7 +93,7 @@ data:
         logs/chq:
           receivers: [chqdatadog]
           processors: [memory_limiter, chqdecorator, batch]
-          exporters: [otlp/cardinalhq, forward/filtered]
+          exporters: [datadog/cardinalhq, forward/filtered]
         logs/filtered:
           receivers: [forward/filtered]
           processors: [filter/export, attributes/export]
@@ -101,7 +105,7 @@ data:
         metrics/chq:
           receivers: [forward/mergedmetrics]
           processors: [filter/cardinalhq]
-          exporters: [otlp/cardinalhq]
+          exporters: [datadog/cardinalhq]
         metrics/filtered:
           receivers: [forward/filtered]
           processors: [filter/export, attributes/export]

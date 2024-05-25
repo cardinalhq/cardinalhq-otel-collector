@@ -11,13 +11,16 @@ data:
     receivers:
       chqdatadog:
         endpoint: 0.0.0.0:8126
+        retry_on_failure:
+          enabled: true
     processors:
       cumulativetodelta:
       batch:
         timeout: 10s
         send_batch_size: 10
         send_batch_max_size: 50
-        retry_on_failure: true
+        retry_on_failure:
+          enabled: true
       memory_limiter:
         limit_mib: 1000
         check_interval: 1s

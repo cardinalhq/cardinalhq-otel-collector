@@ -70,10 +70,14 @@ data:
     exporters:
       nop:
       datadog:
+        retry_on_failure:
+          enabled: true
         api:
           key: ${env:DD_API_KEY}
           site: us3.datadoghq.com
       datadog/cardinalhq:
+        retry_on_failure:
+          enabled: true
         api:
           key: ${env:DD_API_KEY}
           site: intake.cardinalhq.io

@@ -22,9 +22,6 @@ import (
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/exporter"
-	"go.opentelemetry.io/collector/pdata/plog"
-	"go.opentelemetry.io/collector/pdata/pmetric"
-	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.uber.org/zap"
 )
 
@@ -58,17 +55,5 @@ func (e *statsExporter) Start(ctx context.Context, host component.Host) error {
 		return err
 	}
 	e.httpClient = httpClient
-	return nil
-}
-
-func (e *statsExporter) ConsumeMetrics(_ context.Context, md pmetric.Metrics) error {
-	return nil
-}
-
-func (e *statsExporter) ConsumeLogs(_ context.Context, logs plog.Logs) error {
-	return nil
-}
-
-func (e *statsExporter) ConsumeTraces(_ context.Context, traces ptrace.Traces) error {
 	return nil
 }

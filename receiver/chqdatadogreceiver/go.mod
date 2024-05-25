@@ -20,11 +20,11 @@ require (
 	google.golang.org/protobuf v1.34.1
 )
 
-require golang.org/x/exp v0.0.0-20220314205449-43aec2f8a4e7 // indirect
+require golang.org/x/exp v0.0.0-20220314205449-43aec2f8a4e7
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect

@@ -18,11 +18,15 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"slices"
 	"strings"
 
+	"github.com/cespare/xxhash/v2"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	semconv "go.opentelemetry.io/otel/semconv/v1.25.0"
+	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 )
 
 type DDLog struct {
@@ -42,12 +46,43 @@ func handleLogsPayload(req *http.Request) (ddLogs []DDLog, err error) {
 	return ddLogs, nil
 }
 
-func (ddr *datadogReceiver) processLogs(t pcommon.Timestamp, logs []DDLog) error {
+type groupedLogs struct {
+	Messages []string
+	Tags     map[string]string
+	Service  string
+	Hostname string
+	DDSource string
+}
+
+func splitLogs(logs []DDLog) []groupedLogs {
+	logkeys := make(map[int64]groupedLogs)
 	for _, log := range logs {
-		otelLog, err := ddr.convertLog(t, log)
+		tags := splitTags(log.DDTags)
+		key := tagKey(tags, []string{log.Service, log.Hostname, log.DDSource})
+		if lk, ok := logkeys[key]; !ok {
+			logkeys[key] = groupedLogs{
+				Messages: []string{log.Message},
+				Tags:     tags,
+				Service:  log.Service,
+				Hostname: log.Hostname,
+				DDSource: log.DDSource,
+			}
+		} else {
+			lk.Messages = append(lk.Messages, log.Message)
+			logkeys[key] = lk
+		}
+	}
+	return maps.Values(logkeys)
+}
+
+func (ddr *datadogReceiver) processLogs(t pcommon.Timestamp, logs []DDLog) error {
+	logparts := splitLogs(logs)
+	for _, group := range logparts {
+		otelLog, err := ddr.convertLogs(t, group)
 		if err != nil {
 			return err
 		}
+		ddr.logLogger.Info("Converted log group size", zap.Int("size", len(group.Messages)))
 		if err := ddr.nextLogConsumer.ConsumeLogs(context.Background(), otelLog); err != nil {
 			return err
 		}
@@ -69,32 +104,54 @@ func splitTags(tags string) map[string]string {
 	return tagMap
 }
 
-func (ddr *datadogReceiver) convertLog(t pcommon.Timestamp, log DDLog) (plog.Logs, error) {
+func tagKey(tags map[string]string, extra []string) int64 {
+	keys := maps.Keys(tags)
+	slices.Sort(keys)
+	b := strings.Builder{}
+	for i, k := range keys {
+		if i > 0 {
+			b.WriteString("::")
+		}
+		b.WriteString(k + "=" + tags[k])
+	}
+	for _, e := range extra {
+		b.WriteString("::" + e)
+	}
+	return int64(xxhash.Sum64String(b.String()))
+}
+
+func (ddr *datadogReceiver) convertLogs(t pcommon.Timestamp, group groupedLogs) (plog.Logs, error) {
 	lm := plog.NewLogs()
 	rl := lm.ResourceLogs().AppendEmpty()
 	rAttr := rl.Resource().Attributes()
 	rl.SetSchemaUrl(semconv.SchemaURL)
-	rAttr.PutStr(string(semconv.ServiceNameKey), log.Service)
-	rAttr.PutStr(string(semconv.HostNameKey), log.Hostname)
+	rAttr.PutStr(string(semconv.ServiceNameKey), group.Service)
+	rAttr.PutStr(string(semconv.HostNameKey), group.Hostname)
 	scope := rl.ScopeLogs().AppendEmpty()
 	sAttr := scope.Scope().Attributes()
 	sAttr.PutStr(string(semconv.TelemetrySDKNameKey), "Datadog")
-	logRecord := scope.LogRecords().AppendEmpty()
-	logRecord.SetObservedTimestamp(t)
-	logRecord.Body().SetStr(log.Message)
-	lAttr := logRecord.Attributes()
-	if log.DDSource != "" {
-		lAttr.PutStr("dd.source", log.DDSource)
-	}
 
-	tags := splitTags(log.DDTags)
+	tags := group.Tags
 	severityNumber, severityString := toSeverity(tags["status"])
-	logRecord.SetSeverityNumber(severityNumber)
-	logRecord.SetSeverityText(severityString)
 	delete(tags, "status")
+
+	lAttr := pcommon.NewMap()
 	for k, v := range tags {
 		decorateItem(k, v, rAttr, sAttr, lAttr)
 	}
+	if group.DDSource != "" {
+		lAttr.PutStr("source", group.DDSource)
+	}
+
+	for _, msg := range group.Messages {
+		logRecord := scope.LogRecords().AppendEmpty()
+		logRecord.SetObservedTimestamp(t)
+		logRecord.SetSeverityNumber(severityNumber)
+		logRecord.SetSeverityText(severityString)
+		logRecord.Body().SetStr(msg)
+		lAttr.CopyTo(logRecord.Attributes())
+	}
+
 	return lm, nil
 }
 

@@ -19,48 +19,96 @@ data:
       memory_limiter:
         limit_mib: 1000
         check_interval: 1s
-      resource/ddremap:
-        attributes:
-          - key: service
-            action: upsert
-            from_attribute: service.name
+      chqdecorator:
+        sampler_config_file: https://www.flame.org/~explorer/sampler-config.yaml
+        api_key: ${env:DATADOG_API_KEY}
+        traces:
+          graph_url: http://microbatch-flows.default.svc.cluster.local:7101/api/v1/flowGraph
+          uninteresting_rate: 1000
+          has_error_rate: 4
+
+      # This processor should be added to the list of processors that
+      # are in the pipeline destined to the upstream provider, such as
+      # Datadog.  It should NOT be used to filter output to S3 for
+      # later processing by CardinalHQ.
+      filter/export:
+        error_mode: ignore
+        logs:
+          log_record:
+            - 'attributes["_cardinalhq.filtered"] == true'
+        metrics:
+          datapoint:
+            - 'attributes["_cardinalhq.filtered"] == true'
+        traces:
+          span:
+            - 'attributes["_cardinalhq.filtered"] == true'
+
+      # Items marked with _cardinalhq.aggregated_output are not sent to
+      # CardinalHQ, as the metrics they represent would already be
+      # included in the detailed metrics.
+      filter/cardinalhq:
+        error_mode: ignore
+        logs:
+          log_record:
+            - 'attributes["_cardinalhq.aggregated_output"] == true'
+        metrics:
+          datapoint:
+            - 'attributes["_cardinalhq.aggregated_output"] == true'
+        traces:
+          span:
+            - 'attributes["_cardinalhq.aggregated_output"] == true'
+
+      # This processor should be added to the list of processors that
+      # are in the pipeline destined to the upstream provider, such as
+      # Datadog.  It should NOT be used to filter output sent to
+      # CardinalHQ.
+      attributes/export:
+        actions:
+          - action: delete
+            pattern: '^_cardinalhq.*'
     exporters:
-      debug:
-        verbosity: detailed
       nop:
       datadog:
         api:
           key: ${env:DD_API_KEY}
           site: us3.datadoghq.com
-      datadog/chq:
-        api:
-          key: ${env:DD_API_KEY}
-          site: intake.cardinalhq.io
-        logs:
-          endpoint: https://intake.cardinalhq.io
-        metrics:
-          endpoint: https://intake.cardinalhq.io
-        traces:
-          endpoint: https://intake.cardinalhq.io
+      otlp/cardinalhq:
+        endpoint: cardinal-collector.collector-chqside.svc.cluster.local:4317
+        tls:
+          insecure: true
+        headers:
+          x-cardinalhq-api-key: "${env:CARDINALHQ_API_KEY}"
+
     connectors:
-      forward/ddremap:
+      forward/filtered:
+      forward/mergedmetrics:
 
     service:
       pipelines:
-        logs:
+        logs/chq:
           receivers: [chqdatadog]
-          processors: [memory_limiter, batch]
-          exporters: [forward/ddremap, datadog/chq]
-        logs/ddremap:
-          receivers: [forward/ddremap]
-          processors: [resource/ddremap]
+          processors: [memory_limiter, chqdecorator, batch]
+          exporters: [otlp/cardinalhq, forward/filtered]
+        logs/filtered:
+          receivers: [forward/filtered]
+          processors: [filter/export, attributes/export]
           exporters: [datadog]
         metrics:
           receivers: [chqdatadog]
-          exporters: [nop]
+          processors: [memory_limiter, cumulativetodelta, chqdecorator, batch]
+          exporters: [forward/mergedmetrics, forward/filtered]
+        metrics/chq:
+          receivers: [forward/mergedmetrics]
+          processors: [filter/cardinalhq]
+          exporters: [otlp/cardinalhq]
+        metrics/filtered:
+          receivers: [forward/filtered]
+          processors: [filter/export, attributes/export]
+          exporters: [datadog]
         traces:
           receivers: [chqdatadog]
           exporters: [nop]
+
       extensions:
         - zpages
         - health_check

@@ -138,7 +138,7 @@ func hexdump(data []byte) {
 	fmt.Println(line)
 }
 
-func (ddr *datadogReceiver) showDatadogApiHeaders(req *http.Request, source string) string {
+func (ddr *datadogReceiver) showDatadogApiHeaders(req *http.Request, source string, xid uint64) string {
 	apikey := getDDAPIKey(req)
 
 	query := make(map[string][]string)
@@ -160,13 +160,15 @@ func (ddr *datadogReceiver) showDatadogApiHeaders(req *http.Request, source stri
 		zap.String("source", source),
 		zap.String("dd-api-key", redactedKey),
 		zap.Any("headers", headers),
-		zap.Any("query", query))
+		zap.Any("query", query),
+		zap.Uint64("XID", xid))
 
 	return apikey
 }
 
 func (ddr *datadogReceiver) handleV1Validate(w http.ResponseWriter, req *http.Request) {
-	apikey := ddr.showDatadogApiHeaders(req, "/api/v1/validate")
+	v := xid.Add(1)
+	apikey := ddr.showDatadogApiHeaders(req, "/api/v1/validate", v)
 	w.Header().Set("Content-Type", "application/json")
 	if apikey == "" {
 		ddr.gpLogger.Info("/api/v1/validate No API key found in request")
@@ -180,7 +182,8 @@ func (ddr *datadogReceiver) handleV1Validate(w http.ResponseWriter, req *http.Re
 }
 
 func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Request) {
-	apikey := ddr.showDatadogApiHeaders(req, "/intake")
+	v := xid.Add(1)
+	apikey := ddr.showDatadogApiHeaders(req, "/intake", v)
 	w.Header().Set("Content-Type", "application/json")
 	if apikey == "" {
 		ddr.gpLogger.Info("/intake No API key found in request")
@@ -194,7 +197,8 @@ func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Reques
 }
 
 func (ddr *datadogReceiver) handleCheckRun(w http.ResponseWriter, req *http.Request) {
-	apikey := ddr.showDatadogApiHeaders(req, "/api/v1/check_run")
+	v := xid.Add(1)
+	apikey := ddr.showDatadogApiHeaders(req, "/api/v1/check_run", v)
 	w.Header().Set("Content-Type", "application/json")
 	if apikey == "" {
 		ddr.gpLogger.Info("/api/v1/check_run No API key found in request")
@@ -208,7 +212,8 @@ func (ddr *datadogReceiver) handleCheckRun(w http.ResponseWriter, req *http.Requ
 }
 
 func (ddr *datadogReceiver) handleMetadata(w http.ResponseWriter, req *http.Request) {
-	apikey := ddr.showDatadogApiHeaders(req, "/api/v1/metadata")
+	v := xid.Add(1)
+	apikey := ddr.showDatadogApiHeaders(req, "/api/v1/metadata", v)
 	w.Header().Set("Content-Type", "application/json")
 	if apikey == "" {
 		ddr.gpLogger.Info("/api/v1/metadata No API key found in request")
@@ -222,7 +227,8 @@ func (ddr *datadogReceiver) handleMetadata(w http.ResponseWriter, req *http.Requ
 }
 
 func (ddr *datadogReceiver) handleTraces(w http.ResponseWriter, req *http.Request) {
-	apikey := ddr.showDatadogApiHeaders(req, "TRACES")
+	v := xid.Add(1)
+	apikey := ddr.showDatadogApiHeaders(req, "TRACES", v)
 	w.Header().Set("Content-Type", "application/json")
 
 	obsCtx := ddr.tReceiver.StartTracesOp(req.Context())

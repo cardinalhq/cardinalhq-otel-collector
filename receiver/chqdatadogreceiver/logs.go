@@ -75,14 +75,15 @@ func splitLogs(logs []DDLog) []groupedLogs {
 	return maps.Values(logkeys)
 }
 
-func (ddr *datadogReceiver) processLogs(t pcommon.Timestamp, logs []DDLog) error {
+func (ddr *datadogReceiver) processLogs(t pcommon.Timestamp, logs []DDLog, xid uint64) error {
 	logparts := splitLogs(logs)
+	ddr.logLogger.Info("Split log groups", zap.Int("inputSize", len(logs)), zap.Int("groupCount", len(logparts)), zap.Uint64("XID", xid))
 	for _, group := range logparts {
 		otelLog, err := ddr.convertLogs(t, group)
 		if err != nil {
 			return err
 		}
-		ddr.logLogger.Info("Converted log group size", zap.Int("size", len(group.Messages)))
+		ddr.logLogger.Info("Converted log group size", zap.Int("size", len(group.Messages)), zap.Uint64("XID", xid))
 		if err := ddr.nextLogConsumer.ConsumeLogs(context.Background(), otelLog); err != nil {
 			return err
 		}

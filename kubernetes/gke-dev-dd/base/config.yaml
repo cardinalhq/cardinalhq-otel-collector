@@ -113,7 +113,7 @@ data:
         metrics/filtered:
           receivers: [forward/filtered]
           processors: [filter/export, attributes/export]
-          exporters: [datadog]
+          exporters: [nop]
         traces:
           receivers: [chqdatadog]
           exporters: [nop]

@@ -96,10 +96,10 @@ data:
           receivers: [chqdatadog]
           #processors: [memory_limiter, batch]
           exporters: [debug, chqdatadog/cardinalhq] #, forward/filtered]
-        logs/filtered:
-          receivers: [forward/filtered]
-          processors: [filter/export, attributes/export]
-          exporters: [nop] # [chqdatadog/datadog]
+        #logs/filtered:
+        #  receivers: [forward/filtered]
+        #  processors: [filter/export, attributes/export]
+        #  exporters: [nop] # [chqdatadog/datadog]
         metrics:
           receivers: [chqdatadog]
           processors: [memory_limiter, cumulativetodelta, chqdecorator, batch]

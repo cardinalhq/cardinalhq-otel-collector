@@ -98,7 +98,7 @@ data:
         logs/chq:
           receivers: [chqdatadog]
           #processors: [memory_limiter, batch]
-          exporters: [debug, chqdatadog/cardinalhq, forward/filtered]
+          exporters: [chqdatadog/cardinalhq, forward/filtered]
         logs/filtered:
           receivers: [forward/filtered]
           processors: [filter/export, attributes/export]

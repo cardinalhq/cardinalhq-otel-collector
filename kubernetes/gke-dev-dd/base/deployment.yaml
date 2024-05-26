@@ -39,7 +39,7 @@ spec:
             - "--feature-gates=component.UseLocalHostAsDefaultHost"
           env:
             - name: GOMEMLIMIT
-              value: "800MiB"
+              value: "700MiB"
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:

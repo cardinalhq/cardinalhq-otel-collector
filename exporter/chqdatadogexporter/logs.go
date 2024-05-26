@@ -21,7 +21,10 @@ import (
 	"fmt"
 	"net/http"
 
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
 )
 
@@ -33,7 +36,29 @@ type DDLog struct {
 	Service  string `json:"service,omitempty"`
 }
 
+func getHostname(r pcommon.Map) string {
+	if hostnameField, found := r.Get("host.name"); found {
+		return hostnameField.Str()
+	}
+	return "unknown"
+}
+
+func getServiceName(r pcommon.Map) string {
+	if serviceNameField, found := r.Get("service.name"); found {
+		return serviceNameField.Str()
+	}
+	return "unknown"
+}
+
+func getDDSource(l pcommon.Map) string {
+	if ddsourceField, found := l.Get("ddsource"); found {
+		return ddsourceField.Str()
+	}
+	return "unknown"
+}
+
 func (e *datadogExporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {
+	e.logger.Info("ConsumeLogs", zap.Int("resourceCount", logs.ResourceLogs().Len()))
 	part := 0
 	for i := 0; i < logs.ResourceLogs().Len(); i++ {
 		var ddlogs []DDLog
@@ -45,38 +70,23 @@ func (e *datadogExporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error
 			for k := 0; k < ill.LogRecords().Len(); k++ {
 				l := ill.LogRecords().At(k)
 				lAttr := l.Attributes()
-				hostname := "unknown"
-				if hostnameField, found := rAttr.Get("host.name"); found {
-					hostname = hostnameField.Str()
-					rAttr.Remove("host.name")
-				}
-				serviceName := "unknown"
-				if serviceNameField, found := rAttr.Get("service.name"); found {
-					serviceName = serviceNameField.Str()
-					rAttr.Remove("service.name")
-				}
-				ddsource := "unknown"
-				if ddsourceField, found := lAttr.Get("ddsource"); found {
-					ddsource = ddsourceField.Str()
-					lAttr.Remove("ddsource")
-				}
 				ddlog := DDLog{
 					Message:  l.Body().Str(),
-					Hostname: hostname,
-					Service:  serviceName,
-					DDSource: ddsource,
+					Hostname: getHostname(rAttr),
+					Service:  getServiceName(rAttr),
+					DDSource: getDDSource(lAttr),
 					DDTags:   tagString(rAttr, sAttr, lAttr),
 				}
 				ddlogs = append(ddlogs, ddlog)
 			}
-		}
-		if len(ddlogs) > 0 {
-			e.logger.Info("Sending logs", zap.Int("logCount", len(ddlogs)), zap.Int("part", part))
-			if err := e.send(ctx, ddlogs); err != nil {
-				return err
+			if len(ddlogs) > 0 {
+				e.logger.Info("Sending logs", zap.Int("logCount", len(ddlogs)), zap.Int("part", part))
+				if err := e.send(ctx, ddlogs); err != nil {
+					return err
+				}
 			}
+			part++
 		}
-		part++
 	}
 
 	return nil
@@ -101,6 +111,7 @@ func (e *datadogExporter) send(ctx context.Context, ddlogs []DDLog) error {
 		return err
 	}
 	defer resp.Body.Close()
+	e.messagesSubmitted.Add(ctx, int64(len(ddlogs)), metric.WithAttributes(attribute.Int("http.code", resp.StatusCode)))
 	if resp.StatusCode != 200 && resp.StatusCode != 202 {
 		return fmt.Errorf("failed to send logs, status code: %d", resp.StatusCode)
 	}

@@ -34,9 +34,9 @@ type DDLog struct {
 }
 
 func (e *datadogExporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {
-	var ddlogs []DDLog
-
+	part := 0
 	for i := 0; i < logs.ResourceLogs().Len(); i++ {
+		var ddlogs []DDLog
 		rl := logs.ResourceLogs().At(i)
 		rAttr := rl.Resource().Attributes()
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
@@ -60,23 +60,25 @@ func (e *datadogExporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error
 					ddsource = ddsourceField.Str()
 					lAttr.Remove("ddsource")
 				}
-				tagString := tagString(rAttr, sAttr, lAttr)
-				e.logger.Info("tagString", zap.String("tagString", tagString))
 				ddlog := DDLog{
 					Message:  l.Body().Str(),
 					Hostname: hostname,
 					Service:  serviceName,
 					DDSource: ddsource,
-					DDTags:   tagString,
+					DDTags:   tagString(rAttr, sAttr, lAttr),
 				}
 				ddlogs = append(ddlogs, ddlog)
 			}
 		}
+		if len(ddlogs) > 0 {
+			e.logger.Info("Sending logs", zap.Int("logCount", len(ddlogs)), zap.Int("part", part))
+			if err := e.send(ctx, ddlogs); err != nil {
+				return err
+			}
+		}
+		part++
 	}
 
-	if len(ddlogs) > 0 {
-		return e.send(ctx, ddlogs)
-	}
 	return nil
 }
 

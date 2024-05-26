@@ -39,7 +39,7 @@ type DDLog struct {
 func getHostname(r pcommon.Map) string {
 	if hostnameField, found := r.Get("host.name"); found {
 		r.Remove("host.name")
-		return hostnameField.Str()
+		return hostnameField.AsString()[:]
 	}
 	return "unknown"
 }
@@ -47,7 +47,7 @@ func getHostname(r pcommon.Map) string {
 func getServiceName(r pcommon.Map) string {
 	if serviceNameField, found := r.Get("service.name"); found {
 		r.Remove("service.name")
-		return serviceNameField.Str()
+		return serviceNameField.AsString()[:]
 	}
 	return "unknown"
 }
@@ -55,7 +55,7 @@ func getServiceName(r pcommon.Map) string {
 func getDDSource(l pcommon.Map) string {
 	if ddsourceField, found := l.Get("ddsource"); found {
 		l.Remove("ddsource")
-		return ddsourceField.Str()
+		return ddsourceField.AsString()[:]
 	}
 	return "unknown"
 }

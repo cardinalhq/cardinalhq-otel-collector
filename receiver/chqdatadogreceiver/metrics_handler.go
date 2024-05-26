@@ -61,8 +61,7 @@ func (ddr *datadogReceiver) handleV1Series(w http.ResponseWriter, req *http.Requ
 }
 
 func (ddr *datadogReceiver) handleV2Series(w http.ResponseWriter, req *http.Request) {
-	v := xid.Add(1)
-	apikey := ddr.showDatadogApiHeaders(req, "V2SERIES", v)
+	apikey := getDDAPIKey(req)
 	if req.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, nil)
 		return

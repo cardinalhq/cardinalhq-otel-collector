@@ -16,14 +16,11 @@ package datadogreceiver
 
 import (
 	"net/http"
-	"sync/atomic"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.uber.org/zap"
 )
-
-var xid atomic.Uint64
 
 func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request) {
 	apikey := getDDAPIKey(req)

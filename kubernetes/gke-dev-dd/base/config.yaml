@@ -70,6 +70,9 @@ data:
     exporters:
       nop:
       debug:
+        verbosity: detailed
+        sampling_initial: 5
+        sampling_thereafter: 200
       chqdatadog/cardinalhq:
         api_key: ${env:DD_API_KEY}
         logs:

@@ -138,35 +138,6 @@ func hexdump(data []byte) {
 	fmt.Println(line)
 }
 
-//nolint:unused
-func (ddr *datadogReceiver) showDatadogApiHeaders(req *http.Request, source string, xid uint64) string {
-	apikey := getDDAPIKey(req)
-
-	query := make(map[string][]string)
-	for k, v := range req.URL.Query() {
-		query[k] = v
-	}
-
-	headers := make(map[string][]string)
-	for k, v := range req.Header {
-		headers[k] = v
-	}
-
-	redactedKey := string(apikey)
-	if len(redactedKey) > 4 {
-		redactedKey = redactedKey[0:4] + "..."
-	}
-
-	ddr.gpLogger.Info("datadog api headers",
-		zap.String("source", source),
-		zap.String("dd-api-key", redactedKey),
-		zap.Any("headers", headers),
-		zap.Any("query", query),
-		zap.Uint64("XID", xid))
-
-	return apikey
-}
-
 func (ddr *datadogReceiver) handleV1Validate(w http.ResponseWriter, req *http.Request) {
 	apikey := getDDAPIKey(req)
 	w.Header().Set("Content-Type", "application/json")
@@ -176,7 +147,6 @@ func (ddr *datadogReceiver) handleV1Validate(w http.ResponseWriter, req *http.Re
 		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
 		return
 	}
-	ddr.gpLogger.Info("/api/v1/validate returning 200")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(`{"valid":"true"}`))
 }
@@ -190,7 +160,6 @@ func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Reques
 		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
 		return
 	}
-	ddr.gpLogger.Info("/intake returning 200")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }
@@ -204,7 +173,6 @@ func (ddr *datadogReceiver) handleCheckRun(w http.ResponseWriter, req *http.Requ
 		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
 		return
 	}
-	ddr.gpLogger.Info("/api/v1/check_run returning 202")
 	w.WriteHeader(http.StatusAccepted)
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }
@@ -218,7 +186,6 @@ func (ddr *datadogReceiver) handleMetadata(w http.ResponseWriter, req *http.Requ
 		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
 		return
 	}
-	ddr.gpLogger.Info("/api/v1/metadata returning 200")
 	w.WriteHeader(http.StatusAccepted)
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }

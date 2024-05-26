@@ -167,8 +167,7 @@ func (ddr *datadogReceiver) showDatadogApiHeaders(req *http.Request, source stri
 }
 
 func (ddr *datadogReceiver) handleV1Validate(w http.ResponseWriter, req *http.Request) {
-	v := xid.Add(1)
-	apikey := ddr.showDatadogApiHeaders(req, "/api/v1/validate", v)
+	apikey := getDDAPIKey(req)
 	w.Header().Set("Content-Type", "application/json")
 	if apikey == "" {
 		ddr.gpLogger.Info("/api/v1/validate No API key found in request")
@@ -182,8 +181,7 @@ func (ddr *datadogReceiver) handleV1Validate(w http.ResponseWriter, req *http.Re
 }
 
 func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Request) {
-	v := xid.Add(1)
-	apikey := ddr.showDatadogApiHeaders(req, "/intake", v)
+	apikey := getDDAPIKey(req)
 	w.Header().Set("Content-Type", "application/json")
 	if apikey == "" {
 		ddr.gpLogger.Info("/intake No API key found in request")
@@ -197,8 +195,7 @@ func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Reques
 }
 
 func (ddr *datadogReceiver) handleCheckRun(w http.ResponseWriter, req *http.Request) {
-	v := xid.Add(1)
-	apikey := ddr.showDatadogApiHeaders(req, "/api/v1/check_run", v)
+	apikey := getDDAPIKey(req)
 	w.Header().Set("Content-Type", "application/json")
 	if apikey == "" {
 		ddr.gpLogger.Info("/api/v1/check_run No API key found in request")
@@ -212,8 +209,7 @@ func (ddr *datadogReceiver) handleCheckRun(w http.ResponseWriter, req *http.Requ
 }
 
 func (ddr *datadogReceiver) handleMetadata(w http.ResponseWriter, req *http.Request) {
-	v := xid.Add(1)
-	apikey := ddr.showDatadogApiHeaders(req, "/api/v1/metadata", v)
+	apikey := getDDAPIKey(req)
 	w.Header().Set("Content-Type", "application/json")
 	if apikey == "" {
 		ddr.gpLogger.Info("/api/v1/metadata No API key found in request")
@@ -227,8 +223,7 @@ func (ddr *datadogReceiver) handleMetadata(w http.ResponseWriter, req *http.Requ
 }
 
 func (ddr *datadogReceiver) handleTraces(w http.ResponseWriter, req *http.Request) {
-	v := xid.Add(1)
-	apikey := ddr.showDatadogApiHeaders(req, "TRACES", v)
+	apikey := getDDAPIKey(req)
 	w.Header().Set("Content-Type", "application/json")
 
 	obsCtx := ddr.tReceiver.StartTracesOp(req.Context())

@@ -26,8 +26,7 @@ import (
 var xid atomic.Uint64
 
 func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request) {
-	v := xid.Add(1)
-	apikey := ddr.showDatadogApiHeaders(req, "V1LOGS", v)
+	apikey := getDDAPIKey(req)
 	w.Header().Set("Content-Type", "application/json")
 
 	obsCtx := ddr.tReceiver.StartLogsOp(req.Context())
@@ -47,7 +46,7 @@ func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request)
 	}
 
 	if apikey == "" {
-		ddr.logLogger.Info("V1LOGS No API key found in request", zap.Uint64("XID", v))
+		ddr.logLogger.Info("V1LOGS No API key found in request")
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
 		return
@@ -56,15 +55,15 @@ func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request)
 	ddLogs, err := handleLogsPayload(req)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
-		ddr.logLogger.Error("Unable to unmarshal reqs", zap.Error(err), zap.Uint64("XID", v))
+		ddr.logLogger.Error("Unable to unmarshal reqs", zap.Error(err))
 		return
 	}
 	logCount = len(ddLogs)
 	t := pcommon.NewTimestampFromTime(time.Now())
-	err = ddr.processLogs(t, ddLogs, v)
+	err = ddr.processLogs(t, ddLogs)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
-		ddr.logLogger.Error("processLogs", zap.Error(err), zap.Uint64("XID", v))
+		ddr.logLogger.Error("processLogs", zap.Error(err))
 		return
 	}
 

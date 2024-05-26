@@ -51,7 +51,8 @@ func newDatadogExporter(config *Config, params exporter.CreateSettings, ttype st
 	}
 
 	e.commonAttributes = attribute.NewSet(
-		attribute.String("exporterId", params.ID.Name()),
+		attribute.String("exporter.name", params.ID.String()),
+		attribute.String("exporter.telemetry_type", ttype),
 	)
 
 	p := params.TelemetrySettings.MeterProvider.Meter("otelcol/chqdatadog")

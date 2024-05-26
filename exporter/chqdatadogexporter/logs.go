@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
@@ -39,7 +40,7 @@ type DDLog struct {
 func getHostname(r pcommon.Map) string {
 	if hostnameField, found := r.Get("host.name"); found {
 		r.Remove("host.name")
-		return hostnameField.AsString()[:]
+		return strings.Clone(hostnameField.AsString())
 	}
 	return "unknown"
 }
@@ -47,7 +48,7 @@ func getHostname(r pcommon.Map) string {
 func getServiceName(r pcommon.Map) string {
 	if serviceNameField, found := r.Get("service.name"); found {
 		r.Remove("service.name")
-		return serviceNameField.AsString()[:]
+		return strings.Clone(serviceNameField.AsString())
 	}
 	return "unknown"
 }
@@ -55,7 +56,7 @@ func getServiceName(r pcommon.Map) string {
 func getDDSource(l pcommon.Map) string {
 	if ddsourceField, found := l.Get("ddsource"); found {
 		l.Remove("ddsource")
-		return ddsourceField.AsString()[:]
+		return strings.Clone(ddsourceField.AsString())
 	}
 	return "unknown"
 }

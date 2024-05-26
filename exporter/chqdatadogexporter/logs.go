@@ -72,6 +72,9 @@ func (e *datadogExporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error
 		rl := logs.ResourceLogs().At(i)
 		rAttr := pcommon.NewMap()
 		rl.Resource().Attributes().CopyTo(rAttr)
+		hostname := getHostname(rAttr)
+		serviceName := getServiceName(rAttr)
+		e.logger.Info("ConsumeLogs", zap.String("hostname", hostname), zap.String("service", serviceName))
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
 			ill := rl.ScopeLogs().At(j)
 			sAttr := pcommon.NewMap()
@@ -80,12 +83,10 @@ func (e *datadogExporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error
 				l := ill.LogRecords().At(k)
 				lAttr := pcommon.NewMap()
 				l.Attributes().CopyTo(lAttr)
-				hostname := getHostname(rAttr)
-				e.logger.Info("ConsumeLogs", zap.String("hostname", hostname))
 				ddlog := DDLog{
 					Message:  strings.Clone(l.Body().AsString()),
 					Hostname: hostname,
-					Service:  getServiceName(rAttr),
+					Service:  serviceName,
 					DDSource: getDDSource(lAttr),
 					DDTags:   tagString(rAttr, sAttr, lAttr),
 				}

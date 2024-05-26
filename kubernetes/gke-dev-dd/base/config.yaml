@@ -69,6 +69,7 @@ data:
             pattern: '^_cardinalhq.*'
     exporters:
       nop:
+      debug:
       chqdatadog/cardinalhq:
         api_key: ${env:DD_API_KEY}
         logs:
@@ -94,7 +95,7 @@ data:
         logs/chq:
           receivers: [chqdatadog]
           #processors: [memory_limiter, batch]
-          exporters: [chqdatadog/cardinalhq, forward/filtered]
+          exporters: [debug, chqdatadog/cardinalhq] #, forward/filtered]
         logs/filtered:
           receivers: [forward/filtered]
           processors: [filter/export, attributes/export]

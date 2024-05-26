@@ -13,7 +13,7 @@
 # limitations under the License.
 
 TARGETS=bin/cardinalhq-otel-collector
-PLATFORM=linux/amd64,linux/arm64
+PLATFORM=linux/amd64 #,linux/arm64
 BUILDX=docker buildx build --pull --platform ${PLATFORM}
 IMAGE_PREFIX=us-central1-docker.pkg.dev/profound-ship-384422/cardinalhq/
 
@@ -88,18 +88,30 @@ set-git-info:
 images: buildtime clean-image-names set-git-info $(addsuffix .tstamp, $(addprefix buildtime/,$(IMAGE_TARGETS)))
 
 buildtime/%.tstamp:: ${all_deps} Dockerfile
+	sed s,::IMAGE_PREFIX::,${IMAGE_PREFIX},g Dockerfile > /tmp/Dockerfile.chqcollector
 	${BUILDX} \
 		--tag ${IMAGE_PREFIX}$(patsubst %.tstamp,%,$(@F)):latest \
 		--tag ${IMAGE_PREFIX}$(patsubst %.tstamp,%,$(@F)):${GIT_BRANCH} \
 		--target $(patsubst %.tstamp,%,$(@F))-image \
 		--build-arg GIT_HASH=${GIT_HASH} \
 		--build-arg GIT_BRANCH=${GIT_BRANCH} \
+		--build-arg IMAGE_PREFIX=${IMAGE_PREFIX} \
 		--build-arg BUILD_TYPE=release \
-		-f Dockerfile \
+		-f /tmp/Dockerfile.chqcollector \
 		--push .
+	rm -f /tmp/Dockerfile.chqcollector
 	echo >> buildtime/image-names.txt ${IMAGE_PREFIX}$(patsubst %.tstamp,%,$(@F)):latest
 	echo >> buildtime/image-names.txt ${IMAGE_PREFIX}$(patsubst %.tstamp,%,$(@F)):${GIT_BRANCH}
 	@touch $@
+
+pre-build:
+	${BUILDX} \
+		--tag ${IMAGE_PREFIX}builder-${IMAGE_TARGETS}:latest \
+		--build-arg GIT_HASH=${GIT_HASH} \
+		--build-arg GIT_BRANCH=${GIT_BRANCH} \
+		--build-arg BUILD_TYPE=release \
+		-f Dockerfile.pre-build \
+		--push .
 
 .PHONY: image-names
 image-names:

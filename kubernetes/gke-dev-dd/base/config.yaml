@@ -98,7 +98,7 @@ data:
         logs/filtered:
           receivers: [forward/filtered]
           processors: [filter/export, attributes/export]
-          exporters: [chqdatadog/datadog]
+          exporters: [nop] # [chqdatadog/datadog]
         metrics:
           receivers: [chqdatadog]
           processors: [memory_limiter, cumulativetodelta, chqdecorator, batch]

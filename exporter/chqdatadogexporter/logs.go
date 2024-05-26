@@ -38,6 +38,7 @@ type DDLog struct {
 
 func getHostname(r pcommon.Map) string {
 	if hostnameField, found := r.Get("host.name"); found {
+		r.Remove("host.name")
 		return hostnameField.Str()
 	}
 	return "unknown"
@@ -45,6 +46,7 @@ func getHostname(r pcommon.Map) string {
 
 func getServiceName(r pcommon.Map) string {
 	if serviceNameField, found := r.Get("service.name"); found {
+		r.Remove("service.name")
 		return serviceNameField.Str()
 	}
 	return "unknown"
@@ -52,6 +54,7 @@ func getServiceName(r pcommon.Map) string {
 
 func getDDSource(l pcommon.Map) string {
 	if ddsourceField, found := l.Get("ddsource"); found {
+		l.Remove("ddsource")
 		return ddsourceField.Str()
 	}
 	return "unknown"
@@ -63,13 +66,16 @@ func (e *datadogExporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error
 	for i := 0; i < logs.ResourceLogs().Len(); i++ {
 		var ddlogs []DDLog
 		rl := logs.ResourceLogs().At(i)
-		rAttr := rl.Resource().Attributes()
+		rAttr := pcommon.NewMap()
+		rl.Resource().Attributes().CopyTo(rAttr)
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
 			ill := rl.ScopeLogs().At(j)
-			sAttr := ill.Scope().Attributes()
+			sAttr := pcommon.NewMap()
+			ill.Scope().Attributes().CopyTo(sAttr)
 			for k := 0; k < ill.LogRecords().Len(); k++ {
 				l := ill.LogRecords().At(k)
-				lAttr := l.Attributes()
+				lAttr := pcommon.NewMap()
+				l.Attributes().CopyTo(lAttr)
 				ddlog := DDLog{
 					Message:  l.Body().Str(),
 					Hostname: getHostname(rAttr),

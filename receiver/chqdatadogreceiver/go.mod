@@ -1,6 +1,6 @@
 module github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver
 
-go 1.21.0
+go 1.22.3
 
 require (
 	github.com/DataDog/datadog-agent/pkg/proto v0.54.0-rc.4
@@ -20,7 +20,10 @@ require (
 	google.golang.org/protobuf v1.34.1
 )
 
-require golang.org/x/exp v0.0.0-20220314205449-43aec2f8a4e7
+require (
+	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
+	golang.org/x/exp v0.0.0-20220314205449-43aec2f8a4e7
+)
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -79,6 +82,8 @@ require (
 	google.golang.org/grpc v1.63.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 => ../../internal
 
 retract (
 	v0.76.2

@@ -77,3 +77,7 @@ connectors:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/connector/datadogconnector v0.101.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/connector/spanmetricsconnector v0.101.0
   - gomod: go.opentelemetry.io/collector/connector/forwardconnector v0.101.0
+
+# note: these are releative to the build directory, which is "./bin"
+replaces:
+  - github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal

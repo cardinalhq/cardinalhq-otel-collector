@@ -22,6 +22,7 @@ import (
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/exporter"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
 )
@@ -37,6 +38,7 @@ type datadogExporter struct {
 
 	messagesReceived  metric.Int64Counter
 	messagesSubmitted metric.Int64Counter
+	commonAttributes  attribute.Set
 
 	logger *zap.Logger
 }
@@ -48,19 +50,21 @@ func newDatadogExporter(config *Config, params exporter.CreateSettings, ttype st
 		logger:            params.Logger,
 	}
 
+	e.commonAttributes = attribute.NewSet(
+		attribute.String("exporterId", params.ID.Name()),
+	)
+
 	p := params.TelemetrySettings.MeterProvider.Meter("otelcol/chqdatadog")
 
 	received, err := p.Int64Counter("chqdatadog.exporter."+ttype+".received",
-		metric.WithDescription("The number of log messages received."),
-	)
+		metric.WithDescription("The number of log messages received."))
 	if err != nil {
 		e.logger.Error("Failed to create metric", zap.Error(err))
 	}
 	e.messagesReceived = received
 
 	submitted, err := p.Int64Counter("chqdatadog.exporter."+ttype+".submitted",
-		metric.WithDescription("The number of log messages submitted to dd endpoint."),
-	)
+		metric.WithDescription("The number of log messages submitted to dd endpoint."))
 	if err != nil {
 		e.logger.Error("Failed to create metric", zap.Error(err))
 	}

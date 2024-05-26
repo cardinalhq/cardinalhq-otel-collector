@@ -62,9 +62,8 @@ func getDDSource(l pcommon.Map) string {
 
 func (e *datadogExporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {
 	e.logger.Info("ConsumeLogs", zap.Int("resourceCount", logs.ResourceLogs().Len()))
-	part := 0
+	var ddlogs []DDLog
 	for i := 0; i < logs.ResourceLogs().Len(); i++ {
-		var ddlogs []DDLog
 		rl := logs.ResourceLogs().At(i)
 		rAttr := pcommon.NewMap()
 		rl.Resource().Attributes().CopyTo(rAttr)
@@ -85,13 +84,13 @@ func (e *datadogExporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error
 				}
 				ddlogs = append(ddlogs, ddlog)
 			}
-			if len(ddlogs) > 0 {
-				e.logger.Info("Sending logs", zap.Int("logCount", len(ddlogs)), zap.Int("part", part))
-				if err := e.send(ctx, ddlogs); err != nil {
-					return err
-				}
-			}
-			part++
+		}
+	}
+	e.messagesReceived.Add(ctx, int64(len(ddlogs)), metric.WithAttributeSet(e.commonAttributes))
+	if len(ddlogs) > 0 {
+		e.logger.Info("Sending logs", zap.Int("logCount", len(ddlogs)))
+		if err := e.send(ctx, ddlogs); err != nil {
+			return err
 		}
 	}
 
@@ -117,7 +116,7 @@ func (e *datadogExporter) send(ctx context.Context, ddlogs []DDLog) error {
 		return err
 	}
 	defer resp.Body.Close()
-	e.messagesSubmitted.Add(ctx, int64(len(ddlogs)), metric.WithAttributes(attribute.Int("http.code", resp.StatusCode)))
+	e.messagesSubmitted.Add(ctx, int64(len(ddlogs)), metric.WithAttributeSet(e.commonAttributes), metric.WithAttributes(attribute.Int("http.code", resp.StatusCode)))
 	if resp.StatusCode != 200 && resp.StatusCode != 202 {
 		return fmt.Errorf("failed to send logs, status code: %d", resp.StatusCode)
 	}

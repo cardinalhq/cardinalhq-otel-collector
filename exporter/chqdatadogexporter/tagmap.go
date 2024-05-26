@@ -83,7 +83,7 @@ var (
 	}
 )
 
-func tagString(resourceAttrs pcommon.Map, scopeAttrs pcommon.Map, logAttrs pcommon.Map) string {
+func tagStrings(resourceAttrs pcommon.Map, scopeAttrs pcommon.Map, logAttrs pcommon.Map) []string {
 	var tags []string
 	resourceAttrs.Range(func(k string, v pcommon.Value) bool {
 		if tag, ok := rAttrMap[k]; ok {
@@ -101,5 +101,9 @@ func tagString(resourceAttrs pcommon.Map, scopeAttrs pcommon.Map, logAttrs pcomm
 		tags = append(tags, k+":"+v.Str())
 		return true
 	})
-	return strings.Join(tags, ",")
+	return tags
+}
+
+func tagString(resourceAttrs pcommon.Map, scopeAttrs pcommon.Map, logAttrs pcommon.Map) string {
+	return strings.Join(tagStrings(resourceAttrs, scopeAttrs, logAttrs), ",")
 }

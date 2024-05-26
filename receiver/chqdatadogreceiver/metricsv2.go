@@ -26,7 +26,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	ddpb "github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver/internal/ddpb"
+	ddpb "github.com/cardinalhq/cardinalhq-otel-collector/internal/ddpb"
 )
 
 const maxreceivesize = 5 * 1024 * 1024 // 5MB
@@ -109,14 +109,19 @@ func (ddr *datadogReceiver) convertMetricV2(v2 *ddpb.MetricPayload_MetricSeries)
 	}
 
 	switch v2.Type {
-	case ddpb.MetricPayload_GAUGE, ddpb.MetricPayload_RATE, ddpb.MetricPayload_UNSPECIFIED:
-		if v2.Type == ddpb.MetricPayload_RATE {
-			ddr.metricLogger.Warn("Rate metric type is not supported in OTLP, converting to gauge")
-		}
+	case ddpb.MetricPayload_GAUGE, ddpb.MetricPayload_UNSPECIFIED:
 		g := metric.SetEmptyGauge()
 		for _, point := range v2.Points {
 			gdp := g.DataPoints().AppendEmpty()
 			lAttr.CopyTo(gdp.Attributes())
+			populateDatapoint(&gdp, point.Timestamp*1000, &v2.Interval, point.Value)
+		}
+	case ddpb.MetricPayload_RATE:
+		g := metric.SetEmptyGauge()
+		for _, point := range v2.Points {
+			gdp := g.DataPoints().AppendEmpty()
+			lAttr.CopyTo(gdp.Attributes())
+			gdp.Attributes().PutBool("dd.israte", true)
 			populateDatapoint(&gdp, point.Timestamp*1000, &v2.Interval, point.Value)
 		}
 	case ddpb.MetricPayload_COUNT:

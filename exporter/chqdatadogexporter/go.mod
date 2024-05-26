@@ -1,8 +1,9 @@
 module github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter
 
-go 1.21.0
+go 1.22.3
 
 require (
+	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
 	github.com/stretchr/testify v1.9.0
 	github.com/tj/assert v0.0.3
 	go.opentelemetry.io/collector/component v0.101.0
@@ -17,6 +18,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.26.0
 	go.opentelemetry.io/otel/trace v1.26.0
 	go.uber.org/zap v1.27.0
+	google.golang.org/protobuf v1.34.1
 )
 
 require (
@@ -57,6 +59,7 @@ require (
 	golang.org/x/text v0.15.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240515191416-fc5f0ca64291 // indirect
 	google.golang.org/grpc v1.64.0 // indirect
-	google.golang.org/protobuf v1.34.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 => ../../internal

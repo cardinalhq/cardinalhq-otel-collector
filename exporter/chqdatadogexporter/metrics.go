@@ -93,7 +93,7 @@ func (e *datadogExporter) convertGaugeMetric(_ context.Context, m *ddpb.MetricPa
 		}
 		lAttr.Remove("dd.israte")
 		m.Points = append(m.Points, &ddpb.MetricPayload_MetricPoint{
-			Timestamp: dp.Timestamp().AsTime().UnixNano(),
+			Timestamp: dp.Timestamp().AsTime().Unix(),
 			Value:     dp.DoubleValue(),
 		})
 	}
@@ -107,7 +107,7 @@ func (e *datadogExporter) convertSumMetric(_ context.Context, m *ddpb.MetricPayl
 			m.Tags = append(m.Tags, tagStrings(rAttr, sAttr, dp.Attributes())...)
 		}
 		m.Points = append(m.Points, &ddpb.MetricPayload_MetricPoint{
-			Timestamp: dp.Timestamp().AsTime().UnixNano(),
+			Timestamp: dp.Timestamp().AsTime().Unix(),
 			Value:     dp.DoubleValue(),
 		})
 	}

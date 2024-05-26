@@ -26,6 +26,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+	semconv "go.opentelemetry.io/otel/semconv/v1.22.0"
 	"go.uber.org/zap"
 )
 
@@ -38,25 +39,28 @@ type DDLog struct {
 }
 
 func getHostname(r pcommon.Map) string {
-	if hostnameField, found := r.Get("host.name"); found {
-		r.Remove("host.name")
-		return strings.Clone(hostnameField.AsString())
+	hnk := string(semconv.HostNameKey)
+	if hostnameField, found := r.Get(hnk); found {
+		r.Remove(hnk)
+		return hostnameField.AsString()
 	}
 	return "unknown"
 }
 
 func getServiceName(r pcommon.Map) string {
-	if serviceNameField, found := r.Get("service.name"); found {
-		r.Remove("service.name")
-		return strings.Clone(serviceNameField.AsString())
+	snk := string(semconv.ServiceNameKey)
+	if serviceNameField, found := r.Get(snk); found {
+		r.Remove(snk)
+		return serviceNameField.AsString()
 	}
 	return "unknown"
 }
 
 func getDDSource(l pcommon.Map) string {
-	if ddsourceField, found := l.Get("ddsource"); found {
-		l.Remove("ddsource")
-		return strings.Clone(ddsourceField.AsString())
+	dds := "ddsource"
+	if ddsourceField, found := l.Get(dds); found {
+		l.Remove(dds)
+		return ddsourceField.AsString()
 	}
 	return "unknown"
 }
@@ -76,9 +80,11 @@ func (e *datadogExporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error
 				l := ill.LogRecords().At(k)
 				lAttr := pcommon.NewMap()
 				l.Attributes().CopyTo(lAttr)
+				hostname := getHostname(rAttr)
+				e.logger.Info("ConsumeLogs", zap.String("hostname", hostname))
 				ddlog := DDLog{
-					Message:  l.Body().Str(),
-					Hostname: getHostname(rAttr),
+					Message:  strings.Clone(l.Body().AsString()),
+					Hostname: hostname,
 					Service:  getServiceName(rAttr),
 					DDSource: getDDSource(lAttr),
 					DDTags:   tagString(rAttr, sAttr, lAttr),

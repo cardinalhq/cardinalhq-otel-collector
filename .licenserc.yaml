@@ -20,6 +20,8 @@ header:
     - sample-config.yaml
     - '**/testdata/**'
     - .idea
+    - internal/ddpb/metrics.pb.go
+    - internal/ddpb/metrics.proto
     - exporter/chqs3exporter/s3_marshaler.go
     - exporter/chqs3exporter/config.go
     - exporter/chqs3exporter/exporter_test.go

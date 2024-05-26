@@ -75,7 +75,7 @@ func newDatadogExporter(config *Config, params exporter.CreateSettings, ttype st
 }
 
 func (e *datadogExporter) Capabilities() consumer.Capabilities {
-	return consumer.Capabilities{MutatesData: false}
+	return consumer.Capabilities{MutatesData: true}
 }
 
 func (e *datadogExporter) Start(ctx context.Context, host component.Host) error {

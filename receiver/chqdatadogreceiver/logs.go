@@ -25,7 +25,6 @@ import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	semconv "go.opentelemetry.io/otel/semconv/v1.25.0"
-	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
 )
 
@@ -77,13 +76,11 @@ func splitLogs(logs []DDLog) []groupedLogs {
 
 func (ddr *datadogReceiver) processLogs(t pcommon.Timestamp, logs []DDLog) error {
 	logparts := splitLogs(logs)
-	ddr.logLogger.Info("Split log groups", zap.Int("inputSize", len(logs)), zap.Int("groupCount", len(logparts)))
 	for _, group := range logparts {
 		otelLog, err := ddr.convertLogs(t, group)
 		if err != nil {
 			return err
 		}
-		ddr.logLogger.Info("Converted log group size", zap.Int("size", len(group.Messages)))
 		if err := ddr.nextLogConsumer.ConsumeLogs(context.Background(), otelLog); err != nil {
 			return err
 		}

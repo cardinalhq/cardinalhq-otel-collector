@@ -138,6 +138,7 @@ func hexdump(data []byte) {
 	fmt.Println(line)
 }
 
+//nolint:unused
 func (ddr *datadogReceiver) showDatadogApiHeaders(req *http.Request, source string, xid uint64) string {
 	apikey := getDDAPIKey(req)
 

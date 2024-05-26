@@ -15,8 +15,8 @@ data:
       cumulativetodelta:
       batch:
         timeout: 0s
-        send_batch_size: 10
-        send_batch_max_size: 50
+        send_batch_size: 100
+        send_batch_max_size: 1000
       memory_limiter:
         limit_mib: 800
         check_interval: 1s

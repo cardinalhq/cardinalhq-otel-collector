@@ -27,7 +27,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	semconv "go.opentelemetry.io/otel/semconv/v1.22.0"
-	"go.uber.org/zap"
 )
 
 type DDLog struct {
@@ -41,8 +40,9 @@ type DDLog struct {
 func getHostname(r pcommon.Map) string {
 	hnk := string(semconv.HostNameKey)
 	if hostnameField, found := r.Get(hnk); found {
+		ret := hostnameField.AsString()
 		r.Remove(hnk)
-		return hostnameField.AsString()
+		return ret
 	}
 	return "unknown"
 }
@@ -50,8 +50,9 @@ func getHostname(r pcommon.Map) string {
 func getServiceName(r pcommon.Map) string {
 	snk := string(semconv.ServiceNameKey)
 	if serviceNameField, found := r.Get(snk); found {
+		ret := serviceNameField.AsString()
 		r.Remove(snk)
-		return serviceNameField.AsString()
+		return ret
 	}
 	return "unknown"
 }
@@ -59,14 +60,14 @@ func getServiceName(r pcommon.Map) string {
 func getDDSource(l pcommon.Map) string {
 	dds := "ddsource"
 	if ddsourceField, found := l.Get(dds); found {
+		ret := ddsourceField.AsString()
 		l.Remove(dds)
-		return ddsourceField.AsString()
+		return ret
 	}
 	return "unknown"
 }
 
 func (e *datadogExporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {
-	e.logger.Info("ConsumeLogs", zap.Int("resourceCount", logs.ResourceLogs().Len()))
 	var ddlogs []DDLog
 	for i := 0; i < logs.ResourceLogs().Len(); i++ {
 		rl := logs.ResourceLogs().At(i)
@@ -74,7 +75,6 @@ func (e *datadogExporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error
 		rl.Resource().Attributes().CopyTo(rAttr)
 		hostname := getHostname(rAttr)
 		serviceName := getServiceName(rAttr)
-		e.logger.Info("ConsumeLogs", zap.String("hostname", hostname), zap.String("service", serviceName))
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
 			ill := rl.ScopeLogs().At(j)
 			sAttr := pcommon.NewMap()
@@ -96,7 +96,6 @@ func (e *datadogExporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error
 	}
 	e.messagesReceived.Add(ctx, int64(len(ddlogs)), metric.WithAttributeSet(e.commonAttributes))
 	if len(ddlogs) > 0 {
-		e.logger.Info("Sending logs", zap.Int("logCount", len(ddlogs)))
 		if err := e.send(ctx, ddlogs); err != nil {
 			return err
 		}

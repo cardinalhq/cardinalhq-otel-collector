@@ -93,7 +93,7 @@ data:
       pipelines:
         logs/chq:
           receivers: [chqdatadog]
-          processors: [memory_limiter, chqdecorator, batch]
+          processors: [memory_limiter, batch]
           exporters: [chqdatadog/cardinalhq, forward/filtered]
         logs/filtered:
           receivers: [forward/filtered]

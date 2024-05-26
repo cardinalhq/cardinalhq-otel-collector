@@ -35,8 +35,10 @@ func TestTagString(t *testing.T) {
 	scopeAttrs.PutStr("telemetry.sdk.language", "go")
 
 	logAttrs.PutStr("bobs.your", "uncle")
+	logAttrs.PutInt("number", 123)
+	logAttrs.PutBool("is_true", true)
 
-	expectedTags := "bobs.your:uncle,language:go,access_mode:ReadWriteOnce,container_id:12345,dirname:/var/log,filename:app.log"
+	expectedTags := "number:123,is_true:true,bobs.your:uncle,language:go,access_mode:ReadWriteOnce,container_id:12345,dirname:/var/log,filename:app.log"
 	expectedTagsSplit := strings.Split(expectedTags, ",")
 	tagString := tagString(resourceAttrs, scopeAttrs, logAttrs)
 	tagStringSplit := strings.Split(tagString, ",")

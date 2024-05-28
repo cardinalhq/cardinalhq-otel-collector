@@ -23,49 +23,22 @@ import (
 	"go.uber.org/multierr"
 )
 
-type TimeboxConfig struct {
-	Interval time.Duration `mapstructure:"interval"`
-}
-
-// TimeboxConfig contains the configuration for the timebox
-type TimeboxesConfig struct {
-	Logs    TimeboxConfig `mapstructure:"logs"`
-	Metrics TimeboxConfig `mapstructure:"metrics"`
-	Traces  TimeboxConfig `mapstructure:"traces"`
-}
-
 // Config contains the main configuration options for the s3 exporter
 type Config struct {
 	confighttp.ClientConfig `mapstructure:",squash"`
 
-	APIKey    configopaque.String `mapstructure:"api_key"`
-	Timeboxes TimeboxesConfig     `mapstructure:"timeboxes"`
+	APIKey   configopaque.String `mapstructure:"api_key"`
+	Interval time.Duration       `mapstructure:"interval"`
 }
 
 func (c *Config) Validate() error {
 	var errs error
-	errs = multierr.Append(errs, c.Timeboxes.Validate())
-	return errs
-}
-
-func (tb TimeboxesConfig) Validate() error {
-	var errs error
-	errs = multierr.Append(errs, tb.Logs.Validate())
-	errs = multierr.Append(errs, tb.Metrics.Validate())
-	errs = multierr.Append(errs, tb.Traces.Validate())
-	return errs
-}
-
-func (tb TimeboxConfig) Validate() error {
-	var errs error
-
-	if tb.Interval == 0 {
-		tb.Interval = 5 * time.Minute
+	if c.Interval == 0 {
+		c.Interval = 5 * time.Minute
 	}
 
-	if tb.Interval < 0 {
+	if c.Interval < 0 {
 		errs = multierr.Append(errs, errors.New("interval must be greater than or equal to 0"))
 	}
-
 	return errs
 }

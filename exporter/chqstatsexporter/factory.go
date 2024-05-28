@@ -41,6 +41,7 @@ func NewFactory() exporter.Factory {
 
 func createDefaultConfig() component.Config {
 	return &Config{
+		Interval: 5 * time.Minute,
 		ClientConfig: confighttp.ClientConfig{
 			Timeout:  5 * time.Second,
 			Endpoint: "https://api.cardinalhq.com",

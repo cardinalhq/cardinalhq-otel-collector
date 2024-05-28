@@ -46,7 +46,7 @@ func newStatsExporter(config *Config, params exporter.CreateSettings) *statsExpo
 		config:             config,
 		httpClientSettings: config.ClientConfig,
 		telemetrySettings:  params.TelemetrySettings,
-		logstats:           stats.NewStatsCombiner[*chqpb.LogStats](now, config.Timeboxes.Logs.Interval),
+		logstats:           stats.NewStatsCombiner[*chqpb.LogStats](now, config.Interval),
 		logger:             params.Logger,
 	}
 	return statsExporter

@@ -56,17 +56,7 @@ func TestLoadConfig(t *testing.T) {
 						"User-Agent": "cardinalhq-otel-collector",
 					},
 				},
-				Timeboxes: TimeboxesConfig{
-					Logs: TimeboxConfig{
-						Interval: 100 * time.Second,
-					},
-					Metrics: TimeboxConfig{
-						Interval: 200 * time.Second,
-					},
-					Traces: TimeboxConfig{
-						Interval: 300 * time.Second,
-					},
-				},
+				Interval: 100 * time.Second,
 			},
 		},
 	}

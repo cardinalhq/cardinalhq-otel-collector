@@ -5,10 +5,4 @@ chqstats/override-config:
   compression: zstd
   headers:
     Alice: Bob
-  timeboxes:
-    logs:
-      interval: 100s
-    metrics:
-      interval: 200s
-    traces:
-      interval: 300s
+  interval: 100s

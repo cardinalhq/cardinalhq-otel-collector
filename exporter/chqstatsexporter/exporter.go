@@ -35,7 +35,8 @@ type statsExporter struct {
 	httpClientSettings confighttp.ClientConfig
 	telemetrySettings  component.TelemetrySettings
 
-	logstats *stats.StatsCombiner[*chqpb.LogStats]
+	logstats    *stats.StatsCombiner[*chqpb.LogStats]
+	metricstats *stats.StatsCombiner[*MetricStat]
 
 	logger *zap.Logger
 }
@@ -47,6 +48,7 @@ func newStatsExporter(config *Config, params exporter.CreateSettings) *statsExpo
 		httpClientSettings: config.ClientConfig,
 		telemetrySettings:  params.TelemetrySettings,
 		logstats:           stats.NewStatsCombiner[*chqpb.LogStats](now, config.Interval),
+		metricstats:        stats.NewStatsCombiner[*MetricStat](now, config.Interval),
 		logger:             params.Logger,
 	}
 	return statsExporter

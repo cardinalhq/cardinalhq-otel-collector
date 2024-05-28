@@ -21,8 +21,8 @@ import (
 
 type StatsObject interface {
 	Key() uint64
-	Matches(StatsObject) bool
-	Increment()
+	Matches(other StatsObject) bool
+	Increment(key string, count int) error
 }
 
 type StatsCombiner[T StatsObject] struct {
@@ -32,25 +32,27 @@ type StatsCombiner[T StatsObject] struct {
 	bucket   *map[uint64][]T
 }
 
-func (l *StatsCombiner[T]) Record(now time.Time, item T) *map[uint64][]T {
+func (l *StatsCombiner[T]) Record(now time.Time, item T, incKey string, count int) (*map[uint64][]T, error) {
 	key := item.Key()
 	l.Lock()
 	defer l.Unlock()
 	list, ok := (*l.bucket)[key]
 	if !ok {
 		(*l.bucket)[key] = []T{item}
-		return l.flush(now)
+		return l.flush(now), nil
 	}
 	for _, existing := range list {
 		if existing.Matches(item) {
-			existing.Increment()
-			return l.flush(now)
+			if err := existing.Increment(incKey, count); err != nil {
+				return nil, err
+			}
+			return l.flush(now), nil
 		}
 	}
 
 	list = append(list, item)
 	(*l.bucket)[key] = list
-	return l.flush(now)
+	return l.flush(now), nil
 }
 
 func (l *StatsCombiner[T]) flush(now time.Time) *map[uint64][]T {

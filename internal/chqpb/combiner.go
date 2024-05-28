@@ -38,6 +38,7 @@ func (l *LogStats) Matches(other stats.StatsObject) bool {
 		l.WouldFilter == otherLogStats.WouldFilter
 }
 
-func (l *LogStats) Increment() {
-	l.Count++
+func (l *LogStats) Increment(_ string, count int) error {
+	l.Count += int64(count)
+	return nil
 }

@@ -3,7 +3,9 @@ module github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqstatsexporter
 go 1.22.3
 
 require (
+	github.com/apache/datasketches-go v0.0.0-20240422104347-3e171719fb64
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
+	github.com/cespare/xxhash v1.1.0
 	github.com/stretchr/testify v1.9.0
 	go.opentelemetry.io/collector/component v0.101.0
 	go.opentelemetry.io/collector/config/configcompression v1.8.0
@@ -23,7 +25,6 @@ require (
 
 require (
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
-	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
@@ -44,6 +45,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rs/cors v1.11.0 // indirect
+	github.com/twmb/murmur3 v1.1.8 // indirect
 	go.opentelemetry.io/collector v0.101.0 // indirect
 	go.opentelemetry.io/collector/config/configauth v0.101.0 // indirect
 	go.opentelemetry.io/collector/config/configretry v0.101.0 // indirect

@@ -27,7 +27,7 @@ func (m *mockStatsObject) Key() uint64 { return 0 }
 
 func (m *mockStatsObject) Matches(stats.StatsObject) bool { return false }
 
-func (m *mockStatsObject) Increment() {}
+func (m *mockStatsObject) Increment(_ string, _ int) error { return nil }
 
 func TestLogStats_Key(t *testing.T) {
 	t.Parallel()
@@ -172,7 +172,7 @@ func TestLogStats_Increment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.logStats.Increment()
+			tt.logStats.Increment("", 0)
 			assert.Equal(t, tt.wantCount, tt.logStats.Count)
 		})
 	}

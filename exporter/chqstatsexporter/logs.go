@@ -80,14 +80,16 @@ func (e *statsExporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {
 				fp := getFingerprint(lAttr)
 				filtered := getFiltered(lAttr)
 				wouldFilter := getWouldFilter(lAttr)
-				e.record(ctx, now, serviceName, fp, filtered, wouldFilter)
+				if err := e.recordLog(ctx, now, serviceName, fp, filtered, wouldFilter); err != nil {
+					e.logger.Error("Failed to record log", zap.Error(err))
+				}
 			}
 		}
 	}
 	return nil
 }
 
-func (e *statsExporter) record(ctx context.Context, now time.Time, serviceName string, fingerprint int64, filtered bool, wouldFilter bool) {
+func (e *statsExporter) recordLog(ctx context.Context, now time.Time, serviceName string, fingerprint int64, filtered bool, wouldFilter bool) error {
 	rec := chqpb.LogStats{
 		ServiceName: serviceName,
 		Fingerprint: fingerprint,
@@ -95,11 +97,15 @@ func (e *statsExporter) record(ctx context.Context, now time.Time, serviceName s
 		WouldFilter: wouldFilter,
 		Count:       1,
 	}
-	bucketpile := e.logstats.Record(now, &rec)
+	bucketpile, err := e.logstats.Record(now, &rec, "", 1)
+	if err != nil {
+		return err
+	}
 	if bucketpile != nil {
 		// TODO should send this to a channel and have a separate goroutine send it
 		go e.sendLogStats(ctx, now, bucketpile)
 	}
+	return nil
 }
 
 func (e *statsExporter) sendLogStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*chqpb.LogStats) {
@@ -111,12 +117,12 @@ func (e *statsExporter) sendLogStats(ctx context.Context, now time.Time, bucketp
 		wrapper.Stats = append(wrapper.Stats, items...)
 	}
 
-	if err := e.startSend(ctx, wrapper); err != nil {
+	if err := e.postLogStats(ctx, wrapper); err != nil {
 		e.logger.Error("Failed to send log stats", zap.Error(err))
 	}
 }
 
-func (e *statsExporter) startSend(ctx context.Context, wrapper *chqpb.LogStatsReport) error {
+func (e *statsExporter) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsReport) error {
 	b, err := proto.Marshal(wrapper)
 	if err != nil {
 		return err

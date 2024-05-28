@@ -126,6 +126,12 @@ func (e *statsExporter) sendMetricStats(ctx context.Context, now time.Time, buck
 				continue
 			}
 			item.Hll = b
+			var estimate float64
+			if estimate, err = ms.HLL.GetEstimate(); err != nil {
+				e.logger.Error("Failed to get HLL estimate", zap.Error(err))
+				continue
+			}
+			item.CardinalityEstimate = estimate
 			wrapper.Stats = append(wrapper.Stats, item)
 		}
 

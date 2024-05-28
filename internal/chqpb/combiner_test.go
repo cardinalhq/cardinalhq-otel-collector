@@ -155,7 +155,7 @@ func TestLogStats_Increment(t *testing.T) {
 				WouldFilter: false,
 				Count:       0,
 			},
-			wantCount: 1,
+			wantCount: 0, // i = 0
 		},
 		{
 			name: "increment count multiple times",
@@ -166,13 +166,25 @@ func TestLogStats_Increment(t *testing.T) {
 				WouldFilter: true,
 				Count:       2,
 			},
-			wantCount: 3,
+			wantCount: 3, // i = 1
+		},
+		{
+			name: "increment count again",
+			logStats: &LogStats{
+				ServiceName: "bob",
+				Fingerprint: 5678,
+				WasFiltered: true,
+				WouldFilter: true,
+				Count:       3,
+			},
+			wantCount: 5, // i = 2
 		},
 	}
 
-	for _, tt := range tests {
+	for i, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.logStats.Increment("", 0)
+			err := tt.logStats.Increment("", i)
+			assert.NoError(t, err)
 			assert.Equal(t, tt.wantCount, tt.logStats.Count)
 		})
 	}

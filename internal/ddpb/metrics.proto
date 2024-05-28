@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package datadog;
+package ddpb;
 
-option go_package = ".;datadog";
+option go_package = ".;ddpb";
 
 message CommonMetadata {
 	string agent_version = 1;

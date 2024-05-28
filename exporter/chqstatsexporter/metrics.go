@@ -16,9 +16,17 @@ package chqstatsexporter
 
 import (
 	"context"
+	"time"
 
 	"go.opentelemetry.io/collector/pdata/pmetric"
 )
+
+type MetricStats struct {
+	Timestamp time.Time     `json:"timestamp"`
+	Interval  time.Duration `json:"interval"`
+	Name      string        `json:"name"`
+	Type      string        `json:"type"`
+}
 
 func (e *statsExporter) ConsumeMetrics(_ context.Context, md pmetric.Metrics) error {
 	return nil

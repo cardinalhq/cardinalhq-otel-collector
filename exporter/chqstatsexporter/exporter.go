@@ -17,6 +17,7 @@ package chqstatsexporter
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
@@ -32,14 +33,18 @@ type statsExporter struct {
 	httpClientSettings confighttp.ClientConfig
 	telemetrySettings  component.TelemetrySettings
 
+	logstats *StatsCombiner[*LogStats]
+
 	logger *zap.Logger
 }
 
 func newStatsExporter(config *Config, params exporter.CreateSettings) *statsExporter {
+	now := time.Now()
 	statsExporter := &statsExporter{
 		config:             config,
 		httpClientSettings: config.ClientConfig,
 		telemetrySettings:  params.TelemetrySettings,
+		logstats:           NewStatsCombiner[*LogStats](now, config.Timeboxes.Logs),
 		logger:             params.Logger,
 	}
 	return statsExporter

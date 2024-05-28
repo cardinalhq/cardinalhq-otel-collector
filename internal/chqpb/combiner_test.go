@@ -12,54 +12,57 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package chqstatsexporter
+package chqpb
 
 import (
 	"testing"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
 	"github.com/stretchr/testify/assert"
 )
 
 type mockStatsObject struct{}
 
-func (m *mockStatsObject) Key() uint64              { return 0 }
-func (m *mockStatsObject) Matches(StatsObject) bool { return false }
-func (m *mockStatsObject) Increment()               {}
+func (m *mockStatsObject) Key() uint64 { return 0 }
+
+func (m *mockStatsObject) Matches(stats.StatsObject) bool { return false }
+
+func (m *mockStatsObject) Increment() {}
 
 func TestLogStats_Key(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name     string
-		logStats LogStats
+		logStats *LogStats
 		want     uint64
 	}{
 		{
 			name: "alice 1234",
-			logStats: LogStats{
+			logStats: &LogStats{
 				ServiceName: "alice",
 				Fingerprint: 1234,
-				Filtered:    false,
+				WasFiltered: false,
 				WouldFilter: false,
 			},
 			want: 0x497f0c2d921fe053,
 		},
 		{
 			name: "bob 5678",
-			logStats: LogStats{
+			logStats: &LogStats{
 				ServiceName: "bob",
 				Fingerprint: 5678,
-				Filtered:    true,
+				WasFiltered: true,
 				WouldFilter: true,
 			},
 			want: 0x4752aee96157ea5b,
 		},
 		{
 			name: "bob 567",
-			logStats: LogStats{
+			logStats: &LogStats{
 				ServiceName: "bob",
 				Fingerprint: 567,
-				Filtered:    true,
+				WasFiltered: true,
 				WouldFilter: true,
 			},
 			want: 0x83a875d2990a8ce5,
@@ -78,48 +81,48 @@ func TestLogStats_Matches(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		logStats   LogStats
-		other      StatsObject
+		logStats   *LogStats
+		other      stats.StatsObject
 		wantResult bool
 	}{
 		{
 			name: "matching log stats",
-			logStats: LogStats{
+			logStats: &LogStats{
 				ServiceName: "alice",
 				Fingerprint: 1234,
-				Filtered:    false,
+				WasFiltered: false,
 				WouldFilter: false,
 			},
 			other: &LogStats{
 				ServiceName: "alice",
 				Fingerprint: 1234,
-				Filtered:    false,
+				WasFiltered: false,
 				WouldFilter: false,
 			},
 			wantResult: true,
 		},
 		{
 			name: "non-matching log stats",
-			logStats: LogStats{
+			logStats: &LogStats{
 				ServiceName: "alice",
 				Fingerprint: 1234,
-				Filtered:    false,
+				WasFiltered: false,
 				WouldFilter: false,
 			},
 			other: &LogStats{
 				ServiceName: "bob",
 				Fingerprint: 5678,
-				Filtered:    true,
+				WasFiltered: true,
 				WouldFilter: true,
 			},
 			wantResult: false,
 		},
 		{
 			name: "non-log stats object",
-			logStats: LogStats{
+			logStats: &LogStats{
 				ServiceName: "alice",
 				Fingerprint: 1234,
-				Filtered:    false,
+				WasFiltered: false,
 				WouldFilter: false,
 			},
 			other:      &mockStatsObject{},
@@ -140,15 +143,15 @@ func TestLogStats_Increment(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		logStats  LogStats
+		logStats  *LogStats
 		wantCount int64
 	}{
 		{
 			name: "increment count",
-			logStats: LogStats{
+			logStats: &LogStats{
 				ServiceName: "alice",
 				Fingerprint: 1234,
-				Filtered:    false,
+				WasFiltered: false,
 				WouldFilter: false,
 				Count:       0,
 			},
@@ -156,10 +159,10 @@ func TestLogStats_Increment(t *testing.T) {
 		},
 		{
 			name: "increment count multiple times",
-			logStats: LogStats{
+			logStats: &LogStats{
 				ServiceName: "bob",
 				Fingerprint: 5678,
-				Filtered:    true,
+				WasFiltered: true,
 				WouldFilter: true,
 				Count:       2,
 			},

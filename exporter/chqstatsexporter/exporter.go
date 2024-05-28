@@ -19,6 +19,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
@@ -33,7 +35,7 @@ type statsExporter struct {
 	httpClientSettings confighttp.ClientConfig
 	telemetrySettings  component.TelemetrySettings
 
-	logstats *StatsCombiner[*LogStats]
+	logstats *stats.StatsCombiner[*chqpb.LogStats]
 
 	logger *zap.Logger
 }
@@ -44,7 +46,7 @@ func newStatsExporter(config *Config, params exporter.CreateSettings) *statsExpo
 		config:             config,
 		httpClientSettings: config.ClientConfig,
 		telemetrySettings:  params.TelemetrySettings,
-		logstats:           NewStatsCombiner[*LogStats](now, config.Timeboxes.Logs),
+		logstats:           stats.NewStatsCombiner[*chqpb.LogStats](now, config.Timeboxes.Logs.Interval),
 		logger:             params.Logger,
 	}
 	return statsExporter

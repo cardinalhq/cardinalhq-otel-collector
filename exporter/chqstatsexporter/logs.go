@@ -26,6 +26,8 @@ import (
 	"go.opentelemetry.io/collector/pdata/plog"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
 )
 
 func getServiceName(r pcommon.Map) string {
@@ -86,10 +88,10 @@ func (e *statsExporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {
 }
 
 func (e *statsExporter) record(ctx context.Context, now time.Time, serviceName string, fingerprint int64, filtered bool, wouldFilter bool) {
-	rec := LogStats{
+	rec := chqpb.LogStats{
 		ServiceName: serviceName,
 		Fingerprint: fingerprint,
-		Filtered:    filtered,
+		WasFiltered: filtered,
 		WouldFilter: wouldFilter,
 		Count:       1,
 	}
@@ -100,10 +102,10 @@ func (e *statsExporter) record(ctx context.Context, now time.Time, serviceName s
 	}
 }
 
-func (e *statsExporter) sendLogStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*LogStats) {
-	wrapper := LogStatsReport{
-		SubmittedAt: now,
-		Stats:       []*LogStats{},
+func (e *statsExporter) sendLogStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*chqpb.LogStats) {
+	wrapper := &chqpb.LogStatsReport{
+		SubmittedAt: now.UnixMilli(),
+		Stats:       []*chqpb.LogStats{},
 	}
 	for _, items := range *bucketpile {
 		wrapper.Stats = append(wrapper.Stats, items...)
@@ -114,7 +116,7 @@ func (e *statsExporter) sendLogStats(ctx context.Context, now time.Time, bucketp
 	}
 }
 
-func (e *statsExporter) startSend(ctx context.Context, wrapper LogStatsReport) error {
+func (e *statsExporter) startSend(ctx context.Context, wrapper *chqpb.LogStatsReport) error {
 	b, err := json.Marshal(wrapper)
 	if err != nil {
 		return err

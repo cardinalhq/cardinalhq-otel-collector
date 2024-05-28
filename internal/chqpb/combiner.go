@@ -12,41 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package chqstatsexporter
+package chqpb
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/cespare/xxhash"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
 )
 
-type LogStats struct {
-	ServiceName string `json:"serviceName"`
-	Fingerprint int64  `json:"fingerprint"`
-	Filtered    bool   `json:"filtered"`
-	WouldFilter bool   `json:"wouldFilter"`
-	Count       int64  `json:"count"`
-}
-
-type LogStatsReport struct {
-	SubmittedAt time.Time   `json:"submittedAt"`
-	Stats       []*LogStats `json:"stats"`
-}
-
 func (l *LogStats) Key() uint64 {
-	key := fmt.Sprintf("%s:%d:%t:%t", l.ServiceName, l.Fingerprint, l.Filtered, l.WouldFilter)
+	key := fmt.Sprintf("%s:%d:%t:%t", l.ServiceName, l.Fingerprint, l.WasFiltered, l.WouldFilter)
 	return xxhash.Sum64String(key)
 }
 
-func (l *LogStats) Matches(other StatsObject) bool {
+func (l *LogStats) Matches(other stats.StatsObject) bool {
 	otherLogStats, ok := other.(*LogStats)
 	if !ok {
 		return false
 	}
 	return l.ServiceName == otherLogStats.ServiceName &&
 		l.Fingerprint == otherLogStats.Fingerprint &&
-		l.Filtered == otherLogStats.Filtered &&
+		l.WasFiltered == otherLogStats.WasFiltered &&
 		l.WouldFilter == otherLogStats.WouldFilter
 }
 

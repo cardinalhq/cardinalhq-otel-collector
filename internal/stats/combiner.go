@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package chqstatsexporter
+package stats
 
 import (
 	"sync"
@@ -65,10 +65,10 @@ func (l *StatsCombiner[T]) flush(now time.Time) *map[uint64][]T {
 	return bucketpile
 }
 
-func NewStatsCombiner[T StatsObject](now time.Time, tb TimeboxConfig) *StatsCombiner[T] {
+func NewStatsCombiner[T StatsObject](now time.Time, interval time.Duration) *StatsCombiner[T] {
 	return &StatsCombiner[T]{
-		interval: tb.Interval,
-		cutoff:   now.Add(tb.Interval),
+		interval: interval,
+		cutoff:   now.Add(interval),
 		bucket:   &map[uint64][]T{},
 	}
 }

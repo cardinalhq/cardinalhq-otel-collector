@@ -1,9 +1,9 @@
 module github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqstatsexporter
 
-go 1.21.0
+go 1.22.3
 
 require (
-	github.com/cespare/xxhash v1.1.0
+	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
 	github.com/stretchr/testify v1.9.0
 	go.opentelemetry.io/collector/component v0.101.0
 	go.opentelemetry.io/collector/config/configcompression v1.8.0
@@ -22,6 +22,7 @@ require (
 
 require (
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
@@ -60,3 +61,5 @@ require (
 	google.golang.org/protobuf v1.34.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 => ../../internal

@@ -60,7 +60,7 @@ func (tb TimeboxConfig) Validate() error {
 	var errs error
 
 	if tb.Interval == 0 {
-		tb.Interval = time.Second * 10
+		tb.Interval = 5 * time.Minute
 	}
 
 	if tb.Interval < 0 {

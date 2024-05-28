@@ -17,7 +17,6 @@ package chqstatsexporter
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -26,6 +25,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/plog"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
 )
@@ -117,16 +117,16 @@ func (e *statsExporter) sendLogStats(ctx context.Context, now time.Time, bucketp
 }
 
 func (e *statsExporter) startSend(ctx context.Context, wrapper *chqpb.LogStatsReport) error {
-	b, err := json.Marshal(wrapper)
+	b, err := proto.Marshal(wrapper)
 	if err != nil {
 		return err
 	}
-	endpoint := e.config.Endpoint + "/logstats"
+	endpoint := e.config.Endpoint + "/api/v1/logstats"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", "application/x-protobuf")
 	req.Header.Set("x-cardinalhq-api-key", string(e.config.APIKey))
 
 	resp, err := e.httpClient.Do(req)

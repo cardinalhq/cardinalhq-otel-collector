@@ -3,7 +3,7 @@ module github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqstatsexporter
 go 1.22.3
 
 require (
-	github.com/apache/datasketches-go v0.0.0-20240422104347-3e171719fb64
+	github.com/apache/datasketches-go v0.0.0-20240528180806-3365450dd5fd
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
 	github.com/cespare/xxhash v1.1.0
 	github.com/stretchr/testify v1.9.0
@@ -30,7 +30,7 @@ require (
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-viper/mapstructure/v2 v2.0.0-alpha.1 // indirect
+	github.com/go-viper/mapstructure/v2 v2.0.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/hashicorp/go-version v1.7.0 // indirect
@@ -59,7 +59,7 @@ require (
 	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/sys v0.20.0 // indirect
 	golang.org/x/text v0.15.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240521202816-d264139d666e // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240528184218-531527333157 // indirect
 	google.golang.org/grpc v1.64.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

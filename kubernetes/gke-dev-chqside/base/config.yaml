@@ -49,12 +49,16 @@ data:
       # the last item in the processor list.
       batch/logs:
         timeout: 10s
+        send_batch_max_size: 1000
       batch/metrics:
         timeout: 10s
+        send_batch_max_size: 1000
       batch/traces:
         timeout: 120s
+        send_batch_max_size: 1000
       batch/spanmetrics:
         timeout: 10s
+        send_batch_max_size: 1000
               
     service:
       pipelines:

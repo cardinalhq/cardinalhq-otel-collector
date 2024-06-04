@@ -215,7 +215,7 @@ data:
         traces/chq:
           receivers: [otlp/l2]
           processors: [memory_limiter, groupbytrace, chqdecorator, batch/traces]
-          exporters: [forward/filtered, spanmetrics/chq]
+          exporters: [forward/filtered, spanmetrics/chq, otlp/cardinalhq]
         traces/filtered:
           receivers: [forward/filtered]
           processors: [filter/chq, attributes/chq]

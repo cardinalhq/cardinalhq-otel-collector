@@ -24,7 +24,6 @@ data:
         sampler_config_file: https://www.flame.org/~explorer/sampler-config.yaml
         api_key: ${env:DD_API_KEY}
         traces:
-          graph_url: http://microbatch-flows.default.svc.cluster.local:7101/api/v1/flowGraph
           uninteresting_rate: 1000
           has_error_rate: 4
 

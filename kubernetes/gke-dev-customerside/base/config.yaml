@@ -45,6 +45,13 @@ data:
         headers:
           x-cardinalhq-api-key: "${env:CARDINALHQ_API_KEY}"
 
+      chqstats/cardinalhq:
+        endpoint: http://stats-receiver.cardinal-stack.svc.cluster.local
+        tls:
+          insecure: true
+        api_key: ${env:CARDINALHQ_API_KEY}
+        interval: 300s
+
       loadbalancing/metrics:
         routing_key: "metric"
         protocol:
@@ -113,7 +120,6 @@ data:
         sampler_config_file: https://www.flame.org/~explorer/sampler-config.yaml
         api_key: ${env:CARDINALHQ_API_KEY}
         traces:
-          #graph_url: http://microbatch-flows.default.svc.cluster.local:7101/api/v1/flowGraph
           uninteresting_rate: 1000
           has_error_rate: 4
 
@@ -159,7 +165,7 @@ data:
 
     connectors:
       # Simple forwarders to make us do less overall work.
-      forward/filtered:
+      forward/toprovider:
       forward/mergedmetrics:
 
       # Span metrics processor.  This is a special processor that
@@ -187,9 +193,9 @@ data:
         logs/chq:
           receivers: [otlp]
           processors: [memory_limiter, chqdecorator, batch/logs]
-          exporters: [otlp/cardinalhq, forward/filtered]
-        logs/filtered:
-          receivers: [forward/filtered]
+          exporters: [otlp/cardinalhq, chqstats/cardinalhq, forward/toprovider]
+        logs/toprovider:
+          receivers: [forward/toprovider]
           processors: [filter/chq, attributes/chq]
           exporters: [otlphttp/cardinalhq]
 
@@ -204,13 +210,13 @@ data:
         metrics/decoration:
           receivers: [otlp/l2]
           processors: [memory_limiter, cumulativetodelta, chqdecorator, batch/metrics]
-          exporters: [forward/mergedmetrics, forward/filtered]
+          exporters: [forward/mergedmetrics, forward/toprovider, chqstats/cardinalhq]
         metrics/chq:
           receivers: [forward/mergedmetrics]
           processors: [filter/chqhq]
           exporters: [otlp/cardinalhq]
-        metrics/filtered:
-          receivers: [forward/filtered]
+        metrics/toprovider:
+          receivers: [forward/toprovider]
           processors: [filter/chq, attributes/chq]
           exporters: [datadog/cardinalhq]
 
@@ -223,9 +229,9 @@ data:
         traces/chq:
           receivers: [otlp/l2]
           processors: [memory_limiter, groupbytrace, chqdecorator, batch/traces]
-          exporters: [otlp/cardinalhq, forward/filtered, spanmetrics/chq]
-        traces/filtered:
-          receivers: [forward/filtered]
+          exporters: [otlp/cardinalhq, forward/toprovider, spanmetrics/chq]
+        traces/toprovider:
+          receivers: [forward/toprovider]
           processors: [filter/chq, attributes/chq]
           exporters: [datadog/cardinalhq]
 

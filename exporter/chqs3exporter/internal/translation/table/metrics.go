@@ -37,7 +37,7 @@ func (l *TableTranslator) MetricsFromOtel(om *pmetric.Metrics) ([]map[string]any
 		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
 			imm := rm.ScopeMetrics().At(j)
 			for k := 0; k < imm.Metrics().Len(); k++ {
-				baseret := map[string]any{"_cardinalhq.telemetry_type": "metric"}
+				baseret := map[string]any{"_cardinalhq.telemetry_type": "metrics"}
 				addAttributes(baseret, rm.Resource().Attributes(), "resource")
 				addAttributes(baseret, imm.Scope().Attributes(), "scope")
 				metric := imm.Metrics().At(k)

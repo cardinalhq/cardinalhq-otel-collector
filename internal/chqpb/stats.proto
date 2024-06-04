@@ -26,9 +26,10 @@ message LogStatsReport {
 message LogStats {
 	string serviceName = 1;
 	int64 fingerprint = 2;
-	bool wasFiltered = 3;
-	bool wouldFilter = 4;
-	int64 count = 5;
+	Phase phase = 3;
+	int64 count = 4;
+	int64 logSize = 5; // TODO // number of bytes dropped or sent (message field size)
+	string exemplar = 6; // TODO
 }
 
 message MetricStatsReport {
@@ -39,6 +40,16 @@ message MetricStatsReport {
 message MetricStats {
 	string name = 1;
 	string tagName = 2;
-	double cardinalityEstimate = 3;
-	bytes hll = 4;
+	string serviceName = 3; // TODO
+	double cardinalityEstimate = 4;
+	bytes hll = 5;
+	Phase phase = 6;
+}
+
+enum Phase {
+	PASSTHROUGH = 0;
+	AGGREGATED = 1;
+	AGGREGATION_OUTPUT = 2;
+	FILTERED = 3;
+	DRY_RUN_FILTERED = 4;
 }

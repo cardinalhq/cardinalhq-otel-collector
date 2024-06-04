@@ -140,6 +140,7 @@ func (e *statsExporter) postLogStats(ctx context.Context, wrapper *chqpb.LogStat
 	if err != nil {
 		return err
 	}
+	e.logger.Info("Sending log stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
 	endpoint := e.config.Endpoint + "/api/v1/logstats"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
 	if err != nil {

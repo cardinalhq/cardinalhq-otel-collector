@@ -182,6 +182,7 @@ func (e *statsExporter) postMetricStats(ctx context.Context, wrapper *chqpb.Metr
 	if err != nil {
 		return err
 	}
+	e.logger.Info("Sending metric stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
 	endpoint := e.config.Endpoint + "/api/v1/metricstats"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
 	if err != nil {

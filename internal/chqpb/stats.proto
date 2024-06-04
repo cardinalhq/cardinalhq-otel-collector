@@ -44,6 +44,7 @@ message MetricStats {
 	Phase phase = 4;
 	double cardinalityEstimate = 5;
 	bytes hll = 6;
+	int64 count = 7;
 }
 
 enum Phase {

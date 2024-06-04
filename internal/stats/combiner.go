@@ -23,6 +23,7 @@ type StatsObject interface {
 	Key() uint64
 	Matches(other StatsObject) bool
 	Increment(key string, count int, size int64) error
+	Initialize() error
 }
 
 type StatsCombiner[T StatsObject] struct {
@@ -38,6 +39,9 @@ func (l *StatsCombiner[T]) Record(now time.Time, item T, incKey string, count in
 	defer l.Unlock()
 	list, ok := (*l.bucket)[key]
 	if !ok {
+		if err := item.Initialize(); err != nil {
+			return nil, err
+		}
 		(*l.bucket)[key] = []T{item}
 		return l.flush(now), nil
 	}

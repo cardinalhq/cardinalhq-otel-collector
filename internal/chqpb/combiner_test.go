@@ -29,6 +29,8 @@ func (m *mockStatsObject) Matches(stats.StatsObject) bool { return false }
 
 func (m *mockStatsObject) Increment(_ string, _ int, _ int64) error { return nil }
 
+func (m *mockStatsObject) Initialize() error { return nil }
+
 func TestLogStats_Key(t *testing.T) {
 	t.Parallel()
 

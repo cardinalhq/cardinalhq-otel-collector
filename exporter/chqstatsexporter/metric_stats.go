@@ -27,6 +27,7 @@ type MetricStat struct {
 	TagName     string
 	ServiceName string
 	Phase       chqpb.Phase
+	Count       int64
 	HLL         hll.HllSketch
 }
 
@@ -35,19 +36,20 @@ func (m *MetricStat) Key() uint64 {
 }
 
 func (m *MetricStat) Increment(tag string, count int, _ int64) error {
-	if m.HLL == nil {
-		hll, err := hll.NewHllSketchWithDefault()
-		if err != nil {
-			return err
-		}
-		m.HLL = hll
+	err := m.HLL.UpdateString(tag)
+	if err != nil {
+		return err
 	}
-	for i := 0; i < count; i++ {
-		err := m.HLL.UpdateString(tag)
-		if err != nil {
-			return err
-		}
+	m.Count += int64(count)
+	return nil
+}
+
+func (m *MetricStat) Initialize() error {
+	hll, err := hll.NewHllSketchWithDefault()
+	if err != nil {
+		return err
 	}
+	m.HLL = hll
 	return nil
 }
 

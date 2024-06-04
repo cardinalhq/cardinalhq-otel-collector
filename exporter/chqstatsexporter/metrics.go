@@ -129,6 +129,7 @@ func (e *statsExporter) recordMetric(now time.Time, metricName, serviceName, tag
 		ServiceName: serviceName,
 		TagName:     tagName,
 		Phase:       phase,
+		Count:       int64(count),
 	}
 
 	bucketpile, err := e.metricstats.Record(now, rec, tagValue, count, 0)
@@ -155,6 +156,11 @@ func (e *statsExporter) sendMetricStats(ctx context.Context, now time.Time, buck
 				TagName:     ms.TagName,
 				ServiceName: ms.ServiceName,
 				Phase:       ms.Phase,
+				Count:       ms.Count,
+			}
+			if ms.HLL == nil {
+				e.logger.Error("HLL is nil", zap.Any("metric", ms))
+				continue
 			}
 			b, err := ms.HLL.ToCompactSlice()
 			if err != nil {

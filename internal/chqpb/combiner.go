@@ -42,3 +42,7 @@ func (l *LogStats) Increment(_ string, count int, size int64) error {
 	l.LogSize += size
 	return nil
 }
+
+func (l *LogStats) Initialize() error {
+	return nil
+}

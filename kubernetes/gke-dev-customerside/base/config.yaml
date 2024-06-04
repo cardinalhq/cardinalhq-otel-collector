@@ -46,7 +46,7 @@ data:
           x-cardinalhq-api-key: "${env:CARDINALHQ_API_KEY}"
 
       chqstats/cardinalhq:
-        endpoint: http://stats-receiver.cardinal-stack.svc.cluster.local
+        endpoint: http://stats-receiver.cardinalhq-stack.svc.cluster.local
         tls:
           insecure: true
         api_key: ${env:CARDINALHQ_API_KEY}

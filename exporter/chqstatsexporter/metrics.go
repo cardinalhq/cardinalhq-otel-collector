@@ -170,10 +170,10 @@ func (e *statsExporter) sendMetricStats(ctx context.Context, now time.Time, buck
 			item.CardinalityEstimate = estimate
 			wrapper.Stats = append(wrapper.Stats, item)
 		}
+	}
 
-		if err := e.postMetricStats(ctx, wrapper); err != nil {
-			e.logger.Error("Failed to send metric stats", zap.Error(err))
-		}
+	if err := e.postMetricStats(ctx, wrapper); err != nil {
+		e.logger.Error("Failed to send metric stats", zap.Error(err))
 	}
 }
 

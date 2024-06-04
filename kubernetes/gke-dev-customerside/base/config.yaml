@@ -50,7 +50,7 @@ data:
         tls:
           insecure: true
         api_key: ${env:CARDINALHQ_API_KEY}
-        interval: 300s
+        interval: 30s
 
       loadbalancing/metrics:
         routing_key: "metric"

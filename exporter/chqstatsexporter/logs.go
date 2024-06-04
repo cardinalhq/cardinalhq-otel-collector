@@ -72,7 +72,7 @@ func logBoolsToPhase(filtered, wouldFilter bool) chqpb.Phase {
 	return chqpb.Phase_PASSTHROUGH
 }
 
-func (e *statsExporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {
+func (e *statsExporter) ConsumeLogs(_ context.Context, logs plog.Logs) error {
 	now := time.Now()
 	for i := 0; i < logs.ResourceLogs().Len(); i++ {
 		rl := logs.ResourceLogs().At(i)
@@ -91,7 +91,7 @@ func (e *statsExporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {
 				filtered := getFiltered(lAttr)
 				wouldFilter := getWouldFilter(lAttr)
 				phase := logBoolsToPhase(filtered, wouldFilter)
-				if err := e.recordLog(ctx, now, serviceName, fp, phase, l.Body().AsString()); err != nil {
+				if err := e.recordLog(now, serviceName, fp, phase, l.Body().AsString()); err != nil {
 					e.logger.Error("Failed to record log", zap.Error(err))
 				}
 			}
@@ -100,7 +100,7 @@ func (e *statsExporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {
 	return nil
 }
 
-func (e *statsExporter) recordLog(ctx context.Context, now time.Time, serviceName string, fingerprint int64, phase chqpb.Phase, message string) error {
+func (e *statsExporter) recordLog(now time.Time, serviceName string, fingerprint int64, phase chqpb.Phase, message string) error {
 	logSize := int64(len(message))
 	rec := chqpb.LogStats{
 		ServiceName: serviceName,
@@ -116,7 +116,7 @@ func (e *statsExporter) recordLog(ctx context.Context, now time.Time, serviceNam
 	}
 	if bucketpile != nil {
 		// TODO should send this to a channel and have a separate goroutine send it
-		go e.sendLogStats(ctx, now, bucketpile)
+		go e.sendLogStats(context.Background(), now, bucketpile)
 	}
 	return nil
 }

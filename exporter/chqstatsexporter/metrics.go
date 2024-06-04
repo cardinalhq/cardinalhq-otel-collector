@@ -40,7 +40,7 @@ func metricBoolsToPhase(wasAggregated, isAggregation bool) chqpb.Phase {
 	return chqpb.Phase_PASSTHROUGH
 }
 
-func (e *statsExporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
+func (e *statsExporter) ConsumeMetrics(_ context.Context, md pmetric.Metrics) error {
 	now := time.Now()
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
 		rm := md.ResourceMetrics().At(i)
@@ -54,35 +54,35 @@ func (e *statsExporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) 
 				case pmetric.MetricTypeGauge:
 					for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
 						dp := m.Gauge().DataPoints().At(l)
-						if err := e.recordDatapoint(ctx, now, m.Name(), serviceName, dp.Attributes()); err != nil {
+						if err := e.recordDatapoint(now, m.Name(), serviceName, dp.Attributes()); err != nil {
 							return err
 						}
 					}
 				case pmetric.MetricTypeSum:
 					for l := 0; l < m.Sum().DataPoints().Len(); l++ {
 						dp := m.Sum().DataPoints().At(l)
-						if err := e.recordDatapoint(ctx, now, m.Name(), serviceName, dp.Attributes()); err != nil {
+						if err := e.recordDatapoint(now, m.Name(), serviceName, dp.Attributes()); err != nil {
 							return err
 						}
 					}
 				case pmetric.MetricTypeHistogram:
 					for l := 0; l < m.Histogram().DataPoints().Len(); l++ {
 						dp := m.Histogram().DataPoints().At(l)
-						if err := e.recordDatapoint(ctx, now, m.Name(), serviceName, dp.Attributes()); err != nil {
+						if err := e.recordDatapoint(now, m.Name(), serviceName, dp.Attributes()); err != nil {
 							return err
 						}
 					}
 				case pmetric.MetricTypeSummary:
 					for l := 0; l < m.Summary().DataPoints().Len(); l++ {
 						dp := m.Summary().DataPoints().At(l)
-						if err := e.recordDatapoint(ctx, now, m.Name(), serviceName, dp.Attributes()); err != nil {
+						if err := e.recordDatapoint(now, m.Name(), serviceName, dp.Attributes()); err != nil {
 							return err
 						}
 					}
 				case pmetric.MetricTypeExponentialHistogram:
 					for l := 0; l < m.ExponentialHistogram().DataPoints().Len(); l++ {
 						dp := m.ExponentialHistogram().DataPoints().At(l)
-						if err := e.recordDatapoint(ctx, now, m.Name(), serviceName, dp.Attributes()); err != nil {
+						if err := e.recordDatapoint(now, m.Name(), serviceName, dp.Attributes()); err != nil {
 							return err
 						}
 					}
@@ -94,7 +94,7 @@ func (e *statsExporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) 
 	return nil
 }
 
-func (e *statsExporter) recordDatapoint(ctx context.Context, now time.Time, metricName, serviceName string, dpAttr pcommon.Map) error {
+func (e *statsExporter) recordDatapoint(now time.Time, metricName, serviceName string, dpAttr pcommon.Map) error {
 	var errs error
 	wasAggregated := false
 	isAggregation := false
@@ -117,13 +117,13 @@ func (e *statsExporter) recordDatapoint(ctx context.Context, now time.Time, metr
 		if k[0] == '_' {
 			return true
 		}
-		errs = multierr.Append(errs, e.recordMetric(ctx, now, metricName, serviceName, "metric."+k, v.AsString(), phase, 1))
+		errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "metric."+k, v.AsString(), phase, 1))
 		return true
 	})
 	return errs
 }
 
-func (e *statsExporter) recordMetric(ctx context.Context, now time.Time, metricName, serviceName, tagName, tagValue string, phase chqpb.Phase, count int) error {
+func (e *statsExporter) recordMetric(now time.Time, metricName, serviceName, tagName, tagValue string, phase chqpb.Phase, count int) error {
 	rec := &MetricStat{
 		MetricName:  metricName,
 		ServiceName: serviceName,
@@ -137,7 +137,7 @@ func (e *statsExporter) recordMetric(ctx context.Context, now time.Time, metricN
 	}
 	if bucketpile != nil {
 		// TODO should send this to a channel and have a separate goroutine send it
-		go e.sendMetricStats(ctx, now, bucketpile)
+		go e.sendMetricStats(context.Background(), now, bucketpile)
 	}
 	return nil
 }

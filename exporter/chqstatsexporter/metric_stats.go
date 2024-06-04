@@ -16,21 +16,25 @@ package chqstatsexporter
 
 import (
 	"github.com/apache/datasketches-go/hll"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
 	"github.com/cespare/xxhash"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
 )
 
 type MetricStat struct {
-	Name    string
-	TagName string
-	HLL     hll.HllSketch
+	MetricName  string
+	TagName     string
+	ServiceName string
+	Phase       chqpb.Phase
+	HLL         hll.HllSketch
 }
 
 func (m *MetricStat) Key() uint64 {
-	return xxhash.Sum64String(m.Name + ":" + m.TagName)
+	return xxhash.Sum64String(m.MetricName + ":" + m.TagName)
 }
 
-func (m *MetricStat) Increment(tag string, count int) error {
+func (m *MetricStat) Increment(tag string, count int, _ int64) error {
 	if m.HLL == nil {
 		hll, err := hll.NewHllSketchWithDefault()
 		if err != nil {
@@ -52,5 +56,8 @@ func (m *MetricStat) Matches(other stats.StatsObject) bool {
 	if !ok {
 		return false
 	}
-	return m.Name == o.Name && m.TagName == o.TagName
+	return m.MetricName == o.MetricName &&
+		m.TagName == o.TagName &&
+		m.ServiceName == o.ServiceName &&
+		m.Phase == o.Phase
 }

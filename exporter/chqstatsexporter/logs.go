@@ -62,6 +62,16 @@ func getWouldFilter(l pcommon.Map) bool {
 	return false
 }
 
+func logBoolsToPhase(filtered, wouldFilter bool) chqpb.Phase {
+	if filtered {
+		return chqpb.Phase_FILTERED
+	}
+	if wouldFilter {
+		return chqpb.Phase_DRY_RUN_FILTERED
+	}
+	return chqpb.Phase_PASSTHROUGH
+}
+
 func (e *statsExporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {
 	now := time.Now()
 	for i := 0; i < logs.ResourceLogs().Len(); i++ {
@@ -80,7 +90,8 @@ func (e *statsExporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {
 				fp := getFingerprint(lAttr)
 				filtered := getFiltered(lAttr)
 				wouldFilter := getWouldFilter(lAttr)
-				if err := e.recordLog(ctx, now, serviceName, fp, filtered, wouldFilter); err != nil {
+				phase := logBoolsToPhase(filtered, wouldFilter)
+				if err := e.recordLog(ctx, now, serviceName, fp, phase, l.Body().AsString()); err != nil {
 					e.logger.Error("Failed to record log", zap.Error(err))
 				}
 			}
@@ -89,15 +100,17 @@ func (e *statsExporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {
 	return nil
 }
 
-func (e *statsExporter) recordLog(ctx context.Context, now time.Time, serviceName string, fingerprint int64, filtered bool, wouldFilter bool) error {
+func (e *statsExporter) recordLog(ctx context.Context, now time.Time, serviceName string, fingerprint int64, phase chqpb.Phase, message string) error {
+	logSize := int64(len(message))
 	rec := chqpb.LogStats{
 		ServiceName: serviceName,
 		Fingerprint: fingerprint,
-		WasFiltered: filtered,
-		WouldFilter: wouldFilter,
+		Phase:       phase,
 		Count:       1,
+		LogSize:     logSize,
+		Exemplar:    message,
 	}
-	bucketpile, err := e.logstats.Record(now, &rec, "", 1)
+	bucketpile, err := e.logstats.Record(now, &rec, "", 1, logSize)
 	if err != nil {
 		return err
 	}

@@ -22,7 +22,7 @@ import (
 type StatsObject interface {
 	Key() uint64
 	Matches(other StatsObject) bool
-	Increment(key string, count int) error
+	Increment(key string, count int, size int64) error
 }
 
 type StatsCombiner[T StatsObject] struct {
@@ -32,7 +32,7 @@ type StatsCombiner[T StatsObject] struct {
 	bucket   *map[uint64][]T
 }
 
-func (l *StatsCombiner[T]) Record(now time.Time, item T, incKey string, count int) (*map[uint64][]T, error) {
+func (l *StatsCombiner[T]) Record(now time.Time, item T, incKey string, count int, logSize int64) (*map[uint64][]T, error) {
 	key := item.Key()
 	l.Lock()
 	defer l.Unlock()
@@ -43,7 +43,7 @@ func (l *StatsCombiner[T]) Record(now time.Time, item T, incKey string, count in
 	}
 	for _, existing := range list {
 		if existing.Matches(item) {
-			if err := existing.Increment(incKey, count); err != nil {
+			if err := existing.Increment(incKey, count, logSize); err != nil {
 				return nil, err
 			}
 			return l.flush(now), nil

@@ -27,7 +27,7 @@ func (m *mockStatsObject) Key() uint64 { return 0 }
 
 func (m *mockStatsObject) Matches(stats.StatsObject) bool { return false }
 
-func (m *mockStatsObject) Increment(_ string, _ int) error { return nil }
+func (m *mockStatsObject) Increment(_ string, _ int, _ int64) error { return nil }
 
 func TestLogStats_Key(t *testing.T) {
 	t.Parallel()
@@ -42,30 +42,27 @@ func TestLogStats_Key(t *testing.T) {
 			logStats: &LogStats{
 				ServiceName: "alice",
 				Fingerprint: 1234,
-				WasFiltered: false,
-				WouldFilter: false,
+				Phase:       1,
 			},
-			want: 0x497f0c2d921fe053,
+			want: 0xd2a7e57b82ab4a53,
 		},
 		{
 			name: "bob 5678",
 			logStats: &LogStats{
 				ServiceName: "bob",
 				Fingerprint: 5678,
-				WasFiltered: true,
-				WouldFilter: true,
+				Phase:       2,
 			},
-			want: 0x4752aee96157ea5b,
+			want: 0xb65a3079f393dc63,
 		},
 		{
 			name: "bob 567",
 			logStats: &LogStats{
 				ServiceName: "bob",
 				Fingerprint: 567,
-				WasFiltered: true,
-				WouldFilter: true,
+				Phase:       3,
 			},
-			want: 0x83a875d2990a8ce5,
+			want: 0xa2be778eef9714f8,
 		},
 	}
 	for _, tt := range tests {
@@ -90,14 +87,12 @@ func TestLogStats_Matches(t *testing.T) {
 			logStats: &LogStats{
 				ServiceName: "alice",
 				Fingerprint: 1234,
-				WasFiltered: false,
-				WouldFilter: false,
+				Phase:       Phase_PASSTHROUGH,
 			},
 			other: &LogStats{
 				ServiceName: "alice",
 				Fingerprint: 1234,
-				WasFiltered: false,
-				WouldFilter: false,
+				Phase:       Phase_PASSTHROUGH,
 			},
 			wantResult: true,
 		},
@@ -106,14 +101,12 @@ func TestLogStats_Matches(t *testing.T) {
 			logStats: &LogStats{
 				ServiceName: "alice",
 				Fingerprint: 1234,
-				WasFiltered: false,
-				WouldFilter: false,
+				Phase:       Phase_PASSTHROUGH,
 			},
 			other: &LogStats{
 				ServiceName: "bob",
 				Fingerprint: 5678,
-				WasFiltered: true,
-				WouldFilter: true,
+				Phase:       Phase_FILTERED,
 			},
 			wantResult: false,
 		},
@@ -122,8 +115,7 @@ func TestLogStats_Matches(t *testing.T) {
 			logStats: &LogStats{
 				ServiceName: "alice",
 				Fingerprint: 1234,
-				WasFiltered: false,
-				WouldFilter: false,
+				Phase:       Phase_PASSTHROUGH,
 			},
 			other:      &mockStatsObject{},
 			wantResult: false,
@@ -151,8 +143,7 @@ func TestLogStats_Increment(t *testing.T) {
 			logStats: &LogStats{
 				ServiceName: "alice",
 				Fingerprint: 1234,
-				WasFiltered: false,
-				WouldFilter: false,
+				Phase:       Phase_PASSTHROUGH,
 				Count:       0,
 			},
 			wantCount: 0, // i = 0
@@ -162,8 +153,7 @@ func TestLogStats_Increment(t *testing.T) {
 			logStats: &LogStats{
 				ServiceName: "bob",
 				Fingerprint: 5678,
-				WasFiltered: true,
-				WouldFilter: true,
+				Phase:       Phase_FILTERED,
 				Count:       2,
 			},
 			wantCount: 3, // i = 1
@@ -173,8 +163,7 @@ func TestLogStats_Increment(t *testing.T) {
 			logStats: &LogStats{
 				ServiceName: "bob",
 				Fingerprint: 5678,
-				WasFiltered: true,
-				WouldFilter: true,
+				Phase:       Phase_FILTERED,
 				Count:       3,
 			},
 			wantCount: 5, // i = 2
@@ -183,7 +172,7 @@ func TestLogStats_Increment(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.logStats.Increment("", i)
+			err := tt.logStats.Increment("", i, int64(i))
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantCount, tt.logStats.Count)
 		})

@@ -28,8 +28,8 @@ message LogStats {
 	int64 fingerprint = 2;
 	Phase phase = 3;
 	int64 count = 4;
-	int64 logSize = 5; // TODO // number of bytes dropped or sent (message field size)
-	string exemplar = 6; // TODO
+	int64 logSize = 5;
+	string exemplar = 6;
 }
 
 message MetricStatsReport {
@@ -38,12 +38,12 @@ message MetricStatsReport {
 }
 
 message MetricStats {
-	string name = 1;
-	string tagName = 2;
-	string serviceName = 3; // TODO
-	double cardinalityEstimate = 4;
-	bytes hll = 5;
-	Phase phase = 6;
+	string metricName = 1;
+	string serviceName = 2;
+	string tagName = 3;
+	Phase phase = 4;
+	double cardinalityEstimate = 5;
+	bytes hll = 6;
 }
 
 enum Phase {

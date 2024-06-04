@@ -15,7 +15,7 @@
 FROM --platform=${BUILDPLATFORM} ::IMAGE_PREFIX::builder-cardinalhq-otel-collector:latest as build
 ARG TARGETOS
 ARG TARGETARCH
-ARG OTEL_VERSION=0.101.0
+ARG OTEL_VERSION=0.102.0
 
 WORKDIR /build
 COPY . .

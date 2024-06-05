@@ -38,7 +38,7 @@ data:
         endpoint: https://intake.cardinalhq.io/otlp
         headers: { dd-api-key: "${env:CARDINALHQ_API_KEY}" }
 
-      otlp/cardinalhq:
+      otlp/tochq:
         endpoint: cardinal-collector.collector-chqside.svc.cluster.local:4317
         tls:
           insecure: true
@@ -193,7 +193,7 @@ data:
         logs/chq:
           receivers: [otlp/l1]
           processors: [memory_limiter, chqdecorator, batch/logs]
-          exporters: [otlp/cardinalhq, chqstats/cardinalhq, forward/toprovider]
+          exporters: [otlp/tochq, chqstats/cardinalhq, forward/toprovider]
         logs/toprovider:
           receivers: [forward/toprovider]
           processors: [filter/chq, attributes/chq]
@@ -214,7 +214,7 @@ data:
         metrics/chq:
           receivers: [forward/mergedmetrics]
           processors: [filter/chqhq]
-          exporters: [otlp/cardinalhq]
+          exporters: [otlp/tochq]
         metrics/toprovider:
           receivers: [forward/toprovider]
           processors: [filter/chq, attributes/chq]
@@ -229,7 +229,7 @@ data:
         traces/chq:
           receivers: [otlp/l2]
           processors: [memory_limiter, groupbytrace, chqdecorator, batch/traces]
-          exporters: [otlp/cardinalhq, forward/toprovider, spanmetrics/chq]
+          exporters: [otlp/tochq, forward/toprovider, spanmetrics/chq]
         traces/toprovider:
           receivers: [forward/toprovider]
           processors: [filter/chq, attributes/chq]

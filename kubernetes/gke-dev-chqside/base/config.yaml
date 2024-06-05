@@ -8,7 +8,7 @@ metadata:
 data:
   config.yaml: |-
     receivers:
-      otlp:
+      otlp/chqside:
         protocols:
           grpc:
             endpoint: 0.0.0.0:4317
@@ -18,7 +18,7 @@ data:
     exporters:
       # Exporter for sending telemetry to S3 for later processing by CardinalHQ.
       # This shuold receive decorated, but otherwise unfiltered telemetry.
-      chqs3/cardinalhq:
+      chqs3/chqside:
         s3uploader:
           region: auto
           s3_bucket: cardinalhq
@@ -39,7 +39,7 @@ data:
     processors:
       # Limit collector process memory usage.  This should be the first processor
       # in the processor list.
-      memory_limiter:
+      memory_limiter/chqside:
         limit_mib: 400
         spike_limit_mib: 100
         check_interval: 5s
@@ -47,41 +47,36 @@ data:
       # Batch processors to limit the size and/or timeframe that telemetry
       # is batched before being sent to the exporters.  This should be
       # the last item in the processor list.
-      batch/logs:
+      batch/chqsideLogs:
         timeout: 10s
         send_batch_size: 4000
         send_batch_max_size: 4000
-      batch/metrics:
+      batch/chqsideMetrics:
         timeout: 10s
         send_batch_size: 4000
         send_batch_max_size: 4000
-      batch/traces:
+      batch/chqsideTraces:
         timeout: 120s
-        send_batch_size: 4000
-        send_batch_max_size: 4000
-      batch/spanmetrics:
-        timeout: 10s
         send_batch_size: 4000
         send_batch_max_size: 4000
               
     service:
       pipelines:
-
         # log handling.  No need to partition here.
-        logs:
-          receivers: [otlp]
-          processors: [memory_limiter, batch/logs]
-          exporters: [chqs3/cardinalhq]
+        logs/chqside:
+          receivers: [otlp/chqside]
+          processors: [memory_limiter/chqside, batch/chqsideLogs]
+          exporters: [chqs3/chqside]
 
-        metrics:
-          receivers: [otlp]
-          processors: [memory_limiter, batch/metrics]
-          exporters: [chqs3/cardinalhq]
+        metrics/chqside:
+          receivers: [otlp/chqside]
+          processors: [memory_limiter/chqside, batch/chqsideMetrics]
+          exporters: [chqs3/chqside]
 
-        traces:
-          receivers: [otlp]
-          processors: [memory_limiter, batch/traces]
-          exporters: [chqs3/cardinalhq]
+        traces/chqside:
+          receivers: [otlp/chqside]
+          processors: [memory_limiter/chqside, batch/chqsideTraces]
+          exporters: [chqs3/chqside]
 
       # Echo telemetry back to ourselves.  This requires more than one replica or
       # startup and shutdown delays may occur.

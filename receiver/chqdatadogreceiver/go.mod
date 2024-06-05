@@ -7,13 +7,13 @@ require (
 	github.com/barweiss/go-tuple v1.1.2
 	github.com/stretchr/testify v1.9.0
 	github.com/vmihailenco/msgpack/v4 v4.3.13
-	go.opentelemetry.io/collector/component v0.102.0
-	go.opentelemetry.io/collector/config/confighttp v0.102.0
-	go.opentelemetry.io/collector/confmap v0.102.0
-	go.opentelemetry.io/collector/consumer v0.102.0
+	go.opentelemetry.io/collector/component v0.102.1
+	go.opentelemetry.io/collector/config/confighttp v0.102.1
+	go.opentelemetry.io/collector/confmap v0.102.1
+	go.opentelemetry.io/collector/consumer v0.102.1
 	go.opentelemetry.io/collector/pdata v1.9.0
-	go.opentelemetry.io/collector/receiver v0.101.0
-	go.opentelemetry.io/collector/semconv v0.101.0
+	go.opentelemetry.io/collector/receiver v0.102.1
+	go.opentelemetry.io/collector/semconv v0.102.1
 	go.opentelemetry.io/otel/metric v1.27.0
 	go.opentelemetry.io/otel/trace v1.27.0
 	go.uber.org/goleak v1.3.0
@@ -22,7 +22,7 @@ require (
 
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
-	golang.org/x/exp v0.0.0-20240531132922-fd00a4e0eefc
+	golang.org/x/exp v0.0.0-20240604190554-fc45aab8b7f8
 )
 
 require (
@@ -57,15 +57,15 @@ require (
 	github.com/rs/cors v1.11.0 // indirect
 	github.com/tinylib/msgp v1.1.9 // indirect
 	github.com/vmihailenco/tagparser v0.1.2 // indirect
-	go.opentelemetry.io/collector v0.102.0 // indirect
-	go.opentelemetry.io/collector/config/configauth v0.102.0 // indirect
+	go.opentelemetry.io/collector v0.102.1 // indirect
+	go.opentelemetry.io/collector/config/configauth v0.102.1 // indirect
 	go.opentelemetry.io/collector/config/configcompression v1.9.0 // indirect
 	go.opentelemetry.io/collector/config/configopaque v1.9.0 // indirect
-	go.opentelemetry.io/collector/config/configtelemetry v0.102.0 // indirect
-	go.opentelemetry.io/collector/config/configtls v0.102.0 // indirect
-	go.opentelemetry.io/collector/config/internal v0.102.0 // indirect
-	go.opentelemetry.io/collector/extension v0.102.0 // indirect
-	go.opentelemetry.io/collector/extension/auth v0.102.0 // indirect
+	go.opentelemetry.io/collector/config/configtelemetry v0.102.1 // indirect
+	go.opentelemetry.io/collector/config/configtls v0.102.1 // indirect
+	go.opentelemetry.io/collector/config/internal v0.102.1 // indirect
+	go.opentelemetry.io/collector/extension v0.102.1 // indirect
+	go.opentelemetry.io/collector/extension/auth v0.102.1 // indirect
 	go.opentelemetry.io/collector/featuregate v1.9.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.52.0 // indirect
 	go.opentelemetry.io/otel v1.27.0
@@ -74,11 +74,11 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.27.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0
-	golang.org/x/net v0.25.0 // indirect
-	golang.org/x/sys v0.20.0 // indirect
-	golang.org/x/text v0.15.0 // indirect
+	golang.org/x/net v0.26.0 // indirect
+	golang.org/x/sys v0.21.0 // indirect
+	golang.org/x/text v0.16.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240528184218-531527333157 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240604185151-ef581f913117 // indirect
 	google.golang.org/grpc v1.64.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

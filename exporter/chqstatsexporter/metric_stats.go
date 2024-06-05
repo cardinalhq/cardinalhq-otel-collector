@@ -36,8 +36,7 @@ func (m *MetricStat) Key() uint64 {
 }
 
 func (m *MetricStat) Increment(tag string, count int, _ int64) error {
-	err := m.HLL.UpdateString(tag)
-	if err != nil {
+	if err := m.HLL.UpdateString(tag); err != nil {
 		return err
 	}
 	m.Count += int64(count)
@@ -45,6 +44,9 @@ func (m *MetricStat) Increment(tag string, count int, _ int64) error {
 }
 
 func (m *MetricStat) Initialize() error {
+	if m.HLL != nil {
+		return nil
+	}
 	hll, err := hll.NewHllSketchWithDefault()
 	if err != nil {
 		return err

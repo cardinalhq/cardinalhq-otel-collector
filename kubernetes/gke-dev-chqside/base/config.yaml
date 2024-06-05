@@ -88,7 +88,7 @@ data:
                 exporter:
                   otlp:
                     protocol: grpc/protobuf
-                    endpoint: http://cardinal-collector.collector-chqside.svc.cluster.local:4317
+                    endpoint: http://cardinal-collector.collector.svc.cluster.local:4317
       extensions:
         - zpages
         - health_check

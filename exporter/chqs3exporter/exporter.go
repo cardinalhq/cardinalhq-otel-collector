@@ -25,6 +25,8 @@ import (
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/pdata/ptrace"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 )
@@ -35,6 +37,7 @@ type s3Exporter struct {
 	logger     *zap.Logger
 	marshaler  *parquetMarshaller
 	metadata   map[string]string
+	telemetry  *exporterTelemetry
 }
 
 func newS3Exporter(config *Config, params exporter.CreateSettings) *s3Exporter {
@@ -45,12 +48,19 @@ func newS3Exporter(config *Config, params exporter.CreateSettings) *s3Exporter {
 	}
 	metadata["cardinalhq-exporter"] = params.ID.String()
 
+	exporterTelemetry, err := newTelemetry(params)
+	if err != nil {
+		params.Logger.Error("Failed to create telemetry", zap.Error(err))
+		return nil
+	}
+
 	s3Exporter := &s3Exporter{
 		config:     config,
 		dataWriter: &s3Writer{},
 		logger:     params.Logger,
 		marshaler:  newParquetMarshaller(&config.Timeboxes),
 		metadata:   metadata,
+		telemetry:  exporterTelemetry,
 	}
 	return s3Exporter
 }
@@ -127,10 +137,17 @@ func (s *s3Exporter) writeTable(items map[int64][]map[string]any, telemetryType 
 		now := time.UnixMilli(tb)
 		err = s.dataWriter.writeBuffer(context.Background(), now, wr, s.config, prefix, s.marshaler.format(), s.metadata)
 		if err != nil {
+			s.telemetry.filesWritten.Add(context.Background(), 1,
+				metric.WithAttributes(attribute.String("telemetryType", telemetryType), attribute.Bool("success", false)),
+				metric.WithAttributes(s.telemetry.attrs...))
 			s.logger.Error("Failed to write buffer", zap.Error(err), zap.String("telemetryType", telemetryType), zap.Int64("timebox", tb))
 			continue
 		}
+		s.telemetry.filesWritten.Add(context.Background(), 1,
+			metric.WithAttributes(attribute.String("telemetryType", telemetryType), attribute.Bool("success", true)),
+			metric.WithAttributes(s.telemetry.attrs...))
 	}
+
 	return nil
 }
 

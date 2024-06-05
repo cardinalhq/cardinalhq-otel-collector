@@ -68,38 +68,40 @@ func TestSamplerForType(t *testing.T) {
 func TestSamplerForCorrectness(t *testing.T) {
 	tests := []struct {
 		name             string
-		ruleConfig       LogSamplingConfig
+		rate             int
 		minExpectedTrues int
 		maxExpectedTrues int
 		runs             int
 	}{
 		{
 			"rps == 0",
-			LogSamplingConfig{
-				RuleType: "rps",
-				RPS:      0,
-			},
+			0,
 			100_000, 100_000,
+			100_000,
+		},
+		{
+			"rps == 1",
+			1,
+			0, 0,
+			100_000,
+		},
+		{
+			"rps == 2",
+			2,
+			40_000, 60_000,
 			100_000,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, sampler := samplerForType(tt.ruleConfig, nil)
-			assert.NotNil(t, sampler)
-			err := sampler.Start()
-			assert.NoError(t, err)
 			trueCount := 0
 			for i := 0; i < tt.runs; i++ {
-				rate := sampler.GetSampleRate("test")
-				matched := shouldFilter(float64(rate), rand.Float64())
+				matched := shouldFilter(tt.rate, rand.Float64())
 				if matched {
 					trueCount++
 				}
 			}
-			err = sampler.Stop()
-			assert.NoError(t, err)
 			assert.True(t, trueCount >= tt.minExpectedTrues, "expected at least %d trues, got %d", tt.minExpectedTrues, trueCount)
 			assert.True(t, trueCount <= tt.maxExpectedTrues, "expected at most %d trues, got %d", tt.maxExpectedTrues, trueCount)
 		})
@@ -170,7 +172,7 @@ func TestRandomToRPS(t *testing.T) {
 func TestShouldFilter(t *testing.T) {
 	tests := []struct {
 		name     string
-		rate     float64
+		rate     int
 		randval  float64
 		expected bool
 	}{

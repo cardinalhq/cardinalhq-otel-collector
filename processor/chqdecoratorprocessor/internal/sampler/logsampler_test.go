@@ -65,7 +65,7 @@ func TestSamplerForType(t *testing.T) {
 	}
 }
 
-func TestSamplerForCorrectness(t *testing.T) {
+func TestShouldFilterRates(t *testing.T) {
 	tests := []struct {
 		name             string
 		rate             int
@@ -73,24 +73,9 @@ func TestSamplerForCorrectness(t *testing.T) {
 		maxExpectedTrues int
 		runs             int
 	}{
-		{
-			"rps == 0",
-			0,
-			100_000, 100_000,
-			100_000,
-		},
-		{
-			"rps == 1",
-			1,
-			0, 0,
-			100_000,
-		},
-		{
-			"rps == 2",
-			2,
-			40_000, 60_000,
-			100_000,
-		},
+		{"rps == 0", 0, 100_000, 100_000, 100_000},
+		{"rps == 1", 1, 0, 0, 100_000},
+		{"rps == 2", 2, 40_000, 60_000, 100_000},
 	}
 
 	for _, tt := range tests {
@@ -114,21 +99,9 @@ func TestRPSToRandom(t *testing.T) {
 		rate     int
 		expected float64
 	}{
-		{
-			name:     "rate is 1",
-			rate:     1,
-			expected: 1.0,
-		},
-		{
-			name:     "rate is 2",
-			rate:     2,
-			expected: 0.5,
-		},
-		{
-			name:     "rate is 5",
-			rate:     5,
-			expected: 0.2,
-		},
+		{"rate is 1", 1, 1.0},
+		{"rate is 2", 2, 0.5},
+		{"rate is 5", 5, 0.2},
 	}
 
 	for _, tt := range tests {
@@ -144,21 +117,9 @@ func TestRandomToRPS(t *testing.T) {
 		rate     float64
 		expected int
 	}{
-		{
-			name:     "rate is 0.5",
-			rate:     0.5,
-			expected: 2,
-		},
-		{
-			name:     "rate is 0.2",
-			rate:     0.2,
-			expected: 5,
-		},
-		{
-			name:     "rate is 0.1",
-			rate:     0.1,
-			expected: 10,
-		},
+		{"rate is 0.5", 0.5, 2},
+		{"rate is 0.2", 0.2, 5},
+		{"rate is 0.1", 0.1, 10},
 	}
 
 	for _, tt := range tests {
@@ -176,48 +137,13 @@ func TestShouldFilter(t *testing.T) {
 		randval  float64
 		expected bool
 	}{
-		{
-			name:     "rate is 0, randval is 0",
-			rate:     0,
-			randval:  0,
-			expected: true,
-		},
-		{
-			name:     "rate is 0, randval is 0.5",
-			rate:     0,
-			randval:  0.5,
-			expected: true,
-		},
-		{
-			name:     "rate is 0, randval is 1",
-			rate:     0,
-			randval:  1,
-			expected: true,
-		},
-		{
-			name:     "rate is 1, randval is 0",
-			rate:     1,
-			randval:  0,
-			expected: false,
-		},
-		{
-			name:     "rate is 1, randval is 1",
-			rate:     1,
-			randval:  1,
-			expected: false,
-		},
-		{
-			name:     "rate is 2, randval is 0.25",
-			rate:     2,
-			randval:  0.25,
-			expected: false,
-		},
-		{
-			name:     "rate is 2, randval is 0.75",
-			rate:     2,
-			randval:  0.75,
-			expected: true,
-		},
+		{"rate is 0, randval is 0", 0, 0, true},
+		{"rate is 0, randval is 0.5", 0, 0.5, true},
+		{"rate is 0, randval is 1", 0, 1, true},
+		{"rate is 1, randval is 0", 1, 0, false},
+		{"rate is 1, randval is 1", 1, 1, false},
+		{"rate is 2, randval is 0.25", 2, 0.25, false},
+		{"rate is 2, randval is 0.75", 2, 0.75, true},
 	}
 
 	for _, tt := range tests {

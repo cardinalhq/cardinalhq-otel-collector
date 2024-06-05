@@ -18,7 +18,7 @@ func TestMetricStat_Key(t *testing.T) {
 		Count:       0,
 	}
 
-	assert.Equal(t, uint64(0x6669955226a69bc7), m.Key())
+	assert.Equal(t, uint64(0xf4f907b19b714ec7), m.Key())
 }
 
 func TestMetricStat_Matches(t *testing.T) {

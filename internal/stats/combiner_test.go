@@ -16,6 +16,7 @@ package stats
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -25,9 +26,10 @@ type mockStatsObject struct {
 	incrementCalled bool
 	count           int64
 	name            string
+	key             uint64
 }
 
-func (m *mockStatsObject) Key() uint64 { return 0 }
+func (m *mockStatsObject) Key() uint64 { return m.key }
 
 func (m *mockStatsObject) Matches(other StatsObject) bool {
 	if o, ok := other.(*mockStatsObject); ok {
@@ -47,34 +49,102 @@ func (m *mockStatsObject) Initialize() error {
 	return nil
 }
 
-func TestLogStats_Increment(t *testing.T) {
+func TestLogStats_Record_Single_Match(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name          string
-		item          StatsObject
-		wantCount     int64
-		wantInit      bool
-		wantIncrement bool
-	}{
-		{
-			"increment count",
-			&mockStatsObject{},
-			0,
-			true,
-			true,
-		},
-	}
+	now := time.Now()
 
-	for i, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.item.Increment("", i, int64(i))
-			assert.NoError(t, err)
-			item, ok := tt.item.(*mockStatsObject)
-			assert.True(t, ok)
-			assert.Equal(t, tt.wantCount, item.count, "count mismatch")
-			assert.Equal(t, tt.wantInit, item.wasInitialized, "initialize called")
-			assert.Equal(t, tt.wantIncrement, item.incrementCalled, "increment called")
-		})
+	combiner := NewStatsCombiner[*mockStatsObject](now, time.Second*10)
+	item := &mockStatsObject{name: "test", key: 1, count: 1}
+	item2 := &mockStatsObject{name: "test", key: 1, count: 1}
+	buckets, err := combiner.Record(now, item, "", 1, 1)
+	assert.NoError(t, err)
+	assert.Nil(t, buckets)
+
+	buckets, err = combiner.Record(now.Add(1000*time.Second), item2, "", 1, 1)
+	assert.NoError(t, err)
+	assert.NotNil(t, buckets)
+
+	// item 1 will be initialized, and incremented by adding item2
+	assert.True(t, item.incrementCalled)
+	assert.True(t, item.wasInitialized)
+
+	// item 2 will not be initialized, as it will be equal to item 1, and not otherwise touched
+	assert.False(t, item2.incrementCalled)
+	assert.False(t, item2.wasInitialized)
+
+	// only one bucket will be returned as we forced this by using the same key.
+	assert.Equal(t, 1, len(*buckets))
+
+	for _, bucket := range *buckets {
+		assert.Equal(t, 1, len(bucket))
+		b := bucket[0]
+		assert.Equal(t, int64(2), b.count)
+	}
+}
+
+func TestLogStats_Record_Multiple_Keys(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+
+	combiner := NewStatsCombiner[*mockStatsObject](now, time.Second*10)
+	item := &mockStatsObject{name: "test", key: 1, count: 1}
+	item2 := &mockStatsObject{name: "test2", key: 2, count: 1}
+	buckets, err := combiner.Record(now, item, "", 1, 1)
+	assert.NoError(t, err)
+	assert.Nil(t, buckets)
+
+	buckets, err = combiner.Record(now.Add(1000*time.Second), item2, "", 1, 1)
+	assert.NoError(t, err)
+	assert.NotNil(t, buckets)
+
+	// item 1 will be initialized
+	assert.False(t, item.incrementCalled)
+	assert.True(t, item.wasInitialized)
+
+	// item 2 will be initialized
+	assert.False(t, item2.incrementCalled)
+	assert.True(t, item2.wasInitialized)
+
+	assert.Equal(t, 2, len(*buckets))
+
+	for _, bucket := range *buckets {
+		assert.Equal(t, 1, len(bucket))
+		b := bucket[0]
+		assert.Equal(t, int64(1), b.count)
+	}
+}
+
+func TestLogStats_Record_Single_Key(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+
+	combiner := NewStatsCombiner[*mockStatsObject](now, time.Second*10)
+	item := &mockStatsObject{name: "test", key: 1, count: 1}
+	item2 := &mockStatsObject{name: "test2", key: 1, count: 1}
+	buckets, err := combiner.Record(now, item, "", 1, 1)
+	assert.NoError(t, err)
+	assert.Nil(t, buckets)
+
+	buckets, err = combiner.Record(now.Add(1000*time.Second), item2, "", 1, 1)
+	assert.NoError(t, err)
+	assert.NotNil(t, buckets)
+
+	// item 1 will be initialized
+	assert.False(t, item.incrementCalled)
+	assert.True(t, item.wasInitialized)
+
+	// item 2 will be initialized
+	assert.False(t, item2.incrementCalled)
+	assert.True(t, item2.wasInitialized)
+
+	assert.Equal(t, 1, len(*buckets))
+
+	for _, bucket := range *buckets {
+		assert.Equal(t, 2, len(bucket))
+		assert.Equal(t, int64(1), bucket[0].count)
+		assert.Equal(t, int64(1), bucket[1].count)
 	}
 }

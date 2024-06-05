@@ -44,7 +44,6 @@ type logRule struct {
 	ruleType LogRuleType
 	sampler  Sampler
 	scope    map[string]string
-	rps      int
 }
 
 func NewLogSamplerImpl(ctx context.Context, logger *zap.Logger) *LogSamplerImpl {
@@ -96,9 +95,6 @@ func (ls *LogSamplerImpl) shouldFilter(fingerprint string, rattr pcommon.Map, ia
 		}
 		key := fmt.Sprintf("%s:%s", serviceName, fingerprint)
 		if matchscope(r.scope, attrs) {
-			if r.ruleType == LogRuleTypeRPS && r.rps == 1 {
-				continue
-			}
 			rate := r.sampler.GetSampleRate(key)
 			wasHit := shouldFilter(rate, randval)
 			if wasHit && !matched {
@@ -166,7 +162,6 @@ func (ls *LogSamplerImpl) addRule(c LogSamplingConfig) {
 		id:       c.Id,
 		ruleType: logRuletypeToInt(c.RuleType),
 		scope:    c.Scope,
-		rps:      c.RPS,
 	}
 	r.ruleType, r.sampler = samplerForType(c, ls.logger)
 	if r.sampler == nil {
@@ -186,7 +181,7 @@ func samplerForType(c LogSamplingConfig, logger *zap.Logger) (ruleType LogRuleTy
 		return LogRuleTypeRandom, NewStaticSampler(int(1 / c.SampleRate))
 	case "rps":
 		switch c.RPS {
-		case 0:
+		case 0, 1:
 			return LogRuleTypeRPS, NewStaticSampler(c.RPS)
 		default:
 			return LogRuleTypeRPS, NewRPSSampler(WithMinEventsPerSec(c.RPS), WithLogger(logger))
@@ -200,7 +195,6 @@ func updateCurrentRule(logger *zap.Logger, r logRule, c LogSamplingConfig) {
 	cps := logRuletypeToInt(c.RuleType)
 	if r.ruleType != cps {
 		r.ruleType, r.sampler = samplerForType(c, logger)
-		r.rps = c.RPS
 	}
 	if !maps.Equal(c.Scope, r.scope) {
 		r.scope = c.Scope

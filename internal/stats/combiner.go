@@ -54,6 +54,9 @@ func (l *StatsCombiner[T]) Record(now time.Time, item T, incKey string, count in
 		}
 	}
 
+	if err := item.Initialize(); err != nil {
+		return nil, err
+	}
 	list = append(list, item)
 	(*l.bucket)[key] = list
 	return l.flush(now), nil

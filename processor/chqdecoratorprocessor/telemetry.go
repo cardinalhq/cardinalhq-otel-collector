@@ -40,8 +40,6 @@ type processorTelemetry struct {
 	exportCtx  context.Context
 	configured bool
 
-	processorAttr []attribute.KeyValue
-
 	datapointsFiltered metric.Int64Counter
 	logsProcessed      metric.Int64Counter
 	metricsProcessed   metric.Int64Counter
@@ -51,12 +49,7 @@ type processorTelemetry struct {
 }
 
 func newProcessorTelemetry(set processor.CreateSettings) (*processorTelemetry, error) {
-	processorID := set.ID.String()
-
 	dpt := &processorTelemetry{
-		processorAttr: []attribute.KeyValue{
-			attribute.String(metadata.Type.String(), processorID),
-		},
 		exportCtx: context.Background(),
 	}
 
@@ -151,6 +144,5 @@ func (dpt *processorTelemetry) record(trigger trigger, count int64, attributes .
 	if triggerMeasure == nil {
 		return
 	}
-	attrs := append(dpt.processorAttr, attributes...)
-	triggerMeasure.Add(dpt.exportCtx, count, metric.WithAttributes(attrs...))
+	triggerMeasure.Add(dpt.exportCtx, count, metric.WithAttributes(attributes...))
 }

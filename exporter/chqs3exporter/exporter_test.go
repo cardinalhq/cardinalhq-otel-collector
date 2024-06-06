@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/plog"
+	"go.opentelemetry.io/otel/sdk/metric"
 	"go.uber.org/zap"
 )
 
@@ -36,6 +37,14 @@ func getTestLogs(tb testing.TB) plog.Logs {
 	return logs
 }
 
+func dummyTelemetry() *exporterTelemetry {
+	meter := metric.NewMeterProvider()
+	m, _ := meter.Meter("test").Int64Counter("test")
+	return &exporterTelemetry{
+		filesWritten: m,
+	}
+}
+
 func getLogExporter(t *testing.T) *s3Exporter {
 	config := createDefaultConfig().(*Config)
 	config.Timeboxes.Logs.Interval = 10
@@ -46,6 +55,7 @@ func getLogExporter(t *testing.T) *s3Exporter {
 		dataWriter: &TestWriter{t},
 		logger:     zap.NewNop(),
 		marshaler:  marshaler,
+		telemetry:  dummyTelemetry(),
 	}
 	return exporter
 }

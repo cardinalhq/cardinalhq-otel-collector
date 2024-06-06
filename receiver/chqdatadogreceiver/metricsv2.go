@@ -87,6 +87,20 @@ func (ddr *datadogReceiver) logPost(v2 *ddpb.MetricPayload_MetricSeries) {
 	}
 }
 
+func ensureServiceName(rAttr pcommon.Map, kv map[string]string) {
+	if _, ok := rAttr.Get("service.name"); ok {
+		return
+	}
+	searchPath := []string{"kube_deployment", "kube_stateful_set", "kube_daemon_set", "container_name", "short_image"}
+	for _, path := range searchPath {
+		if v, ok := kv[path]; ok {
+			rAttr.PutStr("service.name", v)
+			return
+		}
+	}
+	rAttr.PutStr("service.name", "unknown")
+}
+
 func (ddr *datadogReceiver) convertMetricV2(v2 *ddpb.MetricPayload_MetricSeries) (pmetric.Metrics, error) {
 	ddr.logPost(v2)
 	m := pmetric.NewMetrics()
@@ -107,19 +121,23 @@ func (ddr *datadogReceiver) convertMetricV2(v2 *ddpb.MetricPayload_MetricSeries)
 		rAttr.PutInt("dd.origin.service", int64(v2.Metadata.Origin.OriginService))
 	}
 
+	kvTags := map[string]string{}
 	lAttr := pcommon.NewMap()
 	for _, tag := range v2.Tags {
-		kv := splitTags(tag)
-		for k, v := range kv {
-			decorateItem(k, v, rAttr, sAttr, lAttr)
+		item := splitTags(tag)
+		for k, v := range item {
+			kvTags[k] = v
 		}
 	}
-
+	for k, v := range kvTags {
+		decorateItem(k, v, rAttr, sAttr, lAttr)
+	}
 	if v2.Resources != nil {
 		for _, resource := range v2.Resources {
 			decorate(resource.Type, resource.Name, rAttr, sAttr)
 		}
 	}
+	ensureServiceName(rAttr, kvTags)
 
 	switch v2.Type {
 	case ddpb.MetricPayload_GAUGE, ddpb.MetricPayload_UNSPECIFIED:

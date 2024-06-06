@@ -138,15 +138,13 @@ func (s *s3Exporter) writeTable(items map[int64][]map[string]any, telemetryType 
 		err = s.dataWriter.writeBuffer(context.Background(), now, wr, s.config, prefix, s.marshaler.format(), s.metadata)
 		if err != nil {
 			s.telemetry.filesWritten.Add(context.Background(), 1,
-				metric.WithAttributes(attribute.String("telemetryType", telemetryType), attribute.Bool("success", false)),
-				metric.WithAttributes(s.telemetry.attrs...))
+				metric.WithAttributes(attribute.String("telemetryType", telemetryType), attribute.Bool("success", false)))
 			s.logger.Error("Failed to write buffer", zap.Error(err), zap.String("telemetryType", telemetryType), zap.Int64("timebox", tb))
 			continue
 		}
 		s.logger.Info("Wrote buffer", zap.String("telemetryType", telemetryType), zap.Int64("timebox", tb), zap.String("prefix", prefix), zap.Int("rows", len(rows)))
 		s.telemetry.filesWritten.Add(context.Background(), 1,
-			metric.WithAttributes(attribute.String("telemetryType", telemetryType), attribute.Bool("success", true)),
-			metric.WithAttributes(s.telemetry.attrs...))
+			metric.WithAttributes(attribute.String("telemetryType", telemetryType), attribute.Bool("success", true)))
 	}
 
 	return nil

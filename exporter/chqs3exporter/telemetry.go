@@ -16,24 +16,17 @@ package chqs3exporter
 
 import (
 	"go.opentelemetry.io/collector/exporter"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/metadata"
 )
 
 type exporterTelemetry struct {
-	attrs []attribute.KeyValue
-
 	filesWritten metric.Int64Counter
 }
 
 func newTelemetry(set exporter.CreateSettings) (*exporterTelemetry, error) {
-	tel := &exporterTelemetry{
-		attrs: []attribute.KeyValue{
-			attribute.String(metadata.Type.String(), "chqs3exporter"),
-		},
-	}
+	tel := &exporterTelemetry{}
 
 	counter, err := metadata.Meter(set.TelemetrySettings).Int64Counter(
 		"exporter_"+metadata.Type.String()+"_files_written",

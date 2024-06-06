@@ -34,6 +34,11 @@ type Sampler interface {
 	GetSampleRateMulti(key string, count int) int
 }
 
+const (
+	defaultClearFrequencyDuration = 30 * time.Second
+	defaultMaxRPS                 = 50
+)
+
 type rpsSampler struct {
 	// clearFrequencyDuration is how often the counters reset as a Duration.
 	// The default is 30s.
@@ -66,7 +71,10 @@ type rpsSampler struct {
 var _ Sampler = (*rpsSampler)(nil)
 
 func NewRPSSampler(ops ...Option) *rpsSampler {
-	s := &rpsSampler{}
+	s := &rpsSampler{
+		clearFrequencyDuration: defaultClearFrequencyDuration,
+		MaxRPS:                 defaultMaxRPS,
+	}
 	for _, op := range ops {
 		op(s)
 	}
@@ -87,7 +95,7 @@ func WithMaxKeys(maxKeys int) Option {
 	}
 }
 
-func WithMinEventsPerSec(minEventsPerSec int) Option {
+func WithMaxRPS(minEventsPerSec int) Option {
 	return func(s *rpsSampler) {
 		s.MaxRPS = minEventsPerSec
 	}
@@ -102,10 +110,10 @@ func WithLogger(logger *zap.Logger) Option {
 func (a *rpsSampler) Start() error {
 	// apply defaults
 	if a.clearFrequencyDuration == 0 {
-		a.clearFrequencyDuration = 30 * time.Second
+		a.clearFrequencyDuration = defaultClearFrequencyDuration
 	}
 	if a.MaxRPS == 0 {
-		a.MaxRPS = 50
+		a.MaxRPS = defaultMaxRPS
 	}
 
 	a.savedSampleRates = make(map[string]int)

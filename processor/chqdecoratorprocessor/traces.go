@@ -59,9 +59,9 @@ func newSpansProcessor(set processor.CreateSettings, config *Config) (*spansProc
 		estimatorWindowSize:  *config.TraceConfig.EstimatorWindowSize,
 		estimatorInterval:    *config.TraceConfig.EstimatorInterval,
 		sentFingerprints:     *newFingerprintTracker(),
-		slowSampler:          sampler.NewRPSSampler(sampler.WithMinEventsPerSec(*config.TraceConfig.SlowRate)),
-		hasErrorSampler:      sampler.NewRPSSampler(sampler.WithMinEventsPerSec(*config.TraceConfig.HasErrorRate)),
-		uninterestingSampler: sampler.NewRPSSampler(sampler.WithMinEventsPerSec(*config.TraceConfig.UninterestingRate)),
+		slowSampler:          sampler.NewRPSSampler(sampler.WithMaxRPS(*config.TraceConfig.SlowRate)),
+		hasErrorSampler:      sampler.NewRPSSampler(sampler.WithMaxRPS(*config.TraceConfig.HasErrorRate)),
+		uninterestingSampler: sampler.NewRPSSampler(sampler.WithMaxRPS(*config.TraceConfig.UninterestingRate)),
 	}
 
 	dpt, err := newProcessorTelemetry(set)

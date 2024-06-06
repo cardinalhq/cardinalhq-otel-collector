@@ -18,32 +18,26 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/trigram"
-
 	"go.opentelemetry.io/collector/pdata/pcommon"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/trigram"
 )
 
 func CalculateTID(rattr, sattr, iattr pcommon.Map, prefix string) int64 {
 	tags := map[string]string{}
-	rattr.Range(func(k string, v pcommon.Value) bool {
-		if k[0] != '_' {
-			tags["resource."+k] = v.AsString()
-		}
-		return true
-	})
-	sattr.Range(func(k string, v pcommon.Value) bool {
-		if k[0] != '_' {
-			tags["scope."+k] = v.AsString()
-		}
-		return true
-	})
-	iattr.Range(func(k string, v pcommon.Value) bool {
+	addKeys(rattr, "resource", tags)
+	addKeys(sattr, "scope", tags)
+	addKeys(iattr, prefix, tags)
+	return calculateTID(tags)
+}
+
+func addKeys(attr pcommon.Map, prefix string, tags map[string]string) {
+	attr.Range(func(k string, v pcommon.Value) bool {
 		if k[0] != '_' {
 			tags[prefix+"."+k] = v.AsString()
 		}
 		return true
 	})
-	return calculateTID(tags)
 }
 
 func calculateTID(tags map[string]string) int64 {

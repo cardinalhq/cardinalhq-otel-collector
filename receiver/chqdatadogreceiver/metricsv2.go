@@ -18,6 +18,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"sync/atomic"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
@@ -75,7 +76,19 @@ func (ddr *datadogReceiver) processMetricsV2(ddMetrics []*ddpb.MetricPayload_Met
 	return nil
 }
 
+var counter atomic.Uint64
+
+func (ddr *datadogReceiver) logPost(v2 *ddpb.MetricPayload_MetricSeries) {
+	c := counter.Add(1)
+	if c%1000 == 0 {
+		ddr.metricLogger.Info("MetricPayload_MetricSeries",
+			zap.Any("series", v2),
+		)
+	}
+}
+
 func (ddr *datadogReceiver) convertMetricV2(v2 *ddpb.MetricPayload_MetricSeries) (pmetric.Metrics, error) {
+	ddr.logPost(v2)
 	m := pmetric.NewMetrics()
 	rm := m.ResourceMetrics().AppendEmpty()
 	rm.SetSchemaUrl(semconv.SchemaURL)

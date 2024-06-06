@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -54,35 +55,35 @@ func (e *statsExporter) ConsumeMetrics(_ context.Context, md pmetric.Metrics) er
 				case pmetric.MetricTypeGauge:
 					for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
 						dp := m.Gauge().DataPoints().At(l)
-						if err := e.recordDatapoint(now, m.Name(), serviceName, dp.Attributes()); err != nil {
+						if err := e.recordDatapoint(now, m.Name(), serviceName, rm.Resource().Attributes(), ilm.Scope().Attributes(), dp.Attributes()); err != nil {
 							return err
 						}
 					}
 				case pmetric.MetricTypeSum:
 					for l := 0; l < m.Sum().DataPoints().Len(); l++ {
 						dp := m.Sum().DataPoints().At(l)
-						if err := e.recordDatapoint(now, m.Name(), serviceName, dp.Attributes()); err != nil {
+						if err := e.recordDatapoint(now, m.Name(), serviceName, rm.Resource().Attributes(), ilm.Scope().Attributes(), dp.Attributes()); err != nil {
 							return err
 						}
 					}
 				case pmetric.MetricTypeHistogram:
 					for l := 0; l < m.Histogram().DataPoints().Len(); l++ {
 						dp := m.Histogram().DataPoints().At(l)
-						if err := e.recordDatapoint(now, m.Name(), serviceName, dp.Attributes()); err != nil {
+						if err := e.recordDatapoint(now, m.Name(), serviceName, rm.Resource().Attributes(), ilm.Scope().Attributes(), dp.Attributes()); err != nil {
 							return err
 						}
 					}
 				case pmetric.MetricTypeSummary:
 					for l := 0; l < m.Summary().DataPoints().Len(); l++ {
 						dp := m.Summary().DataPoints().At(l)
-						if err := e.recordDatapoint(now, m.Name(), serviceName, dp.Attributes()); err != nil {
+						if err := e.recordDatapoint(now, m.Name(), serviceName, rm.Resource().Attributes(), ilm.Scope().Attributes(), dp.Attributes()); err != nil {
 							return err
 						}
 					}
 				case pmetric.MetricTypeExponentialHistogram:
 					for l := 0; l < m.ExponentialHistogram().DataPoints().Len(); l++ {
 						dp := m.ExponentialHistogram().DataPoints().At(l)
-						if err := e.recordDatapoint(now, m.Name(), serviceName, dp.Attributes()); err != nil {
+						if err := e.recordDatapoint(now, m.Name(), serviceName, rm.Resource().Attributes(), ilm.Scope().Attributes(), dp.Attributes()); err != nil {
 							return err
 						}
 					}
@@ -94,7 +95,7 @@ func (e *statsExporter) ConsumeMetrics(_ context.Context, md pmetric.Metrics) er
 	return nil
 }
 
-func (e *statsExporter) recordDatapoint(now time.Time, metricName, serviceName string, dpAttr pcommon.Map) error {
+func (e *statsExporter) recordDatapoint(now time.Time, metricName, serviceName string, rattr, sattr, dpAttr pcommon.Map) error {
 	var errs error
 	wasAggregated := false
 	isAggregation := false
@@ -113,8 +114,19 @@ func (e *statsExporter) recordDatapoint(now time.Time, metricName, serviceName s
 
 	phase := metricBoolsToPhase(wasAggregated, isAggregation)
 
+	rattr.Range(func(k string, v pcommon.Value) bool {
+		errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "resource."+k, v.AsString(), phase, 1))
+		return true
+	})
+	sattr.Range(func(k string, v pcommon.Value) bool {
+		errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "scope."+k, v.AsString(), phase, 1))
+		return true
+	})
 	dpAttr.Range(func(k string, v pcommon.Value) bool {
 		errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "metric."+k, v.AsString(), phase, 1))
+		if strings.Contains(k, "_cardinalhq.") {
+			e.logger.Info("Found cardinalhq attribute", zap.String("key", k), zap.String("value", v.AsString()))
+		}
 		return true
 	})
 	return errs

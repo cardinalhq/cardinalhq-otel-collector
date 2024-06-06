@@ -28,6 +28,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/zap"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/sampler"
 )
 
@@ -305,7 +306,8 @@ func (mp *metricProcessor) aggregateGauge(rms pmetric.ResourceMetrics, ils pmetr
 		}
 		dp.Attributes().PutBool("_cardinalhq.filtered", filtered)
 		dp.Attributes().PutBool("_cardinalhq.would_filter", filtered)
-
+		tid := translate.CalculateTID(rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes(), "metric")
+		dp.Attributes().PutInt("_cardinalhq.tid", tid)
 	}
 	return aggregated
 }
@@ -335,6 +337,8 @@ func (mp *metricProcessor) aggregateSum(rms pmetric.ResourceMetrics, ils pmetric
 		}
 		dp.Attributes().PutBool("_cardinalhq.filtered", filtered)
 		dp.Attributes().PutBool("_cardinalhq.would_filter", filtered)
+		tid := translate.CalculateTID(rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes(), "metric")
+		dp.Attributes().PutInt("_cardinalhq.tid", tid)
 	}
 	return aggregated
 }
@@ -361,10 +365,12 @@ func (mp *metricProcessor) AggregateHistogram(rms pmetric.ResourceMetrics, ils p
 		if filtered {
 			b, _ := json.Marshal(rulematch)
 			dp.Attributes().PutStr("_cardinalhq.ruleconfig", string(b))
-			dp.Attributes().PutBool("_cardinalhq.filtered", true)
-			dp.Attributes().PutBool("_cardinalhq.would_filter", filtered)
 			aggregated++
 		}
+		dp.Attributes().PutBool("_cardinalhq.filtered", filtered)
+		dp.Attributes().PutBool("_cardinalhq.would_filter", filtered)
+		tid := translate.CalculateTID(rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes(), "metric")
+		dp.Attributes().PutInt("_cardinalhq.tid", tid)
 		return false
 	})
 	return aggregated

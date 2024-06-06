@@ -1,6 +1,8 @@
 module github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor
 
-go 1.22.2
+go 1.22.3
+
+toolchain go1.22.4
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.27.1
@@ -9,6 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.16.22
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.54.4
 	github.com/aws/smithy-go v1.20.2
+	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/db47h/ragel/v2 v2.2.4
 	github.com/hashicorp/go-multierror v1.1.1
@@ -70,3 +73,5 @@ require (
 	google.golang.org/grpc v1.64.0 // indirect
 	google.golang.org/protobuf v1.34.1 // indirect
 )
+
+replace github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 => ../../internal

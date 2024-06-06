@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -124,9 +123,6 @@ func (e *statsExporter) recordDatapoint(now time.Time, metricName, serviceName s
 	})
 	dpAttr.Range(func(k string, v pcommon.Value) bool {
 		errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "metric."+k, v.AsString(), phase, 1))
-		if strings.Contains(k, "_cardinalhq.") {
-			e.logger.Info("Found cardinalhq attribute", zap.String("key", k), zap.String("value", v.AsString()))
-		}
 		return true
 	})
 	return errs

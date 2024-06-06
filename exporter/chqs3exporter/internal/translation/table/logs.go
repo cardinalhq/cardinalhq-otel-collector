@@ -58,6 +58,7 @@ func ensureExpectedKeysLogs(m map[string]any) {
 		"_cardinalhq.hostname":    findHostname(m),
 		"_cardinalhq.message":     "",
 		"_cardinalhq.value":       float64(1),
+		"_cardinalhq.name":        "log_events",
 	}
 
 	for key, val := range keys {

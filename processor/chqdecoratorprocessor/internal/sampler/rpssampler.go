@@ -43,11 +43,11 @@ type rpsSampler struct {
 	// is no limit. The default is 0.
 	maxKeys int
 
-	// MinEventsPerSec is the minimum number of events per second that should be
+	// MaxRPS is the minimum number of events per second that should be
 	// sampled. If the total number of events in the last ClearFrequencyDuration
 	// is less than this number, all events will be sampled at 1. The default is
 	// 50.
-	MinEventsPerSec int
+	MaxRPS int
 
 	savedSampleRates map[string]int
 	currentCounts    map[string]float64
@@ -89,7 +89,7 @@ func WithMaxKeys(maxKeys int) Option {
 
 func WithMinEventsPerSec(minEventsPerSec int) Option {
 	return func(s *rpsSampler) {
-		s.MinEventsPerSec = minEventsPerSec
+		s.MaxRPS = minEventsPerSec
 	}
 }
 
@@ -104,8 +104,8 @@ func (a *rpsSampler) Start() error {
 	if a.clearFrequencyDuration == 0 {
 		a.clearFrequencyDuration = 30 * time.Second
 	}
-	if a.MinEventsPerSec == 0 {
-		a.MinEventsPerSec = 50
+	if a.MaxRPS == 0 {
+		a.MaxRPS = 50
 	}
 
 	a.savedSampleRates = make(map[string]int)
@@ -158,7 +158,7 @@ func (a *rpsSampler) updateMaps() {
 		sumEvents += count
 	}
 	// check to see if we fall below the minimum
-	targetMinimumCount := float64(a.MinEventsPerSec) * a.clearFrequencyDuration.Seconds()
+	targetMinimumCount := float64(a.MaxRPS) * a.clearFrequencyDuration.Seconds()
 	if a.logger != nil {
 		a.logger.Debug("updateMaps", zap.Float64("sumEvents", sumEvents), zap.Float64("targetMinimumCount", targetMinimumCount))
 	}

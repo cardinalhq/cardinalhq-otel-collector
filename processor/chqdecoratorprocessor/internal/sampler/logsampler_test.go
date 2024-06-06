@@ -44,7 +44,7 @@ func TestSamplerForType(t *testing.T) {
 				RPS:      100,
 			},
 			expectedType: LogRuleTypeRPS,
-			expected:     &rpsSampler{MinEventsPerSec: 100},
+			expected:     &rpsSampler{MaxRPS: 100},
 		},
 		{
 			name: "unknown rule type",

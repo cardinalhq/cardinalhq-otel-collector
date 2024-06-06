@@ -114,9 +114,6 @@ func (e *statsExporter) recordDatapoint(now time.Time, metricName, serviceName s
 	phase := metricBoolsToPhase(wasAggregated, isAggregation)
 
 	dpAttr.Range(func(k string, v pcommon.Value) bool {
-		if k[0] == '_' {
-			return true
-		}
 		errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "metric."+k, v.AsString(), phase, 1))
 		return true
 	})

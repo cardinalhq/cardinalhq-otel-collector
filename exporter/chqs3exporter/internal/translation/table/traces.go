@@ -29,7 +29,7 @@ func (l *TableTranslator) TracesFromOtel(ot *ptrace.Traces) ([]map[string]any, e
 			iss := rs.ScopeSpans().At(j)
 			for k := 0; k < iss.Spans().Len(); k++ {
 				span := iss.Spans().At(k)
-				ret := map[string]any{"_cardinalhq.telemetry_type": "trace"}
+				ret := map[string]any{"_cardinalhq.telemetry_type": "traces"}
 				addAttributes(ret, rs.Resource().Attributes(), "resource")
 				addAttributes(ret, iss.Scope().Attributes(), "scope")
 				addAttributes(ret, span.Attributes(), "span")

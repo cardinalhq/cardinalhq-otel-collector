@@ -29,7 +29,7 @@ func (l *TableTranslator) LogsFromOtel(ol *plog.Logs) ([]map[string]any, error) 
 			ill := rl.ScopeLogs().At(j)
 			for k := 0; k < ill.LogRecords().Len(); k++ {
 				log := ill.LogRecords().At(k)
-				ret := map[string]any{"_cardinalhq.telemetry_type": "log"}
+				ret := map[string]any{"_cardinalhq.telemetry_type": "logs"}
 				addAttributes(ret, rl.Resource().Attributes(), "resource")
 				addAttributes(ret, ill.Scope().Attributes(), "scope")
 				addAttributes(ret, log.Attributes(), "log")

@@ -19,6 +19,8 @@ data:
         protocols:
           grpc:
             endpoint: 0.0.0.0:14317
+      chqdatadog/l1:
+        endpoint: 0.0.0.0:8126
 
     exporters:
 
@@ -191,7 +193,7 @@ data:
 
         # log handling.  No need to partition here.
         logs/chq:
-          receivers: [otlp/l1]
+          receivers: [otlp/l1, chqdatadog/l1]
           processors: [memory_limiter, chqdecorator, batch/logs]
           exporters: [otlp/tochq, chqstats/cardinalhq, forward/toprovider]
         logs/toprovider:
@@ -204,7 +206,7 @@ data:
         # for the host that processed the aggregation, and let the receiver
         # just get more than one time series for our aggregation.
         metrics/l1:
-          receivers: [otlp/l1]
+          receivers: [otlp/l1, chqdatadog/l1]
           processors: [memory_limiter]
           exporters: [loadbalancing/metrics]
         metrics/decoration:
@@ -223,7 +225,7 @@ data:
         # trace handling.  Partition on trace ID so we can group traces
         # and filter based on the entire trace, not individual spans.
         traces/l1:
-          receivers: [otlp/l1]
+          receivers: [otlp/l1, chqdatadog/l1]
           processors: [memory_limiter]
           exporters: [loadbalancing/traces]
         traces/chq:

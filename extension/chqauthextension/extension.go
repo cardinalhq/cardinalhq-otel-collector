@@ -16,6 +16,7 @@ package chqauthextension
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -26,6 +27,10 @@ import (
 	"go.opentelemetry.io/collector/extension"
 	"go.opentelemetry.io/collector/extension/auth"
 	"go.uber.org/zap"
+)
+
+const (
+	apiKeyHeader = "x-cardinalhq-api-key"
 )
 
 var (
@@ -70,14 +75,55 @@ func (chq *chqAuth) authenticate(ctx context.Context, headers map[string][]strin
 		return ctx, errNoAuthHeader
 	}
 
+	authData, err := chq.authenticateAPIKey(ctx, auth)
+	if err != nil {
+		return ctx, err
+	}
+
 	cl := client.FromContext(ctx)
-	cl.Auth = &authData{apiKey: auth}
+	cl.Auth = authData
 	return client.NewContext(ctx, cl), nil
+}
+
+type validateResponse struct {
+	Valid bool   `json:"valid"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+}
+
+func (chq *chqAuth) authenticateAPIKey(ctx context.Context, apiKey string) (*authData, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, chq.config.ServerAuth.Endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set(apiKeyHeader, apiKey)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := chq.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.New("authentication failed")
+	}
+
+	var validateResp validateResponse
+	if err := json.NewDecoder(resp.Body).Decode(&validateResp); err != nil {
+		return nil, err
+	}
+
+	return &authData{
+		apiKey:     apiKey,
+		clientID:   validateResp.ID,
+		clientName: validateResp.Name,
+		valid:      validateResp.Valid,
+	}, nil
 }
 
 func getAuthHeader(h map[string][]string) string {
 	const (
-		headerKey = "x-cardinalhq-api-key"
+		headerKey = apiKeyHeader
 	)
 	for k, v := range h {
 		if strings.EqualFold(k, headerKey) {
@@ -90,18 +136,27 @@ func getAuthHeader(h map[string][]string) string {
 var _ client.AuthData = (*authData)(nil)
 
 type authData struct {
-	apiKey string
+	apiKey     string
+	clientID   string
+	clientName string
+	valid      bool
 }
 
 func (a *authData) GetAttribute(name string) any {
 	switch name {
 	case "api_key":
 		return a.apiKey
+	case "client_id":
+		return a.clientID
+	case "client_name":
+		return a.clientName
+	case "valid":
+		return a.valid
 	default:
 		return nil
 	}
 }
 
 func (a *authData) GetAttributeNames() []string {
-	return []string{"api_key"}
+	return []string{"api_key", "client_id", "client_name", "valid"}
 }

@@ -23,7 +23,6 @@ import (
 
 type Config struct {
 	APIKey  configopaque.String `mapstructure:"api_key"`
-	Site    string              `mapstructure:"site"`
 	Metrics MetricsConfig       `mapstructure:"metrics"`
 	Logs    LogsConfig          `mapstructure:"logs"`
 	Traces  TracesConfig        `mapstructure:"traces"`

@@ -20,6 +20,8 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 
 	"go.opentelemetry.io/collector/client"
 	"go.opentelemetry.io/collector/component"
@@ -35,11 +37,15 @@ const (
 
 var (
 	errNoAuthHeader = errors.New("no authentication header found")
+	errDenied       = errors.New("authentication denied")
 )
 
 type chqAuth struct {
 	config     *Config
 	httpClient *http.Client
+
+	lookupCache map[string]*authData
+	cacheLock   sync.Mutex
 
 	httpClientSettings confighttp.ClientConfig
 	telemetrySettings  component.TelemetrySettings
@@ -53,6 +59,7 @@ func newServerAuthExtension(cfg *Config, params extension.CreateSettings) (auth.
 		httpClientSettings: cfg.ServerAuth.ClientConfig,
 		telemetrySettings:  params.TelemetrySettings,
 		logger:             params.Logger,
+		lookupCache:        make(map[string]*authData),
 	}
 	return auth.NewServer(
 		auth.WithServerStart(chq.serverStart),
@@ -91,7 +98,53 @@ type validateResponse struct {
 	Name  string `json:"name"`
 }
 
+func (chq *chqAuth) getcache(apiKey string) *authData {
+	chq.cacheLock.Lock()
+	defer chq.cacheLock.Unlock()
+	ad, ok := chq.lookupCache[apiKey]
+	if !ok {
+		return nil
+	}
+	if ad.expiry.Before(time.Now()) {
+		delete(chq.lookupCache, apiKey)
+		return nil
+	}
+	return ad
+}
+
+func (chq *chqAuth) setcache(ad *authData) {
+	chq.cacheLock.Lock()
+	defer chq.cacheLock.Unlock()
+	chq.lookupCache[ad.apiKey] = ad
+}
+
 func (chq *chqAuth) authenticateAPIKey(ctx context.Context, apiKey string) (*authData, error) {
+	ad := chq.getcache(apiKey)
+	if ad != nil {
+		if !ad.valid {
+			return nil, errDenied
+		}
+		return ad, nil
+	}
+
+	ad, err := chq.callValidateAPI(ctx, apiKey)
+	if err != nil {
+		if errors.Is(err, errDenied) {
+			ad = &authData{
+				apiKey: apiKey,
+				valid:  false,
+				expiry: time.Now().Add(120 * time.Second),
+			}
+			chq.setcache(ad)
+		}
+		return nil, err
+	}
+	ad.expiry = time.Now().Add(120 * time.Second)
+	chq.setcache(ad)
+	return ad, nil
+}
+
+func (chq *chqAuth) callValidateAPI(ctx context.Context, apiKey string) (*authData, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, chq.config.ServerAuth.Endpoint, nil)
 	if err != nil {
 		return nil, err
@@ -105,7 +158,7 @@ func (chq *chqAuth) authenticateAPIKey(ctx context.Context, apiKey string) (*aut
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New("authentication failed")
+		return nil, errDenied
 	}
 
 	var validateResp validateResponse
@@ -140,6 +193,7 @@ type authData struct {
 	clientID   string
 	clientName string
 	valid      bool
+	expiry     time.Time
 }
 
 func (a *authData) GetAttribute(name string) any {

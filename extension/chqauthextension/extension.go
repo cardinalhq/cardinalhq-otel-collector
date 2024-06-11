@@ -23,11 +23,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension/internal/metadata"
 	"go.opentelemetry.io/collector/client"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/extension"
 	"go.opentelemetry.io/collector/extension/auth"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
 )
 
@@ -50,7 +53,26 @@ type chqAuth struct {
 	httpClientSettings confighttp.ClientConfig
 	telemetrySettings  component.TelemetrySettings
 
+	authCacheLookups metric.Int64Counter
+	authCacheAdds    metric.Int64Counter
+
 	logger *zap.Logger
+}
+
+func (chq *chqAuth) setupTelemetry(params extension.CreateSettings) error {
+	m, err := metadata.Meter(params.TelemetrySettings).Int64Counter("auth_cache_lookups")
+	if err != nil {
+		return err
+	}
+	chq.authCacheLookups = m
+
+	m, err = metadata.Meter(params.TelemetrySettings).Int64Counter("auth_cache_adds")
+	if err != nil {
+		return err
+	}
+	chq.authCacheAdds = m
+
+	return nil
 }
 
 func newServerAuthExtension(cfg *Config, params extension.CreateSettings) (auth.Server, error) {
@@ -60,6 +82,9 @@ func newServerAuthExtension(cfg *Config, params extension.CreateSettings) (auth.
 		telemetrySettings:  params.TelemetrySettings,
 		logger:             params.Logger,
 		lookupCache:        make(map[string]*authData),
+	}
+	if err := chq.setupTelemetry(params); err != nil {
+		return nil, err
 	}
 	return auth.NewServer(
 		auth.WithServerStart(chq.serverStart),
@@ -103,16 +128,23 @@ func (chq *chqAuth) getcache(apiKey string) *authData {
 	defer chq.cacheLock.Unlock()
 	ad, ok := chq.lookupCache[apiKey]
 	if !ok {
+		attrs := metric.WithAttributes(attribute.String("cache", "miss"))
+		chq.authCacheLookups.Add(context.Background(), 1, attrs)
 		return nil
 	}
 	if ad.expiry.Before(time.Now()) {
+		attrs := metric.WithAttributes(attribute.String("cache", "expired"))
+		chq.authCacheLookups.Add(context.Background(), 1, attrs)
 		delete(chq.lookupCache, apiKey)
 		return nil
 	}
+	attrs := metric.WithAttributes(attribute.String("cache", "hit"))
+	chq.authCacheLookups.Add(context.Background(), 1, attrs)
 	return ad
 }
 
 func (chq *chqAuth) setcache(ad *authData) {
+	chq.authCacheAdds.Add(context.Background(), 1)
 	chq.cacheLock.Lock()
 	defer chq.cacheLock.Unlock()
 	chq.lookupCache[ad.apiKey] = ad

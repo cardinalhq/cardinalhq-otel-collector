@@ -103,7 +103,7 @@ func (l *TableTranslator) toddSum(metric pmetric.Metric, baseattrs map[string]an
 		dp := metric.Sum().DataPoints().At(i)
 		ret := maps.Clone(baseattrs)
 		addAttributes(ret, dp.Attributes(), "metric")
-		ret["_cardinalhq.metric_type"] = "gauge"
+		ret["_cardinalhq.metric_type"] = "count"
 		ret["_cardinalhq.timestamp"] = dp.Timestamp().AsTime().UnixMilli()
 		switch dp.ValueType() {
 		case pmetric.NumberDataPointValueTypeDouble:

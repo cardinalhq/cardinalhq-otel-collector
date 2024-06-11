@@ -80,6 +80,16 @@ func (e *datadogExporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics
 	return nil
 }
 
+func valueAsFloat64(dp pmetric.NumberDataPoint) float64 {
+	switch dp.ValueType() {
+	case pmetric.NumberDataPointValueTypeDouble:
+		return dp.DoubleValue()
+	case pmetric.NumberDataPointValueTypeInt:
+		return float64(dp.IntValue())
+	}
+	return 0
+}
+
 func (e *datadogExporter) convertGaugeMetric(_ context.Context, m *ddpb.MetricPayload_MetricSeries, rAttr, sAttr pcommon.Map, g pmetric.Gauge) error {
 	for i := 0; i < g.DataPoints().Len(); i++ {
 		dp := g.DataPoints().At(i)
@@ -94,7 +104,7 @@ func (e *datadogExporter) convertGaugeMetric(_ context.Context, m *ddpb.MetricPa
 		lAttr.Remove("dd.israte")
 		m.Points = append(m.Points, &ddpb.MetricPayload_MetricPoint{
 			Timestamp: dp.Timestamp().AsTime().Unix(),
-			Value:     dp.DoubleValue(),
+			Value:     valueAsFloat64(dp),
 		})
 	}
 	return nil
@@ -108,7 +118,7 @@ func (e *datadogExporter) convertSumMetric(_ context.Context, m *ddpb.MetricPayl
 		}
 		m.Points = append(m.Points, &ddpb.MetricPayload_MetricPoint{
 			Timestamp: dp.Timestamp().AsTime().Unix(),
-			Value:     dp.DoubleValue(),
+			Value:     valueAsFloat64(dp),
 		})
 	}
 	return nil

@@ -150,6 +150,7 @@ func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPa
 			gdp := g.DataPoints().AppendEmpty()
 			lAttr.CopyTo(gdp.Attributes())
 			gdp.Attributes().PutBool("dd.israte", true)
+			gdp.Attributes().PutInt("dd.rateInterval", v2.Interval)
 			populateDatapoint(&gdp, point.Timestamp*1000, &v2.Interval, point.Value)
 		}
 	case ddpb.MetricPayload_COUNT:

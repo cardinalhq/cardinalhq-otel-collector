@@ -17,8 +17,6 @@ package chqdecoratorprocessor
 import (
 	"context"
 	"fmt"
-	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
@@ -98,10 +96,6 @@ func addFingerprint(fingerprint int64) int64 {
 }
 
 func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
-	filtered := int64(0)
-	processed := int64(0)
-	filteredKeys := map[string]int64{}
-	processedKeys := map[string]int64{}
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
@@ -128,36 +122,12 @@ func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs,
 				log.Attributes().PutStr(translate.CardinalFieldRuleMatch, rule_match)
 				log.Attributes().PutBool(translate.CardinalFieldFiltered, wasFiltered)
 				log.Attributes().PutBool(translate.CardinalFieldWouldFilter, wasFiltered)
-				key := fmt.Sprintf("%s:%d", serviceName, fingerprint)
-				processed++
-				processedKeys[key]++
-				if wasFiltered {
-					lp.logger.Info("Log filtered", zap.String("key", key))
-					filtered++
-					filteredKeys[key]++
-				}
+				lp.telemetry.record(triggerLogsProcessed, 1,
+					attribute.Bool("filtered.filtered", wasFiltered),
+					attribute.String("filtered.rule_match", rule_match),
+					attribute.String("filtered.service.name", serviceName),
+					attribute.Int64("filtered.fingerprint", fingerprint))
 			}
-		}
-	}
-
-	for key, count := range processedKeys {
-		filtered := filteredKeys[key]
-		items := strings.Split(key, ":")
-		serviceName := items[0]
-		fingerprint, _ := strconv.ParseInt(items[1], 10, 64)
-		if count-filtered > 0 {
-			lp.telemetry.record(triggerLogsProcessed, count-filtered,
-				attribute.Bool("filtered.filtered", false),
-				attribute.String("filtered.classification", "not_filtered"),
-				attribute.String("filtered.service.name", serviceName),
-				attribute.Int64("filtered.fingerprint", fingerprint))
-		}
-		if filtered > 0 {
-			lp.telemetry.record(triggerLogsProcessed, filtered,
-				attribute.Bool("filtered.filtered", true),
-				attribute.String("filtered.classification", "rule_match"),
-				attribute.String("filtered.service.name", serviceName),
-				attribute.Int64("filtered.fingerprint", fingerprint))
 		}
 	}
 

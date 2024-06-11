@@ -57,7 +57,6 @@ func NewLogSamplerImpl(ctx context.Context, logger *zap.Logger) *LogSamplerImpl 
 func (ls *LogSamplerImpl) UpdateConfig(config *SamplerConfig) {
 	ls.Lock()
 	defer ls.Unlock()
-
 	ls.configure(config.Logs.Sampling)
 }
 

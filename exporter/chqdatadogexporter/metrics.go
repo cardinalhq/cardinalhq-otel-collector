@@ -24,7 +24,6 @@ import (
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 
 	ddpb "github.com/cardinalhq/cardinalhq-otel-collector/internal/ddpb"
@@ -72,8 +71,7 @@ func (e *datadogExporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics
 
 	e.messagesReceived.Add(ctx, int64(len(msg.Series)), metric.WithAttributeSet(e.commonAttributes))
 	if len(msg.Series) > 0 {
-		e.logger.Info("Sending metrics to Datadog", zap.Int("seriesCount", len(msg.Series)))
-		if err := e.sendMetrics(ctx, msg); err != nil {
+		if err := e.sendMetrics(context.Background(), msg); err != nil {
 			return err
 		}
 	}
@@ -98,10 +96,17 @@ func (e *datadogExporter) convertGaugeMetric(_ context.Context, m *ddpb.MetricPa
 		if i == 0 {
 			if _, found := lAttr.Get("dd.israte"); found {
 				m.Type = ddpb.MetricPayload_RATE
+				if v, found := lAttr.Get("dd.rateInterval"); found {
+					val := v.AsRaw()
+					if intval, ok := val.(int64); ok {
+						m.Interval = intval
+					}
+				}
 			}
 			m.Tags = append(m.Tags, tagStrings(rAttr, sAttr, lAttr)...)
 		}
 		lAttr.Remove("dd.israte")
+		lAttr.Remove("dd.rateInterval")
 		m.Points = append(m.Points, &ddpb.MetricPayload_MetricPoint{
 			Timestamp: dp.Timestamp().AsTime().Unix(),
 			Value:     valueAsFloat64(dp),

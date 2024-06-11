@@ -96,7 +96,7 @@ func (e *datadogExporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error
 	}
 	e.messagesReceived.Add(ctx, int64(len(ddlogs)), metric.WithAttributeSet(e.commonAttributes))
 	if len(ddlogs) > 0 {
-		if err := e.send(ctx, ddlogs); err != nil {
+		if err := e.send(context.Background(), ddlogs); err != nil {
 			return err
 		}
 	}

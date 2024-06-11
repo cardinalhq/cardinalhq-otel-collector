@@ -71,7 +71,7 @@ func TestMatchTag(t *testing.T) {
 
 func TestMatchScope(t *testing.T) {
 	attr1 := pcommon.NewMap()
-	attr1.PutStr("key1", "value1")
+	attr1.PutStr("service.name", "value1")
 
 	attr2 := pcommon.NewMap()
 	attr2.PutStr("key2", "value2")
@@ -80,9 +80,9 @@ func TestMatchScope(t *testing.T) {
 	attr3.PutStr("key3", "value3")
 
 	attrs := map[string]pcommon.Map{
-		"attr1": attr1,
-		"attr2": attr2,
-		"attr3": attr3,
+		"resource": attr1,
+		"scope":    attr2,
+		"log":      attr3,
 	}
 
 	tests := []struct {
@@ -97,22 +97,22 @@ func TestMatchScope(t *testing.T) {
 		},
 		{
 			name:     "Matching scope",
-			scope:    map[string]string{"attr1.key1": "value1"},
+			scope:    map[string]string{"resource.service.name": "value1"},
 			expected: true,
 		},
 		{
 			name:     "Non-matching scope",
-			scope:    map[string]string{"attr1.key1": "value2"},
+			scope:    map[string]string{"resource.service.name": "value2"},
 			expected: false,
 		},
 		{
 			name:     "Non-matching scope key",
-			scope:    map[string]string{"attr4.key1": "value1"},
+			scope:    map[string]string{"attr4.service.name": "value1"},
 			expected: false,
 		},
 		{
 			name:     "incorrect scope key",
-			scope:    map[string]string{"attr1": "value1"},
+			scope:    map[string]string{"resource": "value1"},
 			expected: false,
 		},
 	}

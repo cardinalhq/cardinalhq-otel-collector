@@ -1,10 +1,13 @@
 module github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter
 
-go 1.21.0
+go 1.22.3
+
+toolchain go1.22.4
 
 require (
 	github.com/DataDog/sketches-go v1.4.5
 	github.com/aws/aws-sdk-go v1.53.17
+	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
 	github.com/oklog/ulid/v2 v2.1.0
 	github.com/parquet-go/parquet-go v0.22.0
 	github.com/stretchr/testify v1.9.0
@@ -110,3 +113,5 @@ require (
 	google.golang.org/protobuf v1.34.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 => ../../internal

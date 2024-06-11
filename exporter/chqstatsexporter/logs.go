@@ -28,6 +28,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 func getServiceName(r pcommon.Map) string {
@@ -39,7 +40,7 @@ func getServiceName(r pcommon.Map) string {
 }
 
 func getFingerprint(l pcommon.Map) int64 {
-	fnk := "_cardinalhq.fingerprint"
+	fnk := translate.CardinalFieldFingerprint
 	if fingerprintField, found := l.Get(fnk); found {
 		return fingerprintField.Int()
 	}
@@ -47,7 +48,7 @@ func getFingerprint(l pcommon.Map) int64 {
 }
 
 func getFiltered(l pcommon.Map) bool {
-	fnk := "_cardinalhq.filtered"
+	fnk := translate.CardinalFieldFiltered
 	if filteredField, found := l.Get(fnk); found {
 		return filteredField.Bool()
 	}
@@ -55,7 +56,7 @@ func getFiltered(l pcommon.Map) bool {
 }
 
 func getWouldFilter(l pcommon.Map) bool {
-	fnk := "_cardinalhq.would_filter"
+	fnk := translate.CardinalFieldWouldFilter
 	if wouldFilterField, found := l.Get(fnk); found {
 		return wouldFilterField.Bool()
 	}
@@ -147,7 +148,7 @@ func (e *statsExporter) postLogStats(ctx context.Context, wrapper *chqpb.LogStat
 		return err
 	}
 	req.Header.Set("Content-Type", "application/x-protobuf")
-	req.Header.Set("x-cardinalhq-api-key", string(e.config.APIKey))
+	req.Header.Set(translate.CardinalHeaderAPIKey, string(e.config.APIKey))
 
 	resp, err := e.httpClient.Do(req)
 	if err != nil {

@@ -18,11 +18,13 @@ import (
 	"strings"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 func addAttributes(m map[string]any, attrs pcommon.Map, prefix string) {
 	attrs.Range(func(name string, v pcommon.Value) bool {
-		if strings.HasPrefix(name, "_cardinalhq.") {
+		if strings.HasPrefix(name, translate.CardinalFieldPrefixDot) {
 			m[name] = v.AsRaw()
 		} else {
 			m[prefix+"."+name] = v.AsString()

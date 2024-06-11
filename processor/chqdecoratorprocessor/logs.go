@@ -21,6 +21,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/fingerprinter"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/sampler"
 
@@ -114,16 +115,19 @@ func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs,
 					continue
 				}
 				if addFingerprint(fingerprint) == 0 {
-					lp.logger.Debug("New fingerprint", zap.Int64("fingerprint", fingerprint), zap.String("service", serviceName), zap.String("level", level))
+					lp.logger.Debug("New fingerprint",
+						zap.Int64("fingerprint", fingerprint),
+						zap.String("service", serviceName),
+						zap.String("level", level))
 				}
 				fingerprintString := fmt.Sprintf("%d", fingerprint)
-				log.Attributes().PutInt("_cardinalhq.fingerprint", fingerprint)
-				log.Attributes().PutStr("_cardinalhq.level", level)
+				log.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)
+				log.Attributes().PutStr(translate.CardinalFieldLevel, level)
 				rule_match := lp.sampler.Sample(fingerprintString, rl.Resource().Attributes(), sl.Scope().Attributes(), log.Attributes())
 				wasFiltered := rule_match != ""
-				log.Attributes().PutStr("_cardinalhq.rule_match", rule_match)
-				log.Attributes().PutBool("_cardinalhq.filtered", wasFiltered)
-				log.Attributes().PutBool("_cardinalhq.would_filter", wasFiltered)
+				log.Attributes().PutStr(translate.CardinalFieldRuleMatch, rule_match)
+				log.Attributes().PutBool(translate.CardinalFieldFiltered, wasFiltered)
+				log.Attributes().PutBool(translate.CardinalFieldWouldFilter, wasFiltered)
 				key := fmt.Sprintf("%s:%d", serviceName, fingerprint)
 				processed++
 				processedKeys[key]++
@@ -140,8 +144,20 @@ func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs,
 		items := strings.Split(key, ":")
 		serviceName := items[0]
 		fingerprint, _ := strconv.ParseInt(items[1], 10, 64)
-		lp.telemetry.record(triggerLogsProcessed, count-filtered, attribute.Bool("filtered.filtered", false), attribute.String("filtered.classification", "not_filtered"), attribute.String("filtered.service.name", serviceName), attribute.Int64("filtered.fingerprint", fingerprint))
-		lp.telemetry.record(triggerLogsProcessed, filtered, attribute.Bool("filtered.filtered", true), attribute.String("filtered.classification", "rule_match"), attribute.String("filtered.service.name", serviceName), attribute.Int64("filtered.fingerprint", fingerprint))
+		if count-filtered > 0 {
+			lp.telemetry.record(triggerLogsProcessed, count-filtered,
+				attribute.Bool("filtered.filtered", false),
+				attribute.String("filtered.classification", "not_filtered"),
+				attribute.String("filtered.service.name", serviceName),
+				attribute.Int64("filtered.fingerprint", fingerprint))
+		}
+		if filtered > 0 {
+			lp.telemetry.record(triggerLogsProcessed, filtered,
+				attribute.Bool("filtered.filtered", true),
+				attribute.String("filtered.classification", "rule_match"),
+				attribute.String("filtered.service.name", serviceName),
+				attribute.Int64("filtered.fingerprint", fingerprint))
+		}
 	}
 
 	return ld, nil

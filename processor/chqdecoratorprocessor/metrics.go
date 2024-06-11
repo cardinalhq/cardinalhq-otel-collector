@@ -206,7 +206,7 @@ func setTags(res pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, metric pmetri
 			setMetadata(res, sm, metric, tagname, v)
 		}
 	}
-	dp.Attributes().PutBool("_cardinalhq.aggregated_output", true)
+	dp.Attributes().PutBool(translate.CardinalFieldAggregatedOutput, true)
 }
 
 func setMetadata(res pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, metric pmetric.Metric, tagname string, v string) {
@@ -302,12 +302,12 @@ func (mp *metricProcessor) aggregateGauge(rms pmetric.ResourceMetrics, ils pmetr
 			aggregated++
 			filtered = true
 			b, _ := json.Marshal(rulematch)
-			dp.Attributes().PutStr("_cardinalhq.ruleconfig", string(b))
+			dp.Attributes().PutStr(translate.CardinalFieldRuleConfig, string(b))
 		}
-		dp.Attributes().PutBool("_cardinalhq.filtered", filtered)
-		dp.Attributes().PutBool("_cardinalhq.would_filter", filtered)
+		dp.Attributes().PutBool(translate.CardinalFieldFiltered, filtered)
+		dp.Attributes().PutBool(translate.CardinalFieldWouldFilter, filtered)
 		tid := translate.CalculateTID(rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes(), "metric")
-		dp.Attributes().PutInt("_cardinalhq.tid", tid)
+		dp.Attributes().PutInt(translate.CardinalFieldTID, tid)
 	}
 	return aggregated
 }
@@ -333,12 +333,12 @@ func (mp *metricProcessor) aggregateSum(rms pmetric.ResourceMetrics, ils pmetric
 			aggregated++
 			filtered = true
 			b, _ := json.Marshal(rulematch)
-			dp.Attributes().PutStr("_cardinalhq.ruleconfig", string(b))
+			dp.Attributes().PutStr(translate.CardinalFieldRuleConfig, string(b))
 		}
-		dp.Attributes().PutBool("_cardinalhq.filtered", filtered)
-		dp.Attributes().PutBool("_cardinalhq.would_filter", filtered)
+		dp.Attributes().PutBool(translate.CardinalFieldFiltered, filtered)
+		dp.Attributes().PutBool(translate.CardinalFieldWouldFilter, filtered)
 		tid := translate.CalculateTID(rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes(), "metric")
-		dp.Attributes().PutInt("_cardinalhq.tid", tid)
+		dp.Attributes().PutInt(translate.CardinalFieldTID, tid)
 	}
 	return aggregated
 }
@@ -364,13 +364,13 @@ func (mp *metricProcessor) AggregateHistogram(rms pmetric.ResourceMetrics, ils p
 		filtered := rulematch != nil
 		if filtered {
 			b, _ := json.Marshal(rulematch)
-			dp.Attributes().PutStr("_cardinalhq.ruleconfig", string(b))
+			dp.Attributes().PutStr(translate.CardinalFieldRuleConfig, string(b))
 			aggregated++
 		}
-		dp.Attributes().PutBool("_cardinalhq.filtered", filtered)
-		dp.Attributes().PutBool("_cardinalhq.would_filter", filtered)
+		dp.Attributes().PutBool(translate.CardinalFieldFiltered, filtered)
+		dp.Attributes().PutBool(translate.CardinalFieldWouldFilter, filtered)
 		tid := translate.CalculateTID(rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes(), "metric")
-		dp.Attributes().PutInt("_cardinalhq.tid", tid)
+		dp.Attributes().PutInt(translate.CardinalFieldTID, tid)
 		return false
 	})
 	return aggregated

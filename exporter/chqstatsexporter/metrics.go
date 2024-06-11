@@ -28,6 +28,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 func metricBoolsToPhase(wasAggregated, isAggregation bool) chqpb.Phase {
@@ -98,13 +99,13 @@ func (e *statsExporter) recordDatapoint(now time.Time, metricName, serviceName s
 	var errs error
 	wasAggregated := false
 	isAggregation := false
-	if v, found := dpAttr.Get("_cardinalhq.filtered"); found {
+	if v, found := dpAttr.Get(translate.CardinalFieldFiltered); found {
 		r := v.AsRaw()
 		if b, ok := r.(bool); ok {
 			wasAggregated = b
 		}
 	}
-	if v, found := dpAttr.Get("_cardinalhq.aggregated_output"); found {
+	if v, found := dpAttr.Get(translate.CardinalFieldAggregatedOutput); found {
 		r := v.AsRaw()
 		if b, ok := r.(bool); ok {
 			isAggregation = b
@@ -200,7 +201,7 @@ func (e *statsExporter) postMetricStats(ctx context.Context, wrapper *chqpb.Metr
 		return err
 	}
 	req.Header.Set("Content-Type", "application/x-protobuf")
-	req.Header.Set("x-cardinalhq-api-key", string(e.config.APIKey))
+	req.Header.Set(translate.CardinalHeaderAPIKey, string(e.config.APIKey))
 
 	resp, err := e.httpClient.Do(req)
 	if err != nil {

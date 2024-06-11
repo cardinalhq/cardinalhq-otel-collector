@@ -17,6 +17,7 @@ package table
 import (
 	"time"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
@@ -29,26 +30,26 @@ func (l *TableTranslator) TracesFromOtel(ot *ptrace.Traces) ([]map[string]any, e
 			iss := rs.ScopeSpans().At(j)
 			for k := 0; k < iss.Spans().Len(); k++ {
 				span := iss.Spans().At(k)
-				ret := map[string]any{"_cardinalhq.telemetry_type": "traces"}
+				ret := map[string]any{translate.CardinalFieldTelemetryType: translate.CardinalTelemetryTypeTraces}
 				addAttributes(ret, rs.Resource().Attributes(), "resource")
 				addAttributes(ret, iss.Scope().Attributes(), "scope")
 				addAttributes(ret, span.Attributes(), "span")
 				ts := span.StartTimestamp().AsTime().UnixMilli()
-				ret["_cardinalhq.timestamp"] = ts
-				ret["_cardinalhq.span_eventcount"] = int32(span.Events().Len())
-				ret["_cardinalhq.id"] = l.idg.Make(time.Now())
-				ret["_cardinalhq.span_name"] = span.Name()
-				ret["_cardinalhq.span_trace_id"] = span.TraceID().String()
-				ret["_cardinalhq.span_span_id"] = span.SpanID().String()
-				ret["_cardinalhq.span_parent_span_id"] = span.ParentSpanID().String()
-				ret["_cardinalhq.span_kind"] = span.Kind().String()
-				ret["_cardinalhq.span_status_code"] = span.Status().Code().String()
-				ret["_cardinalhq.span_status_message"] = span.Status().Message()
-				ret["_cardinalhq.span_duration"] = span.EndTimestamp().AsTime().Sub(span.StartTimestamp().AsTime()).Milliseconds()
-				ret["_cardinalhq.span_start_time"] = span.StartTimestamp().AsTime().UnixMilli()
-				ret["_cardinalhq.span_end_time"] = span.EndTimestamp().AsTime().UnixMilli()
-				ret["_cardinalhq.scope_schemaurl"] = iss.SchemaUrl()
-				ret["_cardinalhq.resource_schemaurl"] = rs.SchemaUrl()
+				ret[translate.CardinalFieldTimestamp] = ts
+				ret[translate.CardinalFieldSpanEventcount] = int32(span.Events().Len())
+				ret[translate.CardinalFieldID] = l.idg.Make(time.Now())
+				ret[translate.CardinalFieldSpanName] = span.Name()
+				ret[translate.CardinalFieldSpanTraceID] = span.TraceID().String()
+				ret[translate.CardinalFieldSpanSpanID] = span.SpanID().String()
+				ret[translate.CardinalFieldSpanParentSpanID] = span.ParentSpanID().String()
+				ret[translate.CardinalFieldSpanKind] = span.Kind().String()
+				ret[translate.CardinalFieldSpanStatusCode] = span.Status().Code().String()
+				ret[translate.CardinalFieldSpanStatusMessage] = span.Status().Message()
+				ret[translate.CardinalFieldSpanDuration] = span.EndTimestamp().AsTime().Sub(span.StartTimestamp().AsTime()).Milliseconds()
+				ret[translate.CardinalFieldSpanStartTime] = span.StartTimestamp().AsTime().UnixMilli()
+				ret[translate.CardinalFieldSpanEndTime] = span.EndTimestamp().AsTime().UnixMilli()
+				ret[translate.CardinalFieldScopeSchemaURL] = iss.SchemaUrl()
+				ret[translate.CardinalFieldResourceSchemaURL] = rs.SchemaUrl()
 				ensureExpectedKeysTraces(ret)
 				rets = append(rets, ret)
 			}
@@ -60,8 +61,8 @@ func (l *TableTranslator) TracesFromOtel(ot *ptrace.Traces) ([]map[string]any, e
 
 func ensureExpectedKeysTraces(m map[string]any) {
 	keys := map[string]any{
-		"_cardinalhq.hostname": findHostname(m),
-		"_cardinalhq.value":    float64(1),
+		translate.CardinalFieldHostname: findHostname(m),
+		translate.CardinalFieldValue:    float64(1),
 	}
 
 	for key, val := range keys {

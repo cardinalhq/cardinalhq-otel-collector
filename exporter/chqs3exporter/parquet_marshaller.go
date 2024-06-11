@@ -25,6 +25,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/tagwriter"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/timebox"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/translation/table"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 type parquetMarshaller struct {
@@ -153,7 +154,7 @@ func (s *parquetMarshaller) appendLogs(ld plog.Logs) error {
 }
 
 func emitInto(acc map[int64][]map[string]any, interval int64, item map[string]any) {
-	itemts, ok := item["_cardinalhq.timestamp"].(int64)
+	itemts, ok := item[translate.CardinalFieldTimestamp].(int64)
 	if !ok {
 		return
 	}

@@ -27,6 +27,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/pmetric"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/trigram"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 func (l *TableTranslator) MetricsFromOtel(om *pmetric.Metrics) ([]map[string]any, error) {
@@ -37,7 +38,7 @@ func (l *TableTranslator) MetricsFromOtel(om *pmetric.Metrics) ([]map[string]any
 		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
 			imm := rm.ScopeMetrics().At(j)
 			for k := 0; k < imm.Metrics().Len(); k++ {
-				baseret := map[string]any{"_cardinalhq.telemetry_type": "metrics"}
+				baseret := map[string]any{translate.CardinalFieldTelemetryType: translate.CardinalTelemetryTypeMetrics}
 				addAttributes(baseret, rm.Resource().Attributes(), "resource")
 				addAttributes(baseret, imm.Scope().Attributes(), "scope")
 				metric := imm.Metrics().At(k)
@@ -73,22 +74,22 @@ func (l *TableTranslator) toddGauge(metric pmetric.Metric, baseattrs map[string]
 		dp := metric.Gauge().DataPoints().At(i)
 		ret := maps.Clone(baseattrs)
 		addAttributes(ret, dp.Attributes(), "metric")
-		ret["_cardinalhq.metric_type"] = "gauge"
-		ret["_cardinalhq.timestamp"] = dp.Timestamp().AsTime().UnixMilli()
+		ret[translate.CardinalFieldMetricType] = translate.CardinalMetricTypeGauge
+		ret[translate.CardinalFieldTimestamp] = dp.Timestamp().AsTime().UnixMilli()
 		switch dp.ValueType() {
 		case pmetric.NumberDataPointValueTypeDouble:
 			val, safe := safeFloat(dp.DoubleValue())
 			if !safe {
 				continue
 			}
-			ret["_cardinalhq.value"] = val
+			ret[translate.CardinalFieldValue] = val
 		case pmetric.NumberDataPointValueTypeInt:
-			ret["_cardinalhq.value"] = float64(dp.IntValue())
+			ret[translate.CardinalFieldValue] = float64(dp.IntValue())
 		default:
 			continue
 		}
-		ret["_cardinalhq.name"] = metric.Name()
-		ret["_cardinalhq.id"] = l.idg.Make(time.Now())
+		ret[translate.CardinalFieldName] = metric.Name()
+		ret[translate.CardinalFieldID] = l.idg.Make(time.Now())
 		ensureExpectedKeysMetrics(ret)
 		rets = append(rets, ret)
 	}
@@ -103,22 +104,22 @@ func (l *TableTranslator) toddSum(metric pmetric.Metric, baseattrs map[string]an
 		dp := metric.Sum().DataPoints().At(i)
 		ret := maps.Clone(baseattrs)
 		addAttributes(ret, dp.Attributes(), "metric")
-		ret["_cardinalhq.metric_type"] = "count"
-		ret["_cardinalhq.timestamp"] = dp.Timestamp().AsTime().UnixMilli()
+		ret[translate.CardinalFieldMetricType] = translate.CardinalMetricTypeCount
+		ret[translate.CardinalFieldTimestamp] = dp.Timestamp().AsTime().UnixMilli()
 		switch dp.ValueType() {
 		case pmetric.NumberDataPointValueTypeDouble:
 			val, safe := safeFloat(dp.DoubleValue())
 			if !safe {
 				continue
 			}
-			ret["_cardinalhq.value"] = val
+			ret[translate.CardinalFieldValue] = val
 		case pmetric.NumberDataPointValueTypeInt:
-			ret["_cardinalhq.value"] = float64(dp.IntValue())
+			ret[translate.CardinalFieldValue] = float64(dp.IntValue())
 		default:
 			continue
 		}
-		ret["_cardinalhq.name"] = metric.Name()
-		ret["_cardinalhq.id"] = l.idg.Make(time.Now())
+		ret[translate.CardinalFieldName] = metric.Name()
+		ret[translate.CardinalFieldID] = l.idg.Make(time.Now())
 		ensureExpectedKeysMetrics(ret)
 		rets = append(rets, ret)
 	}
@@ -136,19 +137,17 @@ func safeFloat(v float64) (float64, bool) {
 func (l *TableTranslator) toddHistogram(metric pmetric.Metric, baseattrs map[string]any) []map[string]any {
 	rets := []map[string]any{}
 
-	metricType := "histogram"
-
 	for i := 0; i < metric.Histogram().DataPoints().Len(); i++ {
 		dp := metric.Histogram().DataPoints().At(i)
 		ret := maps.Clone(baseattrs)
 		addAttributes(ret, dp.Attributes(), "metric")
-		ret["_cardinalhq.metric_type"] = metricType
-		ret["_cardinalhq.timestamp"] = dp.Timestamp().AsTime().UnixMilli()
-		ret["_cardinalhq.counts"] = asJson(dp.BucketCounts().AsRaw())
-		ret["_cardinalhq.bucket_bounds"] = asJson(dp.ExplicitBounds().AsRaw())
-		ret["_cardinalhq.name"] = metric.Name()
-		ret["_cardinalhq.id"] = l.idg.Make(time.Now())
-		ret["_cardinalhq.value"] = float64(-1)
+		ret[translate.CardinalFieldMetricType] = translate.CardinalMetricTypeHistogram
+		ret[translate.CardinalFieldTimestamp] = dp.Timestamp().AsTime().UnixMilli()
+		ret[translate.CardinalFieldCounts] = asJson(dp.BucketCounts().AsRaw())
+		ret[translate.CardinalFieldBucketBounds] = asJson(dp.ExplicitBounds().AsRaw())
+		ret[translate.CardinalFieldName] = metric.Name()
+		ret[translate.CardinalFieldID] = l.idg.Make(time.Now())
+		ret[translate.CardinalFieldValue] = float64(-1)
 		ensureExpectedKeysMetrics(ret)
 		rets = append(rets, ret)
 	}
@@ -159,21 +158,19 @@ func (l *TableTranslator) toddHistogram(metric pmetric.Metric, baseattrs map[str
 func (l *TableTranslator) toddExponentialHistogram(metric pmetric.Metric, baseattrs map[string]any) []map[string]any {
 	rets := []map[string]any{}
 
-	metricType := "exponential_histogram"
-
 	for i := 0; i < metric.ExponentialHistogram().DataPoints().Len(); i++ {
 		dp := metric.ExponentialHistogram().DataPoints().At(i)
 		ret := maps.Clone(baseattrs)
 		addAttributes(ret, dp.Attributes(), "metric")
-		ret["_cardinalhq.metric_type"] = metricType
-		ret["_cardinalhq.timestamp"] = dp.Timestamp().AsTime().UnixMilli()
-		ret["_cardinalhq.scale"] = dp.Scale()
-		ret["_cardinalhq.negative.counts"] = asJson(dp.Negative().BucketCounts().AsRaw())
-		ret["_cardinalhq.positive.counts"] = asJson(dp.Positive().BucketCounts().AsRaw())
-		ret["_cardinalhq.zero.count"] = dp.ZeroCount()
-		ret["_cardinalhq.name"] = metric.Name()
-		ret["_cardinalhq.id"] = l.idg.Make(time.Now())
-		ret["_cardinalhq.value"] = float64(-1)
+		ret[translate.CardinalFieldMetricType] = translate.CardinalMetricTypeExponentialHistogram
+		ret[translate.CardinalFieldTimestamp] = dp.Timestamp().AsTime().UnixMilli()
+		ret[translate.CardinalFieldScale] = dp.Scale()
+		ret[translate.CardinalFieldNegativeCounts] = asJson(dp.Negative().BucketCounts().AsRaw())
+		ret[translate.CardinalFieldPositiveCounts] = asJson(dp.Positive().BucketCounts().AsRaw())
+		ret[translate.CardinalFieldZeroCount] = dp.ZeroCount()
+		ret[translate.CardinalFieldName] = metric.Name()
+		ret[translate.CardinalFieldID] = l.idg.Make(time.Now())
+		ret[translate.CardinalFieldValue] = float64(-1)
 		ensureExpectedKeysMetrics(ret)
 		rets = append(rets, ret)
 	}
@@ -188,13 +185,13 @@ func asJson[T uint64 | float64](s []T) string {
 
 func ensureExpectedKeysMetrics(m map[string]any) {
 	keys := map[string]any{
-		"_cardinalhq.ruleconfig":      "",
-		"_cardinalhq.metric_type":     "gauge",
-		"_cardinalhq.hostname":        findHostname(m),
-		"_cardinalhq.bucket_bounds":   "[]",
-		"_cardinalhq.counts":          "[]",
-		"_cardinalhq.negative.counts": "[]",
-		"_cardinalhq.positive.counts": "[]",
+		translate.CardinalFieldRuleConfig:     "",
+		translate.CardinalFieldMetricType:     translate.CardinalMetricTypeGauge,
+		translate.CardinalFieldHostname:       findHostname(m),
+		translate.CardinalFieldBucketBounds:   "[]",
+		translate.CardinalFieldCounts:         "[]",
+		translate.CardinalFieldNegativeCounts: "[]",
+		translate.CardinalFieldPositiveCounts: "[]",
 	}
 
 	for key, val := range keys {
@@ -203,7 +200,7 @@ func ensureExpectedKeysMetrics(m map[string]any) {
 		}
 	}
 
-	m["_cardinalhq.tid"] = calculateTID(m)
+	m[translate.CardinalFieldTID] = calculateTID(m)
 }
 
 func calculateTID(tags map[string]any) int64 {

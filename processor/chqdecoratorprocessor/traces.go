@@ -24,14 +24,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/zap"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/sampler"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/spantagger"
-	"github.com/hashicorp/go-multierror"
 )
 
 type spansProcessor struct {
@@ -270,17 +271,17 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 			for k := 0; k < spans.Len(); k++ {
 				spancount++
 				span := spans.At(k)
-				span.Attributes().PutBool("_cardinalhq.filtered", filtered)
-				span.Attributes().PutBool("_cardinalhq.would_filter", filtered)
-				span.Attributes().PutStr("_cardinalhq.filtered_reason", string(filteredReason))
-				span.Attributes().PutInt("_cardinalhq.fingerprint", int64(fingerprint))
-				span.Attributes().PutBool("_cardinalhq.trace_has_error", hasError)
-				span.Attributes().PutBool("_cardinalhq.span_has_error", span.Status().Code() == ptrace.StatusCodeError)
+				span.Attributes().PutBool(translate.CardinalFieldFiltered, filtered)
+				span.Attributes().PutBool(translate.CardinalFieldWouldFilter, filtered)
+				span.Attributes().PutStr(translate.CardinalFieldFilteredReason, string(filteredReason))
+				span.Attributes().PutInt(translate.CardinalFieldFingerprint, int64(fingerprint))
+				span.Attributes().PutBool(translate.CardinalFieldTraceHasError, hasError)
+				span.Attributes().PutBool(translate.CardinalFieldFingerprintError, span.Status().Code() == ptrace.StatusCodeError)
 				if fpError != "" {
-					span.Attributes().PutStr("_cardinalhq.fingerprint_error", fpError)
+					span.Attributes().PutStr(translate.CardinalFieldFingerprintError, fpError)
 				}
 				if span.ParentSpanID().IsEmpty() {
-					span.Attributes().PutBool("_cardinalhq.is_root_span", true)
+					span.Attributes().PutBool(translate.CardinalFieldIsRootSpan, true)
 				}
 			}
 		}
@@ -320,8 +321,8 @@ func (sp *spansProcessor) sendGraph(ctx context.Context, graph *spantagger.Graph
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if sp.apiKey != "" {
-		req.Header.Set("x-cardinalhq-api-key", sp.apiKey)
-		req.Header.Set("dd-api-key", sp.apiKey)
+		req.Header.Set(translate.CardinalHeaderAPIKey, sp.apiKey)
+		req.Header.Set(translate.CardinalHeaderDDAPIKey, sp.apiKey)
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

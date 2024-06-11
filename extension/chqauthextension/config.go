@@ -16,12 +16,15 @@ package chqauthextension
 
 import (
 	"errors"
+	"time"
 
 	"go.opentelemetry.io/collector/config/confighttp"
 )
 
 type ServerAuth struct {
 	confighttp.ClientConfig `mapstructure:",squash"`
+	CacheTTLValid           time.Duration `mapstructure:"cache_ttl_valid"`
+	CacheTTLInvalid         time.Duration `mapstructure:"cache_ttl_invalid"`
 }
 
 type Config struct {
@@ -29,6 +32,12 @@ type Config struct {
 }
 
 func (cfg *Config) Validate() error {
+	if cfg.ServerAuth.CacheTTLValid <= 0 {
+		cfg.ServerAuth.CacheTTLValid = 10 * time.Minute
+	}
+	if cfg.ServerAuth.CacheTTLInvalid <= 0 {
+		cfg.ServerAuth.CacheTTLInvalid = 1 * time.Minute
+	}
 	if cfg.ServerAuth.Endpoint == "" {
 		return errors.New("server_auth.endpoint must be set")
 	}

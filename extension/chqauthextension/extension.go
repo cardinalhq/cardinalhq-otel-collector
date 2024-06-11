@@ -133,13 +133,13 @@ func (chq *chqAuth) authenticateAPIKey(ctx context.Context, apiKey string) (*aut
 			ad = &authData{
 				apiKey: apiKey,
 				valid:  false,
-				expiry: time.Now().Add(120 * time.Second),
+				expiry: time.Now().Add(chq.config.ServerAuth.CacheTTLInvalid),
 			}
 			chq.setcache(ad)
 		}
 		return nil, err
 	}
-	ad.expiry = time.Now().Add(120 * time.Second)
+	ad.expiry = time.Now().Add(chq.config.ServerAuth.CacheTTLValid)
 	chq.setcache(ad)
 	return ad, nil
 }

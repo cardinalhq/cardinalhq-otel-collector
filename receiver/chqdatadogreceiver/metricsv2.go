@@ -63,8 +63,10 @@ func (ddr *datadogReceiver) handleMetricsV2Payload(req *http.Request) (ret []*dd
 }
 
 func (ddr *datadogReceiver) processMetricsV2(ddMetrics []*ddpb.MetricPayload_MetricSeries) error {
+	m := pmetric.NewMetrics()
+
 	for _, metric := range ddMetrics {
-		otelMetric, err := ddr.convertMetricV2(metric)
+		otelMetric, err := ddr.convertMetricV2(m, metric)
 		if err != nil {
 			return err
 		}
@@ -89,8 +91,7 @@ func ensureServiceName(rAttr pcommon.Map, kv map[string]string) {
 	rAttr.PutStr("service.name", "unknown")
 }
 
-func (ddr *datadogReceiver) convertMetricV2(v2 *ddpb.MetricPayload_MetricSeries) (pmetric.Metrics, error) {
-	m := pmetric.NewMetrics()
+func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPayload_MetricSeries) (pmetric.Metrics, error) {
 	rm := m.ResourceMetrics().AppendEmpty()
 	rm.SetSchemaUrl(semconv.SchemaURL)
 	rAttr := rm.Resource().Attributes()

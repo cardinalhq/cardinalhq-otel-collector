@@ -63,18 +63,27 @@ func (ddr *datadogReceiver) handleMetricsV2Payload(req *http.Request) (ret []*dd
 }
 
 func (ddr *datadogReceiver) processMetricsV2(ddMetrics []*ddpb.MetricPayload_MetricSeries) error {
+	count := 0
 	m := pmetric.NewMetrics()
 
 	for _, metric := range ddMetrics {
-		otelMetric, err := ddr.convertMetricV2(m, metric)
-		if err != nil {
+		if err := ddr.convertMetricV2(m, metric); err != nil {
 			return err
 		}
-		if err := ddr.nextMetricConsumer.ConsumeMetrics(context.Background(), otelMetric); err != nil {
-			return err
+		count++
+		if count > 100 {
+			if err := ddr.nextMetricConsumer.ConsumeMetrics(context.Background(), m); err != nil {
+				return err
+			}
+			m = pmetric.NewMetrics()
+			count = 0
 		}
 	}
-	return nil
+
+	if count == 0 {
+		return nil
+	}
+	return ddr.nextMetricConsumer.ConsumeMetrics(context.Background(), m)
 }
 
 func ensureServiceName(rAttr pcommon.Map, kv map[string]string) {
@@ -91,7 +100,7 @@ func ensureServiceName(rAttr pcommon.Map, kv map[string]string) {
 	rAttr.PutStr("service.name", "unknown")
 }
 
-func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPayload_MetricSeries) (pmetric.Metrics, error) {
+func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPayload_MetricSeries) error {
 	rm := m.ResourceMetrics().AppendEmpty()
 	rm.SetSchemaUrl(semconv.SchemaURL)
 	rAttr := rm.Resource().Attributes()
@@ -154,5 +163,5 @@ func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPa
 		}
 	}
 
-	return m, nil
+	return nil
 }

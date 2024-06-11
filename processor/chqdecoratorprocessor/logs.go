@@ -132,6 +132,7 @@ func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs,
 				processed++
 				processedKeys[key]++
 				if wasFiltered {
+					lp.logger.Info("Log filtered", zap.String("key", key))
 					filtered++
 					filteredKeys[key]++
 				}

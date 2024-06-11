@@ -89,9 +89,9 @@ func (ls *LogSamplerImpl) shouldFilter(fingerprint string, rattr pcommon.Map, ia
 			continue
 		}
 		attrs := map[string]pcommon.Map{
-			"resource":        rattr,
-			"instrumentation": iattr,
-			"log":             lattr,
+			"resource": rattr,
+			"scope":    iattr,
+			"log":      lattr,
 		}
 		key := fmt.Sprintf("%s:%s", serviceName, fingerprint)
 		if matchscope(r.scope, attrs) {

@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 )
 
 func TestSamplerForType(t *testing.T) {
@@ -111,6 +112,7 @@ func TestRPSToRandom(t *testing.T) {
 		})
 	}
 }
+
 func TestRandomToRPS(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -149,6 +151,147 @@ func TestShouldFilter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			actual := shouldFilter(tt.rate, tt.randval)
+			assert.Equal(t, tt.expected, actual)
+		})
+	}
+}
+func TestGetServiceName(t *testing.T) {
+	tests := []struct {
+		name     string
+		attrmap  map[string]string
+		expected string
+	}{
+		{
+			"service name exists",
+			map[string]string{"service.name": "my-service"},
+			"my-service",
+		},
+		{
+			"service name does not exist",
+			map[string]string{},
+			"unknown-service",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rattr := pcommon.NewMap()
+			for k, v := range tt.attrmap {
+				rattr.PutStr(k, v)
+			}
+			actual := getServiceName(rattr)
+			assert.Equal(t, tt.expected, actual)
+		})
+	}
+}
+
+func makeConstantSampler() Sampler {
+	return &StaticSampler{fixedRate: 0}
+}
+
+func TestShouldFilterLog(t *testing.T) {
+	tests := []struct {
+		name     string
+		rules    map[string]logRule
+		rattr    map[string]string
+		iattr    map[string]string
+		lattr    map[string]string
+		expected string
+	}{
+		{
+			"no rules",
+			map[string]logRule{},
+			map[string]string{"service.name": "my-service"},
+			map[string]string{},
+			map[string]string{},
+			"",
+		},
+		{
+			"no matching rules",
+			map[string]logRule{
+				"rule1": {
+					"rule1",
+					LogRuleTypeRPS,
+					makeConstantSampler(),
+					map[string]string{"resource.service.name": "other-service"},
+				},
+			},
+			map[string]string{"service.name": "my-service"},
+			map[string]string{},
+			map[string]string{},
+			"",
+		},
+		{
+			"matching rule",
+			map[string]logRule{
+				"rule1": {
+					"rule1",
+					LogRuleTypeRPS,
+					makeConstantSampler(),
+					map[string]string{"resource.service.name": "my-service"},
+				},
+			},
+			map[string]string{"service.name": "my-service"},
+			map[string]string{},
+			map[string]string{},
+			"rule1",
+		},
+		{
+			"multiple rules",
+			map[string]logRule{
+				"rule1": {
+					"rule1",
+					LogRuleTypeRPS,
+					makeConstantSampler(),
+					map[string]string{"resource.service.name": "my-service"},
+				},
+				"rule2": {
+					"rule2",
+					LogRuleTypeRPS,
+					makeConstantSampler(),
+					map[string]string{},
+				},
+			},
+			map[string]string{"service.name": "my-service"},
+			map[string]string{},
+			map[string]string{},
+			"rule1",
+		},
+		{
+			"empty scope",
+			map[string]logRule{
+				"rule1": {
+					"rule1",
+					LogRuleTypeRPS,
+					makeConstantSampler(),
+					map[string]string{},
+				},
+			},
+			map[string]string{"service.name": "my-service"},
+			map[string]string{},
+			map[string]string{},
+			"rule1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rattr := pcommon.NewMap()
+			for k, v := range tt.rattr {
+				rattr.PutStr(k, v)
+			}
+			iattr := pcommon.NewMap()
+			for k, v := range tt.iattr {
+				iattr.PutStr(k, v)
+			}
+			lattr := pcommon.NewMap()
+			for k, v := range tt.lattr {
+				lattr.PutStr(k, v)
+			}
+			ls := &LogSamplerImpl{
+				rules: tt.rules,
+			}
+			actual := ls.shouldFilter("", rattr, iattr, lattr)
 			assert.Equal(t, tt.expected, actual)
 		})
 	}

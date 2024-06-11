@@ -45,7 +45,10 @@ func matchscope(scope map[string]string, attrs map[string]pcommon.Map) bool {
 	}
 	for k, v := range scope {
 		parts := strings.SplitN(k, ".", 2)
-		sattr, ok := attrs[parts[1]]
+		if len(parts) != 2 {
+			return false
+		}
+		sattr, ok := attrs[parts[0]]
 		if !ok {
 			return false
 		}

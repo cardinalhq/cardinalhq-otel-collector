@@ -68,3 +68,60 @@ func TestMatchTag(t *testing.T) {
 		})
 	}
 }
+
+func TestMatchScope(t *testing.T) {
+	attr1 := pcommon.NewMap()
+	attr1.PutStr("key1", "value1")
+
+	attr2 := pcommon.NewMap()
+	attr2.PutStr("key2", "value2")
+
+	attr3 := pcommon.NewMap()
+	attr3.PutStr("key3", "value3")
+
+	attrs := map[string]pcommon.Map{
+		"attr1": attr1,
+		"attr2": attr2,
+		"attr3": attr3,
+	}
+
+	tests := []struct {
+		name     string
+		scope    map[string]string
+		expected bool
+	}{
+		{
+			name:     "Empty scope",
+			scope:    map[string]string{},
+			expected: true,
+		},
+		{
+			name:     "Matching scope",
+			scope:    map[string]string{"attr1.key1": "value1"},
+			expected: true,
+		},
+		{
+			name:     "Non-matching scope",
+			scope:    map[string]string{"attr1.key1": "value2"},
+			expected: false,
+		},
+		{
+			name:     "Non-matching scope key",
+			scope:    map[string]string{"attr4.key1": "value1"},
+			expected: false,
+		},
+		{
+			name:     "incorrect scope key",
+			scope:    map[string]string{"attr1": "value1"},
+			expected: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := matchscope(tc.scope, attrs)
+			assert.Equal(t, tc.expected, actual)
+		})
+	}
+
+}

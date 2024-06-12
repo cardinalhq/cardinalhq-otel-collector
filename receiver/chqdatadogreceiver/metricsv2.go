@@ -65,21 +65,20 @@ func (ddr *datadogReceiver) handleMetricsV2Payload(req *http.Request) (ret []*dd
 	return message.Series, http.StatusAccepted, nil
 }
 
-const maxAge = 20 * time.Second
-
 func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, ddMetrics []*ddpb.MetricPayload_MetricSeries) error {
 	count := 0
 	keptDatapoints := 0
 	removedDatapoints := 0
 	m := pmetric.NewMetrics()
 	now := time.Now()
+	tooOld := now.Add(-ddr.config.MaxMetricDatapointAge)
 	points := &pointRecord{Now: now.UnixMilli()}
 
 	defer func() {
 		ddr.metricFilterCounter.Add(ctx, int64(removedDatapoints),
-			metric.WithAttributes(attribute.Bool("too_old", true), attribute.String("max_age", maxAge.String())))
+			metric.WithAttributes(attribute.Bool("too_old", true), attribute.String("max_age", ddr.config.MaxMetricDatapointAge.String())))
 		ddr.metricFilterCounter.Add(ctx, int64(keptDatapoints),
-			metric.WithAttributes(attribute.Bool("too_old", false), attribute.String("max_age", maxAge.String())))
+			metric.WithAttributes(attribute.Bool("too_old", false), attribute.String("max_age", ddr.config.MaxMetricDatapointAge.String())))
 	}()
 
 	for _, metric := range ddMetrics {
@@ -88,7 +87,7 @@ func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, ddMetrics []*d
 		}
 		count++
 		if count > 100 {
-			kept, removed := ddr.filterOlderThan(&m, now.Add(-maxAge))
+			kept, removed := ddr.filterOlderThan(&m, tooOld)
 			keptDatapoints += kept
 			removedDatapoints += removed
 			if kept > 0 {
@@ -103,7 +102,7 @@ func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, ddMetrics []*d
 
 	ddr.metricLogger.Info("received metrics", zap.Any("times", points))
 	if count > 0 && m.DataPointCount() > 0 {
-		kept, removed := ddr.filterOlderThan(&m, now.Add(-maxAge))
+		kept, removed := ddr.filterOlderThan(&m, tooOld)
 		keptDatapoints += kept
 		removedDatapoints += removed
 		if kept > 0 {
@@ -187,24 +186,6 @@ func ensureServiceName(rAttr pcommon.Map, kv map[string]string) {
 		}
 	}
 	rAttr.PutStr("service.name", "unknown")
-}
-
-type pointRecord struct {
-	Now        int64 `json:"now,omitempty" yaml:"now,omitempty"`
-	Total      int64 `json:"total,omitempty" yaml:"total,omitempty"`
-	OldestTS   int64 `json:"oldestTS,omitempty" yaml:"oldestTS,omitempty"`
-	WorstDelay int64 `json:"worstDelay,omitempty" yaml:"worstDelay,omitempty"`
-}
-
-func (pr *pointRecord) record(pointTime int64, n int64) {
-	late := pr.Now - pointTime
-	if late > pr.WorstDelay {
-		pr.WorstDelay = late
-	}
-	if pr.OldestTS == 0 || pointTime < pr.OldestTS {
-		pr.OldestTS = pointTime
-	}
-	pr.Total += n
 }
 
 func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPayload_MetricSeries, pr *pointRecord) error {

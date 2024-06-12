@@ -125,6 +125,7 @@ func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs,
 				log.Attributes().PutStr(translate.CardinalFieldRuleMatch, rule_match)
 				log.Attributes().PutBool(translate.CardinalFieldFiltered, wasFiltered)
 				log.Attributes().PutBool(translate.CardinalFieldWouldFilter, wasFiltered)
+				log.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, lp.podName)
 				lp.telemetry.record(triggerLogsProcessed, 1,
 					attribute.Bool("filtered.filtered", wasFiltered),
 					attribute.String("filtered.rule_match", rule_match),

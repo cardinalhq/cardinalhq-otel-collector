@@ -342,6 +342,8 @@ func (mp *metricProcessor) aggregateSum(rms pmetric.ResourceMetrics, ils pmetric
 		dp.Attributes().PutBool(translate.CardinalFieldWouldFilter, filtered)
 		tid := translate.CalculateTID(rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes(), "metric")
 		dp.Attributes().PutInt(translate.CardinalFieldTID, tid)
+		dp.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, mp.podName)
+
 	}
 	return aggregated
 }

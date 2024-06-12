@@ -286,6 +286,7 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 				if span.ParentSpanID().IsEmpty() {
 					span.Attributes().PutBool(translate.CardinalFieldIsRootSpan, true)
 				}
+				span.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, sp.podName)
 			}
 		}
 	}

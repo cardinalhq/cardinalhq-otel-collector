@@ -76,7 +76,7 @@ func splitLogs(logs []DDLog) []groupedLogs {
 	return maps.Values(logkeys)
 }
 
-func (ddr *datadogReceiver) processLogs(t pcommon.Timestamp, logs []DDLog) error {
+func (ddr *datadogReceiver) processLogs(ctx context.Context, t pcommon.Timestamp, logs []DDLog) error {
 	points := &pointRecord{Now: time.Now().UnixMilli()}
 
 	logparts := splitLogs(logs)
@@ -85,7 +85,7 @@ func (ddr *datadogReceiver) processLogs(t pcommon.Timestamp, logs []DDLog) error
 		if err != nil {
 			return err
 		}
-		if err := ddr.nextLogConsumer.ConsumeLogs(context.Background(), otelLog); err != nil {
+		if err := ddr.nextLogConsumer.ConsumeLogs(ctx, otelLog); err != nil {
 			return err
 		}
 	}

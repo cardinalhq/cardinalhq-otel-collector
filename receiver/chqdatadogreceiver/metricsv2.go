@@ -63,7 +63,7 @@ func (ddr *datadogReceiver) handleMetricsV2Payload(req *http.Request) (ret []*dd
 	return message.Series, http.StatusAccepted, nil
 }
 
-func (ddr *datadogReceiver) processMetricsV2(ddMetrics []*ddpb.MetricPayload_MetricSeries) error {
+func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, ddMetrics []*ddpb.MetricPayload_MetricSeries) error {
 	count := 0
 	m := pmetric.NewMetrics()
 	points := &pointRecord{Now: time.Now().UnixMilli()}
@@ -74,7 +74,7 @@ func (ddr *datadogReceiver) processMetricsV2(ddMetrics []*ddpb.MetricPayload_Met
 		}
 		count++
 		if count > 100 {
-			if err := ddr.nextMetricConsumer.ConsumeMetrics(context.Background(), m); err != nil {
+			if err := ddr.nextMetricConsumer.ConsumeMetrics(ctx, m); err != nil {
 				return err
 			}
 			m = pmetric.NewMetrics()
@@ -82,10 +82,10 @@ func (ddr *datadogReceiver) processMetricsV2(ddMetrics []*ddpb.MetricPayload_Met
 		}
 	}
 
+	ddr.metricLogger.Info("received metrics", zap.Any("times", points))
 	if count == 0 {
 		return nil
 	}
-	ddr.metricLogger.Info("received metrics", zap.Any("times", points))
 	return ddr.nextMetricConsumer.ConsumeMetrics(context.Background(), m)
 }
 

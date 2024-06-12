@@ -27,11 +27,11 @@ func (ddr *datadogReceiver) handleV1Series(w http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	obsCtx := ddr.tReceiver.StartMetricsOp(req.Context())
+	ctx := ddr.obsrecv.StartMetricsOp(req.Context())
 	var err error
 	var metricCount int
 	defer func(metricCount *int) {
-		ddr.tReceiver.EndMetricsOp(obsCtx, "datadog", *metricCount, err)
+		ddr.obsrecv.EndMetricsOp(ctx, "datadog", *metricCount, err)
 	}(&metricCount)
 
 	if apikey == "" {
@@ -48,7 +48,7 @@ func (ddr *datadogReceiver) handleV1Series(w http.ResponseWriter, req *http.Requ
 		return
 	}
 	metricCount = len(ddMetrics)
-	err = ddr.processMetricsV1(ddMetrics)
+	err = ddr.processMetricsV1(ctx, ddMetrics)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		ddr.metricLogger.Error("processMetrics", zap.Error(err))
@@ -67,11 +67,11 @@ func (ddr *datadogReceiver) handleV2Series(w http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	obsCtx := ddr.tReceiver.StartMetricsOp(req.Context())
+	ctx := ddr.obsrecv.StartMetricsOp(req.Context())
 	var err error
 	var metricCount int
 	defer func(metricCount *int) {
-		ddr.tReceiver.EndMetricsOp(obsCtx, "datadog", *metricCount, err)
+		ddr.obsrecv.EndMetricsOp(ctx, "datadog", *metricCount, err)
 	}(&metricCount)
 
 	if apikey == "" {
@@ -88,7 +88,7 @@ func (ddr *datadogReceiver) handleV2Series(w http.ResponseWriter, req *http.Requ
 		return
 	}
 	metricCount = len(ddMetrics)
-	err = ddr.processMetricsV2(ddMetrics)
+	err = ddr.processMetricsV2(ctx, ddMetrics)
 	if err != nil {
 		ddr.metricLogger.Error("processMetrics", zap.Error(err))
 		writeError(w, http.StatusInternalServerError, err)

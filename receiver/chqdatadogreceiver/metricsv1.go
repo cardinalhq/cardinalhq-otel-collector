@@ -53,13 +53,13 @@ func handleMetricsV1Payload(req *http.Request) (ret []SeriesV1, httpCode int, er
 	return wrapper.Series, http.StatusAccepted, nil
 }
 
-func (ddr *datadogReceiver) processMetricsV1(ddMetrics []SeriesV1) error {
+func (ddr *datadogReceiver) processMetricsV1(ctx context.Context, ddMetrics []SeriesV1) error {
 	for _, metric := range ddMetrics {
 		otelMetric, err := ddr.convertMetricV1(metric)
 		if err != nil {
 			return err
 		}
-		if err := ddr.nextMetricConsumer.ConsumeMetrics(context.Background(), otelMetric); err != nil {
+		if err := ddr.nextMetricConsumer.ConsumeMetrics(ctx, otelMetric); err != nil {
 			return err
 		}
 	}

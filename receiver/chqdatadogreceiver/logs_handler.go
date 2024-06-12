@@ -26,11 +26,11 @@ func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request)
 	apikey := getDDAPIKey(req)
 	w.Header().Set("Content-Type", "application/json")
 
-	obsCtx := ddr.tReceiver.StartLogsOp(req.Context())
+	ctx := ddr.obsrecv.StartLogsOp(req.Context())
 	var err error
 	var logCount int
 	defer func(logCount *int) {
-		ddr.tReceiver.EndLogsOp(obsCtx, "datadog", *logCount, err)
+		ddr.obsrecv.EndLogsOp(ctx, "datadog", *logCount, err)
 	}(&logCount)
 
 	if req.Method != http.MethodPost {
@@ -57,7 +57,7 @@ func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request)
 	}
 	logCount = len(ddLogs)
 	t := pcommon.NewTimestampFromTime(time.Now())
-	err = ddr.processLogs(t, ddLogs)
+	err = ddr.processLogs(ctx, t, ddLogs)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		ddr.logLogger.Error("processLogs", zap.Error(err))

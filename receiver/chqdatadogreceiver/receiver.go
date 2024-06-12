@@ -29,7 +29,7 @@ type datadogReceiver struct {
 	gpLogger           *zap.Logger
 	telemetrySettings  component.TelemetrySettings
 	server             *http.Server
-	tReceiver          *receiverhelper.ObsReport
+	obsrecv            *receiverhelper.ObsReport
 }
 
 func newDataDogReceiver(config *Config, params receiver.CreateSettings) (component.Component, error) {
@@ -44,7 +44,7 @@ func newDataDogReceiver(config *Config, params receiver.CreateSettings) (compone
 		server: &http.Server{
 			ReadTimeout: config.ReadTimeout,
 		},
-		tReceiver: instance,
+		obsrecv: instance,
 	}
 	if ddr.gpLogger == nil {
 		ddr.gpLogger = params.Logger.With(zap.String("data_type", "internal"))
@@ -194,11 +194,11 @@ func (ddr *datadogReceiver) handleTraces(w http.ResponseWriter, req *http.Reques
 	apikey := getDDAPIKey(req)
 	w.Header().Set("Content-Type", "application/json")
 
-	obsCtx := ddr.tReceiver.StartTracesOp(req.Context())
+	obsCtx := ddr.obsrecv.StartTracesOp(req.Context())
 	var err error
 	var spanCount int
 	defer func(spanCount *int) {
-		ddr.tReceiver.EndTracesOp(obsCtx, "datadog", *spanCount, err)
+		ddr.obsrecv.EndTracesOp(obsCtx, "datadog", *spanCount, err)
 	}(&spanCount)
 
 	var ddTraces []*ddpbtrace.TracerPayload

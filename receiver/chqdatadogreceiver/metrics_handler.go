@@ -15,7 +15,9 @@
 package datadogreceiver
 
 import (
+	"context"
 	"net/http"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -27,7 +29,9 @@ func (ddr *datadogReceiver) handleV1Series(w http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	ctx := ddr.obsrecv.StartMetricsOp(req.Context())
+	cc, done := context.WithTimeout(req.Context(), 1*time.Minute)
+	defer done()
+	ctx := ddr.obsrecv.StartMetricsOp(cc)
 	var err error
 	var metricCount int
 	defer func(metricCount *int) {

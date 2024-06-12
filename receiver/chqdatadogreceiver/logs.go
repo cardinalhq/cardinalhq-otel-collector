@@ -20,11 +20,13 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/cespare/xxhash/v2"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	semconv "go.opentelemetry.io/otel/semconv/v1.25.0"
+	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
 )
 
@@ -75,9 +77,11 @@ func splitLogs(logs []DDLog) []groupedLogs {
 }
 
 func (ddr *datadogReceiver) processLogs(t pcommon.Timestamp, logs []DDLog) error {
+	points := &pointRecord{Now: time.Now().UnixMilli()}
+
 	logparts := splitLogs(logs)
 	for _, group := range logparts {
-		otelLog, err := ddr.convertLogs(t, group)
+		otelLog, err := ddr.convertLogs(t, group, points)
 		if err != nil {
 			return err
 		}
@@ -85,6 +89,7 @@ func (ddr *datadogReceiver) processLogs(t pcommon.Timestamp, logs []DDLog) error
 			return err
 		}
 	}
+	ddr.logLogger.Info("received logs", zap.Any("times", points))
 	return nil
 }
 
@@ -118,7 +123,7 @@ func tagKey(tags map[string]string, extra []string) int64 {
 	return int64(xxhash.Sum64String(b.String()))
 }
 
-func (ddr *datadogReceiver) convertLogs(t pcommon.Timestamp, group groupedLogs) (plog.Logs, error) {
+func (ddr *datadogReceiver) convertLogs(t pcommon.Timestamp, group groupedLogs, points *pointRecord) (plog.Logs, error) {
 	lm := plog.NewLogs()
 	rl := lm.ResourceLogs().AppendEmpty()
 	rAttr := rl.Resource().Attributes()
@@ -140,6 +145,8 @@ func (ddr *datadogReceiver) convertLogs(t pcommon.Timestamp, group groupedLogs) 
 	if group.DDSource != "" {
 		lAttr.PutStr("source", group.DDSource)
 	}
+
+	points.record(t.AsTime().UnixMilli(), int64(len(group.Messages)))
 
 	for _, msg := range group.Messages {
 		logRecord := scope.LogRecords().AppendEmpty()

@@ -115,24 +115,24 @@ type pointRecord struct {
 	Total      int64 `json:"total,omitempty" yaml:"total,omitempty"`
 }
 
-func (pr *pointRecord) record(pointTime int64) {
+func (pr *pointRecord) record(pointTime int64, n int64) {
 	late := pr.Now - pointTime
-	if late > 60000 {
-		pr.TooLate++
-	} else if late > 30000 {
-		pr.LateBy600s++
-	} else if late > 12000 {
-		pr.LateBy300s++
-	} else if late > 6000 {
-		pr.LateBy120s++
-	} else if late > 4000 {
-		pr.LateBy60s++
-	} else if late > 2000 {
-		pr.LateBy40s++
-	} else if late > 1000 {
-		pr.LateBy20s++
+	if late > 600_000 {
+		pr.TooLate += n
+	} else if late > 300_000 {
+		pr.LateBy600s += n
+	} else if late > 120_000 {
+		pr.LateBy300s += n
+	} else if late > 60_000 {
+		pr.LateBy120s += n
+	} else if late > 40_000 {
+		pr.LateBy60s += n
+	} else if late > 20_000 {
+		pr.LateBy40s += n
+	} else if late > 10_000 {
+		pr.LateBy20s += n
 	}
-	pr.Total++
+	pr.Total += n
 }
 
 func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPayload_MetricSeries, pr *pointRecord) error {
@@ -178,7 +178,7 @@ func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPa
 			gdp := g.DataPoints().AppendEmpty()
 			lAttr.CopyTo(gdp.Attributes())
 			populateDatapoint(&gdp, point.Timestamp*1000, &v2.Interval, point.Value)
-			pr.record(point.Timestamp * 1000)
+			pr.record(point.Timestamp*1000, 1)
 		}
 	case ddpb.MetricPayload_RATE:
 		g := metric.SetEmptyGauge()
@@ -188,7 +188,7 @@ func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPa
 			gdp.Attributes().PutBool("dd.israte", true)
 			gdp.Attributes().PutInt("dd.rateInterval", v2.Interval)
 			populateDatapoint(&gdp, point.Timestamp*1000, &v2.Interval, point.Value)
-			pr.record(point.Timestamp * 1000)
+			pr.record(point.Timestamp*1000, 1)
 		}
 	case ddpb.MetricPayload_COUNT:
 		c := metric.SetEmptySum()
@@ -198,7 +198,7 @@ func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPa
 			cdp := c.DataPoints().AppendEmpty()
 			lAttr.CopyTo(cdp.Attributes())
 			populateDatapoint(&cdp, point.Timestamp*1000, &v2.Interval, point.Value)
-			pr.record(point.Timestamp * 1000)
+			pr.record(point.Timestamp*1000, 1)
 		}
 	}
 

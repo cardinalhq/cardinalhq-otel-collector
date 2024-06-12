@@ -35,7 +35,7 @@ func (l *TableTranslator) LogsFromOtel(ol *plog.Logs) ([]map[string]any, error) 
 				addAttributes(ret, rl.Resource().Attributes(), "resource")
 				addAttributes(ret, ill.Scope().Attributes(), "scope")
 				addAttributes(ret, log.Attributes(), "log")
-				ret[translate.CardinalFieldName] = log.Body().AsString()
+				ret[translate.CardinalFieldMessage] = log.Body().AsString()
 				ts := log.Timestamp().AsTime().UnixMilli()
 				if ts == 0 {
 					ts = log.ObservedTimestamp().AsTime().UnixMilli()

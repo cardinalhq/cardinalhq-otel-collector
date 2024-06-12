@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	"go.opentelemetry.io/collector/consumer"
@@ -42,6 +43,7 @@ type metricProcessor struct {
 	aggregatorI         sampler.MetricAggregator[int64]
 	aggregatorF         sampler.MetricAggregator[float64]
 	lastEmitCheck       time.Time
+	podName             string
 }
 
 func newMetricProcessor(set processor.CreateSettings, conf *Config, nextConsumer consumer.Metrics) (*metricProcessor, error) {
@@ -53,6 +55,7 @@ func newMetricProcessor(set processor.CreateSettings, conf *Config, nextConsumer
 		lastEmitCheck:       time.Now(),
 		aggregatorI:         sampler.NewMetricAggregatorImpl[int64](conf.MetricConfig.MetricAggregationInterval, nil),
 		aggregatorF:         sampler.NewMetricAggregatorImpl[float64](conf.MetricConfig.MetricAggregationInterval, nil),
+		podName:             os.Getenv("POD_NAME"),
 	}
 
 	if conf.SamplerConfigFile != "" {

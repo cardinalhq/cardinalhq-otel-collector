@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -49,6 +50,7 @@ type spansProcessor struct {
 	slowSampler          sampler.Sampler
 	hasErrorSampler      sampler.Sampler
 	uninterestingSampler sampler.Sampler
+	podName              string
 }
 
 func newSpansProcessor(set processor.CreateSettings, config *Config) (*spansProcessor, error) {
@@ -63,6 +65,7 @@ func newSpansProcessor(set processor.CreateSettings, config *Config) (*spansProc
 		slowSampler:          sampler.NewRPSSampler(sampler.WithMaxRPS(*config.TraceConfig.SlowRate)),
 		hasErrorSampler:      sampler.NewRPSSampler(sampler.WithMaxRPS(*config.TraceConfig.HasErrorRate)),
 		uninterestingSampler: sampler.NewRPSSampler(sampler.WithMaxRPS(*config.TraceConfig.UninterestingRate)),
+		podName:              os.Getenv("POD_NAME"),
 	}
 
 	dpt, err := newProcessorTelemetry(set)

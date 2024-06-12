@@ -17,6 +17,7 @@ package chqdecoratorprocessor
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
@@ -37,6 +38,7 @@ type logProcessor struct {
 	configManager sampler.ConfigManager
 	updaterId     int
 	finger        fingerprinter.Fingerprinter
+	podName       string
 }
 
 func newLogsProcessor(set processor.CreateSettings, conf *Config) (*logProcessor, error) {
@@ -45,6 +47,7 @@ func newLogsProcessor(set processor.CreateSettings, conf *Config) (*logProcessor
 	lp := &logProcessor{
 		logger:  set.Logger,
 		sampler: samp,
+		podName: os.Getenv("POD_NAME"),
 	}
 
 	if conf.SamplerConfigFile != "" {

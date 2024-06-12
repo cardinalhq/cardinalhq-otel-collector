@@ -61,6 +61,7 @@ const (
 	CardinalFieldIsRootSpan        = CardinalFieldPrefixDot + "is_root_span"
 	CardinalFieldClassification    = CardinalFieldPrefixDot + "classification"
 	CardinalFieldFingerprintError  = CardinalFieldPrefixDot + "fingerprint_error"
+	CardinalFieldDecoratorPodName  = CardinalFieldPrefixDot + "decorator.pod_name"
 
 	CardinalMetricTypeCount                = "count"
 	CardinalMetricTypeExponentialHistogram = "exponential_histogram"

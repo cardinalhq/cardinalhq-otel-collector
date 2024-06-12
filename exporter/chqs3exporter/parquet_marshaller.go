@@ -17,6 +17,7 @@ package chqs3exporter
 import (
 	"fmt"
 	"io"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/plog"
@@ -34,12 +35,15 @@ type parquetMarshaller struct {
 
 	logconfig TimeboxConfig
 	logs      map[int64]*timebox.Timebox
+	logsLock  sync.Mutex
 
 	metricconfig TimeboxConfig
 	metrics      map[int64]*timebox.Timebox
+	metricsLock  sync.Mutex
 
 	traceconfig TimeboxConfig
 	traces      map[int64]*timebox.Timebox
+	tracesLock  sync.Mutex
 }
 
 func (*parquetMarshaller) format() string {
@@ -99,14 +103,20 @@ func closed(now, tbstart, interval, grace int64) bool {
 }
 
 func (s *parquetMarshaller) ClosedLogs(now time.Time) map[int64][]map[string]any {
+	s.logsLock.Lock()
+	defer s.logsLock.Unlock()
 	return s.closed(now, s.logs)
 }
 
 func (s *parquetMarshaller) ClosedMetrics(now time.Time) map[int64][]map[string]any {
+	s.metricsLock.Lock()
+	defer s.metricsLock.Unlock()
 	return s.closed(now, s.metrics)
 }
 
 func (s *parquetMarshaller) ClosedTraces(now time.Time) map[int64][]map[string]any {
+	s.tracesLock.Lock()
+	defer s.tracesLock.Unlock()
 	return s.closed(now, s.traces)
 }
 
@@ -127,6 +137,8 @@ func (s *parquetMarshaller) appendMetrics(now time.Time, md pmetric.Metrics) err
 	if err != nil {
 		return err
 	}
+	s.metricsLock.Lock()
+	defer s.metricsLock.Unlock()
 	for _, row := range tbl {
 		emitInto(s.metrics, s.metricconfig, row, now)
 	}
@@ -138,6 +150,8 @@ func (s *parquetMarshaller) appendTraces(now time.Time, td ptrace.Traces) error 
 	if err != nil {
 		return err
 	}
+	s.tracesLock.Lock()
+	defer s.tracesLock.Unlock()
 	for _, row := range tbl {
 		emitInto(s.traces, s.traceconfig, row, now)
 	}
@@ -149,6 +163,8 @@ func (s *parquetMarshaller) appendLogs(now time.Time, ld plog.Logs) error {
 	if err != nil {
 		return err
 	}
+	s.logsLock.Lock()
+	defer s.logsLock.Unlock()
 	for _, row := range tbl {
 		emitInto(s.logs, s.logconfig, row, now)
 	}

@@ -278,7 +278,7 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 				span.Attributes().PutBool(translate.CardinalFieldTraceHasError, hasError)
 				span.Attributes().PutBool(translate.CardinalFieldFingerprintError, span.Status().Code() == ptrace.StatusCodeError)
 				if fpError != "" {
-					span.Attributes().PutStr(translate.CardinalFieldFingerprintError, fpError)
+					span.Attributes().PutStr(translate.CardinalFieldSpanHasError, fpError)
 				}
 				if span.ParentSpanID().IsEmpty() {
 					span.Attributes().PutBool(translate.CardinalFieldIsRootSpan, true)

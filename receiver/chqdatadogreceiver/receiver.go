@@ -10,26 +10,29 @@ import (
 	"net/http"
 
 	ddpbtrace "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
+	"github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver/internal/metadata"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/receiver"
 	"go.opentelemetry.io/collector/receiver/receiverhelper"
+	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
 )
 
 type datadogReceiver struct {
-	address            string
-	config             *Config
-	nextTraceConsumer  consumer.Traces
-	nextLogConsumer    consumer.Logs
-	nextMetricConsumer consumer.Metrics
-	traceLogger        *zap.Logger
-	logLogger          *zap.Logger
-	metricLogger       *zap.Logger
-	gpLogger           *zap.Logger
-	telemetrySettings  component.TelemetrySettings
-	server             *http.Server
-	obsrecv            *receiverhelper.ObsReport
+	address             string
+	config              *Config
+	nextTraceConsumer   consumer.Traces
+	nextLogConsumer     consumer.Logs
+	nextMetricConsumer  consumer.Metrics
+	traceLogger         *zap.Logger
+	logLogger           *zap.Logger
+	metricLogger        *zap.Logger
+	gpLogger            *zap.Logger
+	telemetrySettings   component.TelemetrySettings
+	server              *http.Server
+	obsrecv             *receiverhelper.ObsReport
+	metricFilterCounter metric.Int64Counter
 }
 
 func newDataDogReceiver(config *Config, params receiver.CreateSettings) (component.Component, error) {
@@ -49,6 +52,14 @@ func newDataDogReceiver(config *Config, params receiver.CreateSettings) (compone
 	if ddr.gpLogger == nil {
 		ddr.gpLogger = params.Logger.With(zap.String("data_type", "internal"))
 	}
+
+	m, err := metadata.Meter(ddr.telemetrySettings).Int64Counter("datapoints_processed",
+		metric.WithDescription("The number of metrics filtered out by the Datadog receiver"))
+	if err != nil {
+		return nil, err
+	}
+	ddr.metricFilterCounter = m
+
 	return ddr, nil
 }
 

@@ -18,6 +18,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"time"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
@@ -65,9 +66,10 @@ func (ddr *datadogReceiver) handleMetricsV2Payload(req *http.Request) (ret []*dd
 func (ddr *datadogReceiver) processMetricsV2(ddMetrics []*ddpb.MetricPayload_MetricSeries) error {
 	count := 0
 	m := pmetric.NewMetrics()
+	points := &pointRecord{Now: time.Now().UnixMilli()}
 
 	for _, metric := range ddMetrics {
-		if err := ddr.convertMetricV2(m, metric); err != nil {
+		if err := ddr.convertMetricV2(m, metric, points); err != nil {
 			return err
 		}
 		count++
@@ -83,6 +85,7 @@ func (ddr *datadogReceiver) processMetricsV2(ddMetrics []*ddpb.MetricPayload_Met
 	if count == 0 {
 		return nil
 	}
+	ddr.metricLogger.Info("received metrics", zap.Any("times", points))
 	return ddr.nextMetricConsumer.ConsumeMetrics(context.Background(), m)
 }
 
@@ -100,7 +103,39 @@ func ensureServiceName(rAttr pcommon.Map, kv map[string]string) {
 	rAttr.PutStr("service.name", "unknown")
 }
 
-func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPayload_MetricSeries) error {
+type pointRecord struct {
+	Now        int64 `json:"now,omitempty" yaml:"now,omitempty"`
+	LateBy20s  int64 `json:"lateBy20S,omitempty" yaml:"lateBy20S,omitempty"`
+	LateBy40s  int64 `json:"lateBy40S,omitempty" yaml:"lateBy40S,omitempty"`
+	LateBy60s  int64 `json:"lateBy60S,omitempty" yaml:"lateBy60S,omitempty"`
+	LateBy120s int64 `json:"lateBy120S,omitempty" yaml:"lateBy120S,omitempty"`
+	LateBy300s int64 `json:"lateBy300S,omitempty" yaml:"lateBy300S,omitempty"`
+	LateBy600s int64 `json:"lateBy600S,omitempty" yaml:"lateBy600S,omitempty"`
+	TooLate    int64 `json:"tooLate,omitempty" yaml:"tooLate,omitempty"`
+	Total      int64 `json:"total,omitempty" yaml:"total,omitempty"`
+}
+
+func (pr *pointRecord) record(pointTime int64) {
+	late := pr.Now - pointTime
+	if late > 60000 {
+		pr.TooLate++
+	} else if late > 30000 {
+		pr.LateBy600s++
+	} else if late > 12000 {
+		pr.LateBy300s++
+	} else if late > 6000 {
+		pr.LateBy120s++
+	} else if late > 4000 {
+		pr.LateBy60s++
+	} else if late > 2000 {
+		pr.LateBy40s++
+	} else if late > 1000 {
+		pr.LateBy20s++
+	}
+	pr.Total++
+}
+
+func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPayload_MetricSeries, pr *pointRecord) error {
 	rm := m.ResourceMetrics().AppendEmpty()
 	rm.SetSchemaUrl(semconv.SchemaURL)
 	rAttr := rm.Resource().Attributes()
@@ -143,6 +178,7 @@ func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPa
 			gdp := g.DataPoints().AppendEmpty()
 			lAttr.CopyTo(gdp.Attributes())
 			populateDatapoint(&gdp, point.Timestamp*1000, &v2.Interval, point.Value)
+			pr.record(point.Timestamp * 1000)
 		}
 	case ddpb.MetricPayload_RATE:
 		g := metric.SetEmptyGauge()
@@ -152,6 +188,7 @@ func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPa
 			gdp.Attributes().PutBool("dd.israte", true)
 			gdp.Attributes().PutInt("dd.rateInterval", v2.Interval)
 			populateDatapoint(&gdp, point.Timestamp*1000, &v2.Interval, point.Value)
+			pr.record(point.Timestamp * 1000)
 		}
 	case ddpb.MetricPayload_COUNT:
 		c := metric.SetEmptySum()
@@ -161,6 +198,7 @@ func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPa
 			cdp := c.DataPoints().AppendEmpty()
 			lAttr.CopyTo(cdp.Attributes())
 			populateDatapoint(&cdp, point.Timestamp*1000, &v2.Interval, point.Value)
+			pr.record(point.Timestamp * 1000)
 		}
 	}
 

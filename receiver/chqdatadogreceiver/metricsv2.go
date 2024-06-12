@@ -121,7 +121,7 @@ func (ddr *datadogReceiver) logDrop(rm pmetric.ResourceMetrics, name string, dp 
 	if v, found := rm.Resource().Attributes().Get("service.name"); found {
 		serviceName = v.AsString()
 	}
-	ddr.metricLogger.Debug("dropping data point",
+	ddr.metricLogger.Info("dropping data point",
 		zap.String("name", name),
 		zap.String("service", serviceName),
 		zap.Int64("timestamp", dp.Timestamp().AsTime().UnixMilli()))

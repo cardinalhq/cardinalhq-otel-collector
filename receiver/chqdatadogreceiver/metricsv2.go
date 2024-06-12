@@ -105,32 +105,18 @@ func ensureServiceName(rAttr pcommon.Map, kv map[string]string) {
 
 type pointRecord struct {
 	Now        int64 `json:"now,omitempty" yaml:"now,omitempty"`
-	LateBy20s  int64 `json:"lateBy20S,omitempty" yaml:"lateBy20S,omitempty"`
-	LateBy40s  int64 `json:"lateBy40S,omitempty" yaml:"lateBy40S,omitempty"`
-	LateBy60s  int64 `json:"lateBy60S,omitempty" yaml:"lateBy60S,omitempty"`
-	LateBy120s int64 `json:"lateBy120S,omitempty" yaml:"lateBy120S,omitempty"`
-	LateBy300s int64 `json:"lateBy300S,omitempty" yaml:"lateBy300S,omitempty"`
-	LateBy600s int64 `json:"lateBy600S,omitempty" yaml:"lateBy600S,omitempty"`
-	TooLate    int64 `json:"tooLate,omitempty" yaml:"tooLate,omitempty"`
 	Total      int64 `json:"total,omitempty" yaml:"total,omitempty"`
+	OldestTS   int64 `json:"oldestTS,omitempty" yaml:"oldestTS,omitempty"`
+	WorstDelay int64 `json:"worstDelay,omitempty" yaml:"worstDelay,omitempty"`
 }
 
 func (pr *pointRecord) record(pointTime int64, n int64) {
 	late := pr.Now - pointTime
-	if late > 600_000 {
-		pr.TooLate += n
-	} else if late > 300_000 {
-		pr.LateBy600s += n
-	} else if late > 120_000 {
-		pr.LateBy300s += n
-	} else if late > 60_000 {
-		pr.LateBy120s += n
-	} else if late > 40_000 {
-		pr.LateBy60s += n
-	} else if late > 20_000 {
-		pr.LateBy40s += n
-	} else if late > 10_000 {
-		pr.LateBy20s += n
+	if late > pr.WorstDelay {
+		pr.WorstDelay = late
+	}
+	if pr.OldestTS == 0 || pointTime < pr.OldestTS {
+		pr.OldestTS = pointTime
 	}
 	pr.Total += n
 }

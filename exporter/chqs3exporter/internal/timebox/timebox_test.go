@@ -16,11 +16,12 @@ package timebox
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTimebox(t *testing.T) {
+func TestCalculateInterval(t *testing.T) {
 	tests := []struct {
 		name     string
 		t        int64
@@ -34,7 +35,55 @@ func TestTimebox(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Timebox(tt.t, tt.interval)
+			got := CalculateInterval(tt.t, tt.interval)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestNewTimebox(t *testing.T) {
+	interval := CalculateInterval(123456789000, 10_000)
+	expiry := time.Now().Add(time.Hour)
+
+	timebox := NewTimebox(interval, expiry)
+
+	assert.Equal(t, interval, timebox.Interval)
+	assert.Equal(t, expiry, timebox.Expiry)
+	assert.Empty(t, timebox.Items)
+}
+
+func TestAppend(t *testing.T) {
+	now := time.Unix(1234567890, 0)
+	interval := CalculateInterval(now.UnixMilli(), 10_000)
+	timebox := NewTimebox(interval, now.Add(time.Hour))
+
+	item1 := map[string]any{"key1": "value1"}
+	timebox.Append(item1)
+	assert.ElementsMatch(t, []map[string]any{item1}, timebox.Items)
+
+	item2 := map[string]any{"key2": "value2"}
+	timebox.Append(item2)
+	assert.ElementsMatch(t, []map[string]any{item1, item2}, timebox.Items)
+}
+
+func TestShouldClose(t *testing.T) {
+	tests := []struct {
+		name     string
+		interval int64
+		now      time.Time
+		expiry   time.Time
+		want     bool
+	}{
+		{"now before expiry", 1234567890, time.Unix(1234567889, 0), time.Unix(1234567890, 0), false},
+		{"now equal to expiry", 1234567890, time.Unix(1234567890, 0), time.Unix(1234567890, 0), false},
+		{"now after expiry", 1234567890, time.Unix(1234567891, 0), time.Unix(1234567890, 0), true},
+		{"interval is very different than now", 40, time.Unix(1234567889, 0), time.Unix(1234567890, 0), false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			timebox := NewTimebox(tt.interval, tt.expiry)
+			got := timebox.ShouldClose(tt.now)
 			assert.Equal(t, tt.want, got)
 		})
 	}

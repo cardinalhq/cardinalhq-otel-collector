@@ -72,8 +72,7 @@ func (e *s3Exporter) Capabilities() consumer.Capabilities {
 func (e *s3Exporter) ConsumeMetrics(_ context.Context, md pmetric.Metrics) error {
 	var errs error
 	errs = multierr.Append(errs, e.consumeMetrics(md))
-	now := time.Now().UnixMilli()
-	items := e.marshaler.ClosedMetrics(now)
+	items := e.marshaler.ClosedMetrics(time.Now())
 	errs = multierr.Append(errs, e.writeTable(items, "metrics"))
 	return errs
 }
@@ -82,14 +81,13 @@ func (e *s3Exporter) consumeMetrics(md pmetric.Metrics) error {
 	if e.config.Timeboxes.Metrics.Interval <= 0 {
 		return nil
 	}
-	return e.marshaler.appendMetrics(md)
+	return e.marshaler.appendMetrics(time.Now(), md)
 }
 
 func (e *s3Exporter) ConsumeLogs(_ context.Context, logs plog.Logs) error {
 	var errs error
 	errs = multierr.Append(errs, e.consumeLogs(logs))
-	now := time.Now().UnixMilli()
-	items := e.marshaler.ClosedLogs(now)
+	items := e.marshaler.ClosedLogs(time.Now())
 	errs = multierr.Append(errs, e.writeTable(items, "logs"))
 	return errs
 }
@@ -98,14 +96,13 @@ func (e *s3Exporter) consumeLogs(logs plog.Logs) error {
 	if e.config.Timeboxes.Logs.Interval <= 0 {
 		return nil
 	}
-	return e.marshaler.appendLogs(logs)
+	return e.marshaler.appendLogs(time.Now(), logs)
 }
 
 func (e *s3Exporter) ConsumeTraces(_ context.Context, traces ptrace.Traces) error {
 	var errs error
 	errs = multierr.Append(errs, e.consumeTraces(traces))
-	now := time.Now().UnixMilli()
-	items := e.marshaler.ClosedTraces(now)
+	items := e.marshaler.ClosedTraces(time.Now())
 	errs = multierr.Append(errs, e.writeTable(items, "traces"))
 	return errs
 }
@@ -114,7 +111,7 @@ func (e *s3Exporter) consumeTraces(traces ptrace.Traces) error {
 	if e.config.Timeboxes.Traces.Interval <= 0 {
 		return nil
 	}
-	return e.marshaler.appendTraces(traces)
+	return e.marshaler.appendTraces(time.Now(), traces)
 }
 
 func (s *s3Exporter) writeTable(items map[int64][]map[string]any, telemetryType string) error {
@@ -153,13 +150,13 @@ func (s *s3Exporter) writeTable(items map[int64][]map[string]any, telemetryType 
 func (e *s3Exporter) Shutdown(context.Context) error {
 	var errs error
 
-	logs := e.marshaler.ClosedLogs(0)
+	logs := e.marshaler.ClosedLogs(time.Unix(0, 0))
 	errs = multierr.Append(errs, e.writeTable(logs, "logs"))
 
-	metrics := e.marshaler.ClosedMetrics(0)
+	metrics := e.marshaler.ClosedMetrics(time.Unix(0, 0))
 	errs = multierr.Append(errs, e.writeTable(metrics, "metrics"))
 
-	traces := e.marshaler.ClosedTraces(0)
+	traces := e.marshaler.ClosedTraces(time.Unix(0, 0))
 	errs = multierr.Append(errs, e.writeTable(traces, "traces"))
 
 	return errs

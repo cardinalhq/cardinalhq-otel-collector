@@ -17,6 +17,7 @@ package chqs3exporter
 import (
 	"fmt"
 	"io"
+	"time"
 
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/pmetric"
@@ -32,13 +33,13 @@ type parquetMarshaller struct {
 	tb table.Translator
 
 	logconfig TimeboxConfig
-	logs      map[int64][]map[string]any
+	logs      map[int64]*timebox.Timebox
 
 	metricconfig TimeboxConfig
-	metrics      map[int64][]map[string]any
+	metrics      map[int64]*timebox.Timebox
 
 	traceconfig TimeboxConfig
-	traces      map[int64][]map[string]any
+	traces      map[int64]*timebox.Timebox
 }
 
 func (*parquetMarshaller) format() string {
@@ -49,13 +50,13 @@ func newParquetMarshaller(tbconf *TimeboxesConfig) *parquetMarshaller {
 	return &parquetMarshaller{
 		tb: table.NewTableTranslator(),
 
-		logs:      map[int64][]map[string]any{},
+		logs:      map[int64]*timebox.Timebox{},
 		logconfig: tbconf.Logs,
 
-		metrics:      map[int64][]map[string]any{},
+		metrics:      map[int64]*timebox.Timebox{},
 		metricconfig: tbconf.Metrics,
 
-		traces:      map[int64][]map[string]any{},
+		traces:      map[int64]*timebox.Timebox{},
 		traceconfig: tbconf.Traces,
 	}
 }
@@ -97,70 +98,71 @@ func closed(now, tbstart, interval, grace int64) bool {
 	return now-tbstart >= interval+grace
 }
 
-func (s *parquetMarshaller) ClosedLogs(t int64) map[int64][]map[string]any {
-	return s.closed(s.logconfig, t, s.logs)
+func (s *parquetMarshaller) ClosedLogs(now time.Time) map[int64][]map[string]any {
+	return s.closed(now, s.logs)
 }
 
-func (s *parquetMarshaller) ClosedMetrics(t int64) map[int64][]map[string]any {
-	return s.closed(s.metricconfig, t, s.metrics)
+func (s *parquetMarshaller) ClosedMetrics(now time.Time) map[int64][]map[string]any {
+	return s.closed(now, s.metrics)
 }
 
-func (s *parquetMarshaller) ClosedTraces(t int64) map[int64][]map[string]any {
-	return s.closed(s.traceconfig, t, s.traces)
+func (s *parquetMarshaller) ClosedTraces(now time.Time) map[int64][]map[string]any {
+	return s.closed(now, s.traces)
 }
 
-func (s *parquetMarshaller) closed(c TimeboxConfig, t int64, m map[int64][]map[string]any) map[int64][]map[string]any {
+func (s *parquetMarshaller) closed(now time.Time, m map[int64]*timebox.Timebox) map[int64][]map[string]any {
 	ret := map[int64][]map[string]any{}
-	for k, v := range m {
-		if t == 0 || closed(t, k, c.Interval, c.GracePeriod) {
-			ret[k] = v
-			delete(m, k)
+	forceClose := now.Unix() == 0
+	for tboxInterval, tbox := range m {
+		if forceClose || tbox.ShouldClose(now) {
+			ret[tboxInterval] = tbox.Items
+			delete(m, tboxInterval)
 		}
 	}
 	return ret
 }
 
-func (s *parquetMarshaller) appendMetrics(md pmetric.Metrics) error {
+func (s *parquetMarshaller) appendMetrics(now time.Time, md pmetric.Metrics) error {
 	tbl, err := s.tb.MetricsFromOtel(&md)
 	if err != nil {
 		return err
 	}
 	for _, row := range tbl {
-		emitInto(s.metrics, s.metricconfig.Interval, row)
+		emitInto(s.metrics, s.metricconfig, row, now)
 	}
 	return nil
 }
 
-func (s *parquetMarshaller) appendTraces(td ptrace.Traces) error {
+func (s *parquetMarshaller) appendTraces(now time.Time, td ptrace.Traces) error {
 	tbl, err := s.tb.TracesFromOtel(&td)
 	if err != nil {
 		return err
 	}
 	for _, row := range tbl {
-		emitInto(s.traces, s.traceconfig.Interval, row)
+		emitInto(s.traces, s.traceconfig, row, now)
 	}
 	return nil
 }
 
-func (s *parquetMarshaller) appendLogs(ld plog.Logs) error {
+func (s *parquetMarshaller) appendLogs(now time.Time, ld plog.Logs) error {
 	tbl, err := s.tb.LogsFromOtel(&ld)
 	if err != nil {
 		return err
 	}
 	for _, row := range tbl {
-		emitInto(s.logs, s.logconfig.Interval, row)
+		emitInto(s.logs, s.logconfig, row, now)
 	}
 	return nil
 }
 
-func emitInto(acc map[int64][]map[string]any, interval int64, item map[string]any) {
+func emitInto(acc map[int64]*timebox.Timebox, config TimeboxConfig, item map[string]any, now time.Time) {
 	itemts, ok := item[translate.CardinalFieldTimestamp].(int64)
 	if !ok {
 		return
 	}
-	ch := timebox.Timebox(itemts, interval)
+	ch := timebox.CalculateInterval(itemts, config.Interval)
 	if _, ok := acc[ch]; !ok {
-		acc[ch] = []map[string]any{}
+		acc[ch] = timebox.NewTimebox(ch, now.Add(time.Duration(config.Interval+config.GracePeriod)*time.Millisecond))
 	}
-	acc[ch] = append(acc[ch], item)
+	acc[ch].Append(item)
 }

@@ -64,7 +64,7 @@ func TestLog(t *testing.T) {
 	logs := getTestLogs(t)
 	exporter := getLogExporter(t)
 	assert.NoError(t, exporter.consumeLogs(logs))
-	items := exporter.marshaler.ClosedLogs(0)
+	items := exporter.marshaler.ClosedLogs(time.Unix(0, 0).UTC())
 	assert.Len(t, items, 1)
 	assert.NoError(t, exporter.writeTable(items, "logs"))
 }

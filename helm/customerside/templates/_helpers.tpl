@@ -194,3 +194,26 @@ annotations:
 {{- end }}
 {{- end }}
 {{- end }}
+
+{{/*
+Get the name of the datadog secret
+*/}}
+{{- define "customerside.secret.datadog.name" -}}
+{{- if .Values.secrets.create -}}
+{{ include "customerside.fullname" .}}-datadog-apikey
+{{- else -}}
+{{- .Values.secrets.datadog.name }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Get the name of the cardinalhq secret
+*/}}
+{{- define "customerside.secret.cardinalhq.name" -}}
+{{- if .Values.secrets.create -}}
+{{ include "customerside.fullname" .}}-cardinalhq-apikey
+{{- else -}}
+{{- .Values.secrets.cardinalhq.name }}
+{{- end -}}
+{{- end -}}
+

@@ -55,13 +55,13 @@ spec:
             - name: DATADOG_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: cardinal-collector-datadog
-                  key: api-key
+                  name: {{ include "customerside.secret.datadog.name" . }}
+                  key: {{ .Values.secrets.datadog.field }}
             - name: CARDINALHQ_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: cardinal-collector-chq
-                  key: api-key
+                  name: {{ include "customerside.secret.cardinalhq.name" . }}
+                  key: {{ .Values.secrets.cardinalhq.field }}
           ports:
             - name: otlp2
               containerPort: {{ .Values.collector.ports.internal.otlpGRPCPort }}

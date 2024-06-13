@@ -5,7 +5,7 @@ metadata:
   labels:
     {{- include "customerside.labels" . | nindent 4 }}
   {{- include "customerside.secret.annotations" . | nindent 2 }}
-  name: {{ include "customerside.fullname" . }}-datadog-apikey
+  name: {{ include "customerside.secret.datadog.name" . }}
   {{- include "customerside.namespace" . | nindent 2 }}
 type: Opaque
 data:

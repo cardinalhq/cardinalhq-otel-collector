@@ -61,11 +61,17 @@ secrets:
   cardinalhq:
     # if "create" is false, use this reference.  It is not used if "create" is true.
     name:
+    # if "create" is true, use this value to create the secret.
     apiKey: dummy-chq-api-key
+    # the field to pull the secret from
+    field: api-key
   datadog:
     # if "create" is false, use this reference.  It is not used if "create" is true.
     name:
+    # if "create" is true, use this value to create the secret.
     apiKey: dummy-datadog-api-key
+    # the field to pull the secret from
+    field: api-key
 
 # Annotations for various resources.
 annotations:

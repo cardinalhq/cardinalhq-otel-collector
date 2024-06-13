@@ -2,24 +2,22 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:
-    app.kubernetes.io/name: {{ template "customerside.name" . }}
-    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    {{- include "customerside.labels" . | nindent 4 }}
     app.kubernetes.io/component: collector-l1
+  {{- include "customerside.configMap.annotations" . | nindent 2 }}
   name: {{ include "customerside.fullname" . }}-collector-config-l1
+  {{- include "customerside.namespace" . | nindent 2 }}
 data:
   config.yaml: |-
     receivers:
       otlp/l1:
         protocols:
           grpc:
-            endpoint: 0.0.0.0:4317
+            endpoint: 0.0.0.0:{{ .Values.collector.ports.incoming.otlpGRPCPort }}
           http:
-            endpoint: 0.0.0.0:4318
+            endpoint: 0.0.0.0:{{ .Values.collector.ports.incoming.otlpHTTPPort }}
       chqdatadog/l1:
-        endpoint: 0.0.0.0:8126
+        endpoint: 0.0.0.0:{{ .Values.collector.ports.incoming.datadogPort }}
 
     exporters:
       loadbalancing/metrics:
@@ -37,9 +35,9 @@ data:
               max_interval: 10s
         resolver:
           k8s:
-            service: "cardinal-collector-l2.${env:POD_NAMESPACE}"
+            service: "{{ include "customerside.name" . }}-collector-l2.${env:POD_NAMESPACE}"
             ports:
-              - 14317
+              - {{ .Values.collector.ports.internal.otlpGRPCPort }}
       loadbalancing/traces:
         routing_key: "traceID"
         protocol:
@@ -55,28 +53,29 @@ data:
               max_interval: 10s
         resolver:
           k8s:
-            service: "cardinal-collector-l2.${env:POD_NAMESPACE}"
+            service: "{{ include "customerside.name" . }}-collector-l2.${env:POD_NAMESPACE}"
             ports:
-              - 14317
+              - {{ .Values.collector.ports.internal.otlpGRPCPort }}
       chqdatadog/cardinalhq:
         api_key: ${env:DATADOG_API_KEY}
-        metrics:
-          endpoint: https://intake.cardinalhq.io
-          compression: gzip
+          endpoint: {{ .Values.collector.endpoints.datadog.metrics }}
+          compression: {{ .Values.collector.endpoints.datadog.compression }}
         logs:
-          endpoint: https://intake.cardinalhq.io
-          compression: gzip
+          endpoint: {{ .Values.collector.endpoints.datadog.logs }}
+          compression: {{ .Values.collector.endpoints.datadog.compression }}
         traces:
-          endpoint: https://intake.cardinalhq.io
-          compression: gzip
+          endpoint: {{ .Values.collector.endpoints.datadog.traces }}
+          compression: {{ .Values.collector.endpoints.datadog.compression }}
+
       otlp/tochq:
-        endpoint: https://chq-collector-grpc.svc.aws.dev.cardinalhq.net:443
+        endpoint: {{ .Values.collector.endpoints.cardinalHQ.otelGRPC}}
         headers:
           x-cardinalhq-api-key: "${env:CARDINALHQ_API_KEY}"
+
       chqstats/cardinalhq:
-        endpoint: https://stats-receiver.svc.aws.dev.cardinalhq.net
+        endpoint: {{ .Values.collector.endpoints.cardinalHQ.stats }}
         api_key: ${env:CARDINALHQ_API_KEY}
-        interval: 30s
+        interval: {{ .Values.collector.endpoints.cardinalHQ.statsInterval }}
 
     processors:
       # Limit collector process memory usage.  This should be the first processor
@@ -101,7 +100,7 @@ data:
       # provider.  This markup is also written to S3 for later processing
       # by CardinalHQ.
       chqdecorator/csl1:
-        sampler_config_file: https://api.svc.aws.dev.cardinalhq.net/api/v1/samplerConfig
+        sampler_config_file: {{ .Values.collector.endpoints.cardinalHQ.samplerConfig }}
         api_key: ${env:CARDINALHQ_API_KEY}
         traces:
           uninteresting_rate: 1000
@@ -198,7 +197,7 @@ data:
 
     extensions:
       zpages:
-        endpoint: "0.0.0.0:55679"
+        endpoint: "0.0.0.0:"{{ .Values.collector.endpoints.zpages.port }}
       health_check:
-        endpoint: "0.0.0.0:13133"
-        path: "/healthz"
+        endpoint: "0.0.0.0:"{{ .Values.collector.endpoints.healthz.port }}
+        path: {{ .Values.collector.endpoints.healthz.path }}

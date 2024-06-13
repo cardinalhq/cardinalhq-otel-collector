@@ -2,13 +2,11 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:
-    app.kubernetes.io/name: {{ template "customerside.name" . }}
-    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    {{- include "customerside.labels" . | nindent 4 }}
     app.kubernetes.io/component: collector-l2
+  {{- include "customerside.configMap.annotations" . | nindent 2 }}
   name: {{ include "customerside.fullname" . }}-collector-config-l2
+  {{- include "customerside.namespace" . | nindent 2 }}
 data:
   config.yaml: |-
     receivers:
@@ -21,7 +19,7 @@ data:
 
       # Exporter for sending telemetry CardinalHQ via the Datadog exporters.
       chqdatadog/cardinalhq:
-        api_key: {{ .Values.secrets.datadog.apiKey }}
+        api_key: ${env:DATADOG_API_KEY}
         metrics:
           endpoint: {{ .Values.collector.endpoints.datadog.metrics }}
           compression: {{ .Values.collector.endpoints.datadog.compression }}
@@ -35,11 +33,11 @@ data:
       otlp/tochq:
         endpoint: {{ .Values.collector.endpoints.cardinalHQ.otelGRPC}}
         headers:
-          x-cardinalhq-api-key: {{ .Values.secrets.cardinalHQ.apiKey }}
+          x-cardinalhq-api-key: "${env:CARDINALHQ_API_KEY}"
 
       chqstats/cardinalhq:
         endpoint: {{ .Values.collector.endpoints.cardinalHQ.stats }}
-        api_key: {{ .Values.secrets.cardinalHQ.apiKey }}
+        api_key: ${env:CARDINALHQ_API_KEY}
         interval: {{ .Values.collector.endpoints.cardinalHQ.statsInterval }}
 
     processors:
@@ -76,7 +74,7 @@ data:
       # by CardinalHQ.
       chqdecorator/csl2:
         sampler_config_file: {{ .Values.collector.endpoints.cardinalHQ.samplerConfig }}
-        api_key: {{ .Values.secrets.cardinalHQ.apiKey }}
+        api_key: ${env:CARDINALHQ_API_KEY}
         traces:
           uninteresting_rate: 1000
           has_error_rate: 4

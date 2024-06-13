@@ -4,7 +4,9 @@ metadata:
   labels:
     {{- include "customerside.labels" . | nindent 4 }}
     app.kubernetes.io/component: collector-l2
+  {{- include "customerside.service.annotations" . | nindent 2 }}
   name: {{ include "customerside.fullname" . }}-collector-l2
+  {{- include "customerside.namespace" . | nindent 2 }}
 spec:
   selector:
     {{- include "customerside.selectorLabels" . | nindent 4}}
@@ -12,4 +14,4 @@ spec:
   clusterIP: None
   ports:
     - name: otlp2
-      port: 14317
+      port: {{ .Values.collector.ports.incoming.otlpGRPCPort }}

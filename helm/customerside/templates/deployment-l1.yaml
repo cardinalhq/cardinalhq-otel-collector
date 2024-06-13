@@ -2,20 +2,17 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app.kubernetes.io/name: {{ template "customerside.name" . }}
-    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    {{- include "customerside.labels" . | nindent 4 }}
     app.kubernetes.io/component: collector-l1
+  {{- include "customerside.deployment.annotations" . | nindent 2 }}
   name: {{ include "customerside.fullname" . }}-collector-l1
+  {{- include "customerside.namespace" . | nindent 2 }}
 spec:
-  replicas: 2
-  revisionHistoryLimit: 2
+  replicas: {{ .Values.collector.l1.replicas | default 2 }}
+  revisionHistoryLimit: 3
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ template "customerside.name" . }}
-      app.kubernetes.io/instance: {{ .Release.Name }}
+      {{- include "customerside.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: collector-l1
   strategy:
     rollingUpdate:
@@ -25,11 +22,7 @@ spec:
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: {{ template "customerside.name" . }}
-        helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
-        app.kubernetes.io/managed-by: {{ .Release.Service }}
-        app.kubernetes.io/instance: {{ .Release.Name }}
-        app.kubernetes.io/version: {{ .Chart.AppVersion }}
+        {{- include "customerside.labels" . | nindent 8 }}
         app.kubernetes.io/component: collector-l1
     spec:
       serviceAccountName: {{ include "customerside.fullname" . }}-loadbalancer
@@ -39,18 +32,16 @@ spec:
         runAsGroup: 2000
       containers:
         - name: collector
-          image: {{ .Values.collector.l1.image.repository }}:{{ .Values.collector.l1.image.tag }}
+          image: "{{ .Values.collector.l1.image.repository }}:{{ .Values.collector.l1.image.tag }}"
           command:
             - "/app/bin/cardinalhq-otel-collector"
             - "--config=/app/config/config.yaml"
             - "--feature-gates=component.UseLocalHostAsDefaultHost"
           env:
+{{- if .Values.collector.l1.env.gomemlimit }}
             - name: GOMEMLIMIT
-              value: "1500MiB"
-            - name: HOST_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.hostIP
+              value: "{{ .Values.collector.l1.env.gomemlimit }}"
+{{- end }}
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -73,21 +64,21 @@ spec:
                   key: api-key
           ports:
             - name: http
-              containerPort: 4318
+              containerPort: {{ .Values.collector.ports.incoming.otlpHTTPPort }}
               protocol: TCP
             - name: otlp
-              containerPort: 4317
+              containerPort: {{ .Values.collector.ports.incoming.otlpGRPCPort }}
               protocol: TCP
             - name: zpages
-              containerPort: 55679
+              containerPort: {{ .Values.collector.endpoints.zpages.port }}
               protocol: TCP
             - name: healthz
-              containerPort: 13133
+              containerPort: {{ .Values.collector.endpoints.healthz.port }}
               protocol: TCP
           readinessProbe:
             httpGet:
-              path: /healthz
-              port: 13133
+              path: {{ .Values.collector.endpoints.healthz.path }}
+              port: {{ .Values.collector.endpoints.healthz.port }}
             initialDelaySeconds: 10
           securityContext:
             allowPrivilegeEscalation: false
@@ -95,13 +86,10 @@ spec:
               drop: ["ALL"]
             seccompProfile:
               type: RuntimeDefault
+{{- if .Values.collector.l1.resources }}
           resources:
-            limits:
-              cpu: 2000m
-              memory: 2000Mi
-            requests:
-              cpu: 2000m
-              memory: 2000Mi
+{{ toYaml .Values.collector.l1.resources | indent 12 }}
+{{- end }}
           volumeMounts:
             - name: config
               mountPath: /app/config

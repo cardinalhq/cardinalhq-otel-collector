@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM --platform=${BUILDPLATFORM} us-central1-docker.pkg.dev/profound-ship-384422/cardinalhq/builder-cardinalhq-otel-collector:latest as build
+FROM --platform=${BUILDPLATFORM} 033263751764.dkr.ecr.us-east-2.amazonaws.com/cardinalhq/cardinalhq-otel-collector:builder-latest as build
 ARG TARGETOS
 ARG TARGETARCH
 ARG OTEL_VERSION=0.102.0

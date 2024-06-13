@@ -15,7 +15,7 @@
 TARGETS=bin/cardinalhq-otel-collector
 PLATFORM=linux/amd64,linux/arm64
 BUILDX=docker buildx build --pull --platform ${PLATFORM}
-IMAGE_PREFIX=us-central1-docker.pkg.dev/profound-ship-384422/cardinalhq/
+IMAGE_PREFIX=033263751764.dkr.ecr.us-east-2.amazonaws.com/cardinalhq/
 
 #
 # Build targets.  Adding to these will cause magic to occur.
@@ -101,7 +101,7 @@ buildtime/%.tstamp:: ${all_deps} Dockerfile
 
 pre-build:
 	${BUILDX} \
-		--tag ${IMAGE_PREFIX}builder-${IMAGE_TARGETS}:latest \
+		--tag ${IMAGE_PREFIX}${IMAGE_TARGETS}:builder-latest \
 		--build-arg BUILD_TYPE=release \
 		-f Dockerfile.pre-build \
 		--push .

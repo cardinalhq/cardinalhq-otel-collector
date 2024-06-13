@@ -1,0 +1,204 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ template "customerside.name" . }}
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    app.kubernetes.io/component: collector-l1
+  name: {{ include "customerside.fullname" . }}-collector-config-l1
+data:
+  config.yaml: |-
+    receivers:
+      otlp/l1:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      chqdatadog/l1:
+        endpoint: 0.0.0.0:8126
+
+    exporters:
+      loadbalancing/metrics:
+        routing_key: "metric"
+        protocol:
+          otlp:
+            tls:
+              insecure: true
+            sending_queue:
+              queue_size: 2000
+            retry_on_failure:
+              enabled: true
+              max_elapsed_time: 1m
+              initial_interval: 1s
+              max_interval: 10s
+        resolver:
+          k8s:
+            service: "cardinal-collector-l2.${env:POD_NAMESPACE}"
+            ports:
+              - 14317
+      loadbalancing/traces:
+        routing_key: "traceID"
+        protocol:
+          otlp:
+            tls:
+              insecure: true
+            sending_queue:
+              queue_size: 2000
+            retry_on_failure:
+              enabled: true
+              max_elapsed_time: 1m
+              initial_interval: 1s
+              max_interval: 10s
+        resolver:
+          k8s:
+            service: "cardinal-collector-l2.${env:POD_NAMESPACE}"
+            ports:
+              - 14317
+      chqdatadog/cardinalhq:
+        api_key: ${env:DATADOG_API_KEY}
+        metrics:
+          endpoint: https://intake.cardinalhq.io
+          compression: gzip
+        logs:
+          endpoint: https://intake.cardinalhq.io
+          compression: gzip
+        traces:
+          endpoint: https://intake.cardinalhq.io
+          compression: gzip
+      otlp/tochq:
+        endpoint: https://chq-collector-grpc.svc.aws.dev.cardinalhq.net:443
+        headers:
+          x-cardinalhq-api-key: "${env:CARDINALHQ_API_KEY}"
+      chqstats/cardinalhq:
+        endpoint: https://stats-receiver.svc.aws.dev.cardinalhq.net
+        api_key: ${env:CARDINALHQ_API_KEY}
+        interval: 30s
+
+    processors:
+      # Limit collector process memory usage.  This should be the first processor
+      # in the processor list.
+      memory_limiter/csl1:
+        limit_mib: 1500
+        spike_limit_mib: 100
+        check_interval: 5s
+
+      # Batch processors to limit the size and/or timeframe that telemetry
+      # is batched before being sent to the exporters.  This should be
+      # the last item in the processor list.
+      batch/csl1logs:
+        timeout: 1s
+        send_batch_size: 100
+        send_batch_max_size: 1000
+      
+      # This processor should be added to the list of processors before
+      # the filter/toprovider, and the exporters that write to S3 or to upstream
+      # providers, such as Datadog.  It will add attributes to the telemetry
+      # which will allow selectively sending metrics on to the upstream
+      # provider.  This markup is also written to S3 for later processing
+      # by CardinalHQ.
+      chqdecorator/csl1:
+        sampler_config_file: https://api.svc.aws.dev.cardinalhq.net/api/v1/samplerConfig
+        api_key: ${env:CARDINALHQ_API_KEY}
+        traces:
+          uninteresting_rate: 1000
+          has_error_rate: 4
+
+      # This processor should be added to the list of processors that
+      # are in the pipeline destined to the upstream provider, such as
+      # Datadog.  It should NOT be used to filter output to S3 for
+      # later processing by CardinalHQ.
+      filter/toprovider:
+        error_mode: ignore
+        logs:
+          log_record:
+            - 'attributes["_cardinalhq.filtered"] == true'
+        metrics:
+          datapoint:
+            - 'attributes["_cardinalhq.filtered"] == true'
+        traces:
+          span:
+            - 'attributes["_cardinalhq.filtered"] == true'
+
+      # Items marked with _cardinalhq.aggregated_output are not sent to
+      # CardinalHQ, as the metrics they represent would already be
+      # included in the detailed metrics.
+      filter/tochqhq:
+        error_mode: ignore
+        logs:
+          log_record:
+            - 'attributes["_cardinalhq.aggregated_output"] == true'
+        metrics:
+          datapoint:
+            - 'attributes["_cardinalhq.aggregated_output"] == true'
+        traces:
+          span:
+            - 'attributes["_cardinalhq.aggregated_output"] == true'
+
+      # This processor should be added to the list of processors that
+      # are in the pipeline destined to the upstream provider, such as
+      # Datadog.  It should NOT be used to filter output sent to
+      # CardinalHQ.
+      attributes/toprovider:
+        actions:
+          - action: delete
+            pattern: '^_cardinalhq.*'
+
+    connectors:
+      forward/toprovider:
+      forward/tochq:
+        
+    service:
+      pipelines:
+
+        # log handling.  No need to partition here.
+        logs/chq:
+          receivers: [otlp/l1, chqdatadog/l1]
+          processors: [memory_limiter/csl1, chqdecorator/csl1, batch/csl1logs]
+          exporters: [otlp/tochq, chqstats/cardinalhq, forward/toprovider]
+        logs/toprovider:
+          receivers: [forward/toprovider]
+          processors: [filter/toprovider, attributes/toprovider]
+          exporters: [chqdatadog/cardinalhq]
+
+        # metric handling.  Partition on metric name so aggregations
+        # work properly.  TODO: modify aggregator to add artificial attribute
+        # for the host that processed the aggregation, and let the receiver
+        # just get more than one time series for our aggregation.
+        metrics/l1:
+          receivers: [otlp/l1, chqdatadog/l1]
+          processors: [memory_limiter/csl1]
+          exporters: [loadbalancing/metrics]
+
+        # trace handling.  Partition on trace ID so we can group traces
+        # and filter based on the entire trace, not individual spans.
+        traces/l1:
+          receivers: [otlp/l1, chqdatadog/l1]
+          processors: [memory_limiter/csl1]
+          exporters: [loadbalancing/traces]
+
+      # Echo telemetry back to ourselves.  This requires more than one replica or
+      # startup and shutdown delays may occur.
+      telemetry:
+        metrics:
+          readers:
+            - periodic:
+                interval: 10000
+                exporter:
+                  otlp:
+                    protocol: grpc/protobuf
+                    endpoint: http://cardinal-collector:4317
+
+      extensions:
+        - zpages
+        - health_check
+
+    extensions:
+      zpages:
+        endpoint: "0.0.0.0:55679"
+      health_check:
+        endpoint: "0.0.0.0:13133"
+        path: "/healthz"

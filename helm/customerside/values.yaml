@@ -1,0 +1,73 @@
+collector:
+  ports:
+    incoming:
+      otlpGRPCPort: 4317
+      otlpHTTPPort: 4318
+      datadogPort: 8126
+    internal:
+      otlpGRPCPort: 14317
+  endpoints:
+    datadog:
+      metrics: https://intake.cardinalhq.io
+      logs: https://intake.cardinalhq.io
+      traces: https://intake.cardinalhq.io
+      compression: gzip
+    cardinalHQ:
+      otlpGRPC: https://chq-collector-grpc.svc.aws.dev.cardinalhq.net:443
+      stats: https://stats-receiver.svc.aws.dev.cardinalhq.net
+      statsInterval: 30s
+      samplerConfig: https://api.svc.aws.dev.cardinalhq.net/api/v1/samplerConfig
+    zpages:
+      port: 55679
+    healthz:
+      port: 13133
+      path: /healthz
+  l1:
+    env:
+      gomemlimit: 500MiB
+    image:
+      repository: us-central1-docker.pkg.dev/profound-ship-384422/cardinalhq/cardinalhq-otel-collector
+      tag: latest
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1000Mi
+      requests:
+        cpu: 500m
+        memory: 1000Mi
+    replicas: 2
+    config:
+      providerEndpoint: https://intake.cardinalhq.io
+      cardinalEndpoint: 
+      telemetryMetricEndpoint: 
+  l2:
+    env:
+      gomemlimit: 700MiB
+    image:
+      repository: us-central1-docker.pkg.dev/profound-ship-384422/cardinalhq/cardinalhq-otel-collector
+      tag: latest
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1000Mi
+      requests:
+        cpu: 500m
+        memory: 1000Mi
+    replicas: 2
+    config:
+      otlpGRPCPort: 4317
+      otlpHTTPPort: 4318
+      datadogPort: 8126
+      providerEndpoint: https://intake.cardinalhq.io
+      cardinalEndpoint: 
+      telemetryMetricEndpoint: 
+
+loadbalancer:
+  serviceName: collector-l2
+  serviceAccount:
+    annotations: {}
+secrets:
+  cardinalHQ:
+    apiKey: dummy-chq-api-key
+  datadog:
+    apiKey: dummy-datadog-api-key

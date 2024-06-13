@@ -72,7 +72,6 @@ func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, ddMetrics []*d
 	m := pmetric.NewMetrics()
 	now := time.Now()
 	tooOld := now.Add(-ddr.config.MaxMetricDatapointAge)
-	points := &pointRecord{Now: now.UnixMilli()}
 
 	defer func() {
 		ddr.metricFilterCounter.Add(ctx, int64(removedDatapoints),
@@ -82,7 +81,7 @@ func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, ddMetrics []*d
 	}()
 
 	for _, metric := range ddMetrics {
-		if err := ddr.convertMetricV2(m, metric, points); err != nil {
+		if err := ddr.convertMetricV2(m, metric); err != nil {
 			return err
 		}
 		count++
@@ -100,7 +99,6 @@ func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, ddMetrics []*d
 		}
 	}
 
-	ddr.metricLogger.Info("received metrics", zap.Any("times", points))
 	if count > 0 && m.DataPointCount() > 0 {
 		kept, removed := ddr.filterOlderThan(&m, tooOld)
 		keptDatapoints += kept
@@ -188,7 +186,7 @@ func ensureServiceName(rAttr pcommon.Map, kv map[string]string) {
 	rAttr.PutStr("service.name", "unknown")
 }
 
-func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPayload_MetricSeries, pr *pointRecord) error {
+func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPayload_MetricSeries) error {
 	rm := m.ResourceMetrics().AppendEmpty()
 	rm.SetSchemaUrl(semconv.SchemaURL)
 	rAttr := rm.Resource().Attributes()
@@ -231,7 +229,6 @@ func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPa
 			gdp := g.DataPoints().AppendEmpty()
 			lAttr.CopyTo(gdp.Attributes())
 			populateDatapoint(&gdp, point.Timestamp*1000, &v2.Interval, point.Value)
-			pr.record(point.Timestamp*1000, 1)
 		}
 	case ddpb.MetricPayload_RATE:
 		g := metric.SetEmptyGauge()
@@ -241,7 +238,6 @@ func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPa
 			gdp.Attributes().PutBool("dd.israte", true)
 			gdp.Attributes().PutInt("dd.rateInterval", v2.Interval)
 			populateDatapoint(&gdp, point.Timestamp*1000, &v2.Interval, point.Value)
-			pr.record(point.Timestamp*1000, 1)
 		}
 	case ddpb.MetricPayload_COUNT:
 		c := metric.SetEmptySum()
@@ -251,7 +247,6 @@ func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPa
 			cdp := c.DataPoints().AppendEmpty()
 			lAttr.CopyTo(cdp.Attributes())
 			populateDatapoint(&cdp, point.Timestamp*1000, &v2.Interval, point.Value)
-			pr.record(point.Timestamp*1000, 1)
 		}
 	}
 

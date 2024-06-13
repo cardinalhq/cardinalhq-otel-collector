@@ -75,9 +75,20 @@ func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, ddMetrics []*d
 
 	defer func() {
 		ddr.metricFilterCounter.Add(ctx, int64(removedDatapoints),
-			metric.WithAttributes(attribute.Bool("too_old", true), attribute.String("max_age", ddr.config.MaxMetricDatapointAge.String())))
+			metric.WithAttributes(
+				attribute.String("disposition", "removed"),
+				attribute.String("max_age", ddr.config.MaxMetricDatapointAge.String()),
+				attribute.String("received_by_pod", ddr.podName),
+				attribute.String("receiver", ddr.id)))
 		ddr.metricFilterCounter.Add(ctx, int64(keptDatapoints),
-			metric.WithAttributes(attribute.Bool("too_old", false), attribute.String("max_age", ddr.config.MaxMetricDatapointAge.String())))
+			metric.WithAttributes(
+				attribute.String("disposition", "kept"),
+				attribute.String("max_age", ddr.config.MaxMetricDatapointAge.String()),
+				attribute.String("received_by_pod", ddr.podName),
+				attribute.String("receiver", ddr.id)))
+		ddr.metricLogger.Info("filterOlderThan",
+			zap.Int("kept", keptDatapoints),
+			zap.Int("removed", removedDatapoints))
 	}()
 
 	for _, metric := range ddMetrics {
@@ -86,18 +97,7 @@ func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, ddMetrics []*d
 		}
 		count++
 		if count > 100 {
-			preRemove := m.DataPointCount()
 			kept, removed := ddr.filterOlderThan(&m, tooOld)
-			postRemove := m.DataPointCount()
-			if preRemove-postRemove != removed {
-				ddr.metricLogger.Info("filterOlderThan removed more data points than expected",
-					zap.Int("expected", preRemove-postRemove),
-					zap.Int("actual", removed),
-					zap.Int("preRemove", preRemove),
-					zap.Int("postRemove", postRemove),
-					zap.Int("kept", kept),
-					zap.Int("removed", removed))
-			}
 			keptDatapoints += kept
 			removedDatapoints += removed
 			if kept > 0 {

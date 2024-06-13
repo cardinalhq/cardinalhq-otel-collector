@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 
 	ddpbtrace "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
 	"github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver/internal/metadata"
@@ -33,6 +34,8 @@ type datadogReceiver struct {
 	server              *http.Server
 	obsrecv             *receiverhelper.ObsReport
 	metricFilterCounter metric.Int64Counter
+	podName             string
+	id                  string
 }
 
 func newDataDogReceiver(config *Config, params receiver.CreateSettings) (component.Component, error) {
@@ -48,12 +51,20 @@ func newDataDogReceiver(config *Config, params receiver.CreateSettings) (compone
 			ReadTimeout: config.ReadTimeout,
 		},
 		obsrecv: instance,
+		id:      params.ID.String(),
 	}
+
+	podName := os.Getenv("POD_NAME")
+	if podName == "" {
+		podName = "unknown"
+	}
+	ddr.podName = podName
+
 	if ddr.gpLogger == nil {
 		ddr.gpLogger = params.Logger.With(zap.String("data_type", "internal"))
 	}
 
-	m, err := metadata.Meter(ddr.telemetrySettings).Int64Counter("datapoints_processed",
+	m, err := metadata.Meter(ddr.telemetrySettings).Int64Counter(params.ID.Type().String()+"_receiver_datapoints_agechecked",
 		metric.WithDescription("The number of metrics filtered out by the Datadog receiver"))
 	if err != nil {
 		return nil, err

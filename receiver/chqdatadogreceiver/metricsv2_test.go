@@ -30,13 +30,13 @@ func TestFilterOlderThan(t *testing.T) {
 	dp3 := gaugeDataPoints.AppendEmpty()
 	dp3.SetTimestamp(pcommon.NewTimestampFromTime(targetTime.Add(time.Second)))
 
-	keptDatapoints, removedDatapoints := ddp.filterOlderThan(&m, targetTime)
+	keptDatapoints, removedDatapoints := ddp.filterOlderThan(&m, targetTime.Add(-time.Second*20))
 
-	assert.Equal(t, 1, keptDatapoints)
-	assert.Equal(t, 2, removedDatapoints)
+	assert.Equal(t, 2, keptDatapoints)
+	assert.Equal(t, 1, removedDatapoints)
 
-	assert.Equal(t, 1, m.DataPointCount())
+	assert.Equal(t, 2, m.DataPointCount())
 	assert.ElementsMatch(t,
-		[]pmetric.NumberDataPoint{dp3},
-		[]pmetric.NumberDataPoint{metric.Gauge().DataPoints().At(0)})
+		[]pmetric.NumberDataPoint{dp2, dp3},
+		[]pmetric.NumberDataPoint{metric.Gauge().DataPoints().At(0), metric.Gauge().DataPoints().At(1)})
 }

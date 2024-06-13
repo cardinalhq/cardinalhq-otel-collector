@@ -86,7 +86,18 @@ func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, ddMetrics []*d
 		}
 		count++
 		if count > 100 {
+			preRemove := m.DataPointCount()
 			kept, removed := ddr.filterOlderThan(&m, tooOld)
+			postRemove := m.DataPointCount()
+			if preRemove-postRemove != removed {
+				ddr.metricLogger.Info("filterOlderThan removed more data points than expected",
+					zap.Int("expected", preRemove-postRemove),
+					zap.Int("actual", removed),
+					zap.Int("preRemove", preRemove),
+					zap.Int("postRemove", postRemove),
+					zap.Int("kept", kept),
+					zap.Int("removed", removed))
+			}
 			keptDatapoints += kept
 			removedDatapoints += removed
 			if kept > 0 {

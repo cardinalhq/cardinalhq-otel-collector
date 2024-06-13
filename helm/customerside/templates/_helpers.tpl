@@ -9,10 +9,10 @@ Expand the name of the chart.
 Add Namesapce if set
 */}}
 {{- define "customerside.namespace" -}}
-{{- if ne .Release.Namespace "default" }}
+{{- if ne .Release.Namespace "default" -}}
 namespace: {{ .Release.Namespace }}
-{{- end }}
-{{- end }}
+{{- end -}}
+{{- end -}}
 
 {{/*
 Create a default fully qualified app name.

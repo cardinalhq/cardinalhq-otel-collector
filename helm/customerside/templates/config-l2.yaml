@@ -31,7 +31,7 @@ data:
           compression: {{ .Values.collector.endpoints.datadog.compression }}
 
       otlp/tochq:
-        endpoint: {{ .Values.collector.endpoints.cardinalHQ.otelGRPC}}
+        endpoint: {{ .Values.collector.endpoints.cardinalHQ.otlpGRPC}}
         headers:
           x-cardinalhq-api-key: "${env:CARDINALHQ_API_KEY}"
 
@@ -98,7 +98,7 @@ data:
       # Items marked with _cardinalhq.aggregated_output are not sent to
       # CardinalHQ, as the metrics they represent would already be
       # included in the detailed metrics.
-      filter/tochqhq:
+      filter/tochq:
         error_mode: ignore
         logs:
           log_record:
@@ -136,7 +136,7 @@ data:
           exporters: [forward/tochq, forward/toprovider, chqstats/cardinalhq]
         metrics/chq:
           receivers: [forward/tochq]
-          processors: [filter/tochqhq]
+          processors: [filter/tochq]
           exporters: [otlp/tochq]
         metrics/toprovider:
           receivers: [forward/toprovider]
@@ -172,7 +172,7 @@ data:
 
     extensions:
       zpages:
-        endpoint: "0.0.0.0:"{{ .Values.collector.endpoints.zpages.port }}
+        endpoint: "0.0.0.0:{{ .Values.collector.endpoints.zpages.port }}"
       health_check:
-        endpoint: "0.0.0.0:"{{ .Values.collector.endpoints.healthz.port }}
+        endpoint: "0.0.0.0:{{ .Values.collector.endpoints.healthz.port }}"
         path: {{ .Values.collector.endpoints.healthz.path }}

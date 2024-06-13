@@ -24,7 +24,7 @@ collector:
       path: /healthz
   l1:
     image:
-      repository: us-central1-docker.pkg.dev/profound-ship-384422/cardinalhq/cardinalhq-otel-collector
+      repository: public.ecr.aws/b1d7g2f3/cardinalhq-otel-collector
       tag: latest
     replicas: 2
     env:
@@ -38,7 +38,7 @@ collector:
         memory: 2000Mi
   l2:
     image:
-      repository: us-central1-docker.pkg.dev/profound-ship-384422/cardinalhq/cardinalhq-otel-collector
+      repository: public.ecr.aws/b1d7g2f3/cardinalhq-otel-collector
       tag: latest
     replicas: 2
     env:

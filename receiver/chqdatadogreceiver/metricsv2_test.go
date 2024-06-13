@@ -34,4 +34,9 @@ func TestFilterOlderThan(t *testing.T) {
 
 	assert.Equal(t, 1, keptDatapoints)
 	assert.Equal(t, 2, removedDatapoints)
+
+	assert.Equal(t, 1, m.DataPointCount())
+	assert.ElementsMatch(t,
+		[]pmetric.NumberDataPoint{dp3},
+		[]pmetric.NumberDataPoint{metric.Gauge().DataPoints().At(0)})
 }

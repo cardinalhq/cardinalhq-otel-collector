@@ -2,5 +2,5 @@ apiVersion: v2
 name: cardinalhq-otel-collector
 description: Install the CardinalHQ collector to receive otel and other telemetry, process it, and send it around.
 type: application
-version: 0.1.2
+version: 0.1.3
 appVersion: "0.1.0"

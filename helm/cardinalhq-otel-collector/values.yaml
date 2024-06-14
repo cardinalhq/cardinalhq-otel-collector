@@ -86,3 +86,17 @@ annotations:
   secret: {}
   role: {}
   roleBinding: {}
+
+selfTelemetry:
+  # Echo telemetry back to ourselves.  This requires more than one replica or
+  # startup and shutdown delays may occur.
+  telemetry:
+    metrics:
+      readers:
+        - periodic:
+            interval: 10000
+            exporter:
+              otlp:
+                protocol: grpc/protobuf
+                endpoint: http://localhost:4317
+

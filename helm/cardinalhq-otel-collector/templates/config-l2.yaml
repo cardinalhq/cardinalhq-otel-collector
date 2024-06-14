@@ -154,17 +154,7 @@ data:
           processors: [filter/toprovider, attributes/toprovider]
           exporters: [chqdatadog/cardinalhq]
 
-      # Echo telemetry back to ourselves.  This requires more than one replica or
-      # startup and shutdown delays may occur.
-      telemetry:
-        metrics:
-          readers:
-            - periodic:
-                interval: 10000
-                exporter:
-                  otlp:
-                    protocol: grpc/protobuf
-                    endpoint: http://cardinal-collector:4317
+      {{ toYaml .Values.selfTelemetry | nindent 6 }}
 
       extensions:
         - zpages

@@ -33,7 +33,7 @@ var _ LogSampler = (*LogSamplerImpl)(nil)
 
 type LogSamplerImpl struct {
 	sync.RWMutex
-	rules map[string]logRule
+	rules map[string]*logRule
 
 	logger *zap.Logger
 }
@@ -48,7 +48,7 @@ type logRule struct {
 func NewLogSamplerImpl(ctx context.Context, logger *zap.Logger) *LogSamplerImpl {
 	ls := &LogSamplerImpl{
 		logger: logger,
-		rules:  map[string]logRule{},
+		rules:  map[string]*logRule{},
 	}
 	return ls
 }
@@ -136,16 +136,18 @@ func (ls *LogSamplerImpl) configure(config []LogSamplingConfig) {
 			continue
 		}
 		if currentrule, ok := ls.rules[c.Id]; ok {
-			ls.updateCurrentRule(ls.logger, currentrule, c)
+			ls.updateCurrentRule(currentrule, c)
 		} else {
 			ls.addRule(c)
 		}
 		delete(currentIDs, c.Id)
 	}
 
+	// clean up any old rules
 	for k := range currentIDs {
 		r := ls.rules[k]
 		_ = r.sampler.Stop()
+		ls.logger.Info("Removing log sampling rule", zap.String("id", k))
 		delete(ls.rules, k)
 	}
 }
@@ -167,10 +169,8 @@ func (ls *LogSamplerImpl) addRule(c LogSamplingConfig) {
 		ls.logger.Error("Error starting log sampler", zap.Error(err))
 		return
 	}
-	ls.rules[c.Id] = r
-	if err := r.sampler.Start(); err != nil {
-		ls.logger.Error("Error starting log sampler", zap.Error(err))
-	}
+	ls.logger.Info("Started log sampling rule", zap.String("id", c.Id))
+	ls.rules[c.Id] = &r
 }
 
 func samplerForType(c LogSamplingConfig, logger *zap.Logger) (ruleType LogRuleType, sampler Sampler) {
@@ -189,15 +189,20 @@ func samplerForType(c LogSamplingConfig, logger *zap.Logger) (ruleType LogRuleTy
 }
 
 // existing rule must be stopped and started by the caller.
-func (ls *LogSamplerImpl) updateCurrentRule(logger *zap.Logger, r logRule, c LogSamplingConfig) {
+func (ls *LogSamplerImpl) updateCurrentRule(r *logRule, c LogSamplingConfig) {
 	if r.config.Equals(c) {
 		return
 	}
-	logger.Info("Updating log sampling rule", zap.String("id", c.Id), zap.Any("config", c))
+	ls.logger.Info("Updating log sampling rule", zap.String("id", c.Id), zap.Any("config", c))
 	_ = r.sampler.Stop()
-	r.ruleType, r.sampler = samplerForType(c, logger)
+	r.ruleType, r.sampler = samplerForType(c, ls.logger)
+	if r.sampler == nil {
+		ls.logger.Error("Unknown log sampling rule type", zap.String("type", c.RuleType))
+		return
+	}
 	r.config = c
 	if err := r.sampler.Start(); err != nil {
 		ls.logger.Error("Error starting log sampler", zap.Error(err))
 	}
+	ls.logger.Info("Started log sampling rule", zap.String("id", c.Id))
 }

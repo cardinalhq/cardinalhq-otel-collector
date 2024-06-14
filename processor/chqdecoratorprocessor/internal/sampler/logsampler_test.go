@@ -192,7 +192,7 @@ func makeConstantSampler() Sampler {
 func TestShouldFilterLog(t *testing.T) {
 	tests := []struct {
 		name     string
-		rules    map[string]logRule
+		rules    map[string]*logRule
 		rattr    map[string]string
 		iattr    map[string]string
 		lattr    map[string]string
@@ -200,7 +200,7 @@ func TestShouldFilterLog(t *testing.T) {
 	}{
 		{
 			"no rules",
-			map[string]logRule{},
+			map[string]*logRule{},
 			map[string]string{"service.name": "my-service"},
 			map[string]string{},
 			map[string]string{},
@@ -208,7 +208,7 @@ func TestShouldFilterLog(t *testing.T) {
 		},
 		{
 			"no matching rules",
-			map[string]logRule{
+			map[string]*logRule{
 				"rule1": {
 					"rule1",
 					LogRuleTypeRPS,
@@ -223,7 +223,7 @@ func TestShouldFilterLog(t *testing.T) {
 		},
 		{
 			"matching rule",
-			map[string]logRule{
+			map[string]*logRule{
 				"rule1": {
 					"rule1",
 					LogRuleTypeRPS,
@@ -238,7 +238,7 @@ func TestShouldFilterLog(t *testing.T) {
 		},
 		{
 			"multiple rules",
-			map[string]logRule{
+			map[string]*logRule{
 				"rule1": {
 					"rule1",
 					LogRuleTypeRPS,
@@ -259,7 +259,7 @@ func TestShouldFilterLog(t *testing.T) {
 		},
 		{
 			"empty scope",
-			map[string]logRule{
+			map[string]*logRule{
 				"rule1": {
 					"rule1",
 					LogRuleTypeRPS,

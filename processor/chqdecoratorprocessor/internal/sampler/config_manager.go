@@ -56,7 +56,7 @@ func NewConfigManagerImpl(logger *zap.Logger, CheckInterval time.Duration, fr fi
 	}
 	return &ConfigManagerImpl{
 		done:                  make(chan struct{}),
-		logger:                logger,
+		logger:                logger.Named("sampler_config_manager"),
 		callbacks:             map[int]ConfigUpdateCallbackFunc{},
 		callbackNames:         map[int]string{},
 		registerCallbackChan:  make(chan registerRequest),
@@ -96,6 +96,7 @@ func (c *ConfigManagerImpl) Run() {
 	ticker := time.NewTicker(time.Millisecond * 10)
 	defer ticker.Stop()
 	c.logger.Info("Starting sampling config manager")
+	refreshCount := 0
 	for {
 		select {
 		case <-c.done:
@@ -107,6 +108,10 @@ func (c *ConfigManagerImpl) Run() {
 				ticker.Reset(interval)
 			}
 			c.checkUpdates()
+			refreshCount++
+			if refreshCount%10 == 0 {
+				c.updateCallbacksJustInCase()
+			}
 		case req := <-c.registerCallbackChan:
 			c.register(req)
 		case req := <-c.unregisterRequestChan:
@@ -119,13 +124,23 @@ func (c *ConfigManagerImpl) Stop() {
 	close(c.done)
 }
 
+func (c *ConfigManagerImpl) updateCallbacksJustInCase() {
+	if c.lastconf == nil {
+		return
+	}
+	for _, callback := range c.callbacks {
+		callback(*c.lastconf)
+	}
+}
+
 func (c *ConfigManagerImpl) register(req registerRequest) {
 	c.callbackCounter++
-	c.logger.Debug("registering callback", zap.Int("id", c.callbackCounter), zap.String("name", req.name))
+	c.logger.Info("registering callback", zap.Int("id", c.callbackCounter), zap.String("name", req.name))
 	c.callbacks[c.callbackCounter] = req.callback
 	c.callbackNames[c.callbackCounter] = req.name
 	req.ret <- c.callbackCounter
 	if c.lastconf != nil {
+		c.logger.Info("calling callback", zap.Int("id", c.callbackCounter))
 		req.callback(*c.lastconf)
 	}
 }
@@ -165,7 +180,7 @@ func (c *ConfigManagerImpl) checkUpdates() {
 	c.lastconf = &conf
 
 	for _, callback := range c.callbacks {
-		ll.Debug("Calling callback", zap.Int("id", c.callbackCounter))
+		ll.Info("Calling callback", zap.Int("id", c.callbackCounter))
 		callback(conf)
 	}
 }

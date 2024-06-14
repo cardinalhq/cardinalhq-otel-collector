@@ -125,6 +125,7 @@ func randomToRPS(rate float64) int {
 }
 
 func (ls *LogSamplerImpl) configure(config []LogSamplingConfig) {
+	ls.logger.Info("Updating log sampling rules", zap.Any("config", config))
 	currentIDs := map[string]bool{}
 	for k := range ls.rules {
 		currentIDs[k] = true

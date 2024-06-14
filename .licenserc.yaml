@@ -12,6 +12,7 @@ header:
     - 'NOTICE'
     - .gitignore
     - .dockerignore
+    - .helmignore
     - .github
     - .licenserc.yaml
     - '**/*.yaml'

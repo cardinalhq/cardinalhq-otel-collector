@@ -14,6 +14,8 @@
 
 package sampler
 
+import "maps"
+
 type SamplerConfig struct {
 	Logs    LogConfig    `json:"logs,omitempty" yaml:"logs,omitempty"`
 	Metrics MetricConfig `json:"metrics,omitempty" yaml:"metrics,omitempty"`
@@ -51,4 +53,12 @@ type DestinationConfig struct {
 	Provider string `json:"provider,omitempty" yaml:"provider,omitempty"`
 	Host     string `json:"host,omitempty" yaml:"host,omitempty"`
 	APIKey   string `json:"apiKey,omitempty" yaml:"apiKey,omitempty"`
+}
+
+func (lsc LogSamplingConfig) Equals(other LogSamplingConfig) bool {
+	return lsc.Id == other.Id &&
+		lsc.RuleType == other.RuleType &&
+		lsc.SampleRate == other.SampleRate &&
+		lsc.RPS == other.RPS &&
+		maps.Equal(lsc.Scope, other.Scope)
 }

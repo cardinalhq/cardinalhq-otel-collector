@@ -168,7 +168,7 @@ func (a *rpsSampler) updateMaps() {
 	// check to see if we fall below the minimum
 	targetMinimumCount := float64(a.MaxRPS) * a.clearFrequencyDuration.Seconds()
 	if a.logger != nil {
-		a.logger.Debug("updateMaps", zap.Float64("sumEvents", sumEvents), zap.Float64("targetMinimumCount", targetMinimumCount))
+		a.logger.Info("updateMaps", zap.Float64("sumEvents", sumEvents), zap.Float64("targetMinimumCount", targetMinimumCount))
 	}
 	if sumEvents < targetMinimumCount {
 		// we still need to go through each key to set sample rates individually
@@ -183,7 +183,7 @@ func (a *rpsSampler) updateMaps() {
 
 	updatedGoalSampleRate := math.Ceil(float64(sumEvents) / float64(targetMinimumCount))
 	if a.logger != nil {
-		a.logger.Debug("updateMaps", zap.Float64("updatedGoalSampleRate", updatedGoalSampleRate))
+		a.logger.Info("updateMaps", zap.Float64("updatedGoalSampleRate", updatedGoalSampleRate))
 	}
 	goalCount := float64(sumEvents) / updatedGoalSampleRate
 
@@ -197,6 +197,13 @@ func (a *rpsSampler) updateMaps() {
 	goalRatio := goalCount / logSum
 
 	newSavedSampleRates = calculateSampleRates(goalRatio, tmpCounts)
+	if a.logger != nil {
+		a.logger.Info("updateMaps",
+			zap.Float64("goalCount", goalCount),
+			zap.Float64("logSum", logSum),
+			zap.Any("tmpCounts", tmpCounts),
+			zap.Any("newSavedSampleRates", newSavedSampleRates))
+	}
 	a.lock.Lock()
 	defer a.lock.Unlock()
 	a.savedSampleRates = newSavedSampleRates

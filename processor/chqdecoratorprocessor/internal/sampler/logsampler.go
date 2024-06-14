@@ -17,7 +17,6 @@ package sampler
 import (
 	"context"
 	"fmt"
-	"maps"
 	"math/rand"
 	"sync"
 
@@ -43,7 +42,7 @@ type logRule struct {
 	id       string
 	ruleType LogRuleType
 	sampler  Sampler
-	scope    map[string]string
+	config   LogSamplingConfig
 }
 
 func NewLogSamplerImpl(ctx context.Context, logger *zap.Logger) *LogSamplerImpl {
@@ -93,7 +92,7 @@ func (ls *LogSamplerImpl) shouldFilter(fingerprint string, rattr pcommon.Map, ia
 			"log":      lattr,
 		}
 		key := fmt.Sprintf("%s:%s", serviceName, fingerprint)
-		if matchscope(r.scope, attrs) {
+		if matchscope(r.config.Scope, attrs) {
 			rate := r.sampler.GetSampleRate(key)
 			wasHit := shouldFilter(rate, randval)
 			if wasHit && !matched {
@@ -137,16 +136,11 @@ func (ls *LogSamplerImpl) configure(config []LogSamplingConfig) {
 			continue
 		}
 		if currentrule, ok := ls.rules[c.Id]; ok {
-			_ = currentrule.sampler.Stop()
-			updateCurrentRule(ls.logger, currentrule, c)
+			ls.updateCurrentRule(ls.logger, currentrule, c)
 		} else {
 			ls.addRule(c)
 		}
 		delete(currentIDs, c.Id)
-
-		if err := ls.rules[c.Id].sampler.Start(); err != nil {
-			ls.logger.Error("Error starting log sampler", zap.Error(err), zap.String("id", c.Id), zap.String("type", c.RuleType))
-		}
 	}
 
 	for k := range currentIDs {
@@ -158,10 +152,11 @@ func (ls *LogSamplerImpl) configure(config []LogSamplingConfig) {
 
 // new rule must be started by the caller.
 func (ls *LogSamplerImpl) addRule(c LogSamplingConfig) {
+	ls.logger.Info("Adding log sampling rule", zap.String("id", c.Id), zap.Any("config", c))
 	r := logRule{
 		id:       c.Id,
 		ruleType: logRuletypeToInt(c.RuleType),
-		scope:    c.Scope,
+		config:   c,
 	}
 	r.ruleType, r.sampler = samplerForType(c, ls.logger)
 	if r.sampler == nil {
@@ -173,6 +168,9 @@ func (ls *LogSamplerImpl) addRule(c LogSamplingConfig) {
 		return
 	}
 	ls.rules[c.Id] = r
+	if err := r.sampler.Start(); err != nil {
+		ls.logger.Error("Error starting log sampler", zap.Error(err))
+	}
 }
 
 func samplerForType(c LogSamplingConfig, logger *zap.Logger) (ruleType LogRuleType, sampler Sampler) {
@@ -191,12 +189,15 @@ func samplerForType(c LogSamplingConfig, logger *zap.Logger) (ruleType LogRuleTy
 }
 
 // existing rule must be stopped and started by the caller.
-func updateCurrentRule(logger *zap.Logger, r logRule, c LogSamplingConfig) {
-	cps := logRuletypeToInt(c.RuleType)
-	if r.ruleType != cps {
-		r.ruleType, r.sampler = samplerForType(c, logger)
+func (ls *LogSamplerImpl) updateCurrentRule(logger *zap.Logger, r logRule, c LogSamplingConfig) {
+	if r.config.Equals(c) {
+		return
 	}
-	if !maps.Equal(c.Scope, r.scope) {
-		r.scope = c.Scope
+	logger.Info("Updating log sampling rule", zap.String("id", c.Id), zap.Any("config", c))
+	_ = r.sampler.Stop()
+	r.ruleType, r.sampler = samplerForType(c, logger)
+	r.config = c
+	if err := r.sampler.Start(); err != nil {
+		ls.logger.Error("Error starting log sampler", zap.Error(err))
 	}
 }

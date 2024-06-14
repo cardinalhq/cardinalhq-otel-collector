@@ -46,3 +46,32 @@ func TestNewRPSSamplerWithOptions(t *testing.T) {
 	assert.Equal(t, maxRPS, sampler.MaxRPS)
 	assert.Equal(t, logger, sampler.logger)
 }
+
+func TestCalculateSampleRates(t *testing.T) {
+	tests := []struct {
+		name      string
+		goalRatio float64
+		buckets   map[string]float64
+		expected  map[string]int
+	}{
+		{
+			"one key, below limit",
+			92,
+			map[string]float64{"key1": 10},
+			map[string]int{"key1": 1},
+		},
+		{
+			"two key, above limit of 500",
+			92,
+			map[string]float64{"key1": 500, "key2": 500},
+			map[string]int{"key1": 3, "key2": 2},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ret := calculateSampleRates(tt.goalRatio, tt.buckets)
+			assert.Equal(t, tt.expected, ret)
+		})
+	}
+}

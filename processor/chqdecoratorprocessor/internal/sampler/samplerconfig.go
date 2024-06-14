@@ -17,6 +17,8 @@ package sampler
 type SamplerConfig struct {
 	Logs    LogConfig    `json:"logs,omitempty" yaml:"logs,omitempty"`
 	Metrics MetricConfig `json:"metrics,omitempty" yaml:"metrics,omitempty"`
+
+	hash uint64
 }
 
 type LogConfig struct {

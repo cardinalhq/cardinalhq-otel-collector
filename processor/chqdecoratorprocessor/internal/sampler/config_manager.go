@@ -42,7 +42,6 @@ type ConfigManagerImpl struct {
 	callbackNames         map[int]string
 	registerCallbackChan  chan registerRequest
 	unregisterRequestChan chan unregisterRequest
-	lasthash              uint64
 	freader               filereader.FileReader
 	interval              time.Duration
 	lastconf              *SamplerConfig
@@ -96,7 +95,6 @@ func (c *ConfigManagerImpl) Run() {
 	ticker := time.NewTicker(time.Second * 10)
 	defer ticker.Stop()
 	c.logger.Info("Starting sampling config manager")
-	refreshCount := 0
 	for {
 		select {
 		case <-c.done:
@@ -108,10 +106,6 @@ func (c *ConfigManagerImpl) Run() {
 				ticker.Reset(interval)
 			}
 			c.checkUpdates()
-			refreshCount++
-			if refreshCount%10 == 0 {
-				c.updateCallbacksJustInCase()
-			}
 		case req := <-c.registerCallbackChan:
 			c.register(req)
 		case req := <-c.unregisterRequestChan:
@@ -124,15 +118,6 @@ func (c *ConfigManagerImpl) Stop() {
 	close(c.done)
 }
 
-func (c *ConfigManagerImpl) updateCallbacksJustInCase() {
-	if c.lastconf == nil {
-		return
-	}
-	for _, callback := range c.callbacks {
-		callback(*c.lastconf)
-	}
-}
-
 func (c *ConfigManagerImpl) register(req registerRequest) {
 	c.callbackCounter++
 	c.logger.Info("registering callback", zap.Int("id", c.callbackCounter), zap.String("name", req.name))
@@ -140,7 +125,7 @@ func (c *ConfigManagerImpl) register(req registerRequest) {
 	c.callbackNames[c.callbackCounter] = req.name
 	req.ret <- c.callbackCounter
 	if c.lastconf != nil {
-		c.logger.Info("calling callback", zap.Int("id", c.callbackCounter))
+		c.logger.Info("Calling callback (register)", zap.Int("id", c.callbackCounter), zap.String("name", c.callbackNames[c.callbackCounter]))
 		req.callback(*c.lastconf)
 	}
 }
@@ -154,33 +139,29 @@ func (c *ConfigManagerImpl) unregister(req unregisterRequest) {
 func (c *ConfigManagerImpl) checkUpdates() {
 	var conf SamplerConfig
 
-	ll := c.logger.With(zap.String("filename", c.freader.Filename()))
-
-	ll.Debug("Checking for sampler config updates")
+	c.logger.Debug("Checking for sampler config updates")
 
 	b, err := c.freader.ReadFile(context.Background())
 	if err != nil {
-		ll.Info("Cannot read sampler config", zap.Error(err))
+		c.logger.Info("Cannot read sampler config", zap.Error(err))
 		return
 	}
 
 	newhash := xxhash.Sum64(b)
-	if newhash == c.lasthash {
-		ll.Debug("No change in sampler config", zap.Uint64("hash", newhash))
+	if c.lastconf != nil && c.lastconf.hash == newhash {
+		c.logger.Debug("No change in sampler config", zap.Uint64("hash", newhash))
 		return
 	}
-	ll.Info("Sampler config updated", zap.Uint64("hash", newhash))
-
+	c.logger.Info("Sampler config updated", zap.Uint64("hash", newhash))
 	if err := yaml.Unmarshal(b, &conf); err != nil {
-		ll.Error("Error unmarshalling sampler config YAML", zap.Error(err))
+		c.logger.Error("Error unmarshalling sampler config YAML", zap.Error(err))
 		return
 	}
-
-	c.lasthash = newhash
+	conf.hash = newhash
 	c.lastconf = &conf
 
 	for _, callback := range c.callbacks {
-		ll.Info("Calling callback", zap.Int("id", c.callbackCounter))
+		c.logger.Info("Calling callback", zap.Int("id", c.callbackCounter), zap.String("name", c.callbackNames[c.callbackCounter]))
 		callback(conf)
 	}
 }

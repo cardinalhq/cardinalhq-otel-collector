@@ -74,21 +74,20 @@ func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, ddMetrics []*d
 	tooOld := now.Add(-ddr.config.MaxMetricDatapointAge)
 
 	defer func() {
-		ddr.metricFilterCounter.Add(ctx, int64(removedDatapoints),
-			metric.WithAttributes(
-				attribute.String("disposition", "removed"),
-				attribute.String("max_age", ddr.config.MaxMetricDatapointAge.String()),
-				attribute.String("received_by_pod", ddr.podName),
-				attribute.String("receiver", ddr.id)))
-		ddr.metricFilterCounter.Add(ctx, int64(keptDatapoints),
-			metric.WithAttributes(
-				attribute.String("disposition", "kept"),
-				attribute.String("max_age", ddr.config.MaxMetricDatapointAge.String()),
-				attribute.String("received_by_pod", ddr.podName),
-				attribute.String("receiver", ddr.id)))
-		ddr.metricLogger.Info("filterOlderThan",
-			zap.Int("kept", keptDatapoints),
-			zap.Int("removed", removedDatapoints))
+		asetRemoved := attribute.NewSet(
+			attribute.String("apiversion", "v2"),
+			attribute.String("disposition", "removed"),
+			attribute.String("max_age", ddr.config.MaxMetricDatapointAge.String()),
+			attribute.String("received_by_pod", ddr.podName),
+			attribute.String("receiver", ddr.id))
+		asetKept := attribute.NewSet(
+			attribute.String("apiversion", "v2"),
+			attribute.String("disposition", "kept"),
+			attribute.String("max_age", ddr.config.MaxMetricDatapointAge.String()),
+			attribute.String("received_by_pod", ddr.podName),
+			attribute.String("receiver", ddr.id))
+		ddr.metricFilterCounter.Add(ctx, int64(removedDatapoints), metric.WithAttributeSet(asetRemoved))
+		ddr.metricFilterCounter.Add(ctx, int64(keptDatapoints), metric.WithAttributeSet(asetKept))
 	}()
 
 	for _, metric := range ddMetrics {

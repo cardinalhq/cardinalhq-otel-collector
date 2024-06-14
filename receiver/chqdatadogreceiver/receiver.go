@@ -64,7 +64,7 @@ func newDataDogReceiver(config *Config, params receiver.CreateSettings) (compone
 		ddr.gpLogger = params.Logger.With(zap.String("data_type", "internal"))
 	}
 
-	m, err := metadata.Meter(ddr.telemetrySettings).Int64Counter(params.ID.Type().String()+"_receiver_datapoints_agechecked",
+	m, err := metadata.Meter(ddr.telemetrySettings).Int64Counter(params.ID.Type().String()+".receiver.datapoints.agechecked",
 		metric.WithDescription("The number of metrics filtered out by the Datadog receiver"))
 	if err != nil {
 		return nil, err

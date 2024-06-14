@@ -93,7 +93,7 @@ func (c *ConfigManagerImpl) UnregisterCallback(id int) {
 func (c *ConfigManagerImpl) Run() {
 	first := true
 	interval := c.interval
-	ticker := time.NewTicker(time.Millisecond * 10)
+	ticker := time.NewTicker(time.Second * 10)
 	defer ticker.Stop()
 	c.logger.Info("Starting sampling config manager")
 	refreshCount := 0

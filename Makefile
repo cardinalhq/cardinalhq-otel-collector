@@ -29,7 +29,7 @@ BINARIES = cardinalhq-otel-collector
 # Dockerfiles should have a target that ends in -image, e.g. agent-image.
 IMAGE_TARGETS = cardinalhq-otel-collector
 
-LINT_TEST_SOURCE_PATHS = `ls -1d {receiver,processor,exporter,extension}/*` internal
+MODULE_SOURCE_PATHS = `ls -1d {receiver,processor,exporter,extension}/*` internal
 
 #
 # Below here lies magic...
@@ -59,10 +59,14 @@ generate:
 #
 check: test
 	license-eye header check
-	for i in $(LINT_TEST_SOURCE_PATHS); do \
+	for i in $(MODULE_SOURCE_PATHS); do \
 		(echo ============ linting $$i ... ; cd $$i && golangci-lint run) \
 	done
 
+update-deps:
+	for i in $(MODULE_SOURCE_PATHS); do \
+		(echo ============ updating $$i ... ; cd $$i && go get -u -t ./... && go mod tidy) \
+	done
 
 # requires otel builder to be installed.
 # go install go.opentelemetry.io/collector/cmd/builder@latest
@@ -116,7 +120,7 @@ image-names:
 
 .PHONY: test
 test: generate
-	for i in $(LINT_TEST_SOURCE_PATHS); do \
+	for i in $(MODULE_SOURCE_PATHS); do \
 		(echo ============ testing $$i ... ; cd $$i && go test ./...) \
 	done
 

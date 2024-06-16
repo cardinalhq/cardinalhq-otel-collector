@@ -56,7 +56,6 @@ func (e *datadogExporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics
 					if err := e.convertSumMetric(ctx, m, rAttr, sAttr, metric.Sum()); err != nil {
 						return err
 					}
-					m.Type = ddpb.MetricPayload_COUNT
 					msg.Series = append(msg.Series, m)
 				case pmetric.MetricTypeHistogram:
 					//
@@ -91,22 +90,9 @@ func valueAsFloat64(dp pmetric.NumberDataPoint) float64 {
 func (e *datadogExporter) convertGaugeMetric(_ context.Context, m *ddpb.MetricPayload_MetricSeries, rAttr, sAttr pcommon.Map, g pmetric.Gauge) error {
 	for i := 0; i < g.DataPoints().Len(); i++ {
 		dp := g.DataPoints().At(i)
-		lAttr := pcommon.NewMap()
-		dp.Attributes().CopyTo(lAttr)
 		if i == 0 {
-			if _, found := lAttr.Get("dd.israte"); found {
-				m.Type = ddpb.MetricPayload_RATE
-				if v, found := lAttr.Get("dd.rateInterval"); found {
-					val := v.AsRaw()
-					if intval, ok := val.(int64); ok {
-						m.Interval = intval
-					}
-				}
-			}
-			m.Tags = append(m.Tags, tagStrings(rAttr, sAttr, lAttr)...)
+			m.Tags = append(m.Tags, tagStrings(rAttr, sAttr, dp.Attributes())...)
 		}
-		lAttr.Remove("dd.israte")
-		lAttr.Remove("dd.rateInterval")
 		m.Points = append(m.Points, &ddpb.MetricPayload_MetricPoint{
 			Timestamp: dp.Timestamp().AsTime().Unix(),
 			Value:     valueAsFloat64(dp),
@@ -118,12 +104,29 @@ func (e *datadogExporter) convertGaugeMetric(_ context.Context, m *ddpb.MetricPa
 func (e *datadogExporter) convertSumMetric(_ context.Context, m *ddpb.MetricPayload_MetricSeries, rAttr, sAttr pcommon.Map, s pmetric.Sum) error {
 	for i := 0; i < s.DataPoints().Len(); i++ {
 		dp := s.DataPoints().At(i)
+		value := valueAsFloat64(dp)
 		if i == 0 {
-			m.Tags = append(m.Tags, tagStrings(rAttr, sAttr, dp.Attributes())...)
+			lAttr := pcommon.NewMap()
+			dp.Attributes().CopyTo(lAttr)
+			if _, found := lAttr.Get("dd.israte"); found {
+				m.Type = ddpb.MetricPayload_RATE
+				if v, found := lAttr.Get("dd.rateInterval"); found {
+					val := v.AsRaw()
+					if intval, ok := val.(int64); ok {
+						m.Interval = intval
+						value = value / float64(intval)
+					}
+				}
+			} else {
+				m.Type = ddpb.MetricPayload_COUNT
+			}
+			lAttr.Remove("dd.israte")
+			lAttr.Remove("dd.rateInterval")
+			m.Tags = append(m.Tags, tagStrings(rAttr, sAttr, lAttr)...)
 		}
 		m.Points = append(m.Points, &ddpb.MetricPayload_MetricPoint{
 			Timestamp: dp.Timestamp().AsTime().Unix(),
-			Value:     valueAsFloat64(dp),
+			Value:     value,
 		})
 	}
 	return nil

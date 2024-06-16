@@ -35,8 +35,6 @@ MODULE_SOURCE_PATHS = `ls -1d {receiver,processor,exporter,extension}/*` interna
 # Below here lies magic...
 #
 
-rl_deps = internal/tokenizer/fingerprinter.go
-
 all_deps := $(shell find . -name '*.yaml') Dockerfile Makefile
 
 now := $(shell date -u +%Y%m%dT%H%M%S)
@@ -53,6 +51,9 @@ all: ${TARGETS}
 #
 .PHONY: generate
 generate:
+	for i in $(MODULE_SOURCE_PATHS); do \
+		(echo ============ generating $$i ... ; cd $$i && go generate ./...) \
+	done
 
 #
 # Run pre-commit checks

@@ -241,13 +241,15 @@ func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPa
 			populateDatapoint(&gdp, point.Timestamp*1000, &v2.Interval, point.Value)
 		}
 	case ddpb.MetricPayload_RATE:
-		g := metric.SetEmptyGauge()
+		c := metric.SetEmptySum()
+		c.SetIsMonotonic(false)
+		c.SetAggregationTemporality(pmetric.AggregationTemporalityDelta)
 		for _, point := range v2.Points {
-			gdp := g.DataPoints().AppendEmpty()
-			lAttr.CopyTo(gdp.Attributes())
-			gdp.Attributes().PutBool("dd.israte", true)
-			gdp.Attributes().PutInt("dd.rateInterval", v2.Interval)
-			populateDatapoint(&gdp, point.Timestamp*1000, &v2.Interval, point.Value)
+			cdp := c.DataPoints().AppendEmpty()
+			lAttr.CopyTo(cdp.Attributes())
+			cdp.Attributes().PutBool("dd.israte", true)
+			cdp.Attributes().PutInt("dd.rateInterval", v2.Interval)
+			populateDatapoint(&cdp, point.Timestamp*1000, &v2.Interval, point.Value*float64(v2.Interval))
 		}
 	case ddpb.MetricPayload_COUNT:
 		c := metric.SetEmptySum()

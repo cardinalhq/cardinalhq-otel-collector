@@ -65,9 +65,10 @@ func TestMetricBoolsToPhase(t *testing.T) {
 		isAggregation  bool
 		expectedResult chqpb.Phase
 	}{
-		{"wasAggregated=true, isAggregation=false", true, false, chqpb.Phase_AGGREGATED},
-		{"wasAggregated=false, isAggregation=true", false, true, chqpb.Phase_AGGREGATION_OUTPUT},
-		{"wasAggregated=false, isAggregation=false", false, false, chqpb.Phase_PASSTHROUGH},
+		{"wasFiltered=true, isAggregation=false", true, false, chqpb.Phase_AGGREGATED},
+		{"wasFiltered=false, isAggregation=true", false, true, chqpb.Phase_AGGREGATION_OUTPUT},
+		{"wasFiltered=false, isAggregation=false", false, false, chqpb.Phase_PASSTHROUGH},
+		{"wasFiltered=true, isAggregation=true", true, true, chqpb.Phase_AGGREGATION_OUTPUT},
 	}
 
 	for _, tt := range tests {

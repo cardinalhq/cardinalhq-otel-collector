@@ -209,7 +209,12 @@ func setTags(res pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, metric pmetri
 			setMetadata(res, sm, metric, tagname, v)
 		}
 	}
+	dp.Attributes().PutBool(translate.CardinalFieldFiltered, false)
+	dp.Attributes().PutBool(translate.CardinalFieldWouldFilter, false)
 	dp.Attributes().PutBool(translate.CardinalFieldAggregatedOutput, true)
+
+	tid := translate.CalculateTID(res.Resource().Attributes(), sm.Scope().Attributes(), dp.Attributes(), "metric")
+	dp.Attributes().PutInt(translate.CardinalFieldTID, tid)
 }
 
 func setMetadata(res pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, metric pmetric.Metric, tagname string, v string) {

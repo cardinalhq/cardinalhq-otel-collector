@@ -31,12 +31,12 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
-func metricBoolsToPhase(wasAggregated, isAggregation bool) chqpb.Phase {
-	if wasAggregated {
-		return chqpb.Phase_AGGREGATED
-	}
+func metricBoolsToPhase(wasFiltered, isAggregation bool) chqpb.Phase {
 	if isAggregation {
 		return chqpb.Phase_AGGREGATION_OUTPUT
+	}
+	if wasFiltered {
+		return chqpb.Phase_AGGREGATED
 	}
 	return chqpb.Phase_PASSTHROUGH
 }
@@ -106,10 +106,9 @@ func getBoolOrDefault(attr pcommon.Map, key string, def bool) bool {
 
 func (e *statsExporter) recordDatapoint(now time.Time, metricName, serviceName string, rattr, sattr, dpAttr pcommon.Map) error {
 	var errs error
-	wasAggregated := getBoolOrDefault(dpAttr, translate.CardinalFieldFiltered, false)
+	wasFiltered := getBoolOrDefault(dpAttr, translate.CardinalFieldFiltered, false)
 	isAggregation := getBoolOrDefault(dpAttr, translate.CardinalFieldAggregatedOutput, false)
-
-	phase := metricBoolsToPhase(wasAggregated, isAggregation)
+	phase := metricBoolsToPhase(wasFiltered, isAggregation)
 
 	rattr.Range(func(k string, v pcommon.Value) bool {
 		errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "resource."+k, v.AsString(), phase, 1))

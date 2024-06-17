@@ -57,6 +57,8 @@ extensions:
   - gomod: go.opentelemetry.io/collector/extension/zpagesextension v0.102.1
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.31.0
     path: ./extension/chqauthextension
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.31.0
+    path: ./extension/chqconfigextension
 
 processors:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/attributesprocessor v0.102.0

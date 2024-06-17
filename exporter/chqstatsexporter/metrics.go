@@ -95,22 +95,19 @@ func (e *statsExporter) ConsumeMetrics(_ context.Context, md pmetric.Metrics) er
 	return nil
 }
 
+func getBoolOrDefault(attr pcommon.Map, key string, def bool) bool {
+	if v, found := attr.Get(key); found {
+		if b, ok := v.AsRaw().(bool); ok {
+			return b
+		}
+	}
+	return def
+}
+
 func (e *statsExporter) recordDatapoint(now time.Time, metricName, serviceName string, rattr, sattr, dpAttr pcommon.Map) error {
 	var errs error
-	wasAggregated := false
-	isAggregation := false
-	if v, found := dpAttr.Get(translate.CardinalFieldFiltered); found {
-		r := v.AsRaw()
-		if b, ok := r.(bool); ok {
-			wasAggregated = b
-		}
-	}
-	if v, found := dpAttr.Get(translate.CardinalFieldAggregatedOutput); found {
-		r := v.AsRaw()
-		if b, ok := r.(bool); ok {
-			isAggregation = b
-		}
-	}
+	wasAggregated := getBoolOrDefault(dpAttr, translate.CardinalFieldFiltered, false)
+	isAggregation := getBoolOrDefault(dpAttr, translate.CardinalFieldAggregatedOutput, false)
 
 	phase := metricBoolsToPhase(wasAggregated, isAggregation)
 

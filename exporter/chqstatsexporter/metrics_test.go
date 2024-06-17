@@ -24,9 +24,59 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/config/confighttp"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 )
+
+func TestGetBoolOrDefault(t *testing.T) {
+	attr := pcommon.NewMap()
+	attr.PutBool("key1", true)
+	attr.PutBool("key1f", false)
+	attr.PutStr("key2", "value2")
+
+	tests := []struct {
+		name     string
+		attr     pcommon.Map
+		key      string
+		def      bool
+		expected bool
+	}{
+		{"bool value exists and is true, default false", attr, "key1", false, true},
+		{"bool value exists and is false, default true", attr, "key1f", true, false},
+		{"string value exists, default false", attr, "key2", false, false},
+		{"string value exists, default true", attr, "key2", true, true},
+		{"key does not exist, default false", attr, "key3", false, false},
+		{"key does not exist, value true", attr, "key3", true, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getBoolOrDefault(tt.attr, tt.key, tt.def)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+func TestMetricBoolsToPhase(t *testing.T) {
+	tests := []struct {
+		name           string
+		wasAggregated  bool
+		isAggregation  bool
+		expectedResult chqpb.Phase
+	}{
+		{"wasAggregated=true, isAggregation=false", true, false, chqpb.Phase_AGGREGATED},
+		{"wasAggregated=false, isAggregation=true", false, true, chqpb.Phase_AGGREGATION_OUTPUT},
+		{"wasAggregated=false, isAggregation=false", false, false, chqpb.Phase_PASSTHROUGH},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := metricBoolsToPhase(tt.wasAggregated, tt.isAggregation)
+			assert.Equal(t, tt.expectedResult, result)
+		})
+	}
+}
 
 func TestPostMetricStats(t *testing.T) {
 	// Create a mock server to handle the HTTP request

@@ -26,9 +26,9 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	apiKeyHeader = "x-cardinalhq-api-key"
-)
+//const (
+//	apiKeyHeader = "x-cardinalhq-api-key"
+//)
 
 type chqConfig struct {
 	config     *Config

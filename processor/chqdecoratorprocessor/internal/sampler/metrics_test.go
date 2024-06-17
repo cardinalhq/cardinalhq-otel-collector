@@ -386,3 +386,12 @@ func TestMatchscopeMap(t *testing.T) {
 		})
 	}
 }
+
+func TestNowTime(t *testing.T) {
+	tt := time.Now()
+	actual := nowtime(&tt)
+	assert.Equal(t, tt, *actual)
+
+	actual = nowtime(nil)
+	assert.True(t, time.Now().Sub(*actual) < time.Second)
+}

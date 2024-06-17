@@ -86,6 +86,14 @@ func (m *MetricAggregatorImpl[T]) add(t time.Time, name string, buckets []T, val
 	return set.Add(name, buckets, values, aggregationType, tags)
 }
 
+func nowtime(t *time.Time) *time.Time {
+	if t == nil {
+		tt := time.Now()
+		return &tt
+	}
+	return t
+}
+
 func (m *MetricAggregatorImpl[T]) MatchAndAdd(
 	t *time.Time,
 	buckets []T,
@@ -99,10 +107,7 @@ func (m *MetricAggregatorImpl[T]) MatchAndAdd(
 ) (*AggregatorConfig, error) {
 	m.rulesLock.RLock()
 	defer m.rulesLock.RUnlock()
-	if t == nil {
-		tt := time.Now()
-		t = &tt
-	}
+	t = nowtime(t)
 	for _, rule := range m.rules {
 		if rule.MetricName != "" && rule.MetricName != name {
 			continue

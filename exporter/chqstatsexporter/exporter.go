@@ -41,7 +41,7 @@ type statsExporter struct {
 	logger *zap.Logger
 }
 
-func newStatsExporter(config *Config, params exporter.CreateSettings) *statsExporter {
+func newStatsExporter(config *Config, params exporter.Settings) *statsExporter {
 	now := time.Now()
 	statsExporter := &statsExporter{
 		config:             config,

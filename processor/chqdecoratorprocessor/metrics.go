@@ -46,7 +46,7 @@ type metricProcessor struct {
 	podName             string
 }
 
-func newMetricProcessor(set processor.CreateSettings, conf *Config, nextConsumer consumer.Metrics) (*metricProcessor, error) {
+func newMetricProcessor(set processor.Settings, conf *Config, nextConsumer consumer.Metrics) (*metricProcessor, error) {
 	var err error
 	mp := &metricProcessor{
 		logger:              set.Logger,

@@ -25,7 +25,14 @@ import (
 	"go.opentelemetry.io/collector/config/configcompression"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/config/configopaque"
-	"go.opentelemetry.io/collector/confmap/confmaptest"
+	"go.opentelemetry.io/collector/confmap"
+	"go.opentelemetry.io/collector/confmap/converter/expandconverter"
+	"go.opentelemetry.io/collector/confmap/provider/envprovider"
+	"go.opentelemetry.io/collector/confmap/provider/fileprovider"
+	"go.opentelemetry.io/collector/confmap/provider/httpprovider"
+	"go.opentelemetry.io/collector/confmap/provider/yamlprovider"
+	"go.opentelemetry.io/collector/otelcol"
+	"go.opentelemetry.io/collector/otelcol/otelcoltest"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqstatsexporter/internal/metadata"
 )
@@ -33,45 +40,67 @@ import (
 func TestLoadConfig(t *testing.T) {
 	t.Parallel()
 
-	cm, err := confmaptest.LoadConf(filepath.Join("testdata", "config.yaml"))
-	require.NoError(t, err)
+	factories, err := otelcoltest.NopFactories()
+	assert.NoError(t, err)
 
-	tests := []struct {
-		id       component.ID
-		expected component.Config
-	}{
-		{
-			id:       component.NewIDWithName(metadata.Type, "default-config"),
-			expected: createDefaultConfig(),
+	factory := NewFactory()
+	factories.Exporters[metadata.Type] = factory
+
+	cfg, err := otelcoltest.LoadConfigWithSettings(factories, otelcol.ConfigProviderSettings{
+		ResolverSettings: confmap.ResolverSettings{
+			URIs: []string{filepath.Join("testdata", "default.yaml")},
+			ProviderFactories: []confmap.ProviderFactory{
+				fileprovider.NewFactory(),
+				envprovider.NewFactory(),
+				yamlprovider.NewFactory(),
+				httpprovider.NewFactory(),
+			},
+			ConverterFactories: []confmap.ConverterFactory{expandconverter.NewFactory()},
 		},
-		{
-			id: component.NewIDWithName(metadata.Type, "override-config"),
-			expected: &Config{
-				ClientConfig: confighttp.ClientConfig{
-					Timeout:     500 * time.Millisecond,
-					Endpoint:    "http://localhost:8080",
-					Compression: configcompression.TypeZstd,
-					Headers: map[string]configopaque.String{
-						"Alice":      "Bob",
-						"User-Agent": "cardinalhq-otel-collector",
-					},
-				},
-				Interval: 100 * time.Second,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+
+	e := cfg.Exporters[component.MustNewID("chqstats")].(*Config)
+	assert.Equal(t, createDefaultConfig(), e)
+}
+
+func TestConfig(t *testing.T) {
+	t.Parallel()
+
+	factories, err := otelcoltest.NopFactories()
+	assert.NoError(t, err)
+
+	factory := NewFactory()
+	factories.Exporters[metadata.Type] = factory
+
+	cfg, err := otelcoltest.LoadConfigWithSettings(factories, otelcol.ConfigProviderSettings{
+		ResolverSettings: confmap.ResolverSettings{
+			URIs: []string{filepath.Join("testdata", "config.yaml")},
+			ProviderFactories: []confmap.ProviderFactory{
+				fileprovider.NewFactory(),
+				envprovider.NewFactory(),
+				yamlprovider.NewFactory(),
+				httpprovider.NewFactory(),
+			},
+			ConverterFactories: []confmap.ConverterFactory{expandconverter.NewFactory()},
+		},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+
+	e := cfg.Exporters[component.MustNewID("chqstats")].(*Config)
+	expected := &Config{
+		ClientConfig: confighttp.ClientConfig{
+			Timeout:     500 * time.Millisecond,
+			Endpoint:    "http://localhost:8080",
+			Compression: configcompression.TypeZstd,
+			Headers: map[string]configopaque.String{
+				"Alice":      "Bob",
+				"User-Agent": "cardinalhq-otel-collector",
 			},
 		},
+		Interval: 100 * time.Second,
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.id.String(), func(t *testing.T) {
-			factory := NewFactory()
-			cfg := factory.CreateDefaultConfig()
-
-			sub, err := cm.Sub(tt.id.String())
-			require.NoError(t, err)
-			require.NoError(t, component.UnmarshalConfig(sub, cfg))
-
-			assert.NoError(t, component.ValidateConfig(cfg))
-			assert.Equal(t, tt.expected, cfg)
-		})
-	}
+	assert.Equal(t, expected, e)
 }

@@ -393,5 +393,5 @@ func TestNowTime(t *testing.T) {
 	assert.Equal(t, tt, *actual)
 
 	actual = nowtime(nil)
-	assert.True(t, time.Now().Sub(*actual) < time.Second)
+	assert.True(t, time.Since(*actual) < time.Second)
 }

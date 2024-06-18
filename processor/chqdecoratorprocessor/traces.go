@@ -53,7 +53,7 @@ type spansProcessor struct {
 	podName              string
 }
 
-func newSpansProcessor(set processor.CreateSettings, config *Config) (*spansProcessor, error) {
+func newSpansProcessor(set processor.Settings, config *Config) (*spansProcessor, error) {
 	sp := &spansProcessor{
 		logger:               set.Logger,
 		traceConfig:          &config.TraceConfig,

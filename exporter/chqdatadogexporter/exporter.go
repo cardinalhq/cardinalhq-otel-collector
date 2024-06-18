@@ -43,7 +43,7 @@ type datadogExporter struct {
 	logger *zap.Logger
 }
 
-func newDatadogExporter(config *Config, params exporter.CreateSettings, ttype string) *datadogExporter {
+func newDatadogExporter(config *Config, params exporter.Settings, ttype string) *datadogExporter {
 	e := &datadogExporter{
 		config:            config,
 		telemetrySettings: params.TelemetrySettings,

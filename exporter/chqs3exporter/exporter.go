@@ -40,7 +40,7 @@ type s3Exporter struct {
 	telemetry  *exporterTelemetry
 }
 
-func newS3Exporter(config *Config, params exporter.CreateSettings) *s3Exporter {
+func newS3Exporter(config *Config, params exporter.Settings) *s3Exporter {
 	metadata := map[string]string{}
 	hn, err := os.Hostname()
 	if err == nil {

@@ -36,7 +36,7 @@ func createDefaultConfig() component.Config {
 	}
 }
 
-func createTracesReceiver(_ context.Context, params receiver.CreateSettings, cfg component.Config, consumer consumer.Traces) (ret receiver.Traces, err error) {
+func createTracesReceiver(_ context.Context, params receiver.Settings, cfg component.Config, consumer consumer.Traces) (ret receiver.Traces, err error) {
 	params.Logger.Info("Creating traces receiver")
 	rcfg := cfg.(*Config)
 	r := receivers.GetOrAdd(cfg, func() component.Component {
@@ -50,7 +50,7 @@ func createTracesReceiver(_ context.Context, params receiver.CreateSettings, cfg
 	return r, nil
 }
 
-func createLogsReceiver(_ context.Context, params receiver.CreateSettings, cfg component.Config, consumer consumer.Logs) (ret receiver.Logs, err error) {
+func createLogsReceiver(_ context.Context, params receiver.Settings, cfg component.Config, consumer consumer.Logs) (ret receiver.Logs, err error) {
 	params.Logger.Info("Creating logs receiver")
 	rcfg := cfg.(*Config)
 	r := receivers.GetOrAdd(cfg, func() component.Component {
@@ -63,7 +63,7 @@ func createLogsReceiver(_ context.Context, params receiver.CreateSettings, cfg c
 	return r, nil
 }
 
-func createMetricsReceiver(_ context.Context, params receiver.CreateSettings, cfg component.Config, consumer consumer.Metrics) (ret receiver.Metrics, err error) {
+func createMetricsReceiver(_ context.Context, params receiver.Settings, cfg component.Config, consumer consumer.Metrics) (ret receiver.Metrics, err error) {
 	params.Logger.Info("Creating metrics receiver")
 	rcfg := cfg.(*Config)
 	r := receivers.GetOrAdd(cfg, func() component.Component {

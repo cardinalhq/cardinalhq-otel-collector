@@ -92,14 +92,6 @@ func (fp *fingerprinterImpl) tokenizeJSONContent(prefix string, data map[string]
 	return s, level, nil
 }
 
-func (fp *fingerprinterImpl) hashJSONContent(prefix string, data map[string]any, suffix string) (int64, string, error) {
-	s, level, err := fp.tokenizeJSONContent(prefix, data, suffix)
-	if err != nil {
-		return 0, "", err
-	}
-	return int64(xxhash.Sum64String(s)), level, nil
-}
-
 func (fp *fingerprinterImpl) Fingerprint(input string) (fingerprint int64, level string, err error) {
 	s, level, err := fp.TokenizeInput(input)
 	if err != nil {

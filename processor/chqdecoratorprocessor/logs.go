@@ -41,7 +41,7 @@ type logProcessor struct {
 	podName       string
 }
 
-func newLogsProcessor(set processor.CreateSettings, conf *Config) (*logProcessor, error) {
+func newLogsProcessor(set processor.Settings, conf *Config) (*logProcessor, error) {
 	samp := sampler.NewLogSamplerImpl(context.Background(), set.Logger)
 
 	lp := &logProcessor{

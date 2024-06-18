@@ -38,7 +38,7 @@ type datadogReceiver struct {
 	id                  string
 }
 
-func newDataDogReceiver(config *Config, params receiver.CreateSettings) (component.Component, error) {
+func newDataDogReceiver(config *Config, params receiver.Settings) (component.Component, error) {
 	instance, err := receiverhelper.NewObsReport(receiverhelper.ObsReportSettings{LongLivedCtx: false, ReceiverID: params.ID, Transport: "http", ReceiverCreateSettings: params})
 	if err != nil {
 		return nil, err

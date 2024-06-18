@@ -25,7 +25,7 @@ type exporterTelemetry struct {
 	filesWritten metric.Int64Counter
 }
 
-func newTelemetry(set exporter.CreateSettings) (*exporterTelemetry, error) {
+func newTelemetry(set exporter.Settings) (*exporterTelemetry, error) {
 	tel := &exporterTelemetry{}
 
 	counter, err := metadata.Meter(set.TelemetrySettings).Int64Counter(

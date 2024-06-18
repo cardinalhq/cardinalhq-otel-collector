@@ -42,7 +42,7 @@ type chqConfig struct {
 	logger *zap.Logger
 }
 
-func (chq *chqConfig) setupTelemetry(params extension.CreateSettings) error {
+func (chq *chqConfig) setupTelemetry(params extension.Settings) error {
 	m, err := metadata.Meter(params.TelemetrySettings).Int64Counter("fetches")
 	if err != nil {
 		return err
@@ -52,7 +52,7 @@ func (chq *chqConfig) setupTelemetry(params extension.CreateSettings) error {
 	return nil
 }
 
-func newConfigExtension(cfg *Config, params extension.CreateSettings) (*chqConfig, error) {
+func newConfigExtension(cfg *Config, params extension.Settings) (*chqConfig, error) {
 	chq := chqConfig{
 		config:             cfg,
 		httpClientSettings: cfg.ClientConfig,

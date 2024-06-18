@@ -48,7 +48,7 @@ type processorTelemetry struct {
 	graphsPosted       metric.Int64Counter
 }
 
-func newProcessorTelemetry(set processor.CreateSettings) (*processorTelemetry, error) {
+func newProcessorTelemetry(set processor.Settings) (*processorTelemetry, error) {
 	dpt := &processorTelemetry{
 		exportCtx: context.Background(),
 	}

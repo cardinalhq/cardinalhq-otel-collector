@@ -78,7 +78,7 @@ func createDefaultConfig() component.Config {
 	}
 }
 
-func createLogsExporter(ctx context.Context, params exporter.CreateSettings, config component.Config) (exporter.Logs, error) {
+func createLogsExporter(ctx context.Context, params exporter.Settings, config component.Config) (exporter.Logs, error) {
 	e := newDatadogExporter(config.(*Config), params, "logs")
 	exp, err := exporterhelper.NewLogsExporter(
 		ctx, params, config,
@@ -93,7 +93,7 @@ func createLogsExporter(ctx context.Context, params exporter.CreateSettings, con
 	return exp, nil
 }
 
-func createMetricsExporter(ctx context.Context, params exporter.CreateSettings, config component.Config) (exporter.Metrics, error) {
+func createMetricsExporter(ctx context.Context, params exporter.Settings, config component.Config) (exporter.Metrics, error) {
 	e := newDatadogExporter(config.(*Config), params, "metrics")
 	exp, err := exporterhelper.NewMetricsExporter(
 		ctx, params, config,
@@ -108,7 +108,7 @@ func createMetricsExporter(ctx context.Context, params exporter.CreateSettings, 
 	return exp, nil
 }
 
-func createTracesExporter(ctx context.Context, params exporter.CreateSettings, config component.Config) (exporter.Traces, error) {
+func createTracesExporter(ctx context.Context, params exporter.Settings, config component.Config) (exporter.Traces, error) {
 	e := newDatadogExporter(config.(*Config), params, "traces")
 	exp, err := exporterhelper.NewTracesExporter(
 		ctx, params, config,

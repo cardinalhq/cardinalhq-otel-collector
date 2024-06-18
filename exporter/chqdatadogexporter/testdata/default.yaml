@@ -2,13 +2,8 @@ receivers:
   nop:
 
 exporters:
-  chqstats:
-    endpoint: http://localhost:8080
-    timeout: 500ms
-    compression: zstd
-    headers:
-      Alice: Bob
-    interval: 100s
+  chqdatadog:
+    api_key: 1234567890abcdef1234567890abcdef
 
 processors:
   nop:
@@ -18,12 +13,12 @@ service:
     traces:
       receivers: [nop]
       processors: [nop]
-      exporters: [chqstats]
+      exporters: [chqdatadog]
     metrics:
       receivers: [nop]
       processors: [nop]
-      exporters: [chqstats]
+      exporters: [chqdatadog]
     logs:
       receivers: [nop]
       processors: [nop]
-      exporters: [chqstats]
+      exporters: [chqdatadog]

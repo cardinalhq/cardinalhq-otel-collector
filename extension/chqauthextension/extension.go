@@ -59,7 +59,7 @@ type chqAuth struct {
 	logger *zap.Logger
 }
 
-func (chq *chqAuth) setupTelemetry(params extension.CreateSettings) error {
+func (chq *chqAuth) setupTelemetry(params extension.Settings) error {
 	m, err := metadata.Meter(params.TelemetrySettings).Int64Counter("auth_cache_lookups")
 	if err != nil {
 		return err
@@ -75,7 +75,7 @@ func (chq *chqAuth) setupTelemetry(params extension.CreateSettings) error {
 	return nil
 }
 
-func newServerAuthExtension(cfg *Config, params extension.CreateSettings) (auth.Server, error) {
+func newServerAuthExtension(cfg *Config, params extension.Settings) (auth.Server, error) {
 	chq := chqAuth{
 		config:             cfg,
 		httpClientSettings: cfg.ServerAuth.ClientConfig,

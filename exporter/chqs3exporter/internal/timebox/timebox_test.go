@@ -16,77 +16,151 @@ package timebox
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCalculateInterval(t *testing.T) {
-	tests := []struct {
-		name     string
-		t        int64
-		interval int64
-		want     int64
-	}{
-		{"99 % 10", 99, 10, 90},
-		{"100 % 10", 100, 10, 100},
-		{"101 % 10", 101, 10, 100},
-	}
+type MockEntry struct{}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := CalculateInterval(tt.t, tt.interval)
-			assert.Equal(t, tt.want, got)
-		})
-	}
+func (m *MockEntry) Encode() ([]byte, error) {
+	return []byte{}, nil
 }
 
-func TestNewTimebox(t *testing.T) {
-	interval := CalculateInterval(123456789000, 10_000)
-	expiry := interval + 10_000
-
-	timebox := NewTimeboxImpl(interval, expiry)
-	tb := timebox.(*TimeboxImpl)
-
-	assert.Equal(t, interval, tb.Interval)
-	assert.Equal(t, expiry, tb.Expiry)
-	assert.Empty(t, timebox.Items())
+func (m *MockEntry) Decode([]byte) error {
+	return nil
 }
 
-func TestAppend(t *testing.T) {
-	now := time.Unix(1234567890, 0)
-	interval := CalculateInterval(now.UnixMilli(), 10_000)
-	expiry := interval + 10_000
-	timebox := NewTimeboxImpl(interval, expiry)
+func TestNewScopedTimeboxImpl(t *testing.T) {
+	interval := int64(1000)
+	grace := int64(200)
+	timebox := NewTimeboxImpl[int](interval, grace)
 
-	item1 := map[string]any{"key1": "value1"}
-	timebox.Append(item1)
-	assert.ElementsMatch(t, []map[string]any{item1}, timebox.Items())
-
-	item2 := map[string]any{"key2": "value2"}
-	timebox.Append(item2)
-	assert.ElementsMatch(t, []map[string]any{item1, item2}, timebox.Items())
+	assert.Equal(t, interval, timebox.Interval)
+	assert.Equal(t, grace, timebox.Grace)
+	assert.NotNil(t, timebox.items)
+	assert.Empty(t, timebox.items)
 }
 
-func TestShouldClose(t *testing.T) {
-	tests := []struct {
-		name     string
-		interval int64
-		now      int64
-		expiry   int64
-		want     bool
-	}{
-		{"now before expiry", 1234567890, 1234567889, 1234567890, false},
-		{"now equal to expiry", 1234567890, 1234567890, 1234567890, false},
-		{"now after expiry", 1234567890, 1234567891, 1234567890, true},
-		{"interval is very different than now", 40, 1234567889, 1234567890, false},
-	}
+func TestScopedTimeboxImpl_Append(t *testing.T) {
+	interval := int64(1000)
+	grace := int64(200)
+	timebox := NewTimeboxImpl[int](interval, grace)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			timebox := NewTimeboxImpl(tt.interval, tt.expiry)
-			got := timebox.ShouldClose(tt.now)
-			assert.Equal(t, tt.want, got)
-		})
-	}
+	scope := 1
+	ts := int64(1234567890)
+	item := &MockEntry{}
+
+	timebox.Append(scope, ts, item)
+
+	items := timebox.Items(scope)
+	assert.Equal(t, 1, len(items))
+
+	entry := items[ts]
+	assert.Equal(t, 1, len(entry))
+	assert.Equal(t, item, entry[0])
+}
+
+func TestScopedTimeboxImpl_ItemCount(t *testing.T) {
+	interval := int64(1000)
+	grace := int64(200)
+	timebox := NewTimeboxImpl[int](interval, grace)
+	scope := 1
+	ts := int64(1234567890)
+	item := &MockEntry{}
+	timebox.Append(scope, ts, item)
+
+	count := timebox.ItemCount(scope, ts)
+	assert.Equal(t, 1, count)
+}
+
+func TestScopedTimeboxImpl_ItemCountMissingScope(t *testing.T) {
+	interval := int64(1000)
+	grace := int64(200)
+	timebox := NewTimeboxImpl[int](interval, grace)
+	scope := 1
+	ts := int64(1234567890)
+	count := timebox.ItemCount(scope, ts)
+	assert.Equal(t, 0, count)
+}
+
+func TestScopedTimeboxImpl_ItemCountMissingTS(t *testing.T) {
+	interval := int64(1000)
+	grace := int64(200)
+	timebox := NewTimeboxImpl[int](interval, grace)
+	scope := 1
+	ts := int64(1234567890)
+	item := &MockEntry{}
+	timebox.Append(scope, ts, item)
+
+	count := timebox.ItemCount(scope, ts-1)
+	assert.Equal(t, 0, count)
+}
+
+func TestScopedTimeboxImpl_Closed(t *testing.T) {
+	interval := int64(1000)
+	grace := int64(200)
+	timebox := NewTimeboxImpl[int](interval, grace)
+	scope := 1
+	now := int64(1234567890)
+	ts := now - interval - grace
+	item := &MockEntry{}
+	timebox.Append(scope, ts, item)
+
+	closedItems := timebox.Closed(scope, now)
+	assert.Equal(t, 1, len(closedItems))
+	assert.Equal(t, item, closedItems[ts][0])
+
+	// Ensure the item is removed from the timebox
+	items := timebox.Items(scope)
+	assert.Empty(t, items[ts])
+}
+
+func TestScopedTimeboxImpl_ClosedMissingScope(t *testing.T) {
+	interval := int64(1000)
+	grace := int64(200)
+	timebox := NewTimeboxImpl[int](interval, grace)
+	scope := 1
+	now := int64(1234567890)
+	closedItems := timebox.Closed(scope, now)
+	assert.Empty(t, closedItems)
+}
+
+func TestScopedTimeboxImpl_Scopes(t *testing.T) {
+	interval := int64(1000)
+	grace := int64(200)
+	timebox := NewTimeboxImpl[int](interval, grace)
+	scope1 := 1
+	scope2 := 2
+	scope3 := 3
+	timebox.Append(scope1, 1234567890, &MockEntry{})
+	timebox.Append(scope2, 1234567890, &MockEntry{})
+	timebox.Append(scope3, 1234567890, &MockEntry{})
+	scopes := timebox.Scopes()
+	assert.ElementsMatch(t, []int{scope1, scope2, scope3}, scopes)
+}
+
+func TestScopedTimeboxImpl_Items(t *testing.T) {
+	interval := int64(1000)
+	grace := int64(200)
+	timebox := NewTimeboxImpl[int](interval, grace)
+	scope := 1
+	ts := int64(1234567890)
+	item := &MockEntry{}
+	timebox.Append(scope, ts, item)
+
+	items := timebox.Items(scope)
+	assert.Equal(t, 1, len(items))
+
+	entry := items[ts]
+	assert.Equal(t, 1, len(entry))
+	assert.Equal(t, item, entry[0])
+}
+
+func TestScopedTimeboxImpl_ItemsMissingScope(t *testing.T) {
+	interval := int64(1000)
+	grace := int64(200)
+	timebox := NewTimeboxImpl[int](interval, grace)
+	scope := 1
+	items := timebox.Items(scope)
+	assert.Empty(t, items)
 }

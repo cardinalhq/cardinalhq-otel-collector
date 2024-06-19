@@ -17,7 +17,6 @@ package chqs3exporter
 import (
 	"fmt"
 	"io"
-	"sync"
 
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/pmetric"
@@ -26,23 +25,13 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/tagwriter"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/timebox"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/translation/table"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 type parquetMarshaller struct {
-	tb table.Translator
-
-	logconfig TimeboxConfig
-	logs      map[int64]timebox.Timebox
-	logsLock  sync.Mutex
-
-	metricconfig TimeboxConfig
-	metrics      map[int64]timebox.Timebox
-	metricsLock  sync.Mutex
-
-	traceconfig TimeboxConfig
-	traces      map[int64]timebox.Timebox
-	tracesLock  sync.Mutex
+	tb      table.Translator
+	logs    timebox.Timebox[string]
+	metrics timebox.Timebox[string]
+	traces  timebox.Timebox[string]
 }
 
 func (*parquetMarshaller) format() string {
@@ -51,24 +40,14 @@ func (*parquetMarshaller) format() string {
 
 func newParquetMarshaller(tbconf *TimeboxesConfig) *parquetMarshaller {
 	return &parquetMarshaller{
-		tb: table.NewTableTranslator(),
-
-		logs:      map[int64]timebox.Timebox{},
-		logconfig: tbconf.Logs,
-
-		metrics:      map[int64]timebox.Timebox{},
-		metricconfig: tbconf.Metrics,
-
-		traces:      map[int64]timebox.Timebox{},
-		traceconfig: tbconf.Traces,
+		tb:      table.NewTableTranslator(),
+		logs:    timebox.NewTimeboxImpl[string](tbconf.Logs.Interval, tbconf.Logs.GracePeriod),
+		metrics: timebox.NewTimeboxImpl[string](tbconf.Metrics.Interval, tbconf.Metrics.GracePeriod),
+		traces:  timebox.NewTimeboxImpl[string](tbconf.Traces.Interval, tbconf.Traces.GracePeriod),
 	}
 }
 
 func (s *parquetMarshaller) MarshalTable(wr io.Writer, items []map[string]any) error {
-	return processTable(items, wr)
-}
-
-func processTable(items []map[string]any, wr io.Writer) error {
 	table := map[string]any{}
 	for _, item := range items {
 		for k, v := range item {
@@ -102,24 +81,18 @@ func closed(now, tbstart, interval, grace int64) bool {
 }
 
 func (s *parquetMarshaller) ClosedLogs(now int64) map[int64][]map[string]any {
-	s.logsLock.Lock()
-	defer s.logsLock.Unlock()
 	return s.closed(now, s.logs)
 }
 
 func (s *parquetMarshaller) ClosedMetrics(now int64) map[int64][]map[string]any {
-	s.metricsLock.Lock()
-	defer s.metricsLock.Unlock()
 	return s.closed(now, s.metrics)
 }
 
 func (s *parquetMarshaller) ClosedTraces(now int64) map[int64][]map[string]any {
-	s.tracesLock.Lock()
-	defer s.tracesLock.Unlock()
 	return s.closed(now, s.traces)
 }
 
-func (s *parquetMarshaller) closed(now int64, m map[int64]timebox.Timebox) map[int64][]map[string]any {
+func (s *parquetMarshaller) closed(now int64, m timebox.Timebox[string]) map[int64][]map[string]any {
 	ret := map[int64][]map[string]any{}
 	forceClose := now == 0
 	for tboxInterval, tbox := range m {
@@ -182,16 +155,8 @@ func (s *parquetMarshaller) appendLogs(ld plog.Logs, customerID string) (int64, 
 	return oldest, nil
 }
 
-func emitInto(acc map[int64]timebox.Timebox, config TimeboxConfig, item map[string]any, customerID string) int64 {
-	itemts, ok := item[translate.CardinalFieldTimestamp].(int64)
-	if !ok {
-		return 0
-	}
-	ch := timebox.CalculateInterval(itemts, config.Interval)
-	if _, ok := acc[ch]; !ok {
-		expiry := ch + config.Interval*config.OpenIntervalCount + config.GracePeriod
-		acc[ch] = timebox.NewTimeboxImpl(ch, expiry)
-	}
-	acc[ch].Append(item)
+func emitInto(acc timebox.Timebox[string], config TimeboxConfig, item *TimeboxEntry, customerID string) int64 {
+	itemts := item.ItemTS()
+	acc.Append(customerID, itemts, item)
 	return itemts
 }

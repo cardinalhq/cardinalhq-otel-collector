@@ -14,42 +14,110 @@
 
 package timebox
 
-type Timebox interface {
-	Append(item map[string]any)
-	ShouldClose(now int64) bool
-	Items() []map[string]any
+import "sync"
+
+type Timebox[T comparable] interface {
+	Append(scope T, ts int64, item ...Entry)
+	Closed(scope T, now int64) map[int64][]Entry
+	Items(scope T) map[int64][]Entry
+	Scopes() []T
 }
 
-func CalculateInterval(t int64, interval int64) int64 {
-	return t - (t % interval)
-}
-
-type TimeboxImpl struct {
-	// Interval is the "data time" of the start of this timebox.
+type TimeboxImpl[T comparable] struct {
+	sync.Mutex
 	Interval int64
-	// Expiry is the "data time" to close this timebox.  It will be calculated
-	// as the start of the timebox + Interval + GracePeriod.
-	Expiry int64
-	// Items is the list of items in this timebox.
-	items []map[string]any
+	Grace    int64
+	items    map[T]map[int64]*scopedEntry
 }
 
-func NewTimeboxImpl(interval int64, expiry int64) Timebox {
-	return &TimeboxImpl{
+var _ Timebox[int] = &TimeboxImpl[int]{}
+
+type scopedEntry struct {
+	ts        int64
+	itemCount int
+	items     []Entry
+}
+
+type Entry interface {
+	Encode() ([]byte, error)
+	Decode([]byte) error
+}
+
+func NewTimeboxImpl[T comparable](interval int64, grace int64) *TimeboxImpl[T] {
+	return &TimeboxImpl[T]{
 		Interval: interval,
-		Expiry:   expiry,
-		items:    []map[string]any{},
+		Grace:    grace,
+		items:    map[T]map[int64]*scopedEntry{},
 	}
 }
 
-func (t *TimeboxImpl) Append(item map[string]any) {
-	t.items = append(t.items, item)
+func (t *TimeboxImpl[T]) Append(scope T, ts int64, item ...Entry) {
+	t.Lock()
+	defer t.Unlock()
+	if _, ok := t.items[scope]; !ok {
+		t.items[scope] = map[int64]*scopedEntry{}
+	}
+	if _, ok := t.items[scope][ts]; !ok {
+		t.items[scope][ts] = &scopedEntry{
+			ts:    ts,
+			items: []Entry{},
+		}
+	}
+	t.items[scope][ts].items = append(t.items[scope][ts].items, item...)
+	t.items[scope][ts].itemCount += len(item)
 }
 
-func (t *TimeboxImpl) ShouldClose(now int64) bool {
-	return now > t.Expiry
+func (t *TimeboxImpl[T]) ItemCount(scope T, ts int64) int {
+	t.Lock()
+	defer t.Unlock()
+	if _, ok := t.items[scope]; !ok {
+		return 0
+	}
+	if _, ok := t.items[scope][ts]; !ok {
+		return 0
+	}
+	return t.items[scope][ts].itemCount
 }
 
-func (t *TimeboxImpl) Items() []map[string]any {
-	return t.items
+func (t *TimeboxImpl[T]) Closed(scope T, now int64) map[int64][]Entry {
+	t.Lock()
+	defer t.Unlock()
+	ret := map[int64][]Entry{}
+	if _, ok := t.items[scope]; !ok {
+		return ret
+	}
+	for ts, entry := range t.items[scope] {
+		if closed(now, entry.ts, t.Interval, t.Grace) {
+			ret[ts] = entry.items
+			delete(t.items[scope], ts)
+		}
+	}
+	return ret
+}
+
+func closed(now, tbstart, interval, grace int64) bool {
+	return now-tbstart >= interval+grace
+}
+
+func (t *TimeboxImpl[T]) Items(scope T) map[int64][]Entry {
+	t.Lock()
+	defer t.Unlock()
+	ret := map[int64][]Entry{}
+	if _, ok := t.items[scope]; !ok {
+		return ret
+	}
+	for ts, entry := range t.items[scope] {
+		ret[ts] = entry.items
+	}
+	return ret
+}
+
+func (t *TimeboxImpl[T]) Scopes() []T {
+	t.Lock()
+	defer t.Unlock()
+	ret := []T{}
+	for scope := range t.items {
+		ret = append(ret, scope)
+	}
+	return ret
 }

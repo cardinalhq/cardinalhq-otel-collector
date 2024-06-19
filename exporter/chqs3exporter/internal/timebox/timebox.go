@@ -28,7 +28,7 @@ type Timebox[T comparable, E Entry] interface {
 	Closed(scope T, now int64, generator E) map[int64][]E
 	Items(scope T, generator E) map[int64][]E
 	Scopes() []T
-	TooOld(ts int64, now int64) bool
+	TooOld(ts int64, now int64) (bool, int64)
 }
 
 type TimeboxImpl[T comparable, E Entry] struct {
@@ -63,8 +63,12 @@ func NewTimeboxImpl[T comparable, E Entry](bufferFactory BufferFactory, interval
 	}
 }
 
-func (t *TimeboxImpl[T, E]) TooOld(ts int64, now int64) bool {
-	return now-ts >= t.Interval*t.IntervalCount+t.Grace
+func (t *TimeboxImpl[T, E]) TooOld(ts int64, now int64) (bool, int64) {
+	tooold := now-ts >= t.Interval*t.IntervalCount+t.Grace
+	if tooold {
+		return true, (now - ts) / t.Interval
+	}
+	return false, 0
 }
 
 func (t *TimeboxImpl[T, E]) Append(scope T, ts int64, newItems ...E) error {

@@ -242,7 +242,7 @@ func (e *s3Exporter) appendMetrics(now int64, md pmetric.Metrics) (int64, []stri
 	if err != nil {
 		return 0, nil, err
 	}
-	return e.emitRows(now, tbl, e.metrics, metricFilePrefix, "metric")
+	return e.emitRows(now, tbl, e.metrics, metricFilePrefix)
 }
 
 func (e *s3Exporter) appendTraces(now int64, td ptrace.Traces) (int64, []string, error) {
@@ -250,7 +250,7 @@ func (e *s3Exporter) appendTraces(now int64, td ptrace.Traces) (int64, []string,
 	if err != nil {
 		return 0, nil, err
 	}
-	return e.emitRows(now, tbl, e.traces, tracesFilePrefix, "span")
+	return e.emitRows(now, tbl, e.traces, tracesFilePrefix)
 }
 
 func (e *s3Exporter) appendLogs(now int64, ld plog.Logs) (int64, []string, error) {
@@ -258,11 +258,11 @@ func (e *s3Exporter) appendLogs(now int64, ld plog.Logs) (int64, []string, error
 	if err != nil {
 		return 0, nil, err
 	}
-	return e.emitRows(now, tbl, e.logs, logFilePrefix, "log")
+	return e.emitRows(now, tbl, e.logs, logFilePrefix)
 }
 
-func customerIDFromMap(m map[string]any, fieldPrefix string) string {
-	customerID, found := m[fieldPrefix+"."+translate.CardinalFieldCustomerID]
+func customerIDFromMap(m map[string]any) string {
+	customerID, found := m[translate.CardinalFieldCustomerID]
 	if !found {
 		return ""
 	}
@@ -272,11 +272,11 @@ func customerIDFromMap(m map[string]any, fieldPrefix string) string {
 	return ""
 }
 
-func (e *s3Exporter) emitRows(now int64, tbl []map[string]interface{}, tbox timebox.Timebox[string, *TimeboxEntry], filePrefix string, fieldPrefix string) (oldest int64, customerIDs []string, err error) {
+func (e *s3Exporter) emitRows(now int64, tbl []map[string]interface{}, tbox timebox.Timebox[string, *TimeboxEntry], filePrefix string) (oldest int64, customerIDs []string, err error) {
 	cids := map[string]any{}
 	for _, row := range tbl {
 		tbe := TimeboxEntry(row)
-		customerID := customerIDFromMap(row, fieldPrefix)
+		customerID := customerIDFromMap(row)
 		cids[customerID] = nil
 		ts := e.emitInto(now, tbox, &tbe, filePrefix, customerID)
 		if ts > oldest {
@@ -288,11 +288,14 @@ func (e *s3Exporter) emitRows(now int64, tbl []map[string]interface{}, tbox time
 
 func (e *s3Exporter) emitInto(now int64, acc timebox.Timebox[string, *TimeboxEntry], item *TimeboxEntry, telemetryType, customerID string) int64 {
 	itemts := item.ItemTS()
-	if acc.TooOld(itemts, now) {
+	if old, oldIntervals := acc.TooOld(itemts, now); old {
+		if oldIntervals > 10 {
+			oldIntervals = 99
+		}
 		e.telemetry.datapointTooOld.Add(context.Background(), 1, metric.WithAttributes(
 			attribute.String("telemetryType", telemetryType),
 			attribute.String("customerID", customerID),
-			attribute.Int64("itemts", itemts)))
+			attribute.Int64("ageInIntervals", oldIntervals)))
 		return 0
 	}
 	err := acc.Append(customerID, itemts, item)

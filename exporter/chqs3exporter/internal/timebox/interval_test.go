@@ -33,6 +33,7 @@ func TestCalculateInterval(t *testing.T) {
 		{now: 1000, interval: 1000, expected: 1000},
 		{now: 1001, interval: 1000, expected: 1000},
 		{now: 2001, interval: 1000, expected: 2000},
+		{now: 1718827732167, interval: 10000, expected: 1718827730000},
 	}
 
 	for i, tt := range tests {

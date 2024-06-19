@@ -71,16 +71,17 @@ func (t *TimeboxImpl[T, E]) TooOld(ts int64, now int64) bool {
 func (t *TimeboxImpl[T, E]) Append(scope T, ts int64, newItems ...E) error {
 	t.Lock()
 	defer t.Unlock()
+	tbox := CalculateInterval(ts, t.Interval)
 	if _, ok := t.items[scope]; !ok {
 		t.items[scope] = map[int64]*scopedEntry[E]{}
 	}
-	if _, ok := t.items[scope][ts]; !ok {
+	if _, ok := t.items[scope][tbox]; !ok {
 		buffer, err := t.BufferFactory.NewBuffer()
 		if err != nil {
 			return err
 		}
-		t.items[scope][ts] = &scopedEntry[E]{
-			ts:     ts,
+		t.items[scope][tbox] = &scopedEntry[E]{
+			ts:     tbox,
 			buffer: buffer,
 		}
 	}
@@ -96,16 +97,16 @@ func (t *TimeboxImpl[T, E]) Append(scope T, ts int64, newItems ...E) error {
 			byte(length >> 8),
 			byte(length),
 		}
-		_, err = t.items[scope][ts].buffer.Write(lengthBytes)
+		_, err = t.items[scope][tbox].buffer.Write(lengthBytes)
 		if err != nil {
 			return err
 		}
-		_, err = t.items[scope][ts].buffer.Write(b)
+		_, err = t.items[scope][tbox].buffer.Write(b)
 		if err != nil {
 			return err
 		}
 	}
-	t.items[scope][ts].itemCount += len(newItems)
+	t.items[scope][tbox].itemCount += len(newItems)
 	return nil
 }
 

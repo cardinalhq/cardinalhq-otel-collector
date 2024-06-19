@@ -41,8 +41,8 @@ func (bf *BufferFilesystem) Write(p []byte) (n int, err error) {
 
 func (bf *BufferFilesystem) CloseWrite() error {
 	bf.writing = false
-	bf.file.Seek(0, 0)
-	return nil
+	_, err := bf.file.Seek(0, 0)
+	return err
 }
 
 func (bf *BufferFilesystem) Read(p []byte) (n int, err error) {

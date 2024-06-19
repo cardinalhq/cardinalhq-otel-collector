@@ -6,12 +6,11 @@ toolchain go1.22.4
 
 require (
 	github.com/DataDog/sketches-go v1.4.5
-	github.com/aws/aws-sdk-go v1.54.4
+	github.com/aws/aws-sdk-go v1.54.5
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
 	github.com/oklog/ulid/v2 v2.1.0
 	github.com/parquet-go/parquet-go v0.22.0
 	github.com/stretchr/testify v1.9.0
-	go.opentelemetry.io/collector v0.103.0
 	go.opentelemetry.io/collector/component v0.103.0
 	go.opentelemetry.io/collector/confmap v0.103.0
 	go.opentelemetry.io/collector/confmap/converter/expandconverter v0.103.0
@@ -29,6 +28,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.27.0
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0
+	golang.org/x/exp v0.0.0-20240613232115-7f521ea00fb8
 )
 
 require (
@@ -77,6 +77,7 @@ require (
 	github.com/tklauser/numcpus v0.8.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opencensus.io v0.24.0 // indirect
+	go.opentelemetry.io/collector v0.103.0 // indirect
 	go.opentelemetry.io/collector/config/configretry v0.103.0 // indirect
 	go.opentelemetry.io/collector/config/configtelemetry v0.103.0 // indirect
 	go.opentelemetry.io/collector/confmap/provider/httpsprovider v0.103.0 // indirect
@@ -101,7 +102,6 @@ require (
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.27.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.27.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.3.1 // indirect
-	golang.org/x/exp v0.0.0-20240613232115-7f521ea00fb8 // indirect
 	golang.org/x/net v0.26.0 // indirect
 	golang.org/x/sys v0.21.0 // indirect
 	golang.org/x/text v0.16.0 // indirect

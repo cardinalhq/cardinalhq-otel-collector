@@ -20,10 +20,8 @@ import (
 	"io"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
-	"go.opentelemetry.io/collector/client"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/collector/pdata/plog"
@@ -33,10 +31,12 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
+	"golang.org/x/exp/maps"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/tagwriter"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/timebox"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/translation/table"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 type s3Exporter struct {
@@ -93,90 +93,58 @@ func (e *s3Exporter) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: false}
 }
 
-func customerIDFromContext(ctx context.Context, metadata Metadata) string {
-	if metadata.customerIDSource == customerIDSourceNone {
-		return ""
-	}
-
-	ci := client.FromContext(ctx)
-	switch metadata.customerIDSource {
-	case customerIDSourceMetadata:
-		mdparts := ci.Metadata.Get(metadata.customerIDKey)
-		if len(mdparts) == 0 {
-			return ""
-		}
-		return strings.Join(mdparts, ";")
-
-	case customerIDSourceAuth:
-		if ci.Auth == nil {
-			return ""
-		}
-		val := ci.Auth.GetAttribute(metadata.customerIDKey)
-		switch val := val.(type) {
-		case nil:
-			return ""
-		case string:
-			return val
-		case []string:
-			return strings.Join(val, ";")
-		default:
-			return "" // TODO log warning that the field is not usable
-		}
-
-	default:
-		return ""
-	}
-}
-
 func (e *s3Exporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
 	var errs error
-	customerID := customerIDFromContext(ctx, e.config.Metadata)
-	oldestTimestamp, err := e.consumeMetrics(time.Now().UnixMilli(), md, customerID)
+	oldestTimestamp, customerIDs, err := e.consumeMetrics(time.Now().UnixMilli(), md)
 	errs = multierr.Append(errs, err)
-	items := e.metrics.Closed(customerID, oldestTimestamp, &TimeboxEntry{})
-	errs = multierr.Append(errs, e.writeTable(items, logFilePrefix, customerID))
+	for _, customerID := range customerIDs {
+		items := e.metrics.Closed(customerID, oldestTimestamp, &TimeboxEntry{})
+		errs = multierr.Append(errs, e.writeTable(items, metricFilePrefix, customerID))
+	}
 	return errs
 }
 
-func (e *s3Exporter) consumeMetrics(now int64, md pmetric.Metrics, customerID string) (int64, error) {
+func (e *s3Exporter) consumeMetrics(now int64, md pmetric.Metrics) (int64, []string, error) {
 	if e.config.Timeboxes.Metrics.Interval <= 0 {
-		return 0, nil
+		return 0, nil, nil
 	}
-	return e.appendMetrics(now, md, customerID)
+	return e.appendMetrics(now, md)
 }
 
 func (e *s3Exporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {
 	var errs error
-	customerID := customerIDFromContext(ctx, e.config.Metadata)
-	oldestTimestamp, err := e.consumeLogs(time.Now().UnixMilli(), logs, customerID)
+	oldestTimestamp, customerIDs, err := e.consumeLogs(time.Now().UnixMilli(), logs)
 	errs = multierr.Append(errs, err)
-	items := e.logs.Closed(customerID, oldestTimestamp, &TimeboxEntry{})
-	errs = multierr.Append(errs, e.writeTable(items, logFilePrefix, customerID))
+	for _, customerID := range customerIDs {
+		items := e.logs.Closed(customerID, oldestTimestamp, &TimeboxEntry{})
+		errs = multierr.Append(errs, e.writeTable(items, logFilePrefix, customerID))
+	}
 	return errs
 }
 
-func (e *s3Exporter) consumeLogs(now int64, logs plog.Logs, customerID string) (int64, error) {
+func (e *s3Exporter) consumeLogs(now int64, logs plog.Logs) (int64, []string, error) {
 	if e.config.Timeboxes.Logs.Interval <= 0 {
-		return 0, nil
+		return 0, nil, nil
 	}
-	return e.appendLogs(now, logs, customerID)
+	return e.appendLogs(now, logs)
 }
 
 func (e *s3Exporter) ConsumeTraces(ctx context.Context, traces ptrace.Traces) error {
 	var errs error
-	customerID := customerIDFromContext(ctx, e.config.Metadata)
-	oldestTimestamp, err := e.consumeTraces(time.Now().UnixMilli(), traces, customerID)
+	oldestTimestamp, customerIDs, err := e.consumeTraces(time.Now().UnixMilli(), traces)
 	errs = multierr.Append(errs, err)
-	items := e.traces.Closed(customerID, oldestTimestamp, &TimeboxEntry{})
-	errs = multierr.Append(errs, e.writeTable(items, tracesFilePrefix, customerID))
+	for _, customerID := range customerIDs {
+		items := e.traces.Closed(customerID, oldestTimestamp, &TimeboxEntry{})
+		errs = multierr.Append(errs, e.writeTable(items, tracesFilePrefix, customerID))
+	}
 	return errs
 }
 
-func (e *s3Exporter) consumeTraces(now int64, traces ptrace.Traces, customerID string) (int64, error) {
+func (e *s3Exporter) consumeTraces(now int64, traces ptrace.Traces) (int64, []string, error) {
 	if e.config.Timeboxes.Traces.Interval <= 0 {
-		return 0, nil
+		return 0, nil, nil
 	}
-	return e.appendTraces(now, traces, customerID)
+	return e.appendTraces(now, traces)
 }
 
 func (s *s3Exporter) writeTable(items map[int64][]*TimeboxEntry, telemetryType string, customerID string) error {
@@ -269,52 +237,53 @@ func (s *s3Exporter) MarshalTable(wr io.Writer, items []*TimeboxEntry) error {
 	return writer.Close()
 }
 
-func (e *s3Exporter) appendMetrics(now int64, md pmetric.Metrics, customerID string) (int64, error) {
+func (e *s3Exporter) appendMetrics(now int64, md pmetric.Metrics) (int64, []string, error) {
 	tbl, err := e.tb.MetricsFromOtel(&md)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
-	oldest := int64(0)
-	for _, row := range tbl {
-		tbe := TimeboxEntry(row)
-		ts := e.emitInto(now, e.metrics, &tbe, metricFilePrefix, customerID)
-		if ts > oldest {
-			oldest = ts
-		}
-	}
-	return oldest, nil
+	return e.emitRows(now, tbl, e.metrics, metricFilePrefix, "metric")
 }
 
-func (e *s3Exporter) appendTraces(now int64, td ptrace.Traces, customerID string) (int64, error) {
+func (e *s3Exporter) appendTraces(now int64, td ptrace.Traces) (int64, []string, error) {
 	tbl, err := e.tb.TracesFromOtel(&td)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
-	oldest := int64(0)
-	for _, row := range tbl {
-		tbe := TimeboxEntry(row)
-		ts := e.emitInto(now, e.traces, &tbe, tracesFilePrefix, customerID)
-		if ts > oldest {
-			oldest = ts
-		}
-	}
-	return oldest, nil
+	return e.emitRows(now, tbl, e.traces, tracesFilePrefix, "span")
 }
 
-func (e *s3Exporter) appendLogs(now int64, ld plog.Logs, customerID string) (int64, error) {
+func (e *s3Exporter) appendLogs(now int64, ld plog.Logs) (int64, []string, error) {
 	tbl, err := e.tb.LogsFromOtel(&ld)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
-	oldest := int64(0)
+	return e.emitRows(now, tbl, e.logs, logFilePrefix, "log")
+}
+
+func customerIDFromMap(m map[string]any, fieldPrefix string) string {
+	customerID, found := m[fieldPrefix+"."+translate.CardinalFieldCustomerID]
+	if !found {
+		return ""
+	}
+	if cid, ok := customerID.(string); ok {
+		return cid
+	}
+	return ""
+}
+
+func (e *s3Exporter) emitRows(now int64, tbl []map[string]interface{}, tbox timebox.Timebox[string, *TimeboxEntry], filePrefix string, fieldPrefix string) (oldest int64, customerIDs []string, err error) {
+	cids := map[string]any{}
 	for _, row := range tbl {
 		tbe := TimeboxEntry(row)
-		ts := e.emitInto(now, e.logs, &tbe, logFilePrefix, customerID)
+		customerID := customerIDFromMap(row, fieldPrefix)
+		cids[customerID] = nil
+		ts := e.emitInto(now, tbox, &tbe, filePrefix, customerID)
 		if ts > oldest {
 			oldest = ts
 		}
 	}
-	return oldest, nil
+	return oldest, maps.Keys(cids), nil
 }
 
 func (e *s3Exporter) emitInto(now int64, acc timebox.Timebox[string, *TimeboxEntry], item *TimeboxEntry, telemetryType, customerID string) int64 {
@@ -326,6 +295,9 @@ func (e *s3Exporter) emitInto(now int64, acc timebox.Timebox[string, *TimeboxEnt
 			attribute.Int64("itemts", itemts)))
 		return 0
 	}
-	acc.Append(customerID, itemts, item)
+	err := acc.Append(customerID, itemts, item)
+	if err != nil {
+		e.logger.Error("Failed to append item", zap.Error(err))
+	}
 	return itemts
 }

@@ -62,6 +62,8 @@ const (
 	CardinalFieldClassification    = CardinalFieldPrefixDot + "classification"
 	CardinalFieldFingerprintError  = CardinalFieldPrefixDot + "fingerprint_error"
 	CardinalFieldDecoratorPodName  = CardinalFieldPrefixDot + "decorator.pod_name"
+	CardinalFieldCustomerID        = CardinalFieldPrefixDot + "customer_id"
+	CardinalFieldCustomerName      = CardinalFieldPrefixDot + "customer_name"
 
 	CardinalMetricTypeCount                = "count"
 	CardinalMetricTypeExponentialHistogram = "exponential_histogram"

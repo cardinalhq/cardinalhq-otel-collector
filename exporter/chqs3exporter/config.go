@@ -5,17 +5,8 @@ package chqs3exporter
 
 import (
 	"errors"
-	"strings"
 
 	"go.uber.org/multierr"
-)
-
-type customerIDSource int
-
-const (
-	customerIDSourceNone customerIDSource = iota
-	customerIDSourceMetadata
-	customerIDSourceAuth
 )
 
 // S3UploaderConfig contains aws s3 uploader related config to controls things
@@ -30,13 +21,6 @@ type S3UploaderConfig struct {
 	RoleArn          string `mapstructure:"role_arn"`
 	S3ForcePathStyle bool   `mapstructure:"s3_force_path_style"`
 	DisableSSL       bool   `mapstructure:"disable_ssl"`
-}
-
-type Metadata struct {
-	CustomerIDContextKey string `mapstructure:"customer_id_context_key"`
-
-	customerIDKey string
-	customerIDSource
 }
 
 type TimeboxConfig struct {
@@ -55,7 +39,6 @@ type TimeboxesConfig struct {
 // Config contains the main configuration options for the s3 exporter
 type Config struct {
 	S3Uploader S3UploaderConfig `mapstructure:"s3uploader"`
-	Metadata   Metadata         `mapstructure:"metadata"`
 	Timeboxes  TimeboxesConfig  `mapstructure:"timeboxes"`
 }
 
@@ -69,7 +52,6 @@ func (c *Config) Validate() error {
 	}
 
 	errs = multierr.Append(errs, c.Timeboxes.Validate())
-	errs = multierr.Append(errs, c.Metadata.Validate())
 	return errs
 }
 
@@ -99,14 +81,4 @@ func (tb TimeboxConfig) Validate() error {
 	}
 
 	return errs
-}
-
-func (m Metadata) Validate() error {
-	if m.CustomerIDContextKey != "" {
-		parts := strings.Split(m.CustomerIDContextKey, ".")
-		if len(parts) < 2 || parts[0] != "metadata" && parts[0] != "auth" {
-			return errors.New("customer_id_context_key must be in the format 'metadata.<key>' or 'auth.<key>'")
-		}
-	}
-	return nil
 }

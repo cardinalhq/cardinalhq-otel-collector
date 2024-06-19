@@ -51,7 +51,6 @@ type scopedEntry[E Entry] struct {
 	ts        int64
 	itemCount int
 	buffer    Buffer
-	generator E
 }
 
 func NewTimeboxImpl[T comparable, E Entry](bufferFactory BufferFactory, interval int64, intervalCount int64, grace int64) *TimeboxImpl[T, E] {
@@ -123,13 +122,17 @@ func (t *TimeboxImpl[T, E]) ItemCount(scope T, ts int64) int {
 }
 
 func (se *scopedEntry[E]) decode(generator E) ([]E, error) {
-	items := make([]E, se.itemCount, se.itemCount)
+	items := make([]E, se.itemCount)
 	for i := 0; i < se.itemCount; i++ {
 		lengthBytes := make([]byte, 4)
-		_, err := se.buffer.Read(lengthBytes)
+		if _, err := se.buffer.Read(lengthBytes); err != nil {
+			return nil, err
+		}
 		length := int32(lengthBytes[0])<<24 | int32(lengthBytes[1])<<16 | int32(lengthBytes[2])<<8 | int32(lengthBytes[3])
 		b := make([]byte, length)
-		_, err = se.buffer.Read(b)
+		if _, err := se.buffer.Read(b); err != nil {
+			return nil, err
+		}
 		newItem, err := generator.New(b)
 		if err != nil {
 			return nil, err

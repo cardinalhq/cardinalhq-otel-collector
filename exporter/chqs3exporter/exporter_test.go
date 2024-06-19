@@ -73,14 +73,17 @@ func TestLog(t *testing.T) {
 	firstTS, lastTS := getTimestamps(logs)
 	log.Printf("firstTS: %d, lastTS: %d", firstTS, lastTS)
 	exporter := getLogExporter(t)
-	oldest, err := exporter.consumeLogs(firstTS, logs, "default")
+	oldest, cids, err := exporter.consumeLogs(firstTS, logs)
 	assert.NoError(t, err)
 	assert.NotZero(t, oldest)
-	items := exporter.logs.Closed("default", oldest, &TimeboxEntry{})
-	assert.Len(t, items, 0)
-	items = exporter.logs.Closed("default", lastTS+200_000, &TimeboxEntry{})
-	assert.Len(t, items, 1)
-	assert.NoError(t, exporter.writeTable(items, "logs", "default"))
+	for _, cid := range cids {
+
+		items := exporter.logs.Closed(cid, oldest, &TimeboxEntry{})
+		assert.Len(t, items, 0)
+		items = exporter.logs.Closed(cid, lastTS+200_000, &TimeboxEntry{})
+		assert.Len(t, items, 1)
+		assert.NoError(t, exporter.writeTable(items, "logs", cid))
+	}
 }
 
 func getTimestamps(logs plog.Logs) (int64, int64) {

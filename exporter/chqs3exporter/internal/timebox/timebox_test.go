@@ -45,26 +45,27 @@ func TestNewTimebox(t *testing.T) {
 	interval := CalculateInterval(123456789000, 10_000)
 	expiry := interval + 10_000
 
-	timebox := NewTimebox(interval, expiry)
+	timebox := NewTimeboxImpl(interval, expiry)
+	tb := timebox.(*TimeboxImpl)
 
-	assert.Equal(t, interval, timebox.Interval)
-	assert.Equal(t, expiry, timebox.Expiry)
-	assert.Empty(t, timebox.Items)
+	assert.Equal(t, interval, tb.Interval)
+	assert.Equal(t, expiry, tb.Expiry)
+	assert.Empty(t, timebox.Items())
 }
 
 func TestAppend(t *testing.T) {
 	now := time.Unix(1234567890, 0)
 	interval := CalculateInterval(now.UnixMilli(), 10_000)
 	expiry := interval + 10_000
-	timebox := NewTimebox(interval, expiry)
+	timebox := NewTimeboxImpl(interval, expiry)
 
 	item1 := map[string]any{"key1": "value1"}
 	timebox.Append(item1)
-	assert.ElementsMatch(t, []map[string]any{item1}, timebox.Items)
+	assert.ElementsMatch(t, []map[string]any{item1}, timebox.Items())
 
 	item2 := map[string]any{"key2": "value2"}
 	timebox.Append(item2)
-	assert.ElementsMatch(t, []map[string]any{item1, item2}, timebox.Items)
+	assert.ElementsMatch(t, []map[string]any{item1, item2}, timebox.Items())
 }
 
 func TestShouldClose(t *testing.T) {
@@ -83,7 +84,7 @@ func TestShouldClose(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			timebox := NewTimebox(tt.interval, tt.expiry)
+			timebox := NewTimeboxImpl(tt.interval, tt.expiry)
 			got := timebox.ShouldClose(tt.now)
 			assert.Equal(t, tt.want, got)
 		})

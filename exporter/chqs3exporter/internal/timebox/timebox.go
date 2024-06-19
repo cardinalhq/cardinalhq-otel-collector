@@ -14,32 +14,42 @@
 
 package timebox
 
+type Timebox interface {
+	Append(item map[string]any)
+	ShouldClose(now int64) bool
+	Items() []map[string]any
+}
+
 func CalculateInterval(t int64, interval int64) int64 {
 	return t - (t % interval)
 }
 
-type Timebox struct {
+type TimeboxImpl struct {
 	// Interval is the "data time" of the start of this timebox.
 	Interval int64
 	// Expiry is the "data time" to close this timebox.  It will be calculated
 	// as the start of the timebox + Interval + GracePeriod.
 	Expiry int64
 	// Items is the list of items in this timebox.
-	Items []map[string]any
+	items []map[string]any
 }
 
-func NewTimebox(interval int64, expiry int64) *Timebox {
-	return &Timebox{
+func NewTimeboxImpl(interval int64, expiry int64) Timebox {
+	return &TimeboxImpl{
 		Interval: interval,
 		Expiry:   expiry,
-		Items:    []map[string]any{},
+		items:    []map[string]any{},
 	}
 }
 
-func (t *Timebox) Append(item map[string]any) {
-	t.Items = append(t.Items, item)
+func (t *TimeboxImpl) Append(item map[string]any) {
+	t.items = append(t.items, item)
 }
 
-func (t *Timebox) ShouldClose(now int64) bool {
+func (t *TimeboxImpl) ShouldClose(now int64) bool {
 	return now > t.Expiry
+}
+
+func (t *TimeboxImpl) Items() []map[string]any {
+	return t.items
 }

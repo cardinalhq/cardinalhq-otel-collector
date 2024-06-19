@@ -33,15 +33,15 @@ type parquetMarshaller struct {
 	tb table.Translator
 
 	logconfig TimeboxConfig
-	logs      map[int64]*timebox.Timebox
+	logs      map[int64]timebox.Timebox
 	logsLock  sync.Mutex
 
 	metricconfig TimeboxConfig
-	metrics      map[int64]*timebox.Timebox
+	metrics      map[int64]timebox.Timebox
 	metricsLock  sync.Mutex
 
 	traceconfig TimeboxConfig
-	traces      map[int64]*timebox.Timebox
+	traces      map[int64]timebox.Timebox
 	tracesLock  sync.Mutex
 }
 
@@ -53,13 +53,13 @@ func newParquetMarshaller(tbconf *TimeboxesConfig) *parquetMarshaller {
 	return &parquetMarshaller{
 		tb: table.NewTableTranslator(),
 
-		logs:      map[int64]*timebox.Timebox{},
+		logs:      map[int64]timebox.Timebox{},
 		logconfig: tbconf.Logs,
 
-		metrics:      map[int64]*timebox.Timebox{},
+		metrics:      map[int64]timebox.Timebox{},
 		metricconfig: tbconf.Metrics,
 
-		traces:      map[int64]*timebox.Timebox{},
+		traces:      map[int64]timebox.Timebox{},
 		traceconfig: tbconf.Traces,
 	}
 }
@@ -119,12 +119,12 @@ func (s *parquetMarshaller) ClosedTraces(now int64) map[int64][]map[string]any {
 	return s.closed(now, s.traces)
 }
 
-func (s *parquetMarshaller) closed(now int64, m map[int64]*timebox.Timebox) map[int64][]map[string]any {
+func (s *parquetMarshaller) closed(now int64, m map[int64]timebox.Timebox) map[int64][]map[string]any {
 	ret := map[int64][]map[string]any{}
 	forceClose := now == 0
 	for tboxInterval, tbox := range m {
 		if forceClose || tbox.ShouldClose(now) {
-			ret[tboxInterval] = tbox.Items
+			ret[tboxInterval] = tbox.Items()
 			delete(m, tboxInterval)
 		}
 	}
@@ -182,7 +182,7 @@ func (s *parquetMarshaller) appendLogs(ld plog.Logs, customerID string) (int64, 
 	return oldest, nil
 }
 
-func emitInto(acc map[int64]*timebox.Timebox, config TimeboxConfig, item map[string]any, customerID string) int64 {
+func emitInto(acc map[int64]timebox.Timebox, config TimeboxConfig, item map[string]any, customerID string) int64 {
 	itemts, ok := item[translate.CardinalFieldTimestamp].(int64)
 	if !ok {
 		return 0
@@ -190,7 +190,7 @@ func emitInto(acc map[int64]*timebox.Timebox, config TimeboxConfig, item map[str
 	ch := timebox.CalculateInterval(itemts, config.Interval)
 	if _, ok := acc[ch]; !ok {
 		expiry := ch + config.Interval*config.OpenIntervalCount + config.GracePeriod
-		acc[ch] = timebox.NewTimebox(ch, expiry)
+		acc[ch] = timebox.NewTimeboxImpl(ch, expiry)
 	}
 	acc[ch].Append(item)
 	return itemts

@@ -242,7 +242,7 @@ func (e *s3Exporter) appendMetrics(now int64, md pmetric.Metrics) (int64, []stri
 	if err != nil {
 		return 0, nil, err
 	}
-	return e.emitRows(now, tbl, e.metrics, metricFilePrefix)
+	return e.emitRows(now, false, tbl, e.metrics, metricFilePrefix)
 }
 
 func (e *s3Exporter) appendTraces(now int64, td ptrace.Traces) (int64, []string, error) {
@@ -250,7 +250,7 @@ func (e *s3Exporter) appendTraces(now int64, td ptrace.Traces) (int64, []string,
 	if err != nil {
 		return 0, nil, err
 	}
-	return e.emitRows(now, tbl, e.traces, tracesFilePrefix)
+	return e.emitRows(now, true, tbl, e.traces, tracesFilePrefix)
 }
 
 func (e *s3Exporter) appendLogs(now int64, ld plog.Logs) (int64, []string, error) {
@@ -258,7 +258,7 @@ func (e *s3Exporter) appendLogs(now int64, ld plog.Logs) (int64, []string, error
 	if err != nil {
 		return 0, nil, err
 	}
-	return e.emitRows(now, tbl, e.logs, logFilePrefix)
+	return e.emitRows(now, true, tbl, e.logs, logFilePrefix)
 }
 
 func customerIDFromMap(m map[string]any) string {
@@ -272,13 +272,13 @@ func customerIDFromMap(m map[string]any) string {
 	return ""
 }
 
-func (e *s3Exporter) emitRows(now int64, tbl []map[string]interface{}, tbox timebox.Timebox[string, *TimeboxEntry], filePrefix string) (oldest int64, customerIDs []string, err error) {
+func (e *s3Exporter) emitRows(now int64, useWallclock bool, tbl []map[string]interface{}, tbox timebox.Timebox[string, *TimeboxEntry], filePrefix string) (oldest int64, customerIDs []string, err error) {
 	cids := map[string]any{}
 	for _, row := range tbl {
 		tbe := TimeboxEntry(row)
 		customerID := customerIDFromMap(row)
 		cids[customerID] = nil
-		ts := e.emitInto(now, tbox, &tbe, filePrefix, customerID)
+		ts := e.emitInto(now, useWallclock, tbox, &tbe, filePrefix, customerID)
 		if ts > oldest {
 			oldest = ts
 		}
@@ -286,8 +286,11 @@ func (e *s3Exporter) emitRows(now int64, tbl []map[string]interface{}, tbox time
 	return oldest, maps.Keys(cids), nil
 }
 
-func (e *s3Exporter) emitInto(now int64, acc timebox.Timebox[string, *TimeboxEntry], item *TimeboxEntry, telemetryType, customerID string) int64 {
-	itemts := item.ItemTS()
+func (e *s3Exporter) emitInto(now int64, useWallclock bool, acc timebox.Timebox[string, *TimeboxEntry], item *TimeboxEntry, telemetryType, customerID string) int64 {
+	itemts := now
+	if !useWallclock {
+		itemts = item.ItemTS()
+	}
 	if old, oldIntervals := acc.TooOld(itemts, now); old {
 		if oldIntervals > 10 {
 			oldIntervals = 99

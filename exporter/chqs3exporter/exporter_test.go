@@ -56,12 +56,13 @@ func getLogExporter(t *testing.T) *s3Exporter {
 	config.Timeboxes.Logs.Interval = 10
 	config.Timeboxes.Logs.OpenIntervalCount = 1
 	config.Timeboxes.Logs.GracePeriod = 0
+	bufferFactory := timebox.NewMemoryBufferFactory()
 	exporter := &s3Exporter{
 		config:     config,
 		dataWriter: &TestWriter{t},
 		logger:     zap.NewNop(),
 		tb:         table.NewTableTranslator(),
-		logs:       timebox.NewTimeboxImpl[string, *TimeboxEntry](config.Timeboxes.Logs.Interval, config.Timeboxes.Logs.OpenIntervalCount, config.Timeboxes.Logs.GracePeriod),
+		logs:       timebox.NewTimeboxImpl[string, *TimeboxEntry](bufferFactory, config.Timeboxes.Logs.Interval, config.Timeboxes.Logs.OpenIntervalCount, config.Timeboxes.Logs.GracePeriod),
 		telemetry:  dummyTelemetry(),
 	}
 	return exporter

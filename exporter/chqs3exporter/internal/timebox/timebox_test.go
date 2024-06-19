@@ -36,7 +36,7 @@ func TestNewScopedTimeboxImpl(t *testing.T) {
 	interval := int64(1000)
 	grace := int64(200)
 	intervalCount := int64(2)
-	timebox := NewTimeboxImpl[int, *MockEntry](interval, intervalCount, grace)
+	timebox := NewTimeboxImpl[int, *MockEntry](NewMemoryBufferFactory(), interval, intervalCount, grace)
 
 	assert.Equal(t, interval, timebox.Interval)
 	assert.Equal(t, intervalCount, timebox.IntervalCount)
@@ -49,7 +49,7 @@ func TestScopedTimeboxImpl_Append(t *testing.T) {
 	interval := int64(1000)
 	grace := int64(200)
 	intervalCount := int64(2)
-	timebox := NewTimeboxImpl[int, *MockEntry](interval, intervalCount, grace)
+	timebox := NewTimeboxImpl[int, *MockEntry](NewMemoryBufferFactory(), interval, intervalCount, grace)
 
 	scope := 1
 	ts := int64(1234567890)
@@ -70,7 +70,7 @@ func TestScopedTimeboxImpl_ItemCount(t *testing.T) {
 	interval := int64(1000)
 	grace := int64(200)
 	intervalCount := int64(2)
-	timebox := NewTimeboxImpl[int, *MockEntry](interval, intervalCount, grace)
+	timebox := NewTimeboxImpl[int, *MockEntry](NewMemoryBufferFactory(), interval, intervalCount, grace)
 	scope := 1
 	ts := int64(1234567890)
 	item := &MockEntry{}
@@ -85,7 +85,7 @@ func TestScopedTimeboxImpl_ItemCountMissingScope(t *testing.T) {
 	interval := int64(1000)
 	grace := int64(200)
 	intervalCount := int64(2)
-	timebox := NewTimeboxImpl[int, *MockEntry](interval, intervalCount, grace)
+	timebox := NewTimeboxImpl[int, *MockEntry](NewMemoryBufferFactory(), interval, intervalCount, grace)
 	scope := 1
 	ts := int64(1234567890)
 	count := timebox.ItemCount(scope, ts)
@@ -96,7 +96,7 @@ func TestScopedTimeboxImpl_ItemCountMissingTS(t *testing.T) {
 	interval := int64(1000)
 	grace := int64(200)
 	intervalCount := int64(2)
-	timebox := NewTimeboxImpl[int, *MockEntry](interval, intervalCount, grace)
+	timebox := NewTimeboxImpl[int, *MockEntry](NewMemoryBufferFactory(), interval, intervalCount, grace)
 	scope := 1
 	ts := int64(1234567890)
 	item := &MockEntry{}
@@ -111,7 +111,7 @@ func TestScopedTimeboxImpl_Closed(t *testing.T) {
 	interval := int64(1000)
 	grace := int64(200)
 	intervalCount := int64(1)
-	timebox := NewTimeboxImpl[int, *MockEntry](interval, intervalCount, grace)
+	timebox := NewTimeboxImpl[int, *MockEntry](NewMemoryBufferFactory(), interval, intervalCount, grace)
 	scope := 1
 	now := int64(1234567890)
 	ts := now - interval - grace
@@ -132,7 +132,7 @@ func TestScopedTimeboxImpl_Closed_IntervalCount2(t *testing.T) {
 	interval := int64(1000)
 	grace := int64(200)
 	intervalCount := int64(2)
-	timebox := NewTimeboxImpl[int, *MockEntry](interval, intervalCount, grace)
+	timebox := NewTimeboxImpl[int, *MockEntry](NewMemoryBufferFactory(), interval, intervalCount, grace)
 	scope := 1
 	now := int64(1234567890)
 	ts := now - interval - grace
@@ -148,7 +148,7 @@ func TestScopedTimeboxImpl_ClosedMissingScope(t *testing.T) {
 	interval := int64(1000)
 	grace := int64(200)
 	intervalCount := int64(2)
-	timebox := NewTimeboxImpl[int, *MockEntry](interval, intervalCount, grace)
+	timebox := NewTimeboxImpl[int, *MockEntry](NewMemoryBufferFactory(), interval, intervalCount, grace)
 	scope := 1
 	now := int64(1234567890)
 	closedItems := timebox.Closed(scope, now, &MockEntry{})
@@ -159,7 +159,7 @@ func TestScopedTimeboxImpl_Scopes(t *testing.T) {
 	interval := int64(1000)
 	grace := int64(200)
 	intervalCount := int64(2)
-	timebox := NewTimeboxImpl[int, *MockEntry](interval, intervalCount, grace)
+	timebox := NewTimeboxImpl[int, *MockEntry](NewMemoryBufferFactory(), interval, intervalCount, grace)
 	scope1 := 1
 	scope2 := 2
 	scope3 := 3
@@ -177,7 +177,7 @@ func TestScopedTimeboxImpl_Items(t *testing.T) {
 	interval := int64(1000)
 	grace := int64(200)
 	intervalCount := int64(2)
-	timebox := NewTimeboxImpl[int, *MockEntry](interval, intervalCount, grace)
+	timebox := NewTimeboxImpl[int, *MockEntry](NewMemoryBufferFactory(), interval, intervalCount, grace)
 	scope := 1
 	ts := int64(1234567890)
 	item := &MockEntry{}
@@ -196,7 +196,7 @@ func TestScopedTimeboxImpl_ItemsMissingScope(t *testing.T) {
 	interval := int64(1000)
 	grace := int64(200)
 	intervalCount := int64(2)
-	timebox := NewTimeboxImpl[int, *MockEntry](interval, intervalCount, grace)
+	timebox := NewTimeboxImpl[int, *MockEntry](NewMemoryBufferFactory(), interval, intervalCount, grace)
 	scope := 1
 	items := timebox.Items(scope, &MockEntry{})
 	assert.Empty(t, items)

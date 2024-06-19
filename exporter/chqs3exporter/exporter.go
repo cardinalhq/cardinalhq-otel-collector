@@ -73,14 +73,16 @@ func newS3Exporter(config *Config, params exporter.Settings) *s3Exporter {
 		return nil
 	}
 
+	bufferFactory := timebox.NewMemoryBufferFactory()
+
 	s3Exporter := &s3Exporter{
 		config:     config,
 		dataWriter: &s3Writer{},
 		logger:     params.Logger,
 		tb:         table.NewTableTranslator(),
-		logs:       timebox.NewTimeboxImpl[string, *TimeboxEntry](config.Timeboxes.Logs.Interval, config.Timeboxes.Logs.OpenIntervalCount, config.Timeboxes.Logs.GracePeriod),
-		metrics:    timebox.NewTimeboxImpl[string, *TimeboxEntry](config.Timeboxes.Metrics.Interval, config.Timeboxes.Logs.OpenIntervalCount, config.Timeboxes.Metrics.GracePeriod),
-		traces:     timebox.NewTimeboxImpl[string, *TimeboxEntry](config.Timeboxes.Traces.Interval, config.Timeboxes.Logs.OpenIntervalCount, config.Timeboxes.Traces.GracePeriod),
+		logs:       timebox.NewTimeboxImpl[string, *TimeboxEntry](bufferFactory, config.Timeboxes.Logs.Interval, config.Timeboxes.Logs.OpenIntervalCount, config.Timeboxes.Logs.GracePeriod),
+		metrics:    timebox.NewTimeboxImpl[string, *TimeboxEntry](bufferFactory, config.Timeboxes.Metrics.Interval, config.Timeboxes.Logs.OpenIntervalCount, config.Timeboxes.Metrics.GracePeriod),
+		traces:     timebox.NewTimeboxImpl[string, *TimeboxEntry](bufferFactory, config.Timeboxes.Traces.Interval, config.Timeboxes.Logs.OpenIntervalCount, config.Timeboxes.Traces.GracePeriod),
 		metadata:   metadata,
 		telemetry:  exporterTelemetry,
 	}

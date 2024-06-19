@@ -54,13 +54,13 @@ type scopedEntry[E Entry] struct {
 	generator E
 }
 
-func NewTimeboxImpl[T comparable, E Entry](interval int64, intervalCount int64, grace int64) *TimeboxImpl[T, E] {
+func NewTimeboxImpl[T comparable, E Entry](bufferFactory BufferFactory, interval int64, intervalCount int64, grace int64) *TimeboxImpl[T, E] {
 	return &TimeboxImpl[T, E]{
 		Interval:      interval,
 		IntervalCount: intervalCount,
 		Grace:         grace,
 		items:         map[T]map[int64]*scopedEntry[E]{},
-		BufferFactory: NewMemoryBufferFactory(),
+		BufferFactory: bufferFactory,
 	}
 }
 

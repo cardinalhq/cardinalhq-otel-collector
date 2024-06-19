@@ -29,8 +29,12 @@ func (t *TimeboxEntry) Encode() ([]byte, error) {
 	return json.Marshal(t)
 }
 
-func (t *TimeboxEntry) Decode(data []byte) error {
-	return json.Unmarshal(data, t)
+func (t *TimeboxEntry) New(data []byte) (timebox.Entry, error) {
+	var entry TimeboxEntry
+	if err := json.Unmarshal(data, &entry); err != nil {
+		return nil, err
+	}
+	return &entry, nil
 }
 
 func (t *TimeboxEntry) ItemTS() int64 {

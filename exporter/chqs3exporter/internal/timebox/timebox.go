@@ -14,62 +14,94 @@
 
 package timebox
 
-import "sync"
+import (
+	"bytes"
+	"sync"
+)
 
 type Entry interface {
 	Encode() ([]byte, error)
-	Decode([]byte) error
+	New([]byte) (Entry, error)
 }
 
 type Timebox[T comparable, E Entry] interface {
-	Append(scope T, ts int64, item ...E)
-	Closed(scope T, now int64) map[int64][]E
-	Items(scope T) map[int64][]E
+	Append(scope T, ts int64, item ...E) error
+	Closed(scope T, now int64, generator E) map[int64][]E
+	Items(scope T, generator E) map[int64][]E
 	Scopes() []T
+	TooOld(ts int64, now int64) bool
 }
 
 type TimeboxImpl[T comparable, E Entry] struct {
 	sync.Mutex
-	Interval int64
-	Grace    int64
-	items    map[T]map[int64]*scopedEntry[E]
+	Interval      int64
+	IntervalCount int64
+	Grace         int64
+	items         map[T]map[int64]*scopedEntry[E]
 }
 
 type mm struct{}
 
-func (*mm) Encode() ([]byte, error) { return nil, nil }
-func (*mm) Decode([]byte) error     { return nil }
+func (*mm) Encode() ([]byte, error)   { return nil, nil }
+func (*mm) Decode([]byte) error       { return nil }
+func (*mm) New([]byte) (Entry, error) { return &mm{}, nil }
 
 var _ Timebox[int, *mm] = &TimeboxImpl[int, *mm]{}
 
 type scopedEntry[E Entry] struct {
 	ts        int64
 	itemCount int
-	items     []E
+	buf       bytes.Buffer
+	generator E
 }
 
-func NewTimeboxImpl[T comparable, E Entry](interval int64, grace int64) *TimeboxImpl[T, E] {
+func NewTimeboxImpl[T comparable, E Entry](interval int64, intervalCount int64, grace int64) *TimeboxImpl[T, E] {
 	return &TimeboxImpl[T, E]{
-		Interval: interval,
-		Grace:    grace,
-		items:    map[T]map[int64]*scopedEntry[E]{},
+		Interval:      interval,
+		IntervalCount: intervalCount,
+		Grace:         grace,
+		items:         map[T]map[int64]*scopedEntry[E]{},
 	}
 }
 
-func (t *TimeboxImpl[T, E]) Append(scope T, ts int64, item ...E) {
+func (t *TimeboxImpl[T, E]) TooOld(ts int64, now int64) bool {
+	return now-ts >= t.Interval*t.IntervalCount+t.Grace
+}
+
+func (t *TimeboxImpl[T, E]) Append(scope T, ts int64, newItems ...E) error {
 	t.Lock()
 	defer t.Unlock()
 	if _, ok := t.items[scope]; !ok {
 		t.items[scope] = map[int64]*scopedEntry[E]{}
 	}
 	if _, ok := t.items[scope][ts]; !ok {
-		t.items[scope][ts] = &scopedEntry[E]{
-			ts:    ts,
-			items: []E{},
+		t.items[scope][ts] = &scopedEntry[E]{ts: ts}
+	}
+	for _, i := range newItems {
+		b, err := i.Encode()
+		if err != nil {
+			return err
+		}
+		length := int32(len(b))
+		if err := t.items[scope][ts].buf.WriteByte(byte(length >> 24)); err != nil {
+			return err
+		}
+		if err := t.items[scope][ts].buf.WriteByte(byte(length >> 16)); err != nil {
+			return err
+		}
+		if err := t.items[scope][ts].buf.WriteByte(byte(length >> 8)); err != nil {
+			return err
+		}
+		if err := t.items[scope][ts].buf.WriteByte(byte(length)); err != nil {
+			return err
+		}
+		_, err = t.items[scope][ts].buf.Write(b)
+		if err != nil {
+			return err
 		}
 	}
-	t.items[scope][ts].items = append(t.items[scope][ts].items, item...)
-	t.items[scope][ts].itemCount += len(item)
+	t.items[scope][ts].itemCount += len(newItems)
+	return nil
 }
 
 func (t *TimeboxImpl[T, E]) ItemCount(scope T, ts int64) int {
@@ -84,7 +116,22 @@ func (t *TimeboxImpl[T, E]) ItemCount(scope T, ts int64) int {
 	return t.items[scope][ts].itemCount
 }
 
-func (t *TimeboxImpl[T, E]) Closed(scope T, now int64) map[int64][]E {
+func (se *scopedEntry[E]) decode(generator E) ([]E, error) {
+	items := make([]E, se.itemCount, se.itemCount)
+	for i := 0; i < se.itemCount; i++ {
+		lengthBytes := se.buf.Next(4)
+		length := int32(lengthBytes[0])<<24 | int32(lengthBytes[1])<<16 | int32(lengthBytes[2])<<8 | int32(lengthBytes[3])
+		b := se.buf.Next(int(length))
+		newItem, err := generator.New(b)
+		if err != nil {
+			return nil, err
+		}
+		items[i] = newItem.(E)
+	}
+	return items, nil
+}
+
+func (t *TimeboxImpl[T, E]) Closed(scope T, now int64, generator E) map[int64][]E {
 	t.Lock()
 	defer t.Unlock()
 	ret := map[int64][]E{}
@@ -92,19 +139,23 @@ func (t *TimeboxImpl[T, E]) Closed(scope T, now int64) map[int64][]E {
 		return ret
 	}
 	for ts, entry := range t.items[scope] {
-		if closed(now, entry.ts, t.Interval, t.Grace) {
-			ret[ts] = entry.items
+		if closed(now, entry.ts, t.Interval, t.IntervalCount, t.Grace) {
+			items, err := entry.decode(generator)
+			if err != nil {
+				continue
+			}
+			ret[ts] = items
 			delete(t.items[scope], ts)
 		}
 	}
 	return ret
 }
 
-func closed(now, tbstart, interval, grace int64) bool {
-	return now-tbstart >= interval+grace
+func closed(now, tbstart, interval, nIntervals, grace int64) bool {
+	return now-tbstart >= interval*nIntervals+grace
 }
 
-func (t *TimeboxImpl[T, E]) Items(scope T) map[int64][]E {
+func (t *TimeboxImpl[T, E]) Items(scope T, generator E) map[int64][]E {
 	t.Lock()
 	defer t.Unlock()
 	ret := map[int64][]E{}
@@ -112,7 +163,11 @@ func (t *TimeboxImpl[T, E]) Items(scope T) map[int64][]E {
 		return ret
 	}
 	for ts, entry := range t.items[scope] {
-		ret[ts] = entry.items
+		items, err := entry.decode(generator)
+		if err != nil {
+			continue
+		}
+		ret[ts] = items
 	}
 	return ret
 }

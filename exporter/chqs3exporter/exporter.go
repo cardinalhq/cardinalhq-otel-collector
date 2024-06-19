@@ -23,9 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/tagwriter"
-	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/timebox"
-	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/translation/table"
 	"go.opentelemetry.io/collector/client"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/exporter"
@@ -36,6 +33,10 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/tagwriter"
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/timebox"
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/translation/table"
 )
 
 type s3Exporter struct {
@@ -77,9 +78,9 @@ func newS3Exporter(config *Config, params exporter.Settings) *s3Exporter {
 		dataWriter: &s3Writer{},
 		logger:     params.Logger,
 		tb:         table.NewTableTranslator(),
-		logs:       timebox.NewTimeboxImpl[string, *TimeboxEntry](config.Timeboxes.Logs.Interval, config.Timeboxes.Logs.GracePeriod),
-		metrics:    timebox.NewTimeboxImpl[string, *TimeboxEntry](config.Timeboxes.Metrics.Interval, config.Timeboxes.Metrics.GracePeriod),
-		traces:     timebox.NewTimeboxImpl[string, *TimeboxEntry](config.Timeboxes.Traces.Interval, config.Timeboxes.Traces.GracePeriod),
+		logs:       timebox.NewTimeboxImpl[string, *TimeboxEntry](config.Timeboxes.Logs.Interval, config.Timeboxes.Logs.OpenIntervalCount, config.Timeboxes.Logs.GracePeriod),
+		metrics:    timebox.NewTimeboxImpl[string, *TimeboxEntry](config.Timeboxes.Metrics.Interval, config.Timeboxes.Logs.OpenIntervalCount, config.Timeboxes.Metrics.GracePeriod),
+		traces:     timebox.NewTimeboxImpl[string, *TimeboxEntry](config.Timeboxes.Traces.Interval, config.Timeboxes.Logs.OpenIntervalCount, config.Timeboxes.Traces.GracePeriod),
 		metadata:   metadata,
 		telemetry:  exporterTelemetry,
 	}
@@ -128,52 +129,52 @@ func customerIDFromContext(ctx context.Context, metadata Metadata) string {
 func (e *s3Exporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
 	var errs error
 	customerID := customerIDFromContext(ctx, e.config.Metadata)
-	oldestTimestamp, err := e.consumeMetrics(md, customerID)
+	oldestTimestamp, err := e.consumeMetrics(time.Now().UnixMilli(), md, customerID)
 	errs = multierr.Append(errs, err)
-	items := e.metrics.Closed(customerID, oldestTimestamp)
+	items := e.metrics.Closed(customerID, oldestTimestamp, &TimeboxEntry{})
 	errs = multierr.Append(errs, e.writeTable(items, logFilePrefix, customerID))
 	return errs
 }
 
-func (e *s3Exporter) consumeMetrics(md pmetric.Metrics, customerID string) (int64, error) {
+func (e *s3Exporter) consumeMetrics(now int64, md pmetric.Metrics, customerID string) (int64, error) {
 	if e.config.Timeboxes.Metrics.Interval <= 0 {
 		return 0, nil
 	}
-	return e.appendMetrics(md, customerID)
+	return e.appendMetrics(now, md, customerID)
 }
 
 func (e *s3Exporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {
 	var errs error
 	customerID := customerIDFromContext(ctx, e.config.Metadata)
-	oldestTimestamp, err := e.consumeLogs(logs, customerID)
+	oldestTimestamp, err := e.consumeLogs(time.Now().UnixMilli(), logs, customerID)
 	errs = multierr.Append(errs, err)
-	items := e.logs.Closed(customerID, oldestTimestamp)
+	items := e.logs.Closed(customerID, oldestTimestamp, &TimeboxEntry{})
 	errs = multierr.Append(errs, e.writeTable(items, logFilePrefix, customerID))
 	return errs
 }
 
-func (e *s3Exporter) consumeLogs(logs plog.Logs, customerID string) (int64, error) {
+func (e *s3Exporter) consumeLogs(now int64, logs plog.Logs, customerID string) (int64, error) {
 	if e.config.Timeboxes.Logs.Interval <= 0 {
 		return 0, nil
 	}
-	return e.appendLogs(logs, customerID)
+	return e.appendLogs(now, logs, customerID)
 }
 
 func (e *s3Exporter) ConsumeTraces(ctx context.Context, traces ptrace.Traces) error {
 	var errs error
 	customerID := customerIDFromContext(ctx, e.config.Metadata)
-	oldestTimestamp, err := e.consumeTraces(traces, customerID)
+	oldestTimestamp, err := e.consumeTraces(time.Now().UnixMilli(), traces, customerID)
 	errs = multierr.Append(errs, err)
-	items := e.traces.Closed(customerID, oldestTimestamp)
+	items := e.traces.Closed(customerID, oldestTimestamp, &TimeboxEntry{})
 	errs = multierr.Append(errs, e.writeTable(items, tracesFilePrefix, customerID))
 	return errs
 }
 
-func (e *s3Exporter) consumeTraces(traces ptrace.Traces, customerID string) (int64, error) {
+func (e *s3Exporter) consumeTraces(now int64, traces ptrace.Traces, customerID string) (int64, error) {
 	if e.config.Timeboxes.Traces.Interval <= 0 {
 		return 0, nil
 	}
-	return e.appendTraces(traces, customerID)
+	return e.appendTraces(now, traces, customerID)
 }
 
 func (s *s3Exporter) writeTable(items map[int64][]*TimeboxEntry, telemetryType string, customerID string) error {
@@ -214,19 +215,19 @@ func (e *s3Exporter) Shutdown(context.Context) error {
 
 	scopes := e.logs.Scopes()
 	for _, scope := range scopes {
-		items := e.logs.Closed(scope, 0)
+		items := e.logs.Closed(scope, 0, &TimeboxEntry{})
 		errs = multierr.Append(errs, e.writeTable(items, logFilePrefix, scope))
 	}
 
 	scopes = e.metrics.Scopes()
 	for _, scope := range scopes {
-		items := e.metrics.Closed(scope, 0)
+		items := e.metrics.Closed(scope, 0, &TimeboxEntry{})
 		errs = multierr.Append(errs, e.writeTable(items, metricFilePrefix, scope))
 	}
 
 	scopes = e.traces.Scopes()
 	for _, scope := range scopes {
-		items := e.traces.Closed(scope, 0)
+		items := e.traces.Closed(scope, 0, &TimeboxEntry{})
 		errs = multierr.Append(errs, e.writeTable(items, tracesFilePrefix, scope))
 	}
 	return errs
@@ -265,15 +266,15 @@ func (s *s3Exporter) MarshalTable(wr io.Writer, items []*TimeboxEntry) error {
 	return writer.Close()
 }
 
-func (s *s3Exporter) appendMetrics(md pmetric.Metrics, customerID string) (int64, error) {
-	tbl, err := s.tb.MetricsFromOtel(&md)
+func (e *s3Exporter) appendMetrics(now int64, md pmetric.Metrics, customerID string) (int64, error) {
+	tbl, err := e.tb.MetricsFromOtel(&md)
 	if err != nil {
 		return 0, err
 	}
 	oldest := int64(0)
 	for _, row := range tbl {
 		tbe := TimeboxEntry(row)
-		ts := emitInto(s.metrics, &tbe, customerID)
+		ts := e.emitInto(now, e.metrics, &tbe, metricFilePrefix, customerID)
 		if ts > oldest {
 			oldest = ts
 		}
@@ -281,15 +282,15 @@ func (s *s3Exporter) appendMetrics(md pmetric.Metrics, customerID string) (int64
 	return oldest, nil
 }
 
-func (s *s3Exporter) appendTraces(td ptrace.Traces, customerID string) (int64, error) {
-	tbl, err := s.tb.TracesFromOtel(&td)
+func (e *s3Exporter) appendTraces(now int64, td ptrace.Traces, customerID string) (int64, error) {
+	tbl, err := e.tb.TracesFromOtel(&td)
 	if err != nil {
 		return 0, err
 	}
 	oldest := int64(0)
 	for _, row := range tbl {
 		tbe := TimeboxEntry(row)
-		ts := emitInto(s.traces, &tbe, customerID)
+		ts := e.emitInto(now, e.traces, &tbe, tracesFilePrefix, customerID)
 		if ts > oldest {
 			oldest = ts
 		}
@@ -297,15 +298,15 @@ func (s *s3Exporter) appendTraces(td ptrace.Traces, customerID string) (int64, e
 	return oldest, nil
 }
 
-func (s *s3Exporter) appendLogs(ld plog.Logs, customerID string) (int64, error) {
-	tbl, err := s.tb.LogsFromOtel(&ld)
+func (e *s3Exporter) appendLogs(now int64, ld plog.Logs, customerID string) (int64, error) {
+	tbl, err := e.tb.LogsFromOtel(&ld)
 	if err != nil {
 		return 0, err
 	}
 	oldest := int64(0)
 	for _, row := range tbl {
 		tbe := TimeboxEntry(row)
-		ts := emitInto(s.logs, &tbe, customerID)
+		ts := e.emitInto(now, e.logs, &tbe, logFilePrefix, customerID)
 		if ts > oldest {
 			oldest = ts
 		}
@@ -313,8 +314,15 @@ func (s *s3Exporter) appendLogs(ld plog.Logs, customerID string) (int64, error) 
 	return oldest, nil
 }
 
-func emitInto(acc timebox.Timebox[string, *TimeboxEntry], item *TimeboxEntry, customerID string) int64 {
+func (e *s3Exporter) emitInto(now int64, acc timebox.Timebox[string, *TimeboxEntry], item *TimeboxEntry, telemetryType, customerID string) int64 {
 	itemts := item.ItemTS()
+	if acc.TooOld(itemts, now) {
+		e.telemetry.datapointTooOld.Add(context.Background(), 1, metric.WithAttributes(
+			attribute.String("telemetryType", telemetryType),
+			attribute.String("customerID", customerID),
+			attribute.Int64("itemts", itemts)))
+		return 0
+	}
 	acc.Append(customerID, itemts, item)
 	return itemts
 }

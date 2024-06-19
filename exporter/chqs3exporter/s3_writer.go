@@ -23,7 +23,7 @@ type s3Writer struct {
 var _ dataWriter = (*s3Writer)(nil)
 
 // generate the s3 time key based on partition configuration
-func getTimeKey(time time.Time, partition string) string {
+func getTimeKey(time time.Time, partition string, customerID string) string {
 	var timeKey string
 	year, month, day := time.Date()
 	hour, minute, _ := time.Clock()
@@ -33,6 +33,10 @@ func getTimeKey(time time.Time, partition string) string {
 	} else {
 		timeKey = fmt.Sprintf("year=%d/month=%02d/day=%02d/hour=%02d/minute=%02d", year, month, day, hour, minute)
 	}
+	if customerID != "" {
+		timeKey = customerID + "/" + timeKey
+	}
+
 	return timeKey
 }
 
@@ -40,8 +44,8 @@ func randomInRange(low, hi int) int {
 	return low + rand.Intn(hi-low)
 }
 
-func getS3Key(time time.Time, keyPrefix string, partition string, filePrefix string, metadata string, fileFormat string) string {
-	timeKey := getTimeKey(time, partition)
+func getS3Key(time time.Time, keyPrefix string, partition string, filePrefix string, metadata string, fileFormat string, customerID string) string {
+	timeKey := getTimeKey(time, partition, customerID)
 	randomID := randomInRange(100000000, 999999999)
 	suffix := ""
 	if fileFormat != "" {
@@ -79,10 +83,10 @@ func getSession(config *Config, sessionConfig *aws.Config) (*session.Session, er
 	return sess, err
 }
 
-func (s3writer *s3Writer) writeBuffer(_ context.Context, now time.Time, buf io.Reader, config *Config, metadata string, format string, kv map[string]string) error {
+func (s3writer *s3Writer) writeBuffer(_ context.Context, now time.Time, buf io.Reader, config *Config, metadata string, format string, kv map[string]string, customerID string) error {
 	key := getS3Key(now,
 		config.S3Uploader.S3Prefix, config.S3Uploader.S3Partition,
-		config.S3Uploader.FilePrefix, metadata, format)
+		config.S3Uploader.FilePrefix, metadata, format, customerID)
 
 	contentType := ""
 	if format == "parquet" {

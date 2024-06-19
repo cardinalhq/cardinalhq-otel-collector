@@ -15,11 +15,11 @@
 FROM --platform=${BUILDPLATFORM} public.ecr.aws/b1d7g2f3/cardinalhq-otel-collector:builder-latest as build
 ARG TARGETOS
 ARG TARGETARCH
-ARG OTEL_VERSION=0.102.0
+ARG OTEL_VERSION=latest
 
 WORKDIR /build
 COPY . .
-RUN go install go.opentelemetry.io/collector/cmd/builder@v${OTEL_VERSION}
+RUN go install go.opentelemetry.io/collector/cmd/builder@${OTEL_VERSION}
 ENV GOOS=${TARGETOS} GOARCH=${TARGETARCH}
 RUN CGO_ENABLED=0 builder --config=cardinalhq-otel-collector.yaml
 

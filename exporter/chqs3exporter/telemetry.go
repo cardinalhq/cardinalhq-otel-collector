@@ -22,7 +22,8 @@ import (
 )
 
 type exporterTelemetry struct {
-	filesWritten metric.Int64Counter
+	filesWritten    metric.Int64Counter
+	datapointTooOld metric.Int64Counter
 }
 
 func newTelemetry(set exporter.Settings) (*exporterTelemetry, error) {
@@ -37,6 +38,16 @@ func newTelemetry(set exporter.Settings) (*exporterTelemetry, error) {
 		return nil, err
 	}
 	tel.filesWritten = counter
+
+	counter, err = metadata.Meter(set.TelemetrySettings).Int64Counter(
+		"exporter_"+metadata.Type.String()+"_datapoint_too_old",
+		metric.WithDescription("The total number of datapoints that are too old to be written by the exporter"),
+		metric.WithUnit("1"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	tel.datapointTooOld = counter
 
 	return tel, nil
 }

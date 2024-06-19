@@ -81,8 +81,8 @@ func newS3Exporter(config *Config, params exporter.Settings) *s3Exporter {
 		logger:     params.Logger,
 		tb:         table.NewTableTranslator(),
 		logs:       timebox.NewTimeboxImpl[string, *TimeboxEntry](bufferFactory, config.Timeboxes.Logs.Interval, config.Timeboxes.Logs.OpenIntervalCount, config.Timeboxes.Logs.GracePeriod),
-		metrics:    timebox.NewTimeboxImpl[string, *TimeboxEntry](bufferFactory, config.Timeboxes.Metrics.Interval, config.Timeboxes.Logs.OpenIntervalCount, config.Timeboxes.Metrics.GracePeriod),
-		traces:     timebox.NewTimeboxImpl[string, *TimeboxEntry](bufferFactory, config.Timeboxes.Traces.Interval, config.Timeboxes.Logs.OpenIntervalCount, config.Timeboxes.Traces.GracePeriod),
+		metrics:    timebox.NewTimeboxImpl[string, *TimeboxEntry](bufferFactory, config.Timeboxes.Metrics.Interval, config.Timeboxes.Metrics.OpenIntervalCount, config.Timeboxes.Metrics.GracePeriod),
+		traces:     timebox.NewTimeboxImpl[string, *TimeboxEntry](bufferFactory, config.Timeboxes.Traces.Interval, config.Timeboxes.Traces.OpenIntervalCount, config.Timeboxes.Traces.GracePeriod),
 		metadata:   metadata,
 		telemetry:  exporterTelemetry,
 	}

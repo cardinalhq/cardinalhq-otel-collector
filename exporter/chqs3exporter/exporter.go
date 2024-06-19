@@ -190,9 +190,10 @@ func (s *s3Exporter) writeTable(items map[int64][]*TimeboxEntry, telemetryType s
 			continue
 		}
 		wr.Reset()
+		logger := s.logger.With(zap.String("customerID", customerID), zap.String("telemetryType", telemetryType), zap.Int64("timebox", tb))
 		err := s.MarshalTable(wr, rows)
 		if err != nil {
-			s.logger.Error("Failed to marshal table", zap.Error(err), zap.String("telemetryType", telemetryType), zap.Int64("timebox", tb))
+			logger.Error("Failed to marshal table", zap.Error(err))
 			continue
 		}
 		prefix := telemetryType + "_" + strconv.FormatInt(tb, 10)
@@ -201,10 +202,10 @@ func (s *s3Exporter) writeTable(items map[int64][]*TimeboxEntry, telemetryType s
 		if err != nil {
 			s.telemetry.filesWritten.Add(context.Background(), 1,
 				metric.WithAttributes(attribute.String("telemetryType", telemetryType), attribute.Bool("success", false)))
-			s.logger.Error("Failed to write buffer", zap.Error(err), zap.String("telemetryType", telemetryType), zap.Int64("timebox", tb))
+			logger.Error("Failed to write buffer", zap.Error(err))
 			continue
 		}
-		s.logger.Info("Wrote buffer", zap.String("telemetryType", telemetryType), zap.Int64("timebox", tb), zap.String("prefix", prefix), zap.Int("rows", len(rows)))
+		logger.Info("Wrote buffer", zap.String("prefix", prefix), zap.Int("rows", len(rows)))
 		s.telemetry.filesWritten.Add(context.Background(), 1,
 			metric.WithAttributes(attribute.String("telemetryType", telemetryType), attribute.Bool("success", true)))
 	}

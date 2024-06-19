@@ -13,6 +13,9 @@ import (
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/timebox"
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/translation/table"
 )
 
 var testLogs = []byte(`{"resourceLogs":[{"resource":{"attributes":[{"key":"_sourceCategory","value":{"stringValue":"logfile"}},{"key":"_sourceHost","value":{"stringValue":"host"}}]},"scopeLogs":[{"scope":{},"logRecords":[{"observedTimeUnixNano":"1654257420681895000","body":{"stringValue":"2022-06-03 13:57:00.62739 +0200 CEST m=+14.018296742 log entry14"},"attributes":[{"key":"log.file.path_resolved","value":{"stringValue":"logwriter/data.log"}}],"traceId":"","spanId":""}]}],"schemaUrl":"https://opentelemetry.io/schemas/1.6.1"}]}`)
@@ -49,12 +52,12 @@ func getLogExporter(t *testing.T) *s3Exporter {
 	config := createDefaultConfig().(*Config)
 	config.Timeboxes.Logs.Interval = 10
 	config.Timeboxes.Logs.GracePeriod = 0
-	marshaler := newParquetMarshaller(&config.Timeboxes)
 	exporter := &s3Exporter{
 		config:     config,
 		dataWriter: &TestWriter{t},
 		logger:     zap.NewNop(),
-		marshaler:  marshaler,
+		tb:         table.NewTableTranslator(),
+		logs:       timebox.NewTimeboxImpl[string, *TimeboxEntry](config.Timeboxes.Logs.Interval, config.Timeboxes.Logs.GracePeriod),
 		telemetry:  dummyTelemetry(),
 	}
 	return exporter
@@ -65,7 +68,9 @@ func TestLog(t *testing.T) {
 	exporter := getLogExporter(t)
 	oldest, err := exporter.consumeLogs(logs, "default")
 	assert.NoError(t, err)
-	items := exporter.marshaler.ClosedLogs(oldest)
+	items := exporter.logs.Closed("default", oldest)
+	assert.Len(t, items, 0)
+	items = exporter.logs.Closed("default", oldest+100_000)
 	assert.Len(t, items, 1)
-	assert.NoError(t, exporter.writeTable(items, "logs", ""))
+	assert.NoError(t, exporter.writeTable(items, "logs", "default"))
 }

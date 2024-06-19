@@ -40,3 +40,7 @@ func (t *TimeboxEntry) ItemTS() int64 {
 	}
 	return itemts
 }
+
+func (t *TimeboxEntry) Self() map[string]any {
+	return (*t)
+}

@@ -16,58 +16,63 @@ package timebox
 
 import "sync"
 
-type Timebox[T comparable] interface {
-	Append(scope T, ts int64, item ...Entry)
-	Closed(scope T, now int64) map[int64][]Entry
-	Items(scope T) map[int64][]Entry
-	Scopes() []T
-}
-
-type TimeboxImpl[T comparable] struct {
-	sync.Mutex
-	Interval int64
-	Grace    int64
-	items    map[T]map[int64]*scopedEntry
-}
-
-var _ Timebox[int] = &TimeboxImpl[int]{}
-
-type scopedEntry struct {
-	ts        int64
-	itemCount int
-	items     []Entry
-}
-
 type Entry interface {
 	Encode() ([]byte, error)
 	Decode([]byte) error
 }
 
-func NewTimeboxImpl[T comparable](interval int64, grace int64) *TimeboxImpl[T] {
-	return &TimeboxImpl[T]{
+type Timebox[T comparable, E Entry] interface {
+	Append(scope T, ts int64, item ...E)
+	Closed(scope T, now int64) map[int64][]E
+	Items(scope T) map[int64][]E
+	Scopes() []T
+}
+
+type TimeboxImpl[T comparable, E Entry] struct {
+	sync.Mutex
+	Interval int64
+	Grace    int64
+	items    map[T]map[int64]*scopedEntry[E]
+}
+
+type mm struct{}
+
+func (*mm) Encode() ([]byte, error) { return nil, nil }
+func (*mm) Decode([]byte) error     { return nil }
+
+var _ Timebox[int, *mm] = &TimeboxImpl[int, *mm]{}
+
+type scopedEntry[E Entry] struct {
+	ts        int64
+	itemCount int
+	items     []E
+}
+
+func NewTimeboxImpl[T comparable, E Entry](interval int64, grace int64) *TimeboxImpl[T, E] {
+	return &TimeboxImpl[T, E]{
 		Interval: interval,
 		Grace:    grace,
-		items:    map[T]map[int64]*scopedEntry{},
+		items:    map[T]map[int64]*scopedEntry[E]{},
 	}
 }
 
-func (t *TimeboxImpl[T]) Append(scope T, ts int64, item ...Entry) {
+func (t *TimeboxImpl[T, E]) Append(scope T, ts int64, item ...E) {
 	t.Lock()
 	defer t.Unlock()
 	if _, ok := t.items[scope]; !ok {
-		t.items[scope] = map[int64]*scopedEntry{}
+		t.items[scope] = map[int64]*scopedEntry[E]{}
 	}
 	if _, ok := t.items[scope][ts]; !ok {
-		t.items[scope][ts] = &scopedEntry{
+		t.items[scope][ts] = &scopedEntry[E]{
 			ts:    ts,
-			items: []Entry{},
+			items: []E{},
 		}
 	}
 	t.items[scope][ts].items = append(t.items[scope][ts].items, item...)
 	t.items[scope][ts].itemCount += len(item)
 }
 
-func (t *TimeboxImpl[T]) ItemCount(scope T, ts int64) int {
+func (t *TimeboxImpl[T, E]) ItemCount(scope T, ts int64) int {
 	t.Lock()
 	defer t.Unlock()
 	if _, ok := t.items[scope]; !ok {
@@ -79,10 +84,10 @@ func (t *TimeboxImpl[T]) ItemCount(scope T, ts int64) int {
 	return t.items[scope][ts].itemCount
 }
 
-func (t *TimeboxImpl[T]) Closed(scope T, now int64) map[int64][]Entry {
+func (t *TimeboxImpl[T, E]) Closed(scope T, now int64) map[int64][]E {
 	t.Lock()
 	defer t.Unlock()
-	ret := map[int64][]Entry{}
+	ret := map[int64][]E{}
 	if _, ok := t.items[scope]; !ok {
 		return ret
 	}
@@ -99,10 +104,10 @@ func closed(now, tbstart, interval, grace int64) bool {
 	return now-tbstart >= interval+grace
 }
 
-func (t *TimeboxImpl[T]) Items(scope T) map[int64][]Entry {
+func (t *TimeboxImpl[T, E]) Items(scope T) map[int64][]E {
 	t.Lock()
 	defer t.Unlock()
-	ret := map[int64][]Entry{}
+	ret := map[int64][]E{}
 	if _, ok := t.items[scope]; !ok {
 		return ret
 	}
@@ -112,7 +117,7 @@ func (t *TimeboxImpl[T]) Items(scope T) map[int64][]Entry {
 	return ret
 }
 
-func (t *TimeboxImpl[T]) Scopes() []T {
+func (t *TimeboxImpl[T, E]) Scopes() []T {
 	t.Lock()
 	defer t.Unlock()
 	ret := []T{}

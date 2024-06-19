@@ -15,7 +15,6 @@
 package timebox
 
 import (
-	"bytes"
 	"sync"
 )
 
@@ -38,12 +37,12 @@ type TimeboxImpl[T comparable, E Entry] struct {
 	IntervalCount int64
 	Grace         int64
 	items         map[T]map[int64]*scopedEntry[E]
+	BufferFactory BufferFactory
 }
 
 type mm struct{}
 
 func (*mm) Encode() ([]byte, error)   { return nil, nil }
-func (*mm) Decode([]byte) error       { return nil }
 func (*mm) New([]byte) (Entry, error) { return &mm{}, nil }
 
 var _ Timebox[int, *mm] = &TimeboxImpl[int, *mm]{}
@@ -51,7 +50,7 @@ var _ Timebox[int, *mm] = &TimeboxImpl[int, *mm]{}
 type scopedEntry[E Entry] struct {
 	ts        int64
 	itemCount int
-	buf       bytes.Buffer
+	buffer    Buffer
 	generator E
 }
 
@@ -61,6 +60,7 @@ func NewTimeboxImpl[T comparable, E Entry](interval int64, intervalCount int64, 
 		IntervalCount: intervalCount,
 		Grace:         grace,
 		items:         map[T]map[int64]*scopedEntry[E]{},
+		BufferFactory: NewMemoryBufferFactory(),
 	}
 }
 
@@ -75,7 +75,14 @@ func (t *TimeboxImpl[T, E]) Append(scope T, ts int64, newItems ...E) error {
 		t.items[scope] = map[int64]*scopedEntry[E]{}
 	}
 	if _, ok := t.items[scope][ts]; !ok {
-		t.items[scope][ts] = &scopedEntry[E]{ts: ts}
+		buffer, err := t.BufferFactory.NewBuffer()
+		if err != nil {
+			return err
+		}
+		t.items[scope][ts] = &scopedEntry[E]{
+			ts:     ts,
+			buffer: buffer,
+		}
 	}
 	for _, i := range newItems {
 		b, err := i.Encode()
@@ -83,19 +90,17 @@ func (t *TimeboxImpl[T, E]) Append(scope T, ts int64, newItems ...E) error {
 			return err
 		}
 		length := int32(len(b))
-		if err := t.items[scope][ts].buf.WriteByte(byte(length >> 24)); err != nil {
+		lengthBytes := []byte{
+			byte(length >> 24),
+			byte(length >> 16),
+			byte(length >> 8),
+			byte(length),
+		}
+		_, err = t.items[scope][ts].buffer.Write(lengthBytes)
+		if err != nil {
 			return err
 		}
-		if err := t.items[scope][ts].buf.WriteByte(byte(length >> 16)); err != nil {
-			return err
-		}
-		if err := t.items[scope][ts].buf.WriteByte(byte(length >> 8)); err != nil {
-			return err
-		}
-		if err := t.items[scope][ts].buf.WriteByte(byte(length)); err != nil {
-			return err
-		}
-		_, err = t.items[scope][ts].buf.Write(b)
+		_, err = t.items[scope][ts].buffer.Write(b)
 		if err != nil {
 			return err
 		}
@@ -119,9 +124,11 @@ func (t *TimeboxImpl[T, E]) ItemCount(scope T, ts int64) int {
 func (se *scopedEntry[E]) decode(generator E) ([]E, error) {
 	items := make([]E, se.itemCount, se.itemCount)
 	for i := 0; i < se.itemCount; i++ {
-		lengthBytes := se.buf.Next(4)
+		lengthBytes := make([]byte, 4)
+		_, err := se.buffer.Read(lengthBytes)
 		length := int32(lengthBytes[0])<<24 | int32(lengthBytes[1])<<16 | int32(lengthBytes[2])<<8 | int32(lengthBytes[3])
-		b := se.buf.Next(int(length))
+		b := make([]byte, length)
+		_, err = se.buffer.Read(b)
 		newItem, err := generator.New(b)
 		if err != nil {
 			return nil, err

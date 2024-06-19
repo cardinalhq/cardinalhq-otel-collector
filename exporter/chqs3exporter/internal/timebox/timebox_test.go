@@ -43,7 +43,7 @@ func TestCalculateInterval(t *testing.T) {
 
 func TestNewTimebox(t *testing.T) {
 	interval := CalculateInterval(123456789000, 10_000)
-	expiry := time.Now().Add(time.Hour)
+	expiry := interval + 10_000
 
 	timebox := NewTimebox(interval, expiry)
 
@@ -55,7 +55,8 @@ func TestNewTimebox(t *testing.T) {
 func TestAppend(t *testing.T) {
 	now := time.Unix(1234567890, 0)
 	interval := CalculateInterval(now.UnixMilli(), 10_000)
-	timebox := NewTimebox(interval, now.Add(time.Hour))
+	expiry := interval + 10_000
+	timebox := NewTimebox(interval, expiry)
 
 	item1 := map[string]any{"key1": "value1"}
 	timebox.Append(item1)
@@ -70,14 +71,14 @@ func TestShouldClose(t *testing.T) {
 	tests := []struct {
 		name     string
 		interval int64
-		now      time.Time
-		expiry   time.Time
+		now      int64
+		expiry   int64
 		want     bool
 	}{
-		{"now before expiry", 1234567890, time.Unix(1234567889, 0), time.Unix(1234567890, 0), false},
-		{"now equal to expiry", 1234567890, time.Unix(1234567890, 0), time.Unix(1234567890, 0), false},
-		{"now after expiry", 1234567890, time.Unix(1234567891, 0), time.Unix(1234567890, 0), true},
-		{"interval is very different than now", 40, time.Unix(1234567889, 0), time.Unix(1234567890, 0), false},
+		{"now before expiry", 1234567890, 1234567889, 1234567890, false},
+		{"now equal to expiry", 1234567890, 1234567890, 1234567890, false},
+		{"now after expiry", 1234567890, 1234567891, 1234567890, true},
+		{"interval is very different than now", 40, 1234567889, 1234567890, false},
 	}
 
 	for _, tt := range tests {

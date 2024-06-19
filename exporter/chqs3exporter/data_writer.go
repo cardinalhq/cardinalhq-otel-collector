@@ -10,5 +10,5 @@ import (
 )
 
 type dataWriter interface {
-	writeBuffer(ctx context.Context, now time.Time, buf io.Reader, config *Config, metadata string, format string, kv map[string]string) error
+	writeBuffer(ctx context.Context, now time.Time, buf io.Reader, config *Config, metadata string, format string, kv map[string]string, customerID string) error
 }

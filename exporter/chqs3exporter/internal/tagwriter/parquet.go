@@ -69,11 +69,11 @@ func ParquetNodeFromType(t any) (parquet.Node, error) {
 		return parquet.Required(parquet.Int(8)), nil
 	case int16:
 		return parquet.Required(parquet.Int(16)), nil
-	case int32, int:
+	case int32:
 		return parquet.Required(parquet.Int(32)), nil
 	case int64:
 		return parquet.Required(parquet.Int(64)), nil
-	case float64, float32:
+	case float64:
 		return parquet.Required(parquet.Leaf(parquet.DoubleType)), nil
 	case string:
 		return parquet.Required(parquet.String()), nil

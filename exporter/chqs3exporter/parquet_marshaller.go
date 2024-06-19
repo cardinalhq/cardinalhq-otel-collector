@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"io"
 	"sync"
-	"time"
 
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/pmetric"
@@ -102,27 +101,27 @@ func closed(now, tbstart, interval, grace int64) bool {
 	return now-tbstart >= interval+grace
 }
 
-func (s *parquetMarshaller) ClosedLogs(now time.Time) map[int64][]map[string]any {
+func (s *parquetMarshaller) ClosedLogs(now int64) map[int64][]map[string]any {
 	s.logsLock.Lock()
 	defer s.logsLock.Unlock()
 	return s.closed(now, s.logs)
 }
 
-func (s *parquetMarshaller) ClosedMetrics(now time.Time) map[int64][]map[string]any {
+func (s *parquetMarshaller) ClosedMetrics(now int64) map[int64][]map[string]any {
 	s.metricsLock.Lock()
 	defer s.metricsLock.Unlock()
 	return s.closed(now, s.metrics)
 }
 
-func (s *parquetMarshaller) ClosedTraces(now time.Time) map[int64][]map[string]any {
+func (s *parquetMarshaller) ClosedTraces(now int64) map[int64][]map[string]any {
 	s.tracesLock.Lock()
 	defer s.tracesLock.Unlock()
 	return s.closed(now, s.traces)
 }
 
-func (s *parquetMarshaller) closed(now time.Time, m map[int64]*timebox.Timebox) map[int64][]map[string]any {
+func (s *parquetMarshaller) closed(now int64, m map[int64]*timebox.Timebox) map[int64][]map[string]any {
 	ret := map[int64][]map[string]any{}
-	forceClose := now.Unix() == 0
+	forceClose := now == 0
 	for tboxInterval, tbox := range m {
 		if forceClose || tbox.ShouldClose(now) {
 			ret[tboxInterval] = tbox.Items
@@ -132,53 +131,67 @@ func (s *parquetMarshaller) closed(now time.Time, m map[int64]*timebox.Timebox) 
 	return ret
 }
 
-func (s *parquetMarshaller) appendMetrics(now time.Time, md pmetric.Metrics) error {
+func (s *parquetMarshaller) appendMetrics(md pmetric.Metrics, customerID string) (int64, error) {
 	tbl, err := s.tb.MetricsFromOtel(&md)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	s.metricsLock.Lock()
 	defer s.metricsLock.Unlock()
+	oldest := int64(0)
 	for _, row := range tbl {
-		emitInto(s.metrics, s.metricconfig, row, now)
+		ts := emitInto(s.metrics, s.metricconfig, row, customerID)
+		if ts > oldest {
+			oldest = ts
+		}
 	}
-	return nil
+	return oldest, nil
 }
 
-func (s *parquetMarshaller) appendTraces(now time.Time, td ptrace.Traces) error {
+func (s *parquetMarshaller) appendTraces(td ptrace.Traces, customerID string) (int64, error) {
 	tbl, err := s.tb.TracesFromOtel(&td)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	s.tracesLock.Lock()
 	defer s.tracesLock.Unlock()
+	oldest := int64(0)
 	for _, row := range tbl {
-		emitInto(s.traces, s.traceconfig, row, now)
+		ts := emitInto(s.traces, s.traceconfig, row, customerID)
+		if ts > oldest {
+			oldest = ts
+		}
 	}
-	return nil
+	return oldest, nil
 }
 
-func (s *parquetMarshaller) appendLogs(now time.Time, ld plog.Logs) error {
+func (s *parquetMarshaller) appendLogs(ld plog.Logs, customerID string) (int64, error) {
 	tbl, err := s.tb.LogsFromOtel(&ld)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	s.logsLock.Lock()
 	defer s.logsLock.Unlock()
+	oldest := int64(0)
 	for _, row := range tbl {
-		emitInto(s.logs, s.logconfig, row, now)
+		ts := emitInto(s.logs, s.logconfig, row, customerID)
+		if ts > oldest {
+			oldest = ts
+		}
 	}
-	return nil
+	return oldest, nil
 }
 
-func emitInto(acc map[int64]*timebox.Timebox, config TimeboxConfig, item map[string]any, now time.Time) {
+func emitInto(acc map[int64]*timebox.Timebox, config TimeboxConfig, item map[string]any, customerID string) int64 {
 	itemts, ok := item[translate.CardinalFieldTimestamp].(int64)
 	if !ok {
-		return
+		return 0
 	}
 	ch := timebox.CalculateInterval(itemts, config.Interval)
 	if _, ok := acc[ch]; !ok {
-		acc[ch] = timebox.NewTimebox(ch, now.Add(time.Duration(config.Interval+config.GracePeriod)*time.Millisecond))
+		expiry := ch + config.Interval*config.OpenIntervalCount + config.GracePeriod
+		acc[ch] = timebox.NewTimebox(ch, expiry)
 	}
 	acc[ch].Append(item)
+	return itemts
 }

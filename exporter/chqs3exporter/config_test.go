@@ -167,8 +167,10 @@ func TestConfig_Validate(t *testing.T) {
 				c.S3Uploader.Region = ""
 				return c
 			}(),
-			errExpected: multierr.Append(errors.New("region is required"),
-				errors.New("bucket is required")),
+			errExpected: multierr.Append(
+				errors.New("region is required"),
+				errors.New("bucket is required"),
+			),
 		},
 		{
 			name: "endpoint and region",
@@ -218,42 +220,56 @@ func TestTimeboxConfig_Validate(t *testing.T) {
 		{
 			name: "valid, enabled, 0 grace",
 			config: &TimeboxConfig{
-				Interval:    1,
-				GracePeriod: 0,
+				Interval:          1,
+				GracePeriod:       0,
+				OpenIntervalCount: 1,
 			},
 			errExpected: nil,
 		},
 		{
 			name: "valid, enabled, non-zero grace",
 			config: &TimeboxConfig{
-				Interval:    1,
-				GracePeriod: 1,
+				Interval:          1,
+				GracePeriod:       1,
+				OpenIntervalCount: 1,
 			},
 			errExpected: nil,
 		},
 		{
 			name: "negative interval",
 			config: &TimeboxConfig{
-				Interval:    -1,
-				GracePeriod: 0,
+				Interval:          -1,
+				GracePeriod:       0,
+				OpenIntervalCount: 1,
 			},
 			errExpected: errors.New("interval must be greater than or equal to 0"),
 		},
 		{
 			name: "enabled, missing grace period",
 			config: &TimeboxConfig{
-				Interval:    1,
-				GracePeriod: -1,
+				Interval:          1,
+				GracePeriod:       -1,
+				OpenIntervalCount: 1,
 			},
 			errExpected: errors.New("grace period must be greater than or equal to 0"),
 		},
 		{
 			name: "disabled, negative grace period",
 			config: &TimeboxConfig{
-				Interval:    0,
-				GracePeriod: -1,
+				Interval:          0,
+				GracePeriod:       -1,
+				OpenIntervalCount: 1,
 			},
 			errExpected: nil,
+		},
+		{
+			name: "enabled, missing open interval count",
+			config: &TimeboxConfig{
+				Interval:          1,
+				GracePeriod:       0,
+				OpenIntervalCount: 0,
+			},
+			errExpected: errors.New("open interval count must be greater than or equal to 1"),
 		},
 	}
 

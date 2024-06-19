@@ -18,8 +18,10 @@ import (
 	"context"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
+	"go.opentelemetry.io/collector/client"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/collector/pdata/plog"
@@ -69,52 +71,93 @@ func (e *s3Exporter) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: false}
 }
 
-func (e *s3Exporter) ConsumeMetrics(_ context.Context, md pmetric.Metrics) error {
+func customerIDFromContext(ctx context.Context, metadata Metadata) string {
+	if metadata.customerIDSource == customerIDSourceNone {
+		return ""
+	}
+
+	ci := client.FromContext(ctx)
+	switch metadata.customerIDSource {
+	case customerIDSourceMetadata:
+		mdparts := ci.Metadata.Get(metadata.customerIDKey)
+		if len(mdparts) == 0 {
+			return ""
+		}
+		return strings.Join(mdparts, ";")
+
+	case customerIDSourceAuth:
+		if ci.Auth == nil {
+			return ""
+		}
+		val := ci.Auth.GetAttribute(metadata.customerIDKey)
+		switch val := val.(type) {
+		case nil:
+			return ""
+		case string:
+			return val
+		case []string:
+			return strings.Join(val, ";")
+		default:
+			return "" // TODO log warning that the field is not usable
+		}
+
+	default:
+		return ""
+	}
+}
+
+func (e *s3Exporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
 	var errs error
-	errs = multierr.Append(errs, e.consumeMetrics(md))
-	items := e.marshaler.ClosedMetrics(time.Now())
-	errs = multierr.Append(errs, e.writeTable(items, "metrics"))
+	customerID := customerIDFromContext(ctx, e.config.Metadata)
+	oldestTimestamp, err := e.consumeMetrics(md, customerID)
+	errs = multierr.Append(errs, err)
+	items := e.marshaler.ClosedMetrics(oldestTimestamp)
+	errs = multierr.Append(errs, e.writeTable(items, "metrics", customerID))
 	return errs
 }
 
-func (e *s3Exporter) consumeMetrics(md pmetric.Metrics) error {
+func (e *s3Exporter) consumeMetrics(md pmetric.Metrics, customerID string) (int64, error) {
 	if e.config.Timeboxes.Metrics.Interval <= 0 {
-		return nil
+		return 0, nil
 	}
-	return e.marshaler.appendMetrics(time.Now(), md)
+	return e.marshaler.appendMetrics(md, customerID)
 }
 
-func (e *s3Exporter) ConsumeLogs(_ context.Context, logs plog.Logs) error {
+func (e *s3Exporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {
 	var errs error
-	errs = multierr.Append(errs, e.consumeLogs(logs))
-	items := e.marshaler.ClosedLogs(time.Now())
-	errs = multierr.Append(errs, e.writeTable(items, "logs"))
+	customerID := customerIDFromContext(ctx, e.config.Metadata)
+	oldestTimestamp, err := e.consumeLogs(logs, customerID)
+	errs = multierr.Append(errs, err)
+	items := e.marshaler.ClosedLogs(oldestTimestamp)
+	errs = multierr.Append(errs, e.writeTable(items, "logs", customerID))
 	return errs
 }
 
-func (e *s3Exporter) consumeLogs(logs plog.Logs) error {
+func (e *s3Exporter) consumeLogs(logs plog.Logs, customerID string) (int64, error) {
 	if e.config.Timeboxes.Logs.Interval <= 0 {
-		return nil
+		return 0, nil
 	}
-	return e.marshaler.appendLogs(time.Now(), logs)
+	return e.marshaler.appendLogs(logs, customerID)
 }
 
-func (e *s3Exporter) ConsumeTraces(_ context.Context, traces ptrace.Traces) error {
+func (e *s3Exporter) ConsumeTraces(ctx context.Context, traces ptrace.Traces) error {
 	var errs error
-	errs = multierr.Append(errs, e.consumeTraces(traces))
-	items := e.marshaler.ClosedTraces(time.Now())
-	errs = multierr.Append(errs, e.writeTable(items, "traces"))
+	customerID := customerIDFromContext(ctx, e.config.Metadata)
+	oldestTimestamp, err := e.consumeTraces(traces, customerID)
+	errs = multierr.Append(errs, err)
+	items := e.marshaler.ClosedTraces(oldestTimestamp)
+	errs = multierr.Append(errs, e.writeTable(items, "traces", customerID))
 	return errs
 }
 
-func (e *s3Exporter) consumeTraces(traces ptrace.Traces) error {
+func (e *s3Exporter) consumeTraces(traces ptrace.Traces, customerID string) (int64, error) {
 	if e.config.Timeboxes.Traces.Interval <= 0 {
-		return nil
+		return 0, nil
 	}
-	return e.marshaler.appendTraces(time.Now(), traces)
+	return e.marshaler.appendTraces(traces, customerID)
 }
 
-func (s *s3Exporter) writeTable(items map[int64][]map[string]any, telemetryType string) error {
+func (s *s3Exporter) writeTable(items map[int64][]map[string]any, telemetryType string, customerID string) error {
 	if len(items) == 0 {
 		return nil
 	}
@@ -132,7 +175,7 @@ func (s *s3Exporter) writeTable(items map[int64][]map[string]any, telemetryType 
 		}
 		prefix := telemetryType + "_" + strconv.FormatInt(tb, 10)
 		now := time.UnixMilli(tb)
-		err = s.dataWriter.writeBuffer(context.Background(), now, wr, s.config, prefix, s.marshaler.format(), s.metadata)
+		err = s.dataWriter.writeBuffer(context.Background(), now, wr, s.config, prefix, s.marshaler.format(), s.metadata, customerID)
 		if err != nil {
 			s.telemetry.filesWritten.Add(context.Background(), 1,
 				metric.WithAttributes(attribute.String("telemetryType", telemetryType), attribute.Bool("success", false)))
@@ -150,14 +193,14 @@ func (s *s3Exporter) writeTable(items map[int64][]map[string]any, telemetryType 
 func (e *s3Exporter) Shutdown(context.Context) error {
 	var errs error
 
-	logs := e.marshaler.ClosedLogs(time.Unix(0, 0))
-	errs = multierr.Append(errs, e.writeTable(logs, "logs"))
+	logs := e.marshaler.ClosedLogs(0)
+	errs = multierr.Append(errs, e.writeTable(logs, "logs", ""))
 
-	metrics := e.marshaler.ClosedMetrics(time.Unix(0, 0))
-	errs = multierr.Append(errs, e.writeTable(metrics, "metrics"))
+	metrics := e.marshaler.ClosedMetrics(0)
+	errs = multierr.Append(errs, e.writeTable(metrics, "metrics", ""))
 
-	traces := e.marshaler.ClosedTraces(time.Unix(0, 0))
-	errs = multierr.Append(errs, e.writeTable(traces, "traces"))
+	traces := e.marshaler.ClosedTraces(0)
+	errs = multierr.Append(errs, e.writeTable(traces, "traces", ""))
 
 	return errs
 }

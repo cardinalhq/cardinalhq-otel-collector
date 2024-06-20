@@ -122,6 +122,7 @@ func (e *statsExporter) recordMetric(now time.Time, metricName, serviceName, tag
 		ServiceName: serviceName,
 		TagName:     tagName,
 		Phase:       e.pbPhase,
+		VendorID:    e.config.Vendor,
 		Count:       int64(count),
 	}
 

@@ -107,6 +107,7 @@ func (e *statsExporter) recordLog(now time.Time, serviceName string, fingerprint
 		ServiceName: serviceName,
 		Fingerprint: fingerprint,
 		Phase:       phase,
+		VendorId:    e.config.Vendor,
 		Count:       1,
 		LogSize:     logSize,
 		Exemplar:    message,

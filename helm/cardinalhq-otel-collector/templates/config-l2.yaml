@@ -35,10 +35,18 @@ data:
         headers:
           x-cardinalhq-api-key: "${env:CARDINALHQ_API_KEY}"
 
-      chqstats/cardinalhq:
+      chqstats/raw:
         endpoint: {{ .Values.collector.endpoints.cardinalHQ.stats }}
         api_key: ${env:CARDINALHQ_API_KEY}
         interval: {{ .Values.collector.endpoints.cardinalHQ.statsInterval }}
+        phase: presample
+
+      chqstats/datadog:
+        endpoint: {{ .Values.collector.endpoints.cardinalHQ.stats }}
+        api_key: ${env:CARDINALHQ_API_KEY}
+        interval: {{ .Values.collector.endpoints.cardinalHQ.statsInterval }}
+        phase: postsample
+        vendor: datadog
 
     processors:
       # Limit collector process memory usage.  This should be the first processor
@@ -133,7 +141,7 @@ data:
         metrics/decoration:
           receivers: [otlp/l2]
           processors: [memory_limiter/csl2, cumulativetodelta/csl2, chqdecorator/csl2, batch/csl2metrics]
-          exporters: [forward/tochq, forward/toprovider, chqstats/cardinalhq]
+          exporters: [forward/tochq, forward/toprovider, chqstats/raw]
         metrics/chq:
           receivers: [forward/tochq]
           processors: [filter/tochq]
@@ -141,18 +149,18 @@ data:
         metrics/toprovider:
           receivers: [forward/toprovider]
           processors: [filter/toprovider, attributes/toprovider]
-          exporters: [chqdatadog/cardinalhq]
+          exporters: [chqdatadog/cardinalhq, chqstats/datadog]
 
         # trace handling.  Partition on trace ID so we can group traces
         # and filter based on the entire trace, not individual spans.
         traces/chq:
           receivers: [otlp/l2]
           processors: [memory_limiter/csl2, groupbytrace/csl2, chqdecorator/csl2, batch/csl2traces]
-          exporters: [otlp/tochq, forward/toprovider]
+          exporters: [otlp/tochq, forward/toprovider, chqstats/raw]
         traces/toprovider:
           receivers: [forward/toprovider]
           processors: [filter/toprovider, attributes/toprovider]
-          exporters: [chqdatadog/cardinalhq]
+          exporters: [chqdatadog/cardinalhq, chqstats/datadog]
 
       {{ toYaml .Values.selfTelemetry | nindent 6 }}
 

@@ -35,7 +35,7 @@ these and other settings.
 ### Helm Install
 
 ```sh
-% helm install --namespace cardinal foo oci://public.ecr.aws/b1d7g2f3/cardinalhq-otel-collector --version 0.1.3
+% helm install --namespace cardinal foo oci://public.ecr.aws/b1d7g2f3/cardinalhq-otel-collector --version 0.2.0
 ```
 
 In addition to the two collector deployments for L1 and L2, a `ClusterIP` service

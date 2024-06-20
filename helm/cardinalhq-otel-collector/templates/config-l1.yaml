@@ -73,10 +73,18 @@ data:
         headers:
           x-cardinalhq-api-key: "${env:CARDINALHQ_API_KEY}"
 
-      chqstats/cardinalhq:
+      chqstats/raw:
         endpoint: {{ .Values.collector.endpoints.cardinalHQ.stats }}
         api_key: ${env:CARDINALHQ_API_KEY}
         interval: {{ .Values.collector.endpoints.cardinalHQ.statsInterval }}
+        phase: presample
+
+      chqstats/datadog:
+        endpoint: {{ .Values.collector.endpoints.cardinalHQ.stats }}
+        api_key: ${env:CARDINALHQ_API_KEY}
+        interval: {{ .Values.collector.endpoints.cardinalHQ.statsInterval }}
+        phase: postsample
+        vendor: datadog
 
     processors:
       # Limit collector process memory usage.  This should be the first processor
@@ -157,11 +165,11 @@ data:
         logs/chq:
           receivers: [otlp/l1, chqdatadog/l1]
           processors: [memory_limiter/csl1, chqdecorator/csl1, batch/csl1logs]
-          exporters: [otlp/tochq, chqstats/cardinalhq, forward/toprovider]
+          exporters: [otlp/tochq, chqstats/raw, forward/toprovider]
         logs/toprovider:
           receivers: [forward/toprovider]
           processors: [filter/toprovider, attributes/toprovider]
-          exporters: [chqdatadog/cardinalhq]
+          exporters: [chqdatadog/cardinalhq, chqstats/datadog]
 
         # metric handling.  Partition on metric name so aggregations
         # work properly.  TODO: modify aggregator to add artificial attribute

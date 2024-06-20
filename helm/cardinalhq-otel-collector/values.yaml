@@ -88,8 +88,6 @@ annotations:
   roleBinding: {}
 
 selfTelemetry:
-  # Echo telemetry back to ourselves.  This requires more than one replica or
-  # startup and shutdown delays may occur.
   telemetry:
     metrics:
       readers:
@@ -98,5 +96,6 @@ selfTelemetry:
             exporter:
               otlp:
                 protocol: grpc/protobuf
-                endpoint: http://localhost:4317
-
+                endpoint: https://customerstats-collector-grpc.svc.aws.dev.cardinalhq.net:443
+                headers:
+                  x-cardinalhq-api-key: ${env:CARDINALHQ_API_KEY}

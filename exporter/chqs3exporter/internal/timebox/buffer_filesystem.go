@@ -15,15 +15,21 @@
 package timebox
 
 import (
+	"io"
 	"os"
 )
 
 type BufferFilesystem struct {
-	file    *os.File
-	writing bool
+	file         *os.File
+	writing      bool
+	readPosition int64
 }
 
-var _ Buffer = (*BufferFilesystem)(nil)
+var (
+	_ Buffer        = (*BufferFilesystem)(nil)
+	_ io.Writer     = (*BufferFilesystem)(nil)
+	_ io.ReadCloser = (*BufferFilesystem)(nil)
+)
 
 func NewBufferFilesystem(file *os.File) (*BufferFilesystem, error) {
 	return &BufferFilesystem{
@@ -34,22 +40,26 @@ func NewBufferFilesystem(file *os.File) (*BufferFilesystem, error) {
 
 func (bf *BufferFilesystem) Write(p []byte) (n int, err error) {
 	if !bf.writing {
-		return 0, os.ErrClosed
+		bf.writing = true
+		_, err = bf.file.Seek(0, 2)
+		if err != nil {
+			return 0, err
+		}
 	}
 	return bf.file.Write(p)
 }
 
-func (bf *BufferFilesystem) CloseWrite() error {
-	bf.writing = false
-	_, err := bf.file.Seek(0, 0)
-	return err
-}
-
 func (bf *BufferFilesystem) Read(p []byte) (n int, err error) {
 	if bf.writing {
-		return 0, os.ErrClosed
+		bf.writing = false
+		bf.readPosition, err = bf.file.Seek(bf.readPosition, 0)
+		if err != nil {
+			return 0, err
+		}
 	}
-	return bf.file.Read(p)
+	n, err = bf.file.Read(p)
+	bf.readPosition += int64(n)
+	return n, err
 }
 
 func (bf *BufferFilesystem) Close() error {

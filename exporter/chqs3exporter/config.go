@@ -36,10 +36,21 @@ type TimeboxesConfig struct {
 	Traces  TimeboxConfig `mapstructure:"traces"`
 }
 
+type BufferFactoryConfig struct {
+	Type      string `mapstructure:"type"`
+	Directory string `mapstructure:"directory"`
+}
+
+const (
+	bufferTypeDisk   = "disk"
+	bufferTypeMemory = "memory"
+)
+
 // Config contains the main configuration options for the s3 exporter
 type Config struct {
-	S3Uploader S3UploaderConfig `mapstructure:"s3uploader"`
-	Timeboxes  TimeboxesConfig  `mapstructure:"timeboxes"`
+	S3Uploader S3UploaderConfig    `mapstructure:"s3uploader"`
+	Timeboxes  TimeboxesConfig     `mapstructure:"timeboxes"`
+	Buffering  BufferFactoryConfig `mapstructure:"buffering"`
 }
 
 func (c *Config) Validate() error {
@@ -78,6 +89,16 @@ func (tb TimeboxConfig) Validate() error {
 
 	if tb.Interval > 0 && tb.OpenIntervalCount < 1 {
 		errs = multierr.Append(errs, errors.New("open interval count must be greater than or equal to 1"))
+	}
+
+	return errs
+}
+
+func (c BufferFactoryConfig) Validate() error {
+	var errs error
+
+	if c.Type != "" && c.Type != bufferTypeMemory && c.Type != bufferTypeDisk {
+		errs = multierr.Append(errs, errors.New("type must be either "+bufferTypeMemory+" or "+bufferTypeDisk+" (default is "+bufferTypeMemory+")"))
 	}
 
 	return errs

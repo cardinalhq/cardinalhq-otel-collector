@@ -22,7 +22,6 @@ type Buffer interface {
 	io.Writer
 	io.ReadCloser
 	Cleanup() error
-	CloseWrite() error
 }
 
 type BufferFactory interface {

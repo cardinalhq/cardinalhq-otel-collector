@@ -49,10 +49,6 @@ func (b *MemoryBufferImpl) Cleanup() error {
 	return nil
 }
 
-func (b *MemoryBufferImpl) CloseWrite() error {
-	return nil
-}
-
 type MemoryBufferFactory struct{}
 
 var _ BufferFactory = (*MemoryBufferFactory)(nil)

@@ -73,18 +73,32 @@ func newS3Exporter(config *Config, params exporter.Settings) *s3Exporter {
 		return nil
 	}
 
-	bufferFactory := timebox.NewMemoryBufferFactory()
+	var bufferFactory timebox.BufferFactory
+	if config.Buffering.Type == bufferTypeDisk {
+		bufferFactory = timebox.NewBufferFilesystemFactory(config.Buffering.Directory)
+	} else {
+		bufferFactory = timebox.NewMemoryBufferFactory()
+	}
 
 	s3Exporter := &s3Exporter{
 		config:     config,
 		dataWriter: &s3Writer{},
 		logger:     params.Logger,
 		tb:         table.NewTableTranslator(),
-		logs:       timebox.NewTimeboxImpl[string, *TimeboxEntry](bufferFactory, config.Timeboxes.Logs.Interval, config.Timeboxes.Logs.OpenIntervalCount, config.Timeboxes.Logs.GracePeriod),
-		metrics:    timebox.NewTimeboxImpl[string, *TimeboxEntry](bufferFactory, config.Timeboxes.Metrics.Interval, config.Timeboxes.Metrics.OpenIntervalCount, config.Timeboxes.Metrics.GracePeriod),
-		traces:     timebox.NewTimeboxImpl[string, *TimeboxEntry](bufferFactory, config.Timeboxes.Traces.Interval, config.Timeboxes.Traces.OpenIntervalCount, config.Timeboxes.Traces.GracePeriod),
-		metadata:   metadata,
-		telemetry:  exporterTelemetry,
+		logs: timebox.NewTimeboxImpl[string, *TimeboxEntry](bufferFactory,
+			config.Timeboxes.Logs.Interval,
+			config.Timeboxes.Logs.OpenIntervalCount,
+			config.Timeboxes.Logs.GracePeriod),
+		metrics: timebox.NewTimeboxImpl[string, *TimeboxEntry](bufferFactory,
+			config.Timeboxes.Metrics.Interval,
+			config.Timeboxes.Metrics.OpenIntervalCount,
+			config.Timeboxes.Metrics.GracePeriod),
+		traces: timebox.NewTimeboxImpl[string, *TimeboxEntry](bufferFactory,
+			config.Timeboxes.Traces.Interval,
+			config.Timeboxes.Traces.OpenIntervalCount,
+			config.Timeboxes.Traces.GracePeriod),
+		metadata:  metadata,
+		telemetry: exporterTelemetry,
 	}
 	return s3Exporter
 }

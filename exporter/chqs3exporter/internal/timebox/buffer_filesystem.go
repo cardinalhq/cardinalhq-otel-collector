@@ -15,6 +15,7 @@
 package timebox
 
 import (
+	"log/slog"
 	"os"
 )
 
@@ -60,7 +61,12 @@ func (bf *BufferFilesystem) Read(p []byte) (n int, err error) {
 }
 
 func (bf *BufferFilesystem) Close() error {
-	defer os.Remove(bf.file.Name())
+	defer func() {
+		err := os.Remove(bf.file.Name())
+		if err != nil {
+			slog.Warn("Failed to remove buffer file", slog.String("error", err.Error()))
+		}
+	}()
 	return bf.file.Close()
 }
 

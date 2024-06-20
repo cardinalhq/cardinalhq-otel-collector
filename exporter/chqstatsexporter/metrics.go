@@ -31,16 +31,6 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
-func metricBoolsToPhase(wasFiltered, isAggregation bool) chqpb.Phase {
-	if isAggregation {
-		return chqpb.Phase_AGGREGATION_OUTPUT
-	}
-	if wasFiltered {
-		return chqpb.Phase_AGGREGATED
-	}
-	return chqpb.Phase_PASSTHROUGH
-}
-
 func (e *statsExporter) ConsumeMetrics(_ context.Context, md pmetric.Metrics) error {
 	now := time.Now()
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
@@ -106,31 +96,32 @@ func getBoolOrDefault(attr pcommon.Map, key string, def bool) bool {
 
 func (e *statsExporter) recordDatapoint(now time.Time, metricName, serviceName string, rattr, sattr, dpAttr pcommon.Map) error {
 	var errs error
-	wasFiltered := getBoolOrDefault(dpAttr, translate.CardinalFieldFiltered, false)
-	isAggregation := getBoolOrDefault(dpAttr, translate.CardinalFieldAggregatedOutput, false)
-	phase := metricBoolsToPhase(wasFiltered, isAggregation)
+	isAggregationOutput := e.pbPhase == chqpb.Phase_PRE && getBoolOrDefault(dpAttr, translate.CardinalFieldAggregatedOutput, false)
+	if isAggregationOutput {
+		return nil
+	}
 
 	rattr.Range(func(k string, v pcommon.Value) bool {
-		errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "resource."+k, v.AsString(), phase, 1))
+		errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "resource."+k, v.AsString(), 1))
 		return true
 	})
 	sattr.Range(func(k string, v pcommon.Value) bool {
-		errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "scope."+k, v.AsString(), phase, 1))
+		errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "scope."+k, v.AsString(), 1))
 		return true
 	})
 	dpAttr.Range(func(k string, v pcommon.Value) bool {
-		errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "metric."+k, v.AsString(), phase, 1))
+		errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "metric."+k, v.AsString(), 1))
 		return true
 	})
 	return errs
 }
 
-func (e *statsExporter) recordMetric(now time.Time, metricName, serviceName, tagName, tagValue string, phase chqpb.Phase, count int) error {
+func (e *statsExporter) recordMetric(now time.Time, metricName, serviceName, tagName, tagValue string, count int) error {
 	rec := &MetricStat{
 		MetricName:  metricName,
 		ServiceName: serviceName,
 		TagName:     tagName,
-		Phase:       phase,
+		Phase:       e.pbPhase,
 		Count:       int64(count),
 	}
 
@@ -155,10 +146,11 @@ func (e *statsExporter) sendMetricStats(ctx context.Context, now time.Time, buck
 		for _, ms := range stats {
 			item := &chqpb.MetricStats{
 				MetricName:  ms.MetricName,
-				TagName:     ms.TagName,
 				ServiceName: ms.ServiceName,
+				TagName:     ms.TagName,
 				Phase:       ms.Phase,
 				Count:       ms.Count,
+				VendorId:    ms.VendorID,
 			}
 			if ms.HLL == nil {
 				e.logger.Error("HLL is nil", zap.Any("metric", ms))
@@ -170,12 +162,6 @@ func (e *statsExporter) sendMetricStats(ctx context.Context, now time.Time, buck
 				continue
 			}
 			item.Hll = b
-			var estimate float64
-			if estimate, err = ms.HLL.GetEstimate(); err != nil {
-				e.logger.Error("Failed to get HLL estimate", zap.Error(err))
-				continue
-			}
-			item.CardinalityEstimate = estimate
 			wrapper.Stats = append(wrapper.Stats, item)
 		}
 	}

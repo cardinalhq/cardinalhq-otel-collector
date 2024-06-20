@@ -58,27 +58,6 @@ func TestGetBoolOrDefault(t *testing.T) {
 	}
 }
 
-func TestMetricBoolsToPhase(t *testing.T) {
-	tests := []struct {
-		name           string
-		wasAggregated  bool
-		isAggregation  bool
-		expectedResult chqpb.Phase
-	}{
-		{"wasFiltered=true, isAggregation=false", true, false, chqpb.Phase_AGGREGATED},
-		{"wasFiltered=false, isAggregation=true", false, true, chqpb.Phase_AGGREGATION_OUTPUT},
-		{"wasFiltered=false, isAggregation=false", false, false, chqpb.Phase_PASSTHROUGH},
-		{"wasFiltered=true, isAggregation=true", true, true, chqpb.Phase_AGGREGATION_OUTPUT},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := metricBoolsToPhase(tt.wasAggregated, tt.isAggregation)
-			assert.Equal(t, tt.expectedResult, result)
-		})
-	}
-}
-
 func TestPostMetricStats(t *testing.T) {
 	// Create a mock server to handle the HTTP request
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -100,7 +79,7 @@ func TestPostMetricStats(t *testing.T) {
 		assert.Equal(t, "service_name", report.Stats[0].ServiceName)
 		assert.Equal(t, chqpb.Phase(2), report.Stats[0].Phase)
 		assert.Equal(t, int64(3), report.Stats[0].Count)
-		assert.Equal(t, float64(4), report.Stats[0].CardinalityEstimate)
+		//assert.Equal(t, float64(4), report.Stats[0].CardinalityEstimate)
 		assert.Equal(t, []byte{10, 20, 30}, report.Stats[0].Hll)
 
 		w.WriteHeader(http.StatusOK)
@@ -125,13 +104,13 @@ func TestPostMetricStats(t *testing.T) {
 		SubmittedAt: 1234567890,
 		Stats: []*chqpb.MetricStats{
 			{
-				MetricName:          "metric_name",
-				TagName:             "tag_name",
-				ServiceName:         "service_name",
-				Phase:               2,
-				Count:               3,
-				CardinalityEstimate: 4,
-				Hll:                 []byte{10, 20, 30},
+				MetricName:  "metric_name",
+				TagName:     "tag_name",
+				ServiceName: "service_name",
+				Phase:       2,
+				Count:       3,
+				//CardinalityEstimate: 4,
+				Hll: []byte{10, 20, 30},
 			},
 		},
 	}

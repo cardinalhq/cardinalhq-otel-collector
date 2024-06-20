@@ -30,6 +30,7 @@ message LogStats {
 	int64 count = 4;
 	int64 logSize = 5;
 	string exemplar = 6;
+	string vendorId = 7;
 }
 
 message MetricStatsReport {
@@ -42,9 +43,10 @@ message MetricStats {
 	string serviceName = 2;
 	string tagName = 3;
 	Phase phase = 4;
-	double cardinalityEstimate = 5;
+	//double cardinalityEstimate = 5;
 	bytes hll = 6;
 	int64 count = 7;
+	string vendorId = 8;
 }
 
 enum Phase {
@@ -53,4 +55,6 @@ enum Phase {
 	AGGREGATION_OUTPUT = 2;
 	FILTERED = 3;
 	DRY_RUN_FILTERED = 4;
+	PRE = 5;
+	POST = 6;
 }

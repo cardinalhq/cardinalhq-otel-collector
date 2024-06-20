@@ -39,6 +39,8 @@ type statsExporter struct {
 	metricstats *stats.StatsCombiner[*MetricStat]
 
 	logger *zap.Logger
+
+	pbPhase chqpb.Phase
 }
 
 func newStatsExporter(config *Config, params exporter.Settings) *statsExporter {
@@ -51,6 +53,12 @@ func newStatsExporter(config *Config, params exporter.Settings) *statsExporter {
 		metricstats:        stats.NewStatsCombiner[*MetricStat](now, config.Interval),
 		logger:             params.Logger,
 	}
+	if config.Phase == "presample" {
+		statsExporter.pbPhase = chqpb.Phase_PRE
+	} else {
+		statsExporter.pbPhase = chqpb.Phase_POST
+	}
+
 	return statsExporter
 }
 

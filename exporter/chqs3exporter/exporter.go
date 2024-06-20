@@ -113,10 +113,7 @@ func (e *s3Exporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) err
 	var errs error
 	oldestTimestamp, customerIDs, err := e.consumeMetrics(time.Now().UnixMilli(), md)
 	errs = multierr.Append(errs, err)
-	for _, customerID := range customerIDs {
-		items := e.metrics.Closed(customerID, oldestTimestamp, &TimeboxEntry{})
-		errs = multierr.Append(errs, e.writeTable(items, metricFilePrefix, customerID))
-	}
+	go e.writeClosed(customerIDs, oldestTimestamp, metricFilePrefix, e.metrics)
 	return errs
 }
 
@@ -131,10 +128,7 @@ func (e *s3Exporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {
 	var errs error
 	oldestTimestamp, customerIDs, err := e.consumeLogs(time.Now().UnixMilli(), logs)
 	errs = multierr.Append(errs, err)
-	for _, customerID := range customerIDs {
-		items := e.logs.Closed(customerID, oldestTimestamp, &TimeboxEntry{})
-		errs = multierr.Append(errs, e.writeTable(items, logFilePrefix, customerID))
-	}
+	go e.writeClosed(customerIDs, oldestTimestamp, logFilePrefix, e.logs)
 	return errs
 }
 
@@ -149,11 +143,19 @@ func (e *s3Exporter) ConsumeTraces(ctx context.Context, traces ptrace.Traces) er
 	var errs error
 	oldestTimestamp, customerIDs, err := e.consumeTraces(time.Now().UnixMilli(), traces)
 	errs = multierr.Append(errs, err)
-	for _, customerID := range customerIDs {
-		items := e.traces.Closed(customerID, oldestTimestamp, &TimeboxEntry{})
-		errs = multierr.Append(errs, e.writeTable(items, tracesFilePrefix, customerID))
-	}
+	go e.writeClosed(customerIDs, oldestTimestamp, tracesFilePrefix, e.traces)
 	return errs
+}
+
+func (e *s3Exporter) writeClosed(customerIDs []string, oldestTimestamp int64, filePrefix string, acc timebox.Timebox[string, *TimeboxEntry]) {
+	e.telemetry.startGoProcWriter()
+	defer e.telemetry.finishGoProcWriter()
+	for _, customerID := range customerIDs {
+		items := acc.Closed(customerID, oldestTimestamp, &TimeboxEntry{})
+		if err := e.writeTable(items, filePrefix, customerID); err != nil {
+			e.logger.Error("Failed to write closed tables", zap.Error(err), zap.String("filePrefix", filePrefix), zap.Int64("oldestTimestamp", oldestTimestamp), zap.Strings("customerIDs", customerIDs))
+		}
+	}
 }
 
 func (e *s3Exporter) consumeTraces(now int64, traces ptrace.Traces) (int64, []string, error) {

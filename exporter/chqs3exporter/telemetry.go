@@ -15,6 +15,9 @@
 package chqs3exporter
 
 import (
+	"context"
+	"sync/atomic"
+
 	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/otel/metric"
 
@@ -24,6 +27,9 @@ import (
 type exporterTelemetry struct {
 	filesWritten    metric.Int64Counter
 	datapointTooOld metric.Int64Counter
+
+	goprocWriters     metric.Int64ObservableGauge
+	goprocWriterCount atomic.Int64
 }
 
 func newTelemetry(set exporter.Settings) (*exporterTelemetry, error) {
@@ -49,5 +55,27 @@ func newTelemetry(set exporter.Settings) (*exporterTelemetry, error) {
 	}
 	tel.datapointTooOld = counter
 
+	gauge, err := metadata.Meter(set.TelemetrySettings).Int64ObservableGauge(
+		"exporter_"+metadata.Type.String()+"_goproc_writers",
+		metric.WithDescription("The current number of goroutines writing data to the exporter"),
+		metric.WithUnit("1"),
+		metric.WithInt64Callback(func(_ context.Context, result metric.Int64Observer) error {
+			result.Observe(int64(tel.goprocWriterCount.Load()))
+			return nil
+		}),
+	)
+	if err != nil {
+		return nil, err
+	}
+	tel.goprocWriters = gauge
+
 	return tel, nil
+}
+
+func (tel *exporterTelemetry) startGoProcWriter() {
+	_ = tel.goprocWriterCount.Add(1)
+}
+
+func (tel *exporterTelemetry) finishGoProcWriter() {
+	_ = tel.goprocWriterCount.Add(-1)
 }

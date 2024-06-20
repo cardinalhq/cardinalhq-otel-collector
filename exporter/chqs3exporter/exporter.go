@@ -75,8 +75,10 @@ func newS3Exporter(config *Config, params exporter.Settings) *s3Exporter {
 
 	var bufferFactory timebox.BufferFactory
 	if config.Buffering.Type == bufferTypeDisk {
+		params.Logger.Info("Using disk buffer")
 		bufferFactory = timebox.NewBufferFilesystemFactory(config.Buffering.Directory)
 	} else {
+		params.Logger.Info("Using memory buffer")
 		bufferFactory = timebox.NewMemoryBufferFactory()
 	}
 

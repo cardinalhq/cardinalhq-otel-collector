@@ -175,6 +175,7 @@ func (s *s3Exporter) writeTable(items map[int64][]*TimeboxEntry, telemetryType s
 		if len(rows) == 0 {
 			continue
 		}
+		starttime := time.Now()
 		wr.Reset()
 		logger := s.logger.With(zap.String("customerID", customerID), zap.String("telemetryType", telemetryType), zap.Int64("timebox", tb))
 		err := s.MarshalTable(wr, rows)
@@ -191,7 +192,8 @@ func (s *s3Exporter) writeTable(items map[int64][]*TimeboxEntry, telemetryType s
 			logger.Error("Failed to write buffer", zap.Error(err))
 			continue
 		}
-		logger.Info("Wrote buffer", zap.String("prefix", prefix), zap.Int("rows", len(rows)))
+		processingDuration := time.Since(starttime)
+		logger.Info("Wrote buffer", zap.String("prefix", prefix), zap.Int("rows", len(rows)), zap.Duration("duration", processingDuration))
 		s.telemetry.filesWritten.Add(context.Background(), 1,
 			metric.WithAttributes(attribute.String("telemetryType", telemetryType), attribute.Bool("success", true)))
 	}

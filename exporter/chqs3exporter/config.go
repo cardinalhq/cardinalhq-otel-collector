@@ -5,6 +5,7 @@ package chqs3exporter
 
 import (
 	"errors"
+	"os"
 
 	"go.uber.org/multierr"
 )
@@ -101,5 +102,54 @@ func (c BufferFactoryConfig) Validate() error {
 		errs = multierr.Append(errs, errors.New("type must be either "+bufferTypeMemory+" or "+bufferTypeDisk+" (default is "+bufferTypeMemory+")"))
 	}
 
+	if c.Directory != "" {
+		c.Directory = os.TempDir()
+		//err := emptyOldFiles(c.Directory)
+		//if err != nil {
+		//	errs = multierr.Append(errs, err)
+		//}
+		err := testWritable(c.Directory)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+		}
+	}
+
 	return errs
 }
+
+func testWritable(dir string) error {
+	file, err := os.CreateTemp(dir, "test")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(file.Name())
+	return nil
+}
+
+// delete all files and direcories starting at 'dir'
+/* func emptyOldFiles(dir string) error {
+	d, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range d {
+		if entry.Name()[0] == '.' {
+			continue
+		}
+		if entry.IsDir() {
+			err := os.RemoveAll(dir + "/" + entry.Name())
+			if err != nil {
+				return err
+			}
+		} else {
+			err := os.Remove(dir + "/" + entry.Name())
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+*/

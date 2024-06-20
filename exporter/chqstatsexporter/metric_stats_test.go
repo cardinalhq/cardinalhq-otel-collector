@@ -28,11 +28,12 @@ func TestMetricStat_Key(t *testing.T) {
 		MetricName:  "test_metric",
 		TagName:     "test_tag",
 		ServiceName: "test_service",
-		Phase:       chqpb.Phase_PASSTHROUGH,
+		VendorID:    "test_vendor",
+		Phase:       chqpb.Phase_PRE,
 		Count:       0,
 	}
 
-	assert.Equal(t, uint64(0xf4f907b19b714ec7), m.Key())
+	assert.Equal(t, uint64(0xd4f76351b8a99b3c), m.Key())
 }
 
 func TestMetricStat_Matches(t *testing.T) {
@@ -40,7 +41,8 @@ func TestMetricStat_Matches(t *testing.T) {
 		MetricName:  "test_metric",
 		TagName:     "test_tag",
 		ServiceName: "test_service",
-		Phase:       chqpb.Phase_PASSTHROUGH,
+		VendorID:    "test_vendor",
+		Phase:       chqpb.Phase_PRE,
 		Count:       0,
 	}
 
@@ -48,7 +50,8 @@ func TestMetricStat_Matches(t *testing.T) {
 		MetricName:  "test_metric",
 		TagName:     "test_tag",
 		ServiceName: "test_service",
-		Phase:       chqpb.Phase_PASSTHROUGH,
+		VendorID:    "test_vendor",
+		Phase:       chqpb.Phase_PRE,
 		Count:       0,
 	}
 
@@ -60,7 +63,8 @@ func TestMetricStat_Initialize(t *testing.T) {
 		MetricName:  "test_metric",
 		TagName:     "test_tag",
 		ServiceName: "test_service",
-		Phase:       chqpb.Phase_PASSTHROUGH,
+		VendorID:    "test_vendor",
+		Phase:       chqpb.Phase_PRE,
 		Count:       0,
 	}
 
@@ -74,7 +78,8 @@ func TestMetricStat_Increment(t *testing.T) {
 		MetricName:  "test_metric",
 		TagName:     "test_tag",
 		ServiceName: "test_service",
-		Phase:       chqpb.Phase_PASSTHROUGH,
+		VendorID:    "test_vendor",
+		Phase:       chqpb.Phase_PRE,
 		Count:       0,
 	}
 

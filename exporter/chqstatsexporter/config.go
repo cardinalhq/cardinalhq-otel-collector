@@ -29,6 +29,8 @@ type Config struct {
 
 	APIKey   configopaque.String `mapstructure:"api_key"`
 	Interval time.Duration       `mapstructure:"interval"`
+	Phase    string              `mapstructure:"phase"`
+	Vendor   string              `mapstructure:"vendor"`
 }
 
 func (c *Config) Validate() error {
@@ -40,5 +42,10 @@ func (c *Config) Validate() error {
 	if c.Interval < 0 {
 		errs = multierr.Append(errs, errors.New("interval must be greater than or equal to 0"))
 	}
+
+	if c.Phase != "presample" && c.Phase != "postsample" {
+		errs = multierr.Append(errs, errors.New("phase must be either presample or postsample"))
+	}
+
 	return errs
 }

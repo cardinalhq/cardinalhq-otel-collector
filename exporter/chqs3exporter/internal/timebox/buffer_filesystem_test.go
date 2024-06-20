@@ -74,20 +74,6 @@ func TestBufferFilesystem_Close(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestBufferFilesystem_Cleanup(t *testing.T) {
-	file, err := os.CreateTemp("", "buffer_test")
-	require.NoError(t, err)
-
-	buffer, err := NewBufferFilesystem(file)
-	require.NoError(t, err)
-
-	err = buffer.Cleanup()
-	require.NoError(t, err)
-
-	_, err = os.Stat(file.Name())
-	assert.True(t, os.IsNotExist(err))
-}
-
 func TestMixedWriteAndRead(t *testing.T) {
 	file, err := os.CreateTemp("", "buffer_test")
 	require.NoError(t, err)

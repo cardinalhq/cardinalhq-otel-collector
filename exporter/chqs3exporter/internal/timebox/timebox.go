@@ -155,6 +155,7 @@ func (t *TimeboxImpl[T, E]) Closed(scope T, now int64, generator E) map[int64][]
 	}
 	for ts, entry := range t.items[scope] {
 		if closed(now, entry.ts, t.Interval, t.IntervalCount, t.Grace) {
+			defer entry.buffer.Close()
 			items, err := entry.decode(generator)
 			if err != nil {
 				continue

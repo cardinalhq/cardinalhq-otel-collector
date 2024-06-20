@@ -15,7 +15,6 @@
 package timebox
 
 import (
-	"io"
 	"os"
 )
 
@@ -26,9 +25,7 @@ type BufferFilesystem struct {
 }
 
 var (
-	_ Buffer        = (*BufferFilesystem)(nil)
-	_ io.Writer     = (*BufferFilesystem)(nil)
-	_ io.ReadCloser = (*BufferFilesystem)(nil)
+	_ Buffer = (*BufferFilesystem)(nil)
 )
 
 func NewBufferFilesystem(file *os.File) (*BufferFilesystem, error) {
@@ -65,10 +62,6 @@ func (bf *BufferFilesystem) Read(p []byte) (n int, err error) {
 func (bf *BufferFilesystem) Close() error {
 	defer os.Remove(bf.file.Name())
 	return bf.file.Close()
-}
-
-func (bf *BufferFilesystem) Cleanup() error {
-	return os.Remove(bf.file.Name())
 }
 
 type BufferFilesystemFactory struct {

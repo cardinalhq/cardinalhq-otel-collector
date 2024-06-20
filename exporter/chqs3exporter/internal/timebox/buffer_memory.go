@@ -16,7 +16,6 @@ package timebox
 
 import (
 	"bytes"
-	"io"
 )
 
 type MemoryBufferImpl struct {
@@ -24,9 +23,7 @@ type MemoryBufferImpl struct {
 }
 
 var (
-	_ io.Writer     = (*MemoryBufferImpl)(nil)
-	_ io.ReadCloser = (*MemoryBufferImpl)(nil)
-	_ Buffer        = (*MemoryBufferImpl)(nil)
+	_ Buffer = (*MemoryBufferImpl)(nil)
 )
 
 func NewBufferImpl() *MemoryBufferImpl {
@@ -42,10 +39,6 @@ func (b *MemoryBufferImpl) Read(p []byte) (n int, err error) {
 }
 
 func (b *MemoryBufferImpl) Close() error {
-	return nil
-}
-
-func (b *MemoryBufferImpl) Cleanup() error {
 	return nil
 }
 

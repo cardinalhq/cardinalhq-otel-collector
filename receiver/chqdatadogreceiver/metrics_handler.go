@@ -48,7 +48,7 @@ func (ddr *datadogReceiver) handleV1Series(w http.ResponseWriter, req *http.Requ
 	ddMetrics, httpCode, err := handleMetricsV1Payload(req)
 	if err != nil {
 		writeError(w, httpCode, err)
-		ddr.metricLogger.Error("Unable to unmarshal reqs", zap.Error(err))
+		ddr.metricLogger.Warn("Unable to unmarshal reqs", zap.Error(err), zap.Any("httpHeaders", req.Header))
 		return
 	}
 	metricCount = len(ddMetrics)
@@ -87,7 +87,7 @@ func (ddr *datadogReceiver) handleV2Series(w http.ResponseWriter, req *http.Requ
 
 	ddMetrics, httpCode, err := ddr.handleMetricsV2Payload(req)
 	if err != nil {
-		ddr.metricLogger.Error("Unable to unmarshal reqs", zap.Error(err))
+		ddr.metricLogger.Warn("Unable to unmarshal reqs", zap.Error(err), zap.Any("httpHeaders", req.Header))
 		writeError(w, httpCode, err)
 		return
 	}

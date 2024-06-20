@@ -44,7 +44,7 @@ func (c *Config) Validate() error {
 	}
 
 	if c.Phase != "presample" && c.Phase != "postsample" {
-		errs = multierr.Append(errs, errors.New("phase must be either presample or postsample"))
+		errs = multierr.Append(errs, errors.New("phase must be either presample or postsample, not "+c.Phase))
 	}
 
 	return errs

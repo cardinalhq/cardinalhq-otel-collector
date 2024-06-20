@@ -90,6 +90,7 @@ func TestConfig(t *testing.T) {
 	require.NotNil(t, cfg)
 
 	e := cfg.Exporters[component.MustNewID("chqstats")].(*Config)
+	assert.NoError(t, e.Validate())
 	expected := &Config{
 		ClientConfig: confighttp.ClientConfig{
 			Timeout:     500 * time.Millisecond,
@@ -101,6 +102,7 @@ func TestConfig(t *testing.T) {
 			},
 		},
 		Interval: 100 * time.Second,
+		Phase:    "presample",
 	}
 	assert.Equal(t, expected, e)
 }

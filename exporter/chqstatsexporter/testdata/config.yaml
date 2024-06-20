@@ -9,6 +9,7 @@ exporters:
     headers:
       Alice: Bob
     interval: 100s
+    phase: presample
 
 processors:
   nop:

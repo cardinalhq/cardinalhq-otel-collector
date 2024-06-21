@@ -28,7 +28,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type chqConfig struct {
+type CHQConfigExtension struct {
 	config             *Config
 	httpClient         *http.Client
 	httpClientSettings confighttp.ClientConfig
@@ -38,7 +38,7 @@ type chqConfig struct {
 	configManager      sampler.ConfigManager
 }
 
-func (chq *chqConfig) setupTelemetry(params extension.Settings) error {
+func (chq *CHQConfigExtension) setupTelemetry(params extension.Settings) error {
 	m, err := metadata.Meter(params.TelemetrySettings).Int64Counter("fetches")
 	if err != nil {
 		return err
@@ -48,8 +48,8 @@ func (chq *chqConfig) setupTelemetry(params extension.Settings) error {
 	return nil
 }
 
-func newConfigExtension(cfg *Config, params extension.Settings) (*chqConfig, error) {
-	chq := chqConfig{
+func newConfigExtension(cfg *Config, params extension.Settings) (*CHQConfigExtension, error) {
+	chq := CHQConfigExtension{
 		config:             cfg,
 		httpClientSettings: cfg.Source.ClientConfig,
 		telemetrySettings:  params.TelemetrySettings,
@@ -61,7 +61,7 @@ func newConfigExtension(cfg *Config, params extension.Settings) (*chqConfig, err
 	return &chq, nil
 }
 
-func (chq *chqConfig) Start(_ context.Context, _ component.Host) error {
+func (chq *CHQConfigExtension) Start(_ context.Context, _ component.Host) error {
 	httpClient, err := chq.httpClientSettings.ToClient(context.Background(), nil, chq.telemetrySettings)
 	if err != nil {
 		return err
@@ -75,11 +75,22 @@ func (chq *chqConfig) Start(_ context.Context, _ component.Host) error {
 		fr = filereader.NewLocalFileReader(chq.config.Source.Endpoint)
 	}
 	chq.configManager = sampler.NewConfigManagerImpl(chq.logger, chq.config.CheckInterval, fr)
+	chq.logger.Info("Starting configuration manager", zap.String("check_interval", chq.config.CheckInterval.String()))
 	chq.configManager.Run()
 	return nil
 }
 
-func (chq *chqConfig) Shutdown(context.Context) error {
+func (chq *CHQConfigExtension) Shutdown(context.Context) error {
+	chq.logger.Info("Stopping configuration manager")
 	chq.configManager.Stop()
+	chq.logger.Info("Configuration manager stopped")
 	return nil
+}
+
+func (chq *CHQConfigExtension) RegisterCallback(name string, cb sampler.ConfigUpdateCallbackFunc) int {
+	return chq.configManager.RegisterCallback(name, cb)
+}
+
+func (chq *CHQConfigExtension) UnregisterCallback(id int) {
+	chq.configManager.UnregisterCallback(id)
 }

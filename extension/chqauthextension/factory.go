@@ -23,7 +23,6 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension/internal/metadata"
 )
 
-// NewFactory creates a factory for the static bearer token Authenticator extension.
 func NewFactory() extension.Factory {
 	return extension.NewFactory(
 		metadata.Type,
@@ -34,9 +33,18 @@ func NewFactory() extension.Factory {
 }
 
 func createDefaultConfig() component.Config {
-	return &Config{}
+	return &Config{
+		ServerAuth: ServerAuth{
+			CacheTTLValid:   defaultCacheValidTTL,
+			CacheTTLInvalid: defaultCacheInvalidTTL,
+		},
+	}
 }
 
 func createExtension(_ context.Context, params extension.Settings, cfg component.Config) (extension.Extension, error) {
-	return newServerAuthExtension(cfg.(*Config), params)
+	c := cfg.(*Config)
+	if c.ClientAuth.APIKey != "" {
+		return newClientAuthExtension(c, params), nil
+	}
+	return newServerAuthExtension(c, params)
 }

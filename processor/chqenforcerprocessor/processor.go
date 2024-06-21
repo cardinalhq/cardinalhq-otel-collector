@@ -16,6 +16,7 @@ package chqenforcerprocessor
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
@@ -25,7 +26,9 @@ import (
 	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
 )
 
@@ -33,31 +36,43 @@ type chqEnforcer struct {
 	config     *Config
 	httpClient *http.Client
 
+	id    component.ID
+	ttype string
+
 	httpClientSettings confighttp.ClientConfig
 	telemetrySettings  component.TelemetrySettings
 
 	logstats    *stats.StatsCombiner[*chqpb.LogStats]
 	metricstats *stats.StatsCombiner[*MetricStat]
 
+	configExtension  *chqconfigextension.CHQConfigExtension
+	configCallbackID int
+
 	logger *zap.Logger
 
 	pbPhase chqpb.Phase
 }
 
-func newCHQEnforcer(config *Config, set processor.Settings) *chqEnforcer {
+func newCHQEnforcer(config *Config, ttype string, set processor.Settings) *chqEnforcer {
 	now := time.Now()
 	statsExporter := &chqEnforcer{
+		id:                 set.ID,
+		ttype:              ttype,
 		config:             config,
-		httpClientSettings: config.ClientConfig,
+		httpClientSettings: config.Statistics.ClientConfig,
 		telemetrySettings:  set.TelemetrySettings,
-		logstats:           stats.NewStatsCombiner[*chqpb.LogStats](now, config.Interval),
-		metricstats:        stats.NewStatsCombiner[*MetricStat](now, config.Interval),
 		logger:             set.Logger,
 	}
-	if config.Phase == "presample" {
+	if config.Statistics.Phase == "presample" {
 		statsExporter.pbPhase = chqpb.Phase_PRE
 	} else {
 		statsExporter.pbPhase = chqpb.Phase_POST
+	}
+	switch ttype {
+	case "logs":
+		statsExporter.logstats = stats.NewStatsCombiner[*chqpb.LogStats](now, config.Statistics.Interval)
+	case "metrics":
+		statsExporter.metricstats = stats.NewStatsCombiner[*MetricStat](now, config.Statistics.Interval)
 	}
 
 	return statsExporter
@@ -73,5 +88,32 @@ func (e *chqEnforcer) Start(ctx context.Context, host component.Host) error {
 		return err
 	}
 	e.httpClient = httpClient
+
+	ext, found := host.GetExtensions()[*e.config.ConfigurationExtension]
+	if !found {
+		return errors.New("configuration extension " + e.config.ConfigurationExtension.String() + " not found")
+	}
+	cext, ok := ext.(*chqconfigextension.CHQConfigExtension)
+	if !ok {
+		return errors.New("configuration extension " + e.config.ConfigurationExtension.String() + " is not a chqconfig extension")
+	}
+	e.configExtension = cext
+
+	e.configCallbackID = e.configExtension.RegisterCallback(e.id.String()+"/"+e.ttype, e.configUpdateCallback)
 	return nil
+}
+
+func (e *chqEnforcer) Shutdown(ctx context.Context) error {
+	e.configExtension.UnregisterCallback(e.configCallbackID)
+	return nil
+}
+
+func (e *chqEnforcer) configUpdateCallback(sc sampler.SamplerConfig) {
+	switch e.ttype {
+	case "logs":
+		e.updateLogsamplingConfig(sc)
+	case "metrics":
+		e.updateMetricsamplingConfig(sc)
+	}
+	e.logger.Info("Configuration updated")
 }

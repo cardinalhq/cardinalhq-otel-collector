@@ -18,21 +18,36 @@ import (
 	"errors"
 	"time"
 
+	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
-	"go.opentelemetry.io/collector/config/configopaque"
 	"go.uber.org/multierr"
 )
 
 type Config struct {
+	Statistics             StatisticsConfig `mapstructure:"statistics"`
+	ConfigurationExtension *component.ID    `mapstructure:"configuration_extension"`
+}
+
+type StatisticsConfig struct {
 	confighttp.ClientConfig `mapstructure:",squash"`
 
-	APIKey   configopaque.String `mapstructure:"api_key"`
-	Interval time.Duration       `mapstructure:"interval"`
-	Phase    string              `mapstructure:"phase"`
-	Vendor   string              `mapstructure:"vendor"`
+	Interval time.Duration `mapstructure:"interval"`
+	Phase    string        `mapstructure:"phase"`
+	Vendor   string        `mapstructure:"vendor"`
 }
 
 func (c *Config) Validate() error {
+	var errs error
+
+	if c.ConfigurationExtension == nil {
+		errs = multierr.Append(errs, errors.New("configuration_extension is required"))
+	}
+	errs = multierr.Append(errs, c.Statistics.Validate())
+
+	return errs
+}
+
+func (c *StatisticsConfig) Validate() error {
 	var errs error
 	if c.Interval == 0 {
 		c.Interval = 5 * time.Minute

@@ -4,6 +4,7 @@ go 1.22.3
 
 require (
 	github.com/apache/datasketches-go v0.0.0-20240611235655-ca342a75f234
+	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.0.0
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
 	github.com/cespare/xxhash v1.1.0
 	github.com/stretchr/testify v1.9.0
@@ -114,4 +115,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 => ../../internal
+replace (
+	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.0.0 => ../../extension/chqconfigextension
+	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 => ../../internal
+
+)

@@ -62,6 +62,10 @@ func TestLoadConfig(t *testing.T) {
 	require.NotNil(t, cfg)
 
 	e := cfg.Processors[component.MustNewID("chqenforcer")].(*Config)
+	assert.NoError(t, e.Validate())
+	assert.NotNil(t, e.ConfigurationExtension)
+	assert.NotNil(t, e.Statistics)
+	e.ConfigurationExtension = nil
 	assert.Equal(t, createDefaultConfig(), e)
 }
 
@@ -91,19 +95,24 @@ func TestConfig(t *testing.T) {
 
 	e := cfg.Processors[component.MustNewID("chqenforcer")].(*Config)
 	assert.NoError(t, e.Validate())
+	assert.NotNil(t, e.ConfigurationExtension)
+	assert.NotNil(t, e.Statistics)
+	e.ConfigurationExtension = nil
 	expected := &Config{
-		ClientConfig: confighttp.ClientConfig{
-			Timeout:     500 * time.Millisecond,
-			Endpoint:    "http://localhost:8080",
-			Compression: configcompression.TypeZstd,
-			Headers: map[string]configopaque.String{
-				"Alice":      "Bob",
-				"User-Agent": "cardinalhq-otel-collector",
+		Statistics: StatisticsConfig{
+			ClientConfig: confighttp.ClientConfig{
+				Timeout:     500 * time.Millisecond,
+				Endpoint:    "http://localhost:8080",
+				Compression: configcompression.TypeZstd,
+				Headers: map[string]configopaque.String{
+					"Alice":      "Bob",
+					"User-Agent": "cardinalhq-otel-collector",
+				},
 			},
+			Interval: 100 * time.Second,
+			Phase:    "presample",
+			Vendor:   "alice",
 		},
-		Interval: 100 * time.Second,
-		Phase:    "presample",
-		Vendor:   "alice",
 	}
 	assert.Equal(t, expected, e)
 }

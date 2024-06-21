@@ -42,41 +42,47 @@ func NewFactory() processor.Factory {
 
 func createDefaultConfig() component.Config {
 	return &Config{
-		Interval: 5 * time.Minute,
-		ClientConfig: confighttp.ClientConfig{
-			Timeout:  5 * time.Second,
-			Endpoint: "https://api.cardinalhq.com",
-			Headers: map[string]configopaque.String{
-				"User-Agent": "cardinalhq-otel-collector",
+		Statistics: StatisticsConfig{
+			Phase:    "postsample",
+			Interval: 5 * time.Minute,
+			ClientConfig: confighttp.ClientConfig{
+				Timeout:  5 * time.Second,
+				Endpoint: "https://api.cardinalhq.com",
+				Headers: map[string]configopaque.String{
+					"User-Agent": "cardinalhq-otel-collector",
+				},
+				Compression: configcompression.TypeGzip,
 			},
-			Compression: configcompression.TypeGzip,
 		},
 	}
 }
 
 func createLogsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Logs) (processor.Logs, error) {
-	e := newCHQEnforcer(cfg.(*Config), set)
+	e := newCHQEnforcer(cfg.(*Config), "logs", set)
 	return processorhelper.NewLogsProcessor(
 		ctx, set, cfg, nextConsumer,
 		e.ConsumeLogs,
 		processorhelper.WithStart(e.Start),
+		processorhelper.WithShutdown(e.Shutdown),
 		processorhelper.WithCapabilities(e.Capabilities()))
 }
 
 func createMetricsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Metrics) (processor.Metrics, error) {
-	e := newCHQEnforcer(cfg.(*Config), set)
+	e := newCHQEnforcer(cfg.(*Config), "metrics", set)
 	return processorhelper.NewMetricsProcessor(
 		ctx, set, cfg, nextConsumer,
 		e.ConsumeMetrics,
 		processorhelper.WithStart(e.Start),
+		processorhelper.WithShutdown(e.Shutdown),
 		processorhelper.WithCapabilities(e.Capabilities()))
 }
 
 func createTracesProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Traces) (processor.Traces, error) {
-	e := newCHQEnforcer(cfg.(*Config), set)
+	e := newCHQEnforcer(cfg.(*Config), "traces", set)
 	return processorhelper.NewTracesProcessor(
 		ctx, set, cfg, nextConsumer,
 		e.ConsumeTraces,
 		processorhelper.WithStart(e.Start),
+		processorhelper.WithShutdown(e.Shutdown),
 		processorhelper.WithCapabilities(e.Capabilities()))
 }

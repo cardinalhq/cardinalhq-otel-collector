@@ -3,14 +3,16 @@ receivers:
 
 processors:
   chqenforcer:
-    endpoint: http://localhost:8080
-    timeout: 500ms
-    compression: zstd
-    headers:
-      Alice: Bob
-    interval: 100s
-    phase: presample
-    vendor: alice
+    statistics:
+      endpoint: http://localhost:8080
+      timeout: 500ms
+      compression: zstd
+      headers:
+        Alice: Bob
+      interval: 100s
+      phase: presample
+      vendor: alice
+    configuration_extension: nop
 
 exporters:
   nop:
@@ -29,3 +31,6 @@ service:
       receivers: [nop]
       processors: [chqenforcer]
       exporters: [nop]
+
+extensions:
+  nop:

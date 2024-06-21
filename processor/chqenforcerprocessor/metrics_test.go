@@ -64,7 +64,6 @@ func TestPostMetricStats(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method)
 		assert.Equal(t, "application/x-protobuf", r.Header.Get("Content-Type"))
-		assert.Equal(t, "YOUR_API_KEY", r.Header.Get("x-cardinalhq-api-key"))
 
 		body, err := io.ReadAll(r.Body)
 		assert.NoError(t, err)
@@ -91,10 +90,11 @@ func TestPostMetricStats(t *testing.T) {
 	// Create a statsExporter instance with the mock server's URL and API key
 	processor := &chqEnforcer{
 		config: &Config{
-			ClientConfig: confighttp.ClientConfig{
-				Endpoint: server.URL,
+			Statistics: StatisticsConfig{
+				ClientConfig: confighttp.ClientConfig{
+					Endpoint: server.URL,
+				},
 			},
-			APIKey: "YOUR_API_KEY",
 		},
 		httpClient: server.Client(),
 		logger:     zap.NewNop(),

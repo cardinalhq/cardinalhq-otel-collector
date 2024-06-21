@@ -3,6 +3,7 @@ receivers:
 
 processors:
   chqenforcer:
+    configuration_extension: nop
 
 exporters:
   nop:
@@ -21,3 +22,6 @@ service:
       receivers: [nop]
       processors: [chqenforcer]
       exporters: [nop]
+
+extensions:
+  nop:

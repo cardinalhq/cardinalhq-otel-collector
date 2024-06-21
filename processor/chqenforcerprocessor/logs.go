@@ -28,6 +28,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
@@ -107,7 +108,7 @@ func (e *chqEnforcer) recordLog(now time.Time, serviceName string, fingerprint i
 		ServiceName: serviceName,
 		Fingerprint: fingerprint,
 		Phase:       phase,
-		VendorId:    e.config.Vendor,
+		VendorId:    e.config.Statistics.Vendor,
 		Count:       1,
 		LogSize:     logSize,
 		Exemplar:    message,
@@ -143,13 +144,12 @@ func (e *chqEnforcer) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsR
 		return err
 	}
 	e.logger.Info("Sending log stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
-	endpoint := e.config.Endpoint + "/api/v1/logstats"
+	endpoint := e.config.Statistics.Endpoint + "/api/v1/logstats"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/x-protobuf")
-	req.Header.Set(translate.CardinalHeaderAPIKey, string(e.config.APIKey))
 
 	resp, err := e.httpClient.Do(req)
 	if err != nil {
@@ -161,4 +161,8 @@ func (e *chqEnforcer) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsR
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 	return nil
+}
+
+func (e *chqEnforcer) updateLogsamplingConfig(sc sampler.SamplerConfig) {
+	e.logger.Info("Updating log sampling config", zap.Any("config", sc))
 }

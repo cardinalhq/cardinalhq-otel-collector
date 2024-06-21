@@ -34,8 +34,6 @@ header:
     - exporter/chqs3exporter/s3_writer_test.go
     - exporter/chqs3exporter/config_test.go
     - exporter/chqs3exporter/factory_test.go
-    - exporter/chqs3exporter/generated_component_test.go
-    - exporter/chqs3exporter/generated_package_test.go
     - exporter/chqs3exporter/internal/metadata/generated_status.go
 
   comment: on-failure

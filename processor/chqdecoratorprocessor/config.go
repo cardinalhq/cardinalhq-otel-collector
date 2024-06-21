@@ -189,7 +189,7 @@ func makeConfigurationManager(conf *Config, logger *zap.Logger) (sampler.ConfigM
 }
 
 func makeHTTPConfigManager(_ context.Context, u *url.URL, conf *Config, logger *zap.Logger) (sampler.ConfigManager, error) {
-	fr := filereader.NewHTTPFileReader(u.String(), conf.APIKey, nil)
+	fr := filereader.NewHTTPFileReader(u.String(), nil)
 	return sampler.NewConfigManagerImpl(logger, conf.configCheckInterval, fr), nil
 }
 

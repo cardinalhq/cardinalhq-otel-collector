@@ -31,14 +31,17 @@ type Config struct {
 
 type ConfigSourceConfig struct {
 	confighttp.ClientConfig `mapstructure:",squash"`
+
+	scheme string
 }
 
 var (
 	sourceSchemes = []string{"http", "https"}
 
-	errMissingEndpoint = errors.New("auth.endpoint must be set")
-	errInvalidEndpoint = errors.New("auth.endpoint must be a valid URL")
-	errInvalidScheme   = errors.New("auth.endpoint: supported schemes: " + strings.Join(sourceSchemes, ", "))
+	errMissingEndpoint       = errors.New("auth.endpoint must be set")
+	errInvalidEndpoint       = errors.New("auth.endpoint must be a valid URL")
+	errInvalidScheme         = errors.New("auth.endpoint: supported schemes: " + strings.Join(sourceSchemes, ", "))
+	errCheckIntervalTooShort = errors.New("check_interval must be set to a positive value greater than 1 minute")
 )
 
 func (cfg *Config) Validate() error {
@@ -46,7 +49,7 @@ func (cfg *Config) Validate() error {
 		return err
 	}
 	if cfg.CheckInterval < 1*time.Minute {
-		return errors.New("check_interval must be set to a positive value greater than 1 minute")
+		return errCheckIntervalTooShort
 	}
 	return nil
 }
@@ -62,5 +65,6 @@ func (cfg *ConfigSourceConfig) Validate() error {
 	if !slices.Contains(sourceSchemes, u.Scheme) {
 		return errInvalidScheme
 	}
+	cfg.scheme = u.Scheme
 	return nil
 }

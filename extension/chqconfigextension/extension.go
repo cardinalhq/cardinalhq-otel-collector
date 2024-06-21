@@ -19,6 +19,8 @@ import (
 	"net/http"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension/internal/metadata"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/filereader"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/extension"
@@ -26,20 +28,14 @@ import (
 	"go.uber.org/zap"
 )
 
-//const (
-//	apiKeyHeader = "x-cardinalhq-api-key"
-//)
-
 type chqConfig struct {
-	config     *Config
-	httpClient *http.Client
-
+	config             *Config
+	httpClient         *http.Client
 	httpClientSettings confighttp.ClientConfig
 	telemetrySettings  component.TelemetrySettings
-
-	fetches metric.Int64Counter
-
-	logger *zap.Logger
+	fetches            metric.Int64Counter
+	logger             *zap.Logger
+	configManager      sampler.ConfigManager
 }
 
 func (chq *chqConfig) setupTelemetry(params extension.Settings) error {
@@ -71,9 +67,19 @@ func (chq *chqConfig) Start(_ context.Context, _ component.Host) error {
 		return err
 	}
 	chq.httpClient = httpClient
+
+	var fr filereader.FileReader
+	if chq.config.Source.scheme == "http" || chq.config.Source.scheme == "https" {
+		fr = filereader.NewHTTPFileReader(chq.config.Source.Endpoint, chq.httpClient)
+	} else {
+		fr = filereader.NewLocalFileReader(chq.config.Source.Endpoint)
+	}
+	chq.configManager = sampler.NewConfigManagerImpl(chq.logger, chq.config.CheckInterval, fr)
+	chq.configManager.Run()
 	return nil
 }
 
 func (chq *chqConfig) Shutdown(context.Context) error {
+	chq.configManager.Stop()
 	return nil
 }

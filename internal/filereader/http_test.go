@@ -29,12 +29,6 @@ func TestHTTPFileReader_ReadFile_WithAuth(t *testing.T) {
 		assert.Equal(t, http.MethodGet, r.Method)
 		assert.Equal(t, "/file.txt", r.URL.Path)
 
-		authHeader := r.Header.Get("x-cardinalhq-api-key")
-		expectedAuthHeader := "test-api-key"
-		if authHeader != expectedAuthHeader {
-			t.Errorf("unexpected Authorization header: got %s, want %s", authHeader, expectedAuthHeader)
-		}
-
 		_, err := w.Write([]byte("test data"))
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
@@ -43,7 +37,7 @@ func TestHTTPFileReader_ReadFile_WithAuth(t *testing.T) {
 
 	defer server.Close()
 
-	reader := NewHTTPFileReader(server.URL+"/file.txt", "test-api-key", server.Client())
+	reader := NewHTTPFileReader(server.URL+"/file.txt", server.Client())
 
 	data, err := reader.ReadFile(context.Background())
 	if err != nil {
@@ -74,7 +68,7 @@ func TestHTTPFileReader_ReadFile_WithoutAuth(t *testing.T) {
 
 	defer server.Close()
 
-	reader := NewHTTPFileReader(server.URL+"/file.txt", "", server.Client())
+	reader := NewHTTPFileReader(server.URL+"/file.txt", server.Client())
 
 	data, err := reader.ReadFile(context.Background())
 	if err != nil {
@@ -88,7 +82,7 @@ func TestHTTPFileReader_ReadFile_WithoutAuth(t *testing.T) {
 }
 
 func TestHTTPFileReader_Readfile_BadURL(t *testing.T) {
-	reader := NewHTTPFileReader("xxx://example.com/file.txt", "", nil)
+	reader := NewHTTPFileReader("xxx://example.com/file.txt", nil)
 
 	_, err := reader.ReadFile(context.Background())
 	if err == nil {
@@ -109,23 +103,19 @@ func TestHTTPFileReader_Filename(t *testing.T) {
 
 func TestNewHTTPFileReader_DefaultClient(t *testing.T) {
 	url := "http://example.com/file.txt"
-	apiKey := "test-api-key"
 
-	reader := NewHTTPFileReader(url, apiKey, nil)
+	reader := NewHTTPFileReader(url, nil)
 
 	assert.Equal(t, url, reader.URL)
-	assert.Equal(t, apiKey, reader.APIKey)
 	assert.Equal(t, http.DefaultClient, reader.client)
 }
 
 func TestNewHTTPFileReader_CustomClient(t *testing.T) {
 	url := "http://example.com/file.txt"
-	apiKey := "test-api-key"
 	customClient := &http.Client{}
 
-	reader := NewHTTPFileReader(url, apiKey, customClient)
+	reader := NewHTTPFileReader(url, customClient)
 
 	assert.Equal(t, url, reader.URL)
-	assert.Equal(t, apiKey, reader.APIKey)
 	assert.Equal(t, customClient, reader.client)
 }

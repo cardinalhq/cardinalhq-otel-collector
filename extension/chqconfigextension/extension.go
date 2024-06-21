@@ -55,7 +55,7 @@ func (chq *chqConfig) setupTelemetry(params extension.Settings) error {
 func newConfigExtension(cfg *Config, params extension.Settings) (*chqConfig, error) {
 	chq := chqConfig{
 		config:             cfg,
-		httpClientSettings: cfg.ClientConfig,
+		httpClientSettings: cfg.Source.ClientConfig,
 		telemetrySettings:  params.TelemetrySettings,
 		logger:             params.Logger,
 	}

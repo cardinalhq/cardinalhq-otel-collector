@@ -16,20 +16,16 @@ package chqdecoratorprocessor
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
-	"os"
-	"strings"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"go.opentelemetry.io/collector/component"
 	"go.uber.org/zap"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/filereader"
-	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/s3tools"
-	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/sampler"
-	"github.com/hashicorp/go-multierror"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/filereader"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 )
 
 type Config struct {
@@ -168,8 +164,8 @@ func checkSamplerConfigFile(file string) error {
 	if err != nil {
 		return fmt.Errorf("invalid URL: %w", err)
 	}
-	if u.Scheme != "file" && u.Scheme != "s3" && u.Scheme != "http" && u.Scheme != "https" {
-		return fmt.Errorf("unsupported scheme: %s, must be 'file', 's3', 'http', or 'https'", u.Scheme)
+	if u.Scheme != "file" && u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("unsupported scheme: %s, must be 'file', 'http', or 'https'", u.Scheme)
 	}
 	return nil
 }
@@ -185,8 +181,6 @@ func makeConfigurationManager(conf *Config, logger *zap.Logger) (sampler.ConfigM
 	switch u.Scheme {
 	case "file":
 		return makeFileConfigManager(u.Path, conf, logger)
-	case "s3":
-		return makeS3ConfigManager(ctx, u, conf, logger)
 	case "http", "https":
 		return makeHTTPConfigManager(ctx, u, conf, logger)
 	default:
@@ -201,61 +195,5 @@ func makeHTTPConfigManager(_ context.Context, u *url.URL, conf *Config, logger *
 
 func makeFileConfigManager(path string, conf *Config, logger *zap.Logger) (sampler.ConfigManager, error) {
 	fr := filereader.NewLocalFileReader(path)
-	return sampler.NewConfigManagerImpl(logger, conf.configCheckInterval, fr), nil
-}
-
-func makeS3ConfigManager(ctx context.Context, u *url.URL, conf *Config, logger *zap.Logger) (sampler.ConfigManager, error) {
-	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
-	if accessKey == "" {
-		return nil, errors.New("AWS_ACCESS_KEY_ID is not set")
-	}
-
-	secretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
-	if secretKey == "" {
-		return nil, errors.New("AWS_SECRET_ACCESS_KEY is not set")
-	}
-
-	region := os.Getenv("AWS_DEFAULT_REGION")
-	if region == "" {
-		region = "auto"
-	}
-
-	endpoint := conf.S3Endpoint
-	if endpoint == "" {
-		endpoint = os.Getenv("S3_ENDPOINT")
-	}
-	if v := os.Getenv("OBJECTSTORE_ENDPOINT"); v != "" {
-		endpoint = v
-	}
-
-	provider := conf.S3Provider
-	if provider == "" {
-		provider = os.Getenv("S3_PROVIDER")
-	}
-
-	if provider == "ceph" {
-		host := os.Getenv("BUCKET_HOST")
-		port := os.Getenv("BUCKET_PORT")
-		if host != "" && port != "" {
-			endpoint = fmt.Sprintf("http://%s:%s", host, port)
-		}
-	}
-
-	s3conf := s3tools.Config{
-		AccessKey: accessKey,
-		SecretKey: secretKey,
-		Region:    region,
-		Endpoint:  endpoint,
-		Provider:  provider,
-	}
-
-	s3client, err := s3tools.NewS3Client(ctx, s3conf)
-	if err != nil {
-		logger.Fatal("Failed to create S3 client", zap.Error(err))
-	}
-
-	bucket := strings.SplitN(u.Path, "/", 2)[0]
-
-	fr := filereader.NewS3FileReader(s3client, bucket, u.Path)
 	return sampler.NewConfigManagerImpl(logger, conf.configCheckInterval, fr), nil
 }

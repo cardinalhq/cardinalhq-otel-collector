@@ -22,7 +22,7 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/filereader"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/filereader"
 )
 
 type ConfigManager interface {

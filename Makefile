@@ -69,6 +69,12 @@ update-deps:
 		(echo ============ updating $$i ... ; cd $$i && go get -u -t ./... && go mod tidy) \
 	done
 
+tidy:
+	for i in $(MODULE_SOURCE_PATHS); do \
+		(echo ============ go tidy in $$i ... ; cd $$i && go mod tidy) \
+	done
+
+
 # requires otel builder to be installed.
 # go install go.opentelemetry.io/collector/cmd/builder@latest
 bin/cardinalhq-otel-collector: cardinalhq-otel-collector.yaml

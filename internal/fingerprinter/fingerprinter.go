@@ -24,7 +24,7 @@ import (
 	"github.com/cespare/xxhash/v2"
 	"github.com/db47h/ragel/v2"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/fingerprinter/tokenizer"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/fingerprinter/tokenizer"
 )
 
 type Fingerprinter interface {

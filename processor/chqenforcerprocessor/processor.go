@@ -12,23 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package chqstatsexporter
+package chqenforcerprocessor
 
 import (
 	"context"
 	"net/http"
 	"time"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
-	"go.opentelemetry.io/collector/exporter"
+	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
 )
 
-type statsExporter struct {
+type chqEnforcer struct {
 	config     *Config
 	httpClient *http.Client
 
@@ -43,15 +44,15 @@ type statsExporter struct {
 	pbPhase chqpb.Phase
 }
 
-func newStatsExporter(config *Config, params exporter.Settings) *statsExporter {
+func newCHQEnforcer(config *Config, set processor.Settings) *chqEnforcer {
 	now := time.Now()
-	statsExporter := &statsExporter{
+	statsExporter := &chqEnforcer{
 		config:             config,
 		httpClientSettings: config.ClientConfig,
-		telemetrySettings:  params.TelemetrySettings,
+		telemetrySettings:  set.TelemetrySettings,
 		logstats:           stats.NewStatsCombiner[*chqpb.LogStats](now, config.Interval),
 		metricstats:        stats.NewStatsCombiner[*MetricStat](now, config.Interval),
-		logger:             params.Logger,
+		logger:             set.Logger,
 	}
 	if config.Phase == "presample" {
 		statsExporter.pbPhase = chqpb.Phase_PRE
@@ -62,11 +63,11 @@ func newStatsExporter(config *Config, params exporter.Settings) *statsExporter {
 	return statsExporter
 }
 
-func (e *statsExporter) Capabilities() consumer.Capabilities {
-	return consumer.Capabilities{MutatesData: false}
+func (e *chqEnforcer) Capabilities() consumer.Capabilities {
+	return consumer.Capabilities{MutatesData: true}
 }
 
-func (e *statsExporter) Start(ctx context.Context, host component.Host) error {
+func (e *chqEnforcer) Start(ctx context.Context, host component.Host) error {
 	httpClient, err := e.httpClientSettings.ToClient(ctx, host, e.telemetrySettings)
 	if err != nil {
 		return err

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package chqstatsexporter
+package chqenforcerprocessor
 
 import (
 	"context"
@@ -21,12 +21,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
 )
 
 func TestGetBoolOrDefault(t *testing.T) {
@@ -88,7 +89,7 @@ func TestPostMetricStats(t *testing.T) {
 	defer server.Close()
 
 	// Create a statsExporter instance with the mock server's URL and API key
-	exporter := &statsExporter{
+	processor := &chqEnforcer{
 		config: &Config{
 			ClientConfig: confighttp.ClientConfig{
 				Endpoint: server.URL,
@@ -116,7 +117,7 @@ func TestPostMetricStats(t *testing.T) {
 	}
 
 	// Call the postMetricStats function
-	err := exporter.postMetricStats(context.Background(), report)
+	err := processor.postMetricStats(context.Background(), report)
 
 	// Verify that no error occurred
 	assert.NoError(t, err)

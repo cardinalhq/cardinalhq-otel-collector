@@ -1,8 +1,8 @@
 receivers:
   nop:
 
-exporters:
-  chqstats:
+processors:
+  chqenforcer:
     endpoint: http://localhost:8080
     timeout: 500ms
     compression: zstd
@@ -10,21 +10,22 @@ exporters:
       Alice: Bob
     interval: 100s
     phase: presample
+    vendor: alice
 
-processors:
+exporters:
   nop:
 
 service:
   pipelines:
     traces:
       receivers: [nop]
-      processors: [nop]
-      exporters: [chqstats]
+      processors: [chqenforcer]
+      exporters: [nop]
     metrics:
       receivers: [nop]
-      processors: [nop]
-      exporters: [chqstats]
+      processors: [chqenforcer]
+      exporters: [nop]
     logs:
       receivers: [nop]
-      processors: [nop]
-      exporters: [chqstats]
+      processors: [chqenforcer]
+      exporters: [nop]

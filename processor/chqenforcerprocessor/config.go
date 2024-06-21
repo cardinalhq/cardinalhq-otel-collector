@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package chqstatsexporter
+package chqenforcerprocessor
 
 import (
 	"errors"
@@ -23,7 +23,6 @@ import (
 	"go.uber.org/multierr"
 )
 
-// Config contains the main configuration options for the s3 exporter
 type Config struct {
 	confighttp.ClientConfig `mapstructure:",squash"`
 

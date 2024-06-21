@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package chqstatsexporter
+package chqenforcerprocessor
 
 import (
 	"bytes"
@@ -73,10 +73,10 @@ func logBoolsToPhase(filtered, wouldFilter bool) chqpb.Phase {
 	return chqpb.Phase_PASSTHROUGH
 }
 
-func (e *statsExporter) ConsumeLogs(_ context.Context, logs plog.Logs) error {
+func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
 	now := time.Now()
-	for i := 0; i < logs.ResourceLogs().Len(); i++ {
-		rl := logs.ResourceLogs().At(i)
+	for i := 0; i < ld.ResourceLogs().Len(); i++ {
+		rl := ld.ResourceLogs().At(i)
 		rAttr := pcommon.NewMap()
 		rl.Resource().Attributes().CopyTo(rAttr)
 		serviceName := getServiceName(rAttr)
@@ -98,10 +98,10 @@ func (e *statsExporter) ConsumeLogs(_ context.Context, logs plog.Logs) error {
 			}
 		}
 	}
-	return nil
+	return ld, nil
 }
 
-func (e *statsExporter) recordLog(now time.Time, serviceName string, fingerprint int64, phase chqpb.Phase, message string) error {
+func (e *chqEnforcer) recordLog(now time.Time, serviceName string, fingerprint int64, phase chqpb.Phase, message string) error {
 	logSize := int64(len(message))
 	rec := chqpb.LogStats{
 		ServiceName: serviceName,
@@ -123,7 +123,7 @@ func (e *statsExporter) recordLog(now time.Time, serviceName string, fingerprint
 	return nil
 }
 
-func (e *statsExporter) sendLogStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*chqpb.LogStats) {
+func (e *chqEnforcer) sendLogStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*chqpb.LogStats) {
 	wrapper := &chqpb.LogStatsReport{
 		SubmittedAt: now.UnixMilli(),
 		Stats:       []*chqpb.LogStats{},
@@ -137,7 +137,7 @@ func (e *statsExporter) sendLogStats(ctx context.Context, now time.Time, bucketp
 	}
 }
 
-func (e *statsExporter) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsReport) error {
+func (e *chqEnforcer) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsReport) error {
 	b, err := proto.Marshal(wrapper)
 	if err != nil {
 		return err

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package chqstatsexporter
+package chqenforcerprocessor
 
 import (
 	"bytes"
@@ -31,7 +31,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
-func (e *statsExporter) ConsumeMetrics(_ context.Context, md pmetric.Metrics) error {
+func (e *chqEnforcer) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
 	now := time.Now()
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
 		rm := md.ResourceMetrics().At(i)
@@ -46,35 +46,35 @@ func (e *statsExporter) ConsumeMetrics(_ context.Context, md pmetric.Metrics) er
 					for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
 						dp := m.Gauge().DataPoints().At(l)
 						if err := e.recordDatapoint(now, m.Name(), serviceName, rm.Resource().Attributes(), ilm.Scope().Attributes(), dp.Attributes()); err != nil {
-							return err
+							return md, err
 						}
 					}
 				case pmetric.MetricTypeSum:
 					for l := 0; l < m.Sum().DataPoints().Len(); l++ {
 						dp := m.Sum().DataPoints().At(l)
 						if err := e.recordDatapoint(now, m.Name(), serviceName, rm.Resource().Attributes(), ilm.Scope().Attributes(), dp.Attributes()); err != nil {
-							return err
+							return md, err
 						}
 					}
 				case pmetric.MetricTypeHistogram:
 					for l := 0; l < m.Histogram().DataPoints().Len(); l++ {
 						dp := m.Histogram().DataPoints().At(l)
 						if err := e.recordDatapoint(now, m.Name(), serviceName, rm.Resource().Attributes(), ilm.Scope().Attributes(), dp.Attributes()); err != nil {
-							return err
+							return md, err
 						}
 					}
 				case pmetric.MetricTypeSummary:
 					for l := 0; l < m.Summary().DataPoints().Len(); l++ {
 						dp := m.Summary().DataPoints().At(l)
 						if err := e.recordDatapoint(now, m.Name(), serviceName, rm.Resource().Attributes(), ilm.Scope().Attributes(), dp.Attributes()); err != nil {
-							return err
+							return md, err
 						}
 					}
 				case pmetric.MetricTypeExponentialHistogram:
 					for l := 0; l < m.ExponentialHistogram().DataPoints().Len(); l++ {
 						dp := m.ExponentialHistogram().DataPoints().At(l)
 						if err := e.recordDatapoint(now, m.Name(), serviceName, rm.Resource().Attributes(), ilm.Scope().Attributes(), dp.Attributes()); err != nil {
-							return err
+							return md, err
 						}
 					}
 				}
@@ -82,7 +82,7 @@ func (e *statsExporter) ConsumeMetrics(_ context.Context, md pmetric.Metrics) er
 		}
 	}
 
-	return nil
+	return md, nil
 }
 
 func getBoolOrDefault(attr pcommon.Map, key string, def bool) bool {
@@ -94,7 +94,7 @@ func getBoolOrDefault(attr pcommon.Map, key string, def bool) bool {
 	return def
 }
 
-func (e *statsExporter) recordDatapoint(now time.Time, metricName, serviceName string, rattr, sattr, dpAttr pcommon.Map) error {
+func (e *chqEnforcer) recordDatapoint(now time.Time, metricName, serviceName string, rattr, sattr, dpAttr pcommon.Map) error {
 	var errs error
 	isAggregationOutput := e.pbPhase == chqpb.Phase_PRE && getBoolOrDefault(dpAttr, translate.CardinalFieldAggregatedOutput, false)
 	if isAggregationOutput {
@@ -116,7 +116,7 @@ func (e *statsExporter) recordDatapoint(now time.Time, metricName, serviceName s
 	return errs
 }
 
-func (e *statsExporter) recordMetric(now time.Time, metricName, serviceName, tagName, tagValue string, count int) error {
+func (e *chqEnforcer) recordMetric(now time.Time, metricName, serviceName, tagName, tagValue string, count int) error {
 	rec := &MetricStat{
 		MetricName:  metricName,
 		ServiceName: serviceName,
@@ -137,7 +137,7 @@ func (e *statsExporter) recordMetric(now time.Time, metricName, serviceName, tag
 	return nil
 }
 
-func (e *statsExporter) sendMetricStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*MetricStat) {
+func (e *chqEnforcer) sendMetricStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*MetricStat) {
 	wrapper := &chqpb.MetricStatsReport{
 		SubmittedAt: now.UnixMilli(),
 		Stats:       []*chqpb.MetricStats{},
@@ -172,7 +172,7 @@ func (e *statsExporter) sendMetricStats(ctx context.Context, now time.Time, buck
 	}
 }
 
-func (e *statsExporter) postMetricStats(ctx context.Context, wrapper *chqpb.MetricStatsReport) error {
+func (e *chqEnforcer) postMetricStats(ctx context.Context, wrapper *chqpb.MetricStatsReport) error {
 	b, err := proto.Marshal(wrapper)
 	if err != nil {
 		return err

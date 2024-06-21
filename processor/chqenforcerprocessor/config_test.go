@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package chqstatsexporter
+package chqenforcerprocessor
 
 import (
 	"path/filepath"
@@ -34,7 +34,7 @@ import (
 	"go.opentelemetry.io/collector/otelcol"
 	"go.opentelemetry.io/collector/otelcol/otelcoltest"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqstatsexporter/internal/metadata"
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqenforcerprocessor/internal/metadata"
 )
 
 func TestLoadConfig(t *testing.T) {
@@ -44,7 +44,7 @@ func TestLoadConfig(t *testing.T) {
 	assert.NoError(t, err)
 
 	factory := NewFactory()
-	factories.Exporters[metadata.Type] = factory
+	factories.Processors[metadata.Type] = factory
 
 	cfg, err := otelcoltest.LoadConfigWithSettings(factories, otelcol.ConfigProviderSettings{
 		ResolverSettings: confmap.ResolverSettings{
@@ -72,7 +72,7 @@ func TestConfig(t *testing.T) {
 	assert.NoError(t, err)
 
 	factory := NewFactory()
-	factories.Exporters[metadata.Type] = factory
+	factories.Processors[metadata.Type] = factory
 
 	cfg, err := otelcoltest.LoadConfigWithSettings(factories, otelcol.ConfigProviderSettings{
 		ResolverSettings: confmap.ResolverSettings{
@@ -89,7 +89,7 @@ func TestConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
-	e := cfg.Exporters[component.MustNewID("chqstats")].(*Config)
+	e := cfg.Processors[component.MustNewID("chqstats")].(*Config)
 	assert.NoError(t, e.Validate())
 	expected := &Config{
 		ClientConfig: confighttp.ClientConfig{

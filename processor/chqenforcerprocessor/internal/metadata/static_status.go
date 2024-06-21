@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	Type = component.MustNewType("chqstats")
+	Type = component.MustNewType("chqenforcer")
 )
 
 const (

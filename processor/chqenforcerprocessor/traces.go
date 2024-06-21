@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package chqstatsexporter
+package chqenforcerprocessor
 
 import (
 	"context"
@@ -20,6 +20,6 @@ import (
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
-func (e *statsExporter) ConsumeTraces(_ context.Context, traces ptrace.Traces) error {
-	return nil
+func (e *chqEnforcer) ConsumeTraces(_ context.Context, td ptrace.Traces) (ptrace.Traces, error) {
+	return td, nil
 }

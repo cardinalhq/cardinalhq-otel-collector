@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package chqstatsexporter
+package chqenforcerprocessor
 
 import (
 	"context"
@@ -22,20 +22,21 @@ import (
 	"go.opentelemetry.io/collector/config/configcompression"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/config/configopaque"
-	"go.opentelemetry.io/collector/exporter"
-	"go.opentelemetry.io/collector/exporter/exporterhelper"
+	"go.opentelemetry.io/collector/consumer"
+	"go.opentelemetry.io/collector/processor"
+	"go.opentelemetry.io/collector/processor/processorhelper"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqstatsexporter/internal/metadata"
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqenforcerprocessor/internal/metadata"
 )
 
 // NewFactory creates a factory for S3 exporter.
-func NewFactory() exporter.Factory {
-	return exporter.NewFactory(
+func NewFactory() processor.Factory {
+	return processor.NewFactory(
 		metadata.Type,
 		createDefaultConfig,
-		exporter.WithTraces(createTracesExporter, metadata.TracesStability),
-		exporter.WithLogs(createLogsExporter, metadata.LogsStability),
-		exporter.WithMetrics(createMetricsExporter, metadata.MetricsStability),
+		processor.WithTraces(createTracesProcessor, metadata.TracesStability),
+		processor.WithLogs(createLogsProcessor, metadata.LogsStability),
+		processor.WithMetrics(createMetricsProcessor, metadata.MetricsStability),
 	)
 }
 
@@ -53,35 +54,29 @@ func createDefaultConfig() component.Config {
 	}
 }
 
-func createLogsExporter(ctx context.Context,
-	params exporter.Settings,
-	config component.Config) (exporter.Logs, error) {
-	e := newStatsExporter(config.(*Config), params)
-	return exporterhelper.NewLogsExporter(
-		ctx, params, config,
+func createLogsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Logs) (processor.Logs, error) {
+	e := newCHQEnforcer(cfg.(*Config), set)
+	return processorhelper.NewLogsProcessor(
+		ctx, set, cfg, nextConsumer,
 		e.ConsumeLogs,
-		exporterhelper.WithStart(e.Start),
-		exporterhelper.WithCapabilities(e.Capabilities()))
+		processorhelper.WithStart(e.Start),
+		processorhelper.WithCapabilities(e.Capabilities()))
 }
 
-func createMetricsExporter(ctx context.Context,
-	params exporter.Settings,
-	config component.Config) (exporter.Metrics, error) {
-	e := newStatsExporter(config.(*Config), params)
-	return exporterhelper.NewMetricsExporter(
-		ctx, params, config,
+func createMetricsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Metrics) (processor.Metrics, error) {
+	e := newCHQEnforcer(cfg.(*Config), set)
+	return processorhelper.NewMetricsProcessor(
+		ctx, set, cfg, nextConsumer,
 		e.ConsumeMetrics,
-		exporterhelper.WithStart(e.Start),
-		exporterhelper.WithCapabilities(e.Capabilities()))
+		processorhelper.WithStart(e.Start),
+		processorhelper.WithCapabilities(e.Capabilities()))
 }
 
-func createTracesExporter(ctx context.Context,
-	params exporter.Settings,
-	config component.Config) (exporter.Traces, error) {
-	e := newStatsExporter(config.(*Config), params)
-	return exporterhelper.NewTracesExporter(
-		ctx, params, config,
+func createTracesProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Traces) (processor.Traces, error) {
+	e := newCHQEnforcer(cfg.(*Config), set)
+	return processorhelper.NewTracesProcessor(
+		ctx, set, cfg, nextConsumer,
 		e.ConsumeTraces,
-		exporterhelper.WithStart(e.Start),
-		exporterhelper.WithCapabilities(e.Capabilities()))
+		processorhelper.WithStart(e.Start),
+		processorhelper.WithCapabilities(e.Capabilities()))
 }

@@ -61,7 +61,7 @@ func TestLoadConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
-	e := cfg.Exporters[component.MustNewID("chqstats")].(*Config)
+	e := cfg.Processors[component.MustNewID("chqenforcer")].(*Config)
 	assert.Equal(t, createDefaultConfig(), e)
 }
 
@@ -89,7 +89,7 @@ func TestConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
-	e := cfg.Processors[component.MustNewID("chqstats")].(*Config)
+	e := cfg.Processors[component.MustNewID("chqenforcer")].(*Config)
 	assert.NoError(t, e.Validate())
 	expected := &Config{
 		ClientConfig: confighttp.ClientConfig{
@@ -103,6 +103,7 @@ func TestConfig(t *testing.T) {
 		},
 		Interval: 100 * time.Second,
 		Phase:    "presample",
+		Vendor:   "alice",
 	}
 	assert.Equal(t, expected, e)
 }

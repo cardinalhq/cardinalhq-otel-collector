@@ -46,8 +46,6 @@ exporters:
   - gomod: go.opentelemetry.io/collector/exporter/otlphttpexporter v0.103.0
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v0.1.5
     path: ./exporter/chqs3exporter
-  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqstatsexporter v0.1.5
-    path: ./exporter/chqstatsexporter
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.1.5
     path: ./exporter/chqdatadogexporter
 
@@ -76,6 +74,8 @@ processors:
   - gomod: go.opentelemetry.io/collector/processor/memorylimiterprocessor v0.103.0
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor v0.1.5
     path: ./processor/chqdecoratorprocessor
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/chqenforcerprocessor v0.1.5
+    path: ./processor/chqenforcerprocessor
 
 connectors:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/connector/datadogconnector v0.103.0

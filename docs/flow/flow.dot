@@ -198,7 +198,7 @@ digraph G {
         label="Spans L1 Intake";
         
         c8_receiver_otlp [label="otlp/l1" color="#ddddff"];
-        c8_receiver_datadog [label="chqdatadog/l2" color="#ddddff"];
+        c8_receiver_datadog [label="chqdatadog/l1" color="#ddddff"];
         c8_memory_limiter [label="memory_limiter" color="#ddffdd"];
         c8_exporter_loadbalance [label="loadbalancing/l2" color="#ffdddd"];
         

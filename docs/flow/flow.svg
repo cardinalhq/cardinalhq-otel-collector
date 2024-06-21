@@ -545,7 +545,7 @@
 <g id="node40" class="node">
 <title>c8_receiver_datadog</title>
 <polygon fill="#ddddff" stroke="#ddddff" points="1124.38,-887 1047.62,-887 1047.62,-851 1124.38,-851 1124.38,-887"/>
-<text text-anchor="middle" x="1086" y="-865.5" font-family="Arial" font-size="10.00">chqdatadog/l2</text>
+<text text-anchor="middle" x="1086" y="-865.5" font-family="Arial" font-size="10.00">chqdatadog/l1</text>
 </g>
 <!-- c8_receiver_datadog&#45;&gt;c8_memory_limiter -->
 <g id="edge37" class="edge">

@@ -237,7 +237,7 @@ func (e *chqEnforcer) aggregateDatapoint(
 	metric pmetric.Metric,
 	dp pmetric.NumberDataPoint,
 	metadata map[string]string,
-) *sampler.AggregatorConfig {
+) *sampler.AggregatorConfigV1 {
 	t := dp.Timestamp().AsTime()
 	switch dp.ValueType() {
 	case pmetric.NumberDataPointValueTypeInt:

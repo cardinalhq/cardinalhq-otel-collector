@@ -21,6 +21,7 @@ header:
     - sample-config.yaml
     - '**/testdata/**'
     - .idea
+    - docs/flow/flow.svg
     - internal/ddpb/metrics.pb.go
     - internal/ddpb/metrics.proto
     - exporter/chqs3exporter/s3_marshaler.go
@@ -33,9 +34,6 @@ header:
     - exporter/chqs3exporter/s3_writer_test.go
     - exporter/chqs3exporter/config_test.go
     - exporter/chqs3exporter/factory_test.go
-    - kubernetes/doc/processor.dot
-    - exporter/chqs3exporter/generated_component_test.go
-    - exporter/chqs3exporter/generated_package_test.go
     - exporter/chqs3exporter/internal/metadata/generated_status.go
 
   comment: on-failure
@@ -45,6 +43,10 @@ header:
       extensions:
         - '.rl'
       comment_style_id: DoubleSlash
+    dot:
+      extensions:
+        - '.dot'
+      comment_style_id: Hashtag
 
 # If you don't want to check dependencies' license compatibility, remove the following part
 dependency:

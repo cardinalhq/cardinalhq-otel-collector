@@ -12,8 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package chqauthextension
+package metadata
+
+import (
+	"go.opentelemetry.io/collector/component"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/trace"
+)
+
+var (
+	Type = component.MustNewType("chqenforcer")
+)
 
 const (
-	apiKeyHeader = "x-cardinalhq-api-key"
+	TracesStability  = component.StabilityLevelAlpha
+	MetricsStability = component.StabilityLevelAlpha
+	LogsStability    = component.StabilityLevelAlpha
 )
+
+func Meter(settings component.TelemetrySettings) metric.Meter {
+	return settings.MeterProvider.Meter("otelcol/chqstats")
+}
+
+func Tracer(settings component.TelemetrySettings) trace.Tracer {
+	return settings.TracerProvider.Tracer("otelcol/chqstats")
+}

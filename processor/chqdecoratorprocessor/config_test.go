@@ -107,11 +107,6 @@ func TestCheckSamplerConfigFile(t *testing.T) {
 			false,
 		},
 		{
-			"valid s3 scheme",
-			"s3://bucket-name/config.yaml",
-			false,
-		},
-		{
 			"valid http scheme",
 			"http://example.com/config.yaml",
 			false,

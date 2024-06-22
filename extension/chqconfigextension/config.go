@@ -16,27 +16,55 @@ package chqconfigextension
 
 import (
 	"errors"
+	"net/url"
+	"slices"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/collector/config/confighttp"
 )
 
 type Config struct {
-	confighttp.ClientConfig `mapstructure:",squash"`
-	Endpoint                string        `mapstructure:"endpoint"`
-	APIKey                  string        `mapstructure:"api_key"`
-	CheckInterval           time.Duration `mapstructure:"check_interval"`
+	Source        ConfigSourceConfig `mapstructure:"source"`
+	CheckInterval time.Duration      `mapstructure:"check_interval"`
 }
 
+type ConfigSourceConfig struct {
+	confighttp.ClientConfig `mapstructure:",squash"`
+
+	scheme string
+}
+
+var (
+	sourceSchemes = []string{"http", "https"}
+
+	errMissingEndpoint       = errors.New("auth.endpoint must be set")
+	errInvalidEndpoint       = errors.New("auth.endpoint must be a valid URL")
+	errInvalidScheme         = errors.New("auth.endpoint: supported schemes: " + strings.Join(sourceSchemes, ", "))
+	errCheckIntervalTooShort = errors.New("check_interval must be set to a positive value greater than 1 minute")
+)
+
 func (cfg *Config) Validate() error {
+	if err := cfg.Source.Validate(); err != nil {
+		return err
+	}
+	if cfg.CheckInterval < 1*time.Minute {
+		return errCheckIntervalTooShort
+	}
+	return nil
+}
+
+func (cfg *ConfigSourceConfig) Validate() error {
 	if cfg.Endpoint == "" {
-		return errors.New("auth.endpoint must be set")
+		return errMissingEndpoint
 	}
-	if cfg.APIKey == "" {
-		return errors.New("auth.api_key must be set")
+	u, err := url.Parse(cfg.Endpoint)
+	if err != nil {
+		return errInvalidEndpoint
 	}
-	if cfg.CheckInterval <= 0 {
-		return errors.New("auth.check_interval must be set to a positive value")
+	if !slices.Contains(sourceSchemes, u.Scheme) {
+		return errInvalidScheme
 	}
+	cfg.scheme = u.Scheme
 	return nil
 }

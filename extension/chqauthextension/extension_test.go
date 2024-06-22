@@ -22,12 +22,12 @@ import (
 	"go.opentelemetry.io/otel/metric/noop"
 )
 
-func newchq() *chqAuth {
+func newchq() *chqServerAuth {
 	m := noop.NewMeterProvider().Meter("test")
 	clm, _ := m.Int64Counter("auth_cache_lookups")
 	cam, _ := m.Int64Counter("auth_cache_adds")
 
-	chq := &chqAuth{
+	chq := &chqServerAuth{
 		lookupCache:      make(map[string]*authData),
 		authCacheLookups: clm,
 		authCacheAdds:    cam,

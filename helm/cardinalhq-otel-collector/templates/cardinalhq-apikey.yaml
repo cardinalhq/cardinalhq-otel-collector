@@ -9,6 +9,6 @@ metadata:
   {{- include "customerside.namespace" . | nindent 2 }}
 type: Opaque
 data:
-  api-key: |-
+  {{ .Values.secrets.cardinalhq.field }}: |-
     {{ b64enc .Values.secrets.cardinalhq.apiKey }}
 {{- end -}}

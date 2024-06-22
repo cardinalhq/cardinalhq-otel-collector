@@ -19,6 +19,8 @@ import (
 	"net/http"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension/internal/metadata"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/filereader"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/extension"
@@ -26,23 +28,17 @@ import (
 	"go.uber.org/zap"
 )
 
-//const (
-//	apiKeyHeader = "x-cardinalhq-api-key"
-//)
-
-type chqConfig struct {
-	config     *Config
-	httpClient *http.Client
-
+type CHQConfigExtension struct {
+	config             *Config
+	httpClient         *http.Client
 	httpClientSettings confighttp.ClientConfig
 	telemetrySettings  component.TelemetrySettings
-
-	fetches metric.Int64Counter
-
-	logger *zap.Logger
+	fetches            metric.Int64Counter
+	logger             *zap.Logger
+	configManager      sampler.ConfigManager
 }
 
-func (chq *chqConfig) setupTelemetry(params extension.Settings) error {
+func (chq *CHQConfigExtension) setupTelemetry(params extension.Settings) error {
 	m, err := metadata.Meter(params.TelemetrySettings).Int64Counter("fetches")
 	if err != nil {
 		return err
@@ -52,10 +48,10 @@ func (chq *chqConfig) setupTelemetry(params extension.Settings) error {
 	return nil
 }
 
-func newConfigExtension(cfg *Config, params extension.Settings) (*chqConfig, error) {
-	chq := chqConfig{
+func newConfigExtension(cfg *Config, params extension.Settings) (*CHQConfigExtension, error) {
+	chq := CHQConfigExtension{
 		config:             cfg,
-		httpClientSettings: cfg.ClientConfig,
+		httpClientSettings: cfg.Source.ClientConfig,
 		telemetrySettings:  params.TelemetrySettings,
 		logger:             params.Logger,
 	}
@@ -65,15 +61,36 @@ func newConfigExtension(cfg *Config, params extension.Settings) (*chqConfig, err
 	return &chq, nil
 }
 
-func (chq *chqConfig) Start(_ context.Context, _ component.Host) error {
-	httpClient, err := chq.httpClientSettings.ToClient(context.Background(), nil, chq.telemetrySettings)
+func (chq *CHQConfigExtension) Start(_ context.Context, host component.Host) error {
+	httpClient, err := chq.httpClientSettings.ToClient(context.Background(), host, chq.telemetrySettings)
 	if err != nil {
 		return err
 	}
 	chq.httpClient = httpClient
+
+	var fr filereader.FileReader
+	if chq.config.Source.scheme == "http" || chq.config.Source.scheme == "https" {
+		fr = filereader.NewHTTPFileReader(chq.config.Source.Endpoint, chq.httpClient)
+	} else {
+		fr = filereader.NewLocalFileReader(chq.config.Source.Endpoint)
+	}
+	chq.configManager = sampler.NewConfigManagerImpl(chq.logger, chq.config.CheckInterval, fr)
+	chq.logger.Info("Starting configuration manager", zap.String("check_interval", chq.config.CheckInterval.String()))
+	go chq.configManager.Run()
 	return nil
 }
 
-func (chq *chqConfig) Shutdown(context.Context) error {
+func (chq *CHQConfigExtension) Shutdown(context.Context) error {
+	chq.logger.Info("Stopping configuration manager")
+	chq.configManager.Stop()
+	chq.logger.Info("Configuration manager stopped")
 	return nil
+}
+
+func (chq *CHQConfigExtension) RegisterCallback(name string, cb sampler.ConfigUpdateCallbackFunc) int {
+	return chq.configManager.RegisterCallback(name, cb)
+}
+
+func (chq *CHQConfigExtension) UnregisterCallback(id int) {
+	chq.configManager.UnregisterCallback(id)
 }

@@ -12,8 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package chqauthextension
+package chqenforcerprocessor
 
-const (
-	apiKeyHeader = "x-cardinalhq-api-key"
+import (
+	"context"
+
+	"go.opentelemetry.io/collector/pdata/ptrace"
 )
+
+func (e *chqEnforcer) ConsumeTraces(_ context.Context, td ptrace.Traces) (ptrace.Traces, error) {
+	return td, nil
+}

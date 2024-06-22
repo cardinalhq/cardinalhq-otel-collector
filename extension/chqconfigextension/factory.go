@@ -25,6 +25,11 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension/internal/metadata"
 )
 
+const (
+	defaultCheckInterval     = 10 * time.Minute
+	defaultHTTPClientTimeout = 10 * time.Second
+)
+
 // NewFactory creates a factory for the static bearer token Authenticator extension.
 func NewFactory() extension.Factory {
 	return extension.NewFactory(
@@ -37,11 +42,12 @@ func NewFactory() extension.Factory {
 
 func createDefaultConfig() component.Config {
 	return &Config{
-		ClientConfig: confighttp.ClientConfig{
-			Timeout: time.Duration(5 * time.Second),
+		Source: ConfigSourceConfig{
+			ClientConfig: confighttp.ClientConfig{
+				Timeout: defaultHTTPClientTimeout,
+			},
 		},
-		CheckInterval: time.Duration(5 * time.Minute),
-		Endpoint:      "https://config.cardinalhq.io/api/v1/config",
+		CheckInterval: defaultCheckInterval,
 	}
 }
 

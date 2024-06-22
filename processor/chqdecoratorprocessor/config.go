@@ -15,41 +15,19 @@
 package chqdecoratorprocessor
 
 import (
-	"context"
 	"fmt"
 	"net/url"
-	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"go.opentelemetry.io/collector/component"
-	"go.uber.org/zap"
-
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/filereader"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 )
 
 type Config struct {
-	// SamplerConfigFile is the URL of the file containing the configuration for the sampler.
-	SamplerConfigFile string `mapstructure:"sampler_config_file"`
-
-	// S3 configuration
-	Region     string `mapstructure:"region"`
-	S3Endpoint string `mapstructure:"s3_endpoint"`
-	S3Provider string `mapstructure:"s3_provider"`
-
-	// ConfigCheckInterval is the interval at which the configuration file is checked for updates.
-	ConfigCheckInterval int `mapstructure:"config_check_interval"`
-
 	// ClusterID is the ID of the cluster to which the collector belongs.
 	// All collectors able to receive the same data should use this same value.
 	ClusterID string `mapstructure:"cluster_id"`
 
-	// APIKey is the API key to use when fetching configuration via http[s].
-	// If it is not set, no authorization header is added.
-	APIKey string `mapstructure:"api_key"`
-
-	MetricConfig        MetricConfig `mapstructure:"metrics"`
-	configCheckInterval time.Duration
+	MetricConfig MetricConfig `mapstructure:"metrics"`
 
 	TraceConfig TraceConfig `mapstructure:"traces"`
 }
@@ -91,19 +69,9 @@ type TraceConfig struct {
 var _ component.Config = (*Config)(nil)
 
 func (cfg *Config) Validate() error {
-	if cfg.configCheckInterval <= 0 {
-		cfg.configCheckInterval = 10 * time.Second
-	}
-	cfg.configCheckInterval = time.Duration(cfg.ConfigCheckInterval) * time.Second
-
 	if cfg.MetricConfig.MetricAggregationInterval < 10 {
 		return fmt.Errorf("invalid metric aggregation interval: %d, must be >= than 10", cfg.MetricConfig.MetricAggregationInterval)
 	}
-
-	if cfg.SamplerConfigFile != "" {
-		return checkSamplerConfigFile(cfg.SamplerConfigFile)
-	}
-
 	return cfg.TraceConfig.Validate()
 }
 
@@ -168,32 +136,4 @@ func checkSamplerConfigFile(file string) error {
 		return fmt.Errorf("unsupported scheme: %s, must be 'file', 'http', or 'https'", u.Scheme)
 	}
 	return nil
-}
-
-func makeConfigurationManager(conf *Config, logger *zap.Logger) (sampler.ConfigManager, error) {
-	ctx := context.Background()
-
-	u, err := url.Parse(conf.SamplerConfigFile)
-	if err != nil {
-		return nil, fmt.Errorf("invalid URL: %w", err)
-	}
-
-	switch u.Scheme {
-	case "file":
-		return makeFileConfigManager(u.Path, conf, logger)
-	case "http", "https":
-		return makeHTTPConfigManager(ctx, u, conf, logger)
-	default:
-		return nil, fmt.Errorf("unsupported scheme: %s, must be 'file' or 's3", u.Scheme)
-	}
-}
-
-func makeHTTPConfigManager(_ context.Context, u *url.URL, conf *Config, logger *zap.Logger) (sampler.ConfigManager, error) {
-	fr := filereader.NewHTTPFileReader(u.String(), nil)
-	return sampler.NewConfigManagerImpl(logger, conf.configCheckInterval, fr), nil
-}
-
-func makeFileConfigManager(path string, conf *Config, logger *zap.Logger) (sampler.ConfigManager, error) {
-	fr := filereader.NewLocalFileReader(path)
-	return sampler.NewConfigManagerImpl(logger, conf.configCheckInterval, fr), nil
 }

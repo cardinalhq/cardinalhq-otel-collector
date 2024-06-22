@@ -20,44 +20,18 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/pdata/pcommon"
+	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 )
-
-func TestGetBoolOrDefault(t *testing.T) {
-	attr := pcommon.NewMap()
-	attr.PutBool("key1", true)
-	attr.PutBool("key1f", false)
-	attr.PutStr("key2", "value2")
-
-	tests := []struct {
-		name     string
-		attr     pcommon.Map
-		key      string
-		def      bool
-		expected bool
-	}{
-		{"bool value exists and is true, default false", attr, "key1", false, true},
-		{"bool value exists and is false, default true", attr, "key1f", true, false},
-		{"string value exists, default false", attr, "key2", false, false},
-		{"string value exists, default true", attr, "key2", true, true},
-		{"key does not exist, default false", attr, "key3", false, false},
-		{"key does not exist, value true", attr, "key3", true, true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := getBoolOrDefault(tt.attr, tt.key, tt.def)
-			assert.Equal(t, tt.expected, got)
-		})
-	}
-}
 
 func TestPostMetricStats(t *testing.T) {
 	// Create a mock server to handle the HTTP request
@@ -121,4 +95,132 @@ func TestPostMetricStats(t *testing.T) {
 
 	// Verify that no error occurred
 	assert.NoError(t, err)
+}
+
+var _ sampler.MetricAggregator[float64] = &MockAggregator[float64]{}
+
+type MockAggregator[T float64] struct {
+}
+
+func (m *MockAggregator[T]) Configure(config []sampler.AggregatorConfig) {
+}
+
+func (m *MockAggregator[T]) Aggregate(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric) float64 {
+	return 0
+}
+
+func (m *MockAggregator[T]) Emit(t time.Time) map[int64]*sampler.AggregationSet[T] {
+	return nil
+}
+
+func (m *MockAggregator[T]) MatchAndAdd(t *time.Time, buckets []T, values []T, ty sampler.AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (*sampler.AggregatorConfig, error) {
+	return &sampler.AggregatorConfig{Id: "bob"}, nil
+}
+
+func TestAggregateGauge(t *testing.T) {
+	rms := pmetric.NewResourceMetrics()
+	ils := rms.ScopeMetrics().AppendEmpty()
+	metric := ils.Metrics().AppendEmpty()
+	metric.SetName("test")
+
+	metric.SetEmptyGauge()
+	dp1 := metric.Gauge().DataPoints().AppendEmpty()
+	dp1.SetDoubleValue(1.0)
+	dp1.Attributes().PutStr("foo", "bar")
+	dp2 := metric.Gauge().DataPoints().AppendEmpty()
+	dp2.SetDoubleValue(2.0)
+	dp2.Attributes().PutStr("foo", "bar")
+	dp3 := metric.Gauge().DataPoints().AppendEmpty()
+	dp3.SetDoubleValue(3.0)
+	dp3.Attributes().PutStr("foo", "bar")
+
+	mp := &chqEnforcer{
+		aggregatorF: &MockAggregator[float64]{},
+	}
+
+	aggregated := mp.aggregateGaugeDatapoint(rms, ils, metric, dp1)
+	assert.True(t, aggregated)
+	aggregated = mp.aggregateGaugeDatapoint(rms, ils, metric, dp2)
+	assert.True(t, aggregated)
+	aggregated = mp.aggregateGaugeDatapoint(rms, ils, metric, dp3)
+	assert.True(t, aggregated)
+
+	// Verify that attributes were modified
+	for i := 0; i < metric.Gauge().DataPoints().Len(); i++ {
+		dp := metric.Gauge().DataPoints().At(i)
+		attr := dp.Attributes()
+		_, found := attr.Get("_cardinalhq.tid")
+		assert.True(t, found)
+	}
+}
+func TestSetResourceMetadata(t *testing.T) {
+	res := pmetric.NewResourceMetrics()
+
+	setResourceMetadata(res, "schemaurl", "schemaurl")
+	assert.Equal(t, "schemaurl", res.SchemaUrl(), "schemaurl")
+}
+
+func TestSetInstrumentationMetadata(t *testing.T) {
+	res := pmetric.NewResourceMetrics()
+	ils := res.ScopeMetrics().AppendEmpty()
+
+	setInstrumentationMetadata(ils, "schemaurl", "schemaurl")
+	assert.Equal(t, "schemaurl", ils.SchemaUrl(), "schemaurl")
+
+	setInstrumentationMetadata(ils, "version", "alice-1.0.2")
+	assert.Equal(t, "alice-1.0.2", ils.Scope().Version(), "version")
+
+	setInstrumentationMetadata(ils, "name", "alice")
+	assert.Equal(t, "alice", ils.Scope().Name(), "name")
+}
+
+func TestSetMetricMetadata(t *testing.T) {
+	res := pmetric.NewResourceMetrics()
+	ils := res.ScopeMetrics().AppendEmpty()
+	metric := ils.Metrics().AppendEmpty()
+
+	setMetricMetadata(metric, "name", "alice.one")
+	assert.Equal(t, "alice.one", metric.Name(), "name")
+
+	setMetricMetadata(metric, "description", "Alice's first metric")
+	assert.Equal(t, "Alice's first metric", metric.Description(), "description")
+
+	setMetricMetadata(metric, "unit", "alice")
+	assert.Equal(t, "alice", metric.Unit(), "unit")
+}
+
+func TestSetMetricMetadataAggregationTemporality(t *testing.T) {
+	res := pmetric.NewResourceMetrics()
+	ils := res.ScopeMetrics().AppendEmpty()
+	metric := ils.Metrics().AppendEmpty()
+	metric.SetEmptySum()
+
+	setMetricMetadata(metric, "aggregationtemporality", "delta")
+	assert.Equal(t, pmetric.AggregationTemporalityDelta, metric.Sum().AggregationTemporality(), "aggregationtemporality")
+
+	setMetricMetadata(metric, "aggregationtemporality", "cumulative")
+	assert.Equal(t, pmetric.AggregationTemporalityCumulative, metric.Sum().AggregationTemporality(), "aggregationtemporality")
+}
+
+func TestSetMetricMetadataMonotonic(t *testing.T) {
+	res := pmetric.NewResourceMetrics()
+	ils := res.ScopeMetrics().AppendEmpty()
+	metric := ils.Metrics().AppendEmpty()
+	metric.SetEmptySum()
+
+	setMetricMetadata(metric, "ismonotonic", "true")
+	assert.Equal(t, true, metric.Sum().IsMonotonic(), "ismonotonic")
+
+	setMetricMetadata(metric, "ismonotonic", "false")
+	assert.Equal(t, false, metric.Sum().IsMonotonic(), "ismonotonic")
+}
+
+func TestNotSumWontCrash(t *testing.T) {
+	res := pmetric.NewResourceMetrics()
+	ils := res.ScopeMetrics().AppendEmpty()
+	metric := ils.Metrics().AppendEmpty()
+	metric.SetEmptyGauge()
+
+	setMetricMetadata(metric, "aggregationtemporality", "delta")
+	setMetricMetadata(metric, "ismonotonic", "true")
 }

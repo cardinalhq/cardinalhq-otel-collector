@@ -19,10 +19,12 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
+	"go.opentelemetry.io/collector/processor/processorhelper"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
@@ -34,84 +36,91 @@ import (
 
 func (e *chqEnforcer) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
 	now := time.Now()
-	for i := 0; i < md.ResourceMetrics().Len(); i++ {
-		rm := md.ResourceMetrics().At(i)
+	md.ResourceMetrics().RemoveIf(func(rm pmetric.ResourceMetrics) bool {
 		serviceName := getServiceName(rm.Resource().Attributes())
-		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
-			ilm := rm.ScopeMetrics().At(j)
-			for k := 0; k < ilm.Metrics().Len(); k++ {
-				m := ilm.Metrics().At(k)
-
+		rattr := rm.Resource().Attributes()
+		rm.ScopeMetrics().RemoveIf(func(ilm pmetric.ScopeMetrics) bool {
+			sattr := ilm.Scope().Attributes()
+			ilm.Metrics().RemoveIf(func(m pmetric.Metric) bool {
+				metricName := m.Name()
 				switch m.Type() {
 				case pmetric.MetricTypeGauge:
-					for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
-						dp := m.Gauge().DataPoints().At(l)
-						if err := e.recordDatapoint(now, m.Name(), serviceName, rm.Resource().Attributes(), ilm.Scope().Attributes(), dp.Attributes()); err != nil {
-							return md, err
-						}
-					}
+					m.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
+						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
+						return e.aggregate(rm, ilm, m, dp)
+					})
 				case pmetric.MetricTypeSum:
-					for l := 0; l < m.Sum().DataPoints().Len(); l++ {
-						dp := m.Sum().DataPoints().At(l)
-						if err := e.recordDatapoint(now, m.Name(), serviceName, rm.Resource().Attributes(), ilm.Scope().Attributes(), dp.Attributes()); err != nil {
-							return md, err
-						}
-					}
+					m.Sum().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
+						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
+						return e.aggregate(rm, ilm, m, dp)
+					})
 				case pmetric.MetricTypeHistogram:
-					for l := 0; l < m.Histogram().DataPoints().Len(); l++ {
-						dp := m.Histogram().DataPoints().At(l)
-						if err := e.recordDatapoint(now, m.Name(), serviceName, rm.Resource().Attributes(), ilm.Scope().Attributes(), dp.Attributes()); err != nil {
-							return md, err
-						}
-					}
+					m.Histogram().DataPoints().RemoveIf(func(dp pmetric.HistogramDataPoint) bool {
+						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
+						return false
+					})
 				case pmetric.MetricTypeSummary:
-					for l := 0; l < m.Summary().DataPoints().Len(); l++ {
-						dp := m.Summary().DataPoints().At(l)
-						if err := e.recordDatapoint(now, m.Name(), serviceName, rm.Resource().Attributes(), ilm.Scope().Attributes(), dp.Attributes()); err != nil {
-							return md, err
-						}
-					}
+					m.Summary().DataPoints().RemoveIf(func(dp pmetric.SummaryDataPoint) bool {
+						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
+						return false
+					})
 				case pmetric.MetricTypeExponentialHistogram:
-					for l := 0; l < m.ExponentialHistogram().DataPoints().Len(); l++ {
-						dp := m.ExponentialHistogram().DataPoints().At(l)
-						if err := e.recordDatapoint(now, m.Name(), serviceName, rm.Resource().Attributes(), ilm.Scope().Attributes(), dp.Attributes()); err != nil {
-							return md, err
-						}
-					}
+					m.ExponentialHistogram().DataPoints().RemoveIf(func(dp pmetric.ExponentialHistogramDataPoint) bool {
+						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
+						return false
+					})
 				}
-			}
-		}
-	}
 
+				return false
+			})
+			return ilm.Metrics().Len() == 0
+		})
+		return rm.ScopeMetrics().Len() == 0
+	})
+
+	e.emit()
+
+	if md.ResourceMetrics().Len() == 0 {
+		return md, processorhelper.ErrSkipProcessingData
+	}
 	return md, nil
 }
 
-func getBoolOrDefault(attr pcommon.Map, key string, def bool) bool {
-	if v, found := attr.Get(key); found {
-		if b, ok := v.AsRaw().(bool); ok {
-			return b
-		}
+func (e *chqEnforcer) processDatapoint(now time.Time, metricName, serviceName string, rattr, sattr, dattr pcommon.Map) {
+	if err := e.recordDatapoint(now, metricName, serviceName, rattr, sattr, dattr); err != nil {
+		e.logger.Error("Failed to record datapoint", zap.Error(err))
 	}
-	return def
+	if e.pbPhase != chqpb.Phase_PRE {
+		removeCardinalFields(dattr)
+	}
+}
+
+func computeStatsOnField(k string) bool {
+	if strings.HasPrefix(k, translate.CardinalFieldTID) {
+		return true
+	}
+	return !strings.HasPrefix(k, translate.CardinalFieldPrefixDot)
 }
 
 func (e *chqEnforcer) recordDatapoint(now time.Time, metricName, serviceName string, rattr, sattr, dpAttr pcommon.Map) error {
 	var errs error
-	isAggregationOutput := e.pbPhase == chqpb.Phase_PRE && getBoolOrDefault(dpAttr, translate.CardinalFieldAggregatedOutput, false)
-	if isAggregationOutput {
-		return nil
-	}
 
 	rattr.Range(func(k string, v pcommon.Value) bool {
-		errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "resource."+k, v.AsString(), 1))
+		if !computeStatsOnField(k) {
+			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "resource."+k, v.AsString(), 1))
+		}
 		return true
 	})
 	sattr.Range(func(k string, v pcommon.Value) bool {
-		errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "scope."+k, v.AsString(), 1))
+		if !computeStatsOnField(k) {
+			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "scope."+k, v.AsString(), 1))
+		}
 		return true
 	})
 	dpAttr.Range(func(k string, v pcommon.Value) bool {
-		errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "metric."+k, v.AsString(), 1))
+		if !computeStatsOnField(k) {
+			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "metric."+k, v.AsString(), 1))
+		}
 		return true
 	})
 	return errs
@@ -199,5 +208,6 @@ func (e *chqEnforcer) postMetricStats(ctx context.Context, wrapper *chqpb.Metric
 }
 
 func (e *chqEnforcer) updateMetricsamplingConfig(sc sampler.SamplerConfig) {
-	e.logger.Info("Updating metric sampling config", zap.Any("config", sc))
+	e.aggregatorF.Configure(sc.Metrics.Aggregators)
+	e.aggregatorI.Configure(sc.Metrics.Aggregators)
 }

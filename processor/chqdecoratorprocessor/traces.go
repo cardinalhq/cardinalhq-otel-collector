@@ -28,7 +28,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor"
-	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
@@ -37,7 +36,6 @@ import (
 )
 
 type spansProcessor struct {
-	telemetry           *processorTelemetry
 	logger              *zap.Logger
 	traceConfig         *TraceConfig
 	apiKey              string
@@ -57,7 +55,6 @@ func newSpansProcessor(set processor.Settings, config *Config) (*spansProcessor,
 	sp := &spansProcessor{
 		logger:               set.Logger,
 		traceConfig:          &config.TraceConfig,
-		apiKey:               config.APIKey,
 		estimators:           make(map[uint64]*SlidingEstimatorStat),
 		estimatorWindowSize:  *config.TraceConfig.EstimatorWindowSize,
 		estimatorInterval:    *config.TraceConfig.EstimatorInterval,
@@ -67,12 +64,6 @@ func newSpansProcessor(set processor.Settings, config *Config) (*spansProcessor,
 		uninterestingSampler: sampler.NewRPSSampler(sampler.WithMaxRPS(*config.TraceConfig.UninterestingRate)),
 		podName:              os.Getenv("POD_NAME"),
 	}
-
-	dpt, err := newProcessorTelemetry(set)
-	if err != nil {
-		return nil, fmt.Errorf("error creating chqdecorator processor telemetry: %w", err)
-	}
-	sp.telemetry = dpt
 
 	if err := sp.slowSampler.Start(); err != nil {
 		return nil, fmt.Errorf("error starting slow sampler: %w", err)
@@ -291,15 +282,6 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 		}
 	}
 
-	attributes := []attribute.KeyValue{
-		attribute.Bool("filtered.filtered", filtered),
-		attribute.Bool("filtered.would_filter", filtered),
-		attribute.String("filtered.classification", string(filteredReason)),
-		attribute.Int64("filtered.fingerprint", int64(fingerprint)),
-	}
-	sp.telemetry.record(triggerTracesProcessed, 1, attributes...)
-	sp.telemetry.record(triggerSpansProcessed, spancount, attributes...)
-
 	return td, nil
 }
 
@@ -337,6 +319,5 @@ func (sp *spansProcessor) sendGraph(ctx context.Context, graph *spantagger.Graph
 		return fmt.Errorf("failed to send graph: http status %d", resp.StatusCode)
 	}
 
-	sp.telemetry.record(triggerGraphPosted, 1)
 	return nil
 }

@@ -113,6 +113,9 @@ func TestConfig(t *testing.T) {
 			Phase:    "presample",
 			Vendor:   "alice",
 		},
+		MetricAggregation: MetricAggregationConfig{
+			Interval: 10 * time.Second,
+		},
 	}
 	assert.Equal(t, expected, e)
 }

@@ -37,7 +37,6 @@ func TestNewTrace(t *testing.T) {
 		sentFingerprints: fingerprintTracker{
 			fingerprints: make(map[uint64]struct{}),
 		},
-		telemetry: &processorTelemetry{},
 	}
 
 	fingerprint := uint64(1234567890)
@@ -103,8 +102,7 @@ func TestSendGraph(t *testing.T) {
 
 	// Create a spansProcessor instance with the mock server URL
 	sp := &spansProcessor{
-		logger:    zap.NewNop(),
-		telemetry: &processorTelemetry{},
+		logger: zap.NewNop(),
 		traceConfig: &TraceConfig{
 			GraphURL: server.URL + "/graph",
 		},
@@ -214,7 +212,6 @@ func TestShouldFilter(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sp := &spansProcessor{
 				logger:              zap.NewNop(),
-				telemetry:           &processorTelemetry{},
 				estimators:          make(map[uint64]*SlidingEstimatorStat),
 				estimatorWindowSize: 10,
 				estimatorInterval:   1000,
@@ -388,7 +385,6 @@ func TestMaybeRateLimit(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sp := &spansProcessor{
 				logger:               zap.NewNop(),
-				telemetry:            &processorTelemetry{},
 				slowSampler:          constantSampler(0),
 				hasErrorSampler:      constantSampler(0),
 				uninterestingSampler: constantSampler(0),

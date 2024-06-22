@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -48,58 +49,50 @@ func getFingerprint(l pcommon.Map) int64 {
 	return 0
 }
 
-func getFiltered(l pcommon.Map) bool {
-	fnk := translate.CardinalFieldFiltered
-	if filteredField, found := l.Get(fnk); found {
-		return filteredField.Bool()
-	}
-	return false
-}
-
-func getWouldFilter(l pcommon.Map) bool {
-	fnk := translate.CardinalFieldWouldFilter
-	if wouldFilterField, found := l.Get(fnk); found {
-		return wouldFilterField.Bool()
-	}
-	return false
-}
-
-func logBoolsToPhase(filtered, wouldFilter bool) chqpb.Phase {
-	if filtered {
-		return chqpb.Phase_FILTERED
-	}
-	if wouldFilter {
-		return chqpb.Phase_DRY_RUN_FILTERED
-	}
-	return chqpb.Phase_PASSTHROUGH
-}
-
 func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
+	if ld.ResourceLogs().Len() == 0 {
+		return ld, nil
+	}
+
 	now := time.Now()
-	for i := 0; i < ld.ResourceLogs().Len(); i++ {
-		rl := ld.ResourceLogs().At(i)
-		rAttr := pcommon.NewMap()
-		rl.Resource().Attributes().CopyTo(rAttr)
-		serviceName := getServiceName(rAttr)
-		for j := 0; j < rl.ScopeLogs().Len(); j++ {
-			ill := rl.ScopeLogs().At(j)
-			sAttr := pcommon.NewMap()
-			ill.Scope().Attributes().CopyTo(sAttr)
-			for k := 0; k < ill.LogRecords().Len(); k++ {
-				l := ill.LogRecords().At(k)
-				lAttr := pcommon.NewMap()
-				l.Attributes().CopyTo(lAttr)
-				fp := getFingerprint(lAttr)
-				filtered := getFiltered(lAttr)
-				wouldFilter := getWouldFilter(lAttr)
-				phase := logBoolsToPhase(filtered, wouldFilter)
-				if err := e.recordLog(now, serviceName, fp, phase, l.Body().AsString()); err != nil {
+
+	ld.ResourceLogs().RemoveIf(func(rl plog.ResourceLogs) bool {
+		serviceName := getServiceName(rl.Resource().Attributes())
+		rl.ScopeLogs().RemoveIf(func(ill plog.ScopeLogs) bool {
+			ill.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
+				fingerprint := getFingerprint(lr.Attributes())
+
+				shouldDrop := e.logSampler(fingerprint, rl, ill, lr)
+				if shouldDrop {
+					return true
+				}
+
+				if e.pbPhase != chqpb.Phase_PRE {
+					removeCardinalFields(lr.Attributes())
+				}
+
+				if err := e.recordLog(now, serviceName, fingerprint, e.pbPhase, lr.Body().AsString()); err != nil {
 					e.logger.Error("Failed to record log", zap.Error(err))
 				}
-			}
-		}
-	}
+				return false
+			})
+			return ill.LogRecords().Len() == 0
+		})
+		return rl.ScopeLogs().Len() == 0
+	})
 	return ld, nil
+}
+
+func (e *chqEnforcer) logSampler(fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) bool {
+	fingerprintString := fmt.Sprintf("%d", fingerprint)
+	rule_match := e.sampler.Sample(fingerprintString, rl.Resource().Attributes(), sl.Scope().Attributes(), lr.Attributes())
+	return rule_match != ""
+}
+
+func removeCardinalFields(attr pcommon.Map) {
+	attr.RemoveIf(func(k string, _ pcommon.Value) bool {
+		return strings.HasPrefix(k, translate.CardinalFieldPrefix)
+	})
 }
 
 func (e *chqEnforcer) recordLog(now time.Time, serviceName string, fingerprint int64, phase chqpb.Phase, message string) error {
@@ -164,5 +157,5 @@ func (e *chqEnforcer) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsR
 }
 
 func (e *chqEnforcer) updateLogsamplingConfig(sc sampler.SamplerConfig) {
-	e.logger.Info("Updating log sampling config", zap.Any("config", sc))
+	e.sampler.UpdateConfig(&sc)
 }

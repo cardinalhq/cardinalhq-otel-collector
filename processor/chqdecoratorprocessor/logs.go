@@ -16,32 +16,25 @@ package chqdecoratorprocessor
 
 import (
 	"context"
-	"fmt"
 	"os"
-	"sync"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/fingerprinter"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 
-	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/processor"
-	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/zap"
 )
 
 type logProcessor struct {
-	telemetry     *processorTelemetry
-	sampler       sampler.LogSampler
-	logger        *zap.Logger
-	configManager sampler.ConfigManager
-	updaterId     int
-	finger        fingerprinter.Fingerprinter
-	podName       string
+	sampler sampler.LogSampler
+	logger  *zap.Logger
+	finger  fingerprinter.Fingerprinter
+	podName string
 }
 
-func newLogsProcessor(set processor.Settings, conf *Config) (*logProcessor, error) {
+func newLogsProcessor(set processor.Settings) (*logProcessor, error) {
 	samp := sampler.NewLogSamplerImpl(context.Background(), set.Logger)
 
 	lp := &logProcessor{
@@ -50,52 +43,11 @@ func newLogsProcessor(set processor.Settings, conf *Config) (*logProcessor, erro
 		podName: os.Getenv("POD_NAME"),
 	}
 
-	if conf.SamplerConfigFile != "" {
-		confmgr, err := makeConfigurationManager(conf, set.Logger)
-		if err != nil {
-			return nil, fmt.Errorf("error creating configuration manager: %w", err)
-		}
-		go confmgr.Run()
-		lp.configManager = confmgr
-
-		lp.updaterId = confmgr.RegisterCallback("logsampler", func(config sampler.SamplerConfig) {
-			samp.UpdateConfig(&config)
-		})
-	}
-
-	dpt, err := newProcessorTelemetry(set)
-	if err != nil {
-		return nil, fmt.Errorf("error creating chqdecorator processor telemetry: %w", err)
-	}
-	lp.telemetry = dpt
-
-	set.Logger.Info(
-		"Decorator processor configured",
-	)
+	set.Logger.Info("Decorator processor configured")
 
 	lp.finger = fingerprinter.NewFingerprinter()
 
 	return lp, nil
-}
-
-func getServiceName(rattr pcommon.Map) string {
-	if serviceName, ok := rattr.Get("service.name"); ok {
-		return serviceName.AsString()
-	}
-	return "unknown-service"
-}
-
-var (
-	newFingerprintLock sync.Mutex
-	fingerprints       = map[int64]int64{}
-)
-
-func addFingerprint(fingerprint int64) int64 {
-	newFingerprintLock.Lock()
-	defer newFingerprintLock.Unlock()
-	val := fingerprints[fingerprint]
-	fingerprints[fingerprint] = val + 1
-	return val
 }
 
 func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
@@ -105,32 +57,14 @@ func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs,
 			sl := rl.ScopeLogs().At(j)
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				log := sl.LogRecords().At(k)
-				serviceName := getServiceName(rl.Resource().Attributes())
 				fingerprint, level, err := lp.finger.Fingerprint(log.Body().AsString())
 				if err != nil {
 					lp.logger.Debug("Error fingerprinting log", zap.Error(err))
 					continue
 				}
-				if addFingerprint(fingerprint) == 0 {
-					lp.logger.Debug("New fingerprint",
-						zap.Int64("fingerprint", fingerprint),
-						zap.String("service", serviceName),
-						zap.String("level", level))
-				}
-				fingerprintString := fmt.Sprintf("%d", fingerprint)
 				log.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)
 				log.Attributes().PutStr(translate.CardinalFieldLevel, level)
-				rule_match := lp.sampler.Sample(fingerprintString, rl.Resource().Attributes(), sl.Scope().Attributes(), log.Attributes())
-				wasFiltered := rule_match != ""
-				log.Attributes().PutStr(translate.CardinalFieldRuleMatch, rule_match)
-				log.Attributes().PutBool(translate.CardinalFieldFiltered, wasFiltered)
-				log.Attributes().PutBool(translate.CardinalFieldWouldFilter, wasFiltered)
 				log.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, lp.podName)
-				lp.telemetry.record(triggerLogsProcessed, 1,
-					attribute.Bool("filtered.filtered", wasFiltered),
-					attribute.String("filtered.rule_match", rule_match),
-					attribute.String("filtered.service.name", serviceName),
-					attribute.Int64("filtered.fingerprint", fingerprint))
 			}
 		}
 	}
@@ -139,9 +73,5 @@ func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs,
 }
 
 func (lp *logProcessor) Shutdown(_ context.Context) error {
-	if lp.configManager != nil {
-		lp.configManager.UnregisterCallback(lp.updaterId)
-		lp.configManager.Stop()
-	}
 	return nil
 }

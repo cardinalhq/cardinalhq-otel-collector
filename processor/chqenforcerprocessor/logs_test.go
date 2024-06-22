@@ -17,42 +17,50 @@ package chqenforcerprocessor
 import (
 	"testing"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
+	"go.opentelemetry.io/collector/pdata/pcommon"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
 
-func TestBoolsToPhase(t *testing.T) {
-	tests := []struct {
-		name        string
-		filtered    bool
-		wouldFilter bool
-		expected    chqpb.Phase
-	}{
-		{
-			"filtered",
-			true,
-			false,
-			chqpb.Phase_FILTERED,
-		},
-		{
-			"wouldFilter",
-			false,
-			true,
-			chqpb.Phase_DRY_RUN_FILTERED,
-		},
-		{
-			"passthrough",
-			false,
-			false,
-			chqpb.Phase_PASSTHROUGH,
-		},
-	}
+func TestRemoveCardinalFields(t *testing.T) {
+	attr := pcommon.NewMap()
+	attr.PutStr("foo", "bar")
+	attr.PutStr(translate.CardinalFieldPrefixDot+"foo.field1", "value1")
+	attr.PutStr(translate.CardinalFieldPrefixDot+"field2", "value2")
+	attr.PutStr("baz", "qux")
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := logBoolsToPhase(tt.filtered, tt.wouldFilter)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
+	removeCardinalFields(attr)
+
+	assert.Equal(t, 2, attr.Len())
+
+	v, ok := attr.Get("foo")
+	assert.True(t, ok)
+	assert.Equal(t, "bar", v.AsString())
+
+	v, ok = attr.Get("baz")
+	assert.True(t, ok)
+	assert.Equal(t, "qux", v.AsString())
+}
+
+func TestGetServiceName(t *testing.T) {
+	attr := pcommon.NewMap()
+	attr.PutStr(string(semconv.ServiceNameKey), "my-service")
+	serviceName := getServiceName(attr)
+	assert.Equal(t, "my-service", serviceName)
+
+	attr = pcommon.NewMap()
+	serviceName = getServiceName(attr)
+	assert.Equal(t, "unknown", serviceName)
+}
+
+func TestGetFingerprint(t *testing.T) {
+	attr := pcommon.NewMap()
+	attr.PutInt(translate.CardinalFieldFingerprint, 123)
+	fingerprint := getFingerprint(attr)
+	assert.Equal(t, int64(123), fingerprint)
+
+	attr = pcommon.NewMap()
+	fingerprint = getFingerprint(attr)
+	assert.Equal(t, int64(0), fingerprint)
 }

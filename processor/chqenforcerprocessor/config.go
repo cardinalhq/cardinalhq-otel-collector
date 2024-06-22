@@ -24,16 +24,20 @@ import (
 )
 
 type Config struct {
-	Statistics             StatisticsConfig `mapstructure:"statistics"`
-	ConfigurationExtension *component.ID    `mapstructure:"configuration_extension"`
+	Statistics             StatisticsConfig        `mapstructure:"statistics"`
+	MetricAggregation      MetricAggregationConfig `mapstructure:"metric_aggregation"`
+	ConfigurationExtension *component.ID           `mapstructure:"configuration_extension"`
 }
 
 type StatisticsConfig struct {
 	confighttp.ClientConfig `mapstructure:",squash"`
+	Interval                time.Duration `mapstructure:"interval"`
+	Phase                   string        `mapstructure:"phase"`
+	Vendor                  string        `mapstructure:"vendor"`
+}
 
+type MetricAggregationConfig struct {
 	Interval time.Duration `mapstructure:"interval"`
-	Phase    string        `mapstructure:"phase"`
-	Vendor   string        `mapstructure:"vendor"`
 }
 
 func (c *Config) Validate() error {
@@ -43,6 +47,7 @@ func (c *Config) Validate() error {
 		errs = multierr.Append(errs, errors.New("configuration_extension is required"))
 	}
 	errs = multierr.Append(errs, c.Statistics.Validate())
+	errs = multierr.Append(errs, c.MetricAggregation.Validate())
 
 	return errs
 }
@@ -59,6 +64,16 @@ func (c *StatisticsConfig) Validate() error {
 
 	if c.Phase != "presample" && c.Phase != "postsample" {
 		errs = multierr.Append(errs, errors.New("phase must be either presample or postsample, not "+c.Phase))
+	}
+
+	return errs
+}
+
+func (c *MetricAggregationConfig) Validate() error {
+	var errs error
+
+	if c.Interval < 10*time.Second {
+		errs = multierr.Append(errs, errors.New("interval must be greater than or equal to 10s"))
 	}
 
 	return errs

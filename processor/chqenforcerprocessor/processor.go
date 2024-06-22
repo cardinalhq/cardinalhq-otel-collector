@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"os"
 	"time"
 
 	"go.opentelemetry.io/collector/component"
@@ -33,27 +34,32 @@ import (
 )
 
 type chqEnforcer struct {
-	config     *Config
-	httpClient *http.Client
-
-	id    component.ID
-	ttype string
-
+	config             *Config
+	httpClient         *http.Client
+	logger             *zap.Logger
+	id                 component.ID
+	ttype              string
 	httpClientSettings confighttp.ClientConfig
 	telemetrySettings  component.TelemetrySettings
+	configExtension    *chqconfigextension.CHQConfigExtension
+	configCallbackID   int
+	pbPhase            chqpb.Phase
+	podName            string
 
-	logstats    *stats.StatsCombiner[*chqpb.LogStats]
-	metricstats *stats.StatsCombiner[*MetricStat]
+	// for logs
+	logstats *stats.StatsCombiner[*chqpb.LogStats]
+	sampler  sampler.LogSampler
 
-	configExtension  *chqconfigextension.CHQConfigExtension
-	configCallbackID int
-
-	logger *zap.Logger
-
-	pbPhase chqpb.Phase
+	// for metrics
+	metricstats         *stats.StatsCombiner[*MetricStat]
+	nextMetricReceiver  consumer.Metrics
+	aggregationInterval time.Duration
+	aggregatorI         sampler.MetricAggregator[int64]
+	aggregatorF         sampler.MetricAggregator[float64]
+	lastEmitCheck       time.Time
 }
 
-func newCHQEnforcer(config *Config, ttype string, set processor.Settings) *chqEnforcer {
+func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextConsumer consumer.Metrics) *chqEnforcer {
 	now := time.Now()
 	statsExporter := &chqEnforcer{
 		id:                 set.ID,
@@ -62,6 +68,8 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings) *chqEn
 		httpClientSettings: config.Statistics.ClientConfig,
 		telemetrySettings:  set.TelemetrySettings,
 		logger:             set.Logger,
+		nextMetricReceiver: nextConsumer,
+		podName:            os.Getenv("POD_NAME"),
 	}
 	if config.Statistics.Phase == "presample" {
 		statsExporter.pbPhase = chqpb.Phase_PRE
@@ -71,8 +79,13 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings) *chqEn
 	switch ttype {
 	case "logs":
 		statsExporter.logstats = stats.NewStatsCombiner[*chqpb.LogStats](now, config.Statistics.Interval)
+		statsExporter.sampler = sampler.NewLogSamplerImpl(context.Background(), statsExporter.logger)
 	case "metrics":
 		statsExporter.metricstats = stats.NewStatsCombiner[*MetricStat](now, config.Statistics.Interval)
+		statsExporter.lastEmitCheck = time.Now()
+		interval := config.MetricAggregation.Interval.Milliseconds()
+		statsExporter.aggregatorI = sampler.NewMetricAggregatorImpl[int64](interval, nil)
+		statsExporter.aggregatorF = sampler.NewMetricAggregatorImpl[float64](interval, nil)
 	}
 
 	return statsExporter

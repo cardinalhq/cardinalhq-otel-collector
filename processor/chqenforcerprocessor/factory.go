@@ -54,11 +54,14 @@ func createDefaultConfig() component.Config {
 				Compression: configcompression.TypeGzip,
 			},
 		},
+		MetricAggregation: MetricAggregationConfig{
+			Interval: 10 * time.Second,
+		},
 	}
 }
 
 func createLogsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Logs) (processor.Logs, error) {
-	e := newCHQEnforcer(cfg.(*Config), "logs", set)
+	e := newCHQEnforcer(cfg.(*Config), "logs", set, nil)
 	return processorhelper.NewLogsProcessor(
 		ctx, set, cfg, nextConsumer,
 		e.ConsumeLogs,
@@ -68,7 +71,7 @@ func createLogsProcessor(ctx context.Context, set processor.Settings, cfg compon
 }
 
 func createMetricsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Metrics) (processor.Metrics, error) {
-	e := newCHQEnforcer(cfg.(*Config), "metrics", set)
+	e := newCHQEnforcer(cfg.(*Config), "metrics", set, nextConsumer)
 	return processorhelper.NewMetricsProcessor(
 		ctx, set, cfg, nextConsumer,
 		e.ConsumeMetrics,
@@ -78,7 +81,7 @@ func createMetricsProcessor(ctx context.Context, set processor.Settings, cfg com
 }
 
 func createTracesProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Traces) (processor.Traces, error) {
-	e := newCHQEnforcer(cfg.(*Config), "traces", set)
+	e := newCHQEnforcer(cfg.(*Config), "traces", set, nil)
 	return processorhelper.NewTracesProcessor(
 		ctx, set, cfg, nextConsumer,
 		e.ConsumeTraces,

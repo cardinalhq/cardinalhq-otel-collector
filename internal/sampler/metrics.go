@@ -27,6 +27,7 @@ type MetricAggregator[T int64 | float64] interface {
 	Emit(now time.Time) map[int64]*AggregationSet[T]
 	Configure(rules []AggregatorConfigV1, vendor string)
 	MatchAndAdd(t *time.Time, buckets []T, value []T, aggregationType AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (*AggregatorConfigV1, error)
+	HasRules() bool
 }
 
 type MetricAggregatorImpl[T int64 | float64] struct {
@@ -73,6 +74,12 @@ func (m *MetricAggregatorImpl[T]) Configure(rules []AggregatorConfigV1, vendor s
 		}
 	}
 	m.rules = newrules
+}
+
+func (m *MetricAggregatorImpl[T]) HasRules() bool {
+	m.rulesLock.RLock()
+	defer m.rulesLock.RUnlock()
+	return len(m.rules) > 0
 }
 
 func timebox(t time.Time, interval int64) int64 {

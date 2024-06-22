@@ -98,12 +98,12 @@ data:
           exporters: [forward/intakestats, forward/cardinalhq, forward/datadog]
         metrics/intakestats:
           receivers: [forward/intakestats]
-          processors: [chqenforcer/cardinalhq]
+          processors: [chqenforcer/intakestats]
           exporters: [nop]
         metrics/cardinalhq:
           receivers: [forward/cardinalhq]
           processors: [chqenforcer/cardinalhq, batch/cardinalhq]
-          exporters: [chqdatadog/datadog]
+          exporters: [otlp/cardinalhq]
         metrics/datadog:
           receivers: [forward/datadog]
           processors: [chqenforcer/datadog, batch/datadog]
@@ -115,12 +115,12 @@ data:
           exporters: [forward/intakestats, forward/cardinalhq, forward/datadog]
         traces/intakestats:
           receivers: [forward/intakestats]
-          processors: [chqenforcer/cardinalhq]
+          processors: [chqenforcer/intakestats]
           exporters: [nop]
         traces/cardinalhq:
           receivers: [forward/cardinalhq]
           processors: [chqenforcer/cardinalhq, batch/cardinalhq]
-          exporters: [chqdatadog/datadog]
+          exporters: [otlp/cardinalhq]
         traces/datadog:
           receivers: [forward/datadog]
           processors: [chqenforcer/datadog, batch/datadog]

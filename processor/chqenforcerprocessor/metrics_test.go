@@ -117,6 +117,10 @@ func (m *MockAggregator[T]) MatchAndAdd(t *time.Time, buckets []T, values []T, t
 	return &sampler.AggregatorConfigV1{Id: "bob"}, nil
 }
 
+func (m *MockAggregator[T]) HasRules() bool {
+	return false
+}
+
 func TestAggregateGauge(t *testing.T) {
 	rms := pmetric.NewResourceMetrics()
 	ils := rms.ScopeMetrics().AppendEmpty()

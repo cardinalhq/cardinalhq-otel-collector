@@ -184,6 +184,9 @@ func setMetricMetadata(metric pmetric.Metric, tagname string, v string) {
 }
 
 func (e *chqEnforcer) aggregate(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint) bool {
+	if !e.aggregatorF.HasRules() && !e.aggregatorI.HasRules() {
+		return false
+	}
 	switch metric.Type() {
 	case pmetric.MetricTypeGauge:
 		return e.aggregateGaugeDatapoint(rms, ils, metric, dp)

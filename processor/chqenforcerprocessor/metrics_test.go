@@ -102,7 +102,7 @@ var _ sampler.MetricAggregator[float64] = &MockAggregator[float64]{}
 type MockAggregator[T float64] struct {
 }
 
-func (m *MockAggregator[T]) Configure(config []sampler.AggregatorConfigV1, vendor string) {
+func (m *MockAggregator[T]) Configure(config sampler.SamplerConfig, vendor string) {
 }
 
 func (m *MockAggregator[T]) Aggregate(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric) float64 {

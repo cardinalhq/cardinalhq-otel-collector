@@ -166,5 +166,7 @@ func (e *chqEnforcer) idname() string {
 }
 
 func (e *chqEnforcer) updateLogsamplingConfig(sc sampler.SamplerConfig) {
-	e.sampler.UpdateConfig(&sc, e.idname())
+	vendor := e.idname()
+	e.logger.Info("Updating log sampling config", zap.String("vendor", vendor))
+	e.sampler.UpdateConfig(&sc, vendor)
 }

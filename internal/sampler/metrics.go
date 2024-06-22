@@ -25,7 +25,7 @@ import (
 
 type MetricAggregator[T int64 | float64] interface {
 	Emit(now time.Time) map[int64]*AggregationSet[T]
-	Configure(rules []AggregatorConfigV1, vendor string)
+	Configure(config SamplerConfig, vendor string)
 	MatchAndAdd(t *time.Time, buckets []T, value []T, aggregationType AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (*AggregatorConfigV1, error)
 	HasRules() bool
 }
@@ -64,15 +64,20 @@ func (m *MetricAggregatorImpl[T]) Emit(now time.Time) map[int64]*AggregationSet[
 	return ret
 }
 
-func (m *MetricAggregatorImpl[T]) Configure(rules []AggregatorConfigV1, vendor string) {
-	m.rulesLock.Lock()
-	defer m.rulesLock.Unlock()
-	newrules := []AggregatorConfigV1{}
+func rulesForVendor(rules []AggregatorConfigV1, vendor string) []AggregatorConfigV1 {
+	ret := []AggregatorConfigV1{}
 	for _, rule := range rules {
 		if rule.Vendor == vendor {
-			newrules = append(newrules, rule)
+			ret = append(ret, rule)
 		}
 	}
+	return ret
+}
+
+func (m *MetricAggregatorImpl[T]) Configure(config SamplerConfig, vendor string) {
+	newrules := rulesForVendor(config.Metrics.Aggregators, vendor)
+	m.rulesLock.Lock()
+	defer m.rulesLock.Unlock()
 	m.rules = newrules
 }
 

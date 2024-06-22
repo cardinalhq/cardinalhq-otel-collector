@@ -245,9 +245,14 @@ func TestConfigure(t *testing.T) {
 			MetricName: "metric1",
 		},
 	}
+	config := SamplerConfig{
+		Metrics: MetricConfigV1{
+			Aggregators: rules,
+		},
+	}
 
 	assert.Empty(t, m.rules)
-	m.Configure(rules, "")
+	m.Configure(config, "")
 	assert.Equal(t, rules, m.rules)
 }
 
@@ -394,4 +399,36 @@ func TestNowTime(t *testing.T) {
 
 	actual = nowtime(nil)
 	assert.True(t, time.Since(*actual) < time.Second)
+}
+
+func TestRulesForVendor(t *testing.T) {
+	rules := []AggregatorConfigV1{
+		{
+			Id:         "rule1",
+			MetricName: "metric1",
+			Vendor:     "vendor1",
+		},
+		{
+			Id:         "rule2",
+			MetricName: "metric2",
+			Vendor:     "vendor2",
+		},
+		{
+			Id:         "rule3",
+			MetricName: "metric3",
+			Vendor:     "vendor1",
+		},
+	}
+
+	vendor1Rules := rulesForVendor(rules, "vendor1")
+	assert.Equal(t, 2, len(vendor1Rules))
+	assert.Equal(t, "rule1", vendor1Rules[0].Id)
+	assert.Equal(t, "rule3", vendor1Rules[1].Id)
+
+	vendor2Rules := rulesForVendor(rules, "vendor2")
+	assert.Equal(t, 1, len(vendor2Rules))
+	assert.Equal(t, "rule2", vendor2Rules[0].Id)
+
+	nonExistentVendorRules := rulesForVendor(rules, "vendor3")
+	assert.Equal(t, 0, len(nonExistentVendorRules))
 }

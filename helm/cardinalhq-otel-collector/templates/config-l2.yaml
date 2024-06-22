@@ -17,8 +17,7 @@ data:
 
     exporters:
 
-      # Exporter for sending telemetry CardinalHQ via the Datadog exporters.
-      chqdatadog/cardinalhq:
+      chqdatadog/datadog:
         api_key: ${env:DATADOG_API_KEY}
         metrics:
           endpoint: {{ .Values.collector.endpoints.datadog.metrics }}
@@ -30,143 +29,107 @@ data:
           endpoint: {{ .Values.collector.endpoints.datadog.traces }}
           compression: {{ .Values.collector.endpoints.datadog.compression }}
 
-      otlp/tochq:
+      otlp/cardinalhq:
         endpoint: {{ .Values.collector.endpoints.cardinalHQ.otlpGRPC}}
-        headers:
-          x-cardinalhq-api-key: "${env:CARDINALHQ_API_KEY}"
-
-      chqstats/raw:
-        endpoint: {{ .Values.collector.endpoints.cardinalHQ.stats }}
-        api_key: ${env:CARDINALHQ_API_KEY}
-        interval: {{ .Values.collector.endpoints.cardinalHQ.statsInterval }}
-        phase: presample
-
-      chqstats/datadog:
-        endpoint: {{ .Values.collector.endpoints.cardinalHQ.stats }}
-        api_key: ${env:CARDINALHQ_API_KEY}
-        interval: {{ .Values.collector.endpoints.cardinalHQ.statsInterval }}
-        phase: postsample
-        vendor: datadog
+        auth: chqauth/cardinalhq
 
     processors:
       # Limit collector process memory usage.  This should be the first processor
       # in the processor list.
-      memory_limiter/csl2:
+      memory_limiter/l2:
         limit_mib: 750
         spike_limit_mib: 100
         check_interval: 5s
 
-      # Batch processors to limit the size and/or timeframe that telemetry
-      # is batched before being sent to the exporters.  This should be
-      # the last item in the processor list.
-      batch/csl2metrics:
+      batch/cardinalhq:
         timeout: 1s
         send_batch_size: 100
         send_batch_max_size: 1000
-      batch/csl2traces:
-        timeout: 20s
+      batch/datadog:
+        timeout: 1s
+        send_batch_size: 100
+        send_batch_max_size: 1000
+      batch/intakestats:
+        timeout: 1s
         send_batch_size: 100
         send_batch_max_size: 1000
       
-      # Group by trace processor to group trace data by trace ID.
-      groupbytrace/csl2:
+      groupbytrace/l2:
         wait_duration: 60s
 
-      cumulativetodelta/csl2:
+      cumulativetodelta/l2:
 
-      # This processor should be added to the list of processors before
-      # the filter/toprovider, and the exporters that write to S3 or to upstream
-      # providers, such as Datadog.  It will add attributes to the telemetry
-      # which will allow selectively sending metrics on to the upstream
-      # provider.  This markup is also written to S3 for later processing
-      # by CardinalHQ.
-      chqdecorator/csl2:
-        sampler_config_file: {{ .Values.collector.endpoints.cardinalHQ.samplerConfig }}
-        api_key: ${env:CARDINALHQ_API_KEY}
+      chqdecorator/l2:
         traces:
           uninteresting_rate: 1000
           has_error_rate: 4
 
-      # This processor should be added to the list of processors that
-      # are in the pipeline destined to the upstream provider, such as
-      # Datadog.  It should NOT be used to filter output to S3 for
-      # later processing by CardinalHQ.
-      filter/toprovider:
-        error_mode: ignore
-        logs:
-          log_record:
-            - 'attributes["_cardinalhq.filtered"] == true'
-        metrics:
-          datapoint:
-            - 'attributes["_cardinalhq.filtered"] == true'
-        traces:
-          span:
-            - 'attributes["_cardinalhq.filtered"] == true'
+      chqenforcer/intakestats:
+        configuration_extension: chqconfig/cardinalhq
+        statistics:
+          phase: presample
+          vendor: intakestats
 
-      # Items marked with _cardinalhq.aggregated_output are not sent to
-      # CardinalHQ, as the metrics they represent would already be
-      # included in the detailed metrics.
-      filter/tochq:
-        error_mode: ignore
-        logs:
-          log_record:
-            - 'attributes["_cardinalhq.aggregated_output"] == true'
-        metrics:
-          datapoint:
-            - 'attributes["_cardinalhq.aggregated_output"] == true'
-        traces:
-          span:
-            - 'attributes["_cardinalhq.aggregated_output"] == true'
+      chqenforcer/cardinalhq:
+        configuration_extension: chqconfig/cardinalhq
+        statistics:
+          phase: postsample
+          vendor: cardinalhq
 
-      # This processor should be added to the list of processors that
-      # are in the pipeline destined to the upstream provider, such as
-      # Datadog.  It should NOT be used to filter output sent to
-      # CardinalHQ.
-      attributes/toprovider:
-        actions:
-          - action: delete
-            pattern: '^_cardinalhq.*'
+      chqenforcer/datadog:
+        configuration_extension: chqconfig/cardinalhq
+        statistics:
+          phase: postsample
+          vendor: datadog
 
     connectors:
-      forward/toprovider:
-      forward/tochq:
+      forward/cardinalhq:
+      forward/datadog:
+      forward/intakestats:
         
     service:
       pipelines:
-
-        # metric handling.  Partition on metric name so aggregations
-        # work properly.  TODO: modify aggregator to add artificial attribute
-        # for the host that processed the aggregation, and let the receiver
-        # just get more than one time series for our aggregation.
-        metrics/decoration:
+        metrics/l2:
           receivers: [otlp/l2]
-          processors: [memory_limiter/csl2, cumulativetodelta/csl2, chqdecorator/csl2, batch/csl2metrics]
-          exporters: [forward/tochq, forward/toprovider, chqstats/raw]
-        metrics/chq:
-          receivers: [forward/tochq]
-          processors: [filter/tochq]
-          exporters: [otlp/tochq]
-        metrics/toprovider:
-          receivers: [forward/toprovider]
-          processors: [filter/toprovider, attributes/toprovider]
-          exporters: [chqdatadog/cardinalhq, chqstats/datadog]
+          processors: [memory_limiter/l2, cumulativetodelta/l2, chqdecorator/l2]
+          exporters: [forward/intakestats, forward/cardinalhq, forward/datadog]
+        metrics/intakestats:
+          receivers: [forward/intakestats]
+          processors: [chqenforcer/cardinalhq]
+          exporters: [nop]
+        metrics/cardinalhq:
+          receivers: [forward/cardinalhq]
+          processors: [chqenforcer/cardinalhq, batch/cardinalhq]
+          exporters: [chqdatadog/datadog]
+        metrics/datadog:
+          receivers: [forward/datadog]
+          processors: [chqenforcer/datadog, batch/datadog]
+          exporters: [chqdatadog/datadog]
 
-        # trace handling.  Partition on trace ID so we can group traces
-        # and filter based on the entire trace, not individual spans.
-        traces/chq:
+        traces/l2:
           receivers: [otlp/l2]
-          processors: [memory_limiter/csl2, groupbytrace/csl2, chqdecorator/csl2, batch/csl2traces]
-          exporters: [otlp/tochq, forward/toprovider, chqstats/raw]
-        traces/toprovider:
-          receivers: [forward/toprovider]
-          processors: [filter/toprovider, attributes/toprovider]
-          exporters: [chqdatadog/cardinalhq, chqstats/datadog]
+          processors: [memory_limiter/l2, groupbytrace/l2, chqdecorator/l2]
+          exporters: [forward/intakestats, forward/cardinalhq, forward/datadog]
+        traces/intakestats:
+          receivers: [forward/intakestats]
+          processors: [chqenforcer/cardinalhq]
+          exporters: [nop]
+        traces/cardinalhq:
+          receivers: [forward/cardinalhq]
+          processors: [chqenforcer/cardinalhq, batch/cardinalhq]
+          exporters: [chqdatadog/datadog]
+        traces/datadog:
+          receivers: [forward/datadog]
+          processors: [chqenforcer/datadog, batch/datadog]
+          exporters: [chqdatadog/datadog]
 
       {{ toYaml .Values.selfTelemetry | nindent 6 }}
 
       extensions:
         - zpages
         - health_check
+        - chqauth/cardinalhq
+        - chqconfig/cardinalhq
 
     extensions:
       zpages:
@@ -174,3 +137,10 @@ data:
       health_check:
         endpoint: "0.0.0.0:{{ .Values.collector.endpoints.healthz.port }}"
         path: {{ .Values.collector.endpoints.healthz.path }}
+      chqauth/cardinalhq:
+        client_config:
+          api_key: ${env:CARDINALHQ_API_KEY}
+      chqconfig/cardinalhq:
+        source:
+          endpoint: {{ .Values.collector.endpoints.cardinalHQ.samplerConfig }}
+          auth: chqauth/chq

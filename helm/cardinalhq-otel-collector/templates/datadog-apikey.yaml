@@ -9,6 +9,6 @@ metadata:
   {{- include "customerside.namespace" . | nindent 2 }}
 type: Opaque
 data:
-  api-key: |-
+  {{ .Values.secrets.datadog.field }}: |-
     {{ b64enc .Values.secrets.datadog.apiKey }}
 {{- end -}}

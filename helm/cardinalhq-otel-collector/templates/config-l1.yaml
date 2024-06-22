@@ -71,7 +71,8 @@ data:
 
       otlp/cardinalhq:
         endpoint: {{ .Values.collector.endpoints.cardinalHQ.otlpGRPC}}
-        auth: chqauth/cardinalhq
+        auth:
+          authenticator: chqauth/cardinalhq
 
     processors:
       # Limit collector process memory usage.  This should be the first processor
@@ -177,9 +178,10 @@ data:
         endpoint: "0.0.0.0:{{ .Values.collector.endpoints.healthz.port }}"
         path: {{ .Values.collector.endpoints.healthz.path }}
       chqauth/cardinalhq:
-        client_config:
+        client_auth:
           api_key: ${env:CARDINALHQ_API_KEY}
       chqconfig/cardinalhq:
         source:
           endpoint: {{ .Values.collector.endpoints.cardinalHQ.samplerConfig }}
-          auth: chqauth/chq
+          auth:
+            authenticator: chqauth/cardinalhq

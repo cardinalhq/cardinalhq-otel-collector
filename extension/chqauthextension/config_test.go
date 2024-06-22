@@ -45,18 +45,8 @@ func TestServerAuth_Validate(t *testing.T) {
 		},
 		{
 			"invalid",
-			&ServerAuth{
-				ClientConfig: confighttp.ClientConfig{
-					Endpoint: "",
-				},
-			},
-			&ServerAuth{
-				ClientConfig: confighttp.ClientConfig{
-					Endpoint: "",
-				},
-				CacheTTLValid:   defaultCacheValidTTL,
-				CacheTTLInvalid: defaultCacheInvalidTTL,
-			},
+			&ServerAuth{},
+			&ServerAuth{},
 			errServerAuthEndpoint,
 		},
 		{

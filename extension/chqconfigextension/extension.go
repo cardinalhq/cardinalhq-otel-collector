@@ -61,8 +61,8 @@ func newConfigExtension(cfg *Config, params extension.Settings) (*CHQConfigExten
 	return &chq, nil
 }
 
-func (chq *CHQConfigExtension) Start(_ context.Context, _ component.Host) error {
-	httpClient, err := chq.httpClientSettings.ToClient(context.Background(), nil, chq.telemetrySettings)
+func (chq *CHQConfigExtension) Start(_ context.Context, host component.Host) error {
+	httpClient, err := chq.httpClientSettings.ToClient(context.Background(), host, chq.telemetrySettings)
 	if err != nil {
 		return err
 	}
@@ -76,7 +76,7 @@ func (chq *CHQConfigExtension) Start(_ context.Context, _ component.Host) error 
 	}
 	chq.configManager = sampler.NewConfigManagerImpl(chq.logger, chq.config.CheckInterval, fr)
 	chq.logger.Info("Starting configuration manager", zap.String("check_interval", chq.config.CheckInterval.String()))
-	chq.configManager.Run()
+	go chq.configManager.Run()
 	return nil
 }
 

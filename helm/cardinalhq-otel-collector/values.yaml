@@ -97,4 +97,5 @@ selfTelemetry:
               otlp:
                 protocol: grpc/protobuf
                 endpoint: https://customerstats-collector-grpc.svc.aws.dev.cardinalhq.net:443
-                auth: chqauth/carddinalhq
+                headers:
+                  x-cardinalhq-api-key: ${env:CARDINALHQ_API_KEY}

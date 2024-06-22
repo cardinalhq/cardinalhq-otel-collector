@@ -33,8 +33,8 @@ type ClientAuth struct {
 }
 
 type Config struct {
-	ServerAuth ServerAuth `mapstructure:"server_auth"`
-	ClientAuth ClientAuth `mapstructure:"client_auth"`
+	ServerAuth *ServerAuth `mapstructure:"server_auth"`
+	ClientAuth *ClientAuth `mapstructure:"client_auth"`
 }
 
 const (
@@ -46,33 +46,44 @@ var (
 	errServerAuthEndpoint  = errors.New("server_auth.endpoint must be set")
 	errNoAuthConfig        = errors.New("one of client_auth.api_key or server_auth.endpoint must be set")
 	errDuplicateAuthConfig = errors.New("only one of client_auth.api_key or server_auth.endpoint can be set")
+	errNoClientAPIKey      = errors.New("client_auth.api_key must be set")
 )
 
 func (cfg *Config) Validate() error {
-	if cfg.ClientAuth.APIKey != "" && cfg.ServerAuth.Endpoint != "" {
+	cauth := cfg.ClientAuth != nil
+	sauth := cfg.ServerAuth != nil
+
+	if cauth && sauth {
 		return errDuplicateAuthConfig
 	}
 
-	if cfg.ClientAuth.APIKey == "" && cfg.ServerAuth.Endpoint == "" {
+	if !cauth && !sauth {
 		return errNoAuthConfig
 	}
 
-	if cfg.ClientAuth.APIKey == "" {
+	if sauth {
 		return cfg.ServerAuth.Validate()
+	}
+	return cfg.ClientAuth.Validate()
+}
+
+func (cfg *ClientAuth) Validate() error {
+	if cfg.APIKey == "" {
+		return errNoClientAPIKey
 	}
 
 	return nil
 }
 
 func (cfg *ServerAuth) Validate() error {
+	if cfg.Endpoint == "" {
+		return errServerAuthEndpoint
+	}
 	if cfg.CacheTTLValid <= time.Minute {
 		cfg.CacheTTLValid = defaultCacheValidTTL
 	}
 	if cfg.CacheTTLInvalid <= time.Minute {
 		cfg.CacheTTLInvalid = defaultCacheInvalidTTL
-	}
-	if cfg.Endpoint == "" {
-		return errServerAuthEndpoint
 	}
 	return nil
 }

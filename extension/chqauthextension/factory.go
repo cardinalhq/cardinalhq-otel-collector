@@ -33,18 +33,28 @@ func NewFactory() extension.Factory {
 }
 
 func createDefaultConfig() component.Config {
-	return &Config{
-		ServerAuth: ServerAuth{
-			CacheTTLValid:   defaultCacheValidTTL,
-			CacheTTLInvalid: defaultCacheInvalidTTL,
-		},
-	}
+	return &Config{}
 }
 
 func createExtension(_ context.Context, params extension.Settings, cfg component.Config) (extension.Extension, error) {
 	c := cfg.(*Config)
-	if c.ClientAuth.APIKey != "" {
+
+	if c.ClientAuth == nil && c.ServerAuth == nil {
+		return nil, errNoAuthConfig
+	}
+	if c.ClientAuth != nil && c.ServerAuth != nil {
+		return nil, errDuplicateAuthConfig
+	}
+
+	if c.ClientAuth != nil {
+		if c.ClientAuth.APIKey == "" {
+			return nil, errNoClientAPIKey
+		}
 		return newClientAuthExtension(c, params), nil
+	}
+
+	if c.ServerAuth.Endpoint == "" {
+		return nil, errServerAuthEndpoint
 	}
 	return newServerAuthExtension(c, params)
 }

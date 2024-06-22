@@ -30,7 +30,7 @@ type chqClientAuth struct {
 
 func newClientAuthExtension(cfg *Config, _ extension.Settings) auth.Client {
 	chq := chqClientAuth{
-		config:   &cfg.ClientAuth,
+		config:   cfg.ClientAuth,
 		insecure: cfg.ClientAuth.Insecure,
 	}
 	return auth.NewClient(
@@ -45,6 +45,9 @@ type chqRoundTripper struct {
 }
 
 func (chq *chqClientAuth) roundTripper(base http.RoundTripper) (http.RoundTripper, error) {
+	if chq.config.APIKey == "" {
+		return base, nil
+	}
 	return &chqRoundTripper{
 		base:   base,
 		apiKey: chq.config.APIKey,

@@ -208,8 +208,7 @@ func (e *chqEnforcer) postMetricStats(ctx context.Context, wrapper *chqpb.Metric
 }
 
 func (e *chqEnforcer) updateMetricsamplingConfig(sc sampler.SamplerConfig) {
-	vendor := e.idname()
-	e.logger.Info("Updating metric sampling config", zap.String("vendor", vendor))
-	e.aggregatorF.Configure(sc, vendor)
-	e.aggregatorI.Configure(sc, vendor)
+	e.logger.Info("Updating metric sampling config", zap.String("vendor", e.vendor))
+	e.aggregatorF.Configure(sc, e.vendor)
+	e.aggregatorI.Configure(sc, e.vendor)
 }

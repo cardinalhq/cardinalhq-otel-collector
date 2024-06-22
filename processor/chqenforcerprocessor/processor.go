@@ -45,6 +45,7 @@ type chqEnforcer struct {
 	configCallbackID   int
 	pbPhase            chqpb.Phase
 	podName            string
+	vendor             string
 
 	// for logs
 	logstats *stats.StatsCombiner[*chqpb.LogStats]
@@ -70,6 +71,7 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextCo
 		logger:             set.Logger,
 		nextMetricReceiver: nextConsumer,
 		podName:            os.Getenv("POD_NAME"),
+		vendor:             config.Statistics.Vendor,
 	}
 	if config.Statistics.Phase == "presample" {
 		statsExporter.pbPhase = chqpb.Phase_PRE

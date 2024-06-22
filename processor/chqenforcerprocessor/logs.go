@@ -156,17 +156,7 @@ func (e *chqEnforcer) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsR
 	return nil
 }
 
-func (e *chqEnforcer) idname() string {
-	name := "_unnamed"
-	parts := strings.Split(e.id.Name(), "/")
-	if len(parts) > 1 {
-		name = parts[1]
-	}
-	return name
-}
-
 func (e *chqEnforcer) updateLogsamplingConfig(sc sampler.SamplerConfig) {
-	vendor := e.idname()
-	e.logger.Info("Updating log sampling config", zap.String("vendor", vendor))
-	e.sampler.UpdateConfig(&sc, vendor)
+	e.logger.Info("Updating log sampling config", zap.String("vendor", e.vendor))
+	e.sampler.UpdateConfig(&sc, e.vendor)
 }

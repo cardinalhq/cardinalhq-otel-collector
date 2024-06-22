@@ -17,45 +17,50 @@ package sampler
 import "maps"
 
 type SamplerConfig struct {
-	Logs    LogConfig    `json:"logs,omitempty" yaml:"logs,omitempty"`
-	Metrics MetricConfig `json:"metrics,omitempty" yaml:"metrics,omitempty"`
+	Logs    LogConfigV1    `json:"logs,omitempty" yaml:"logs,omitempty"`
+	Metrics MetricConfigV1 `json:"metrics,omitempty" yaml:"metrics,omitempty"`
+	Traces  TraceConfigV1  `json:"traces,omitempty" yaml:"traces,omitempty"`
 
 	hash uint64
 }
 
-type LogConfig struct {
-	Sampling     []LogSamplingConfig `json:"sampling,omitempty" yaml:"sampling,omitempty"`
-	Destinations []DestinationConfig `json:"destinations,omitempty" yaml:"destinations,omitempty"`
+type LogConfigV1 struct {
+	Sampling []LogSamplingConfigV1 `json:"sampling,omitempty" yaml:"sampling,omitempty"`
 }
 
-type LogSamplingConfig struct {
+type LogSamplingConfigV1 struct {
 	Id         string            `json:"id,omitempty" yaml:"id,omitempty"`
 	RuleType   string            `json:"ruleType,omitempty" yaml:"ruleType,omitempty"`
 	Scope      map[string]string `json:"scope,omitempty" yaml:"scope,omitempty"`
 	SampleRate float64           `json:"sampleRate,omitempty" yaml:"sampleRate,omitempty"`
 	RPS        int               `json:"rps,omitempty" yaml:"rps,omitempty"`
+	Vendor     string            `json:"vendor,omitempty" yaml:"vendor,omitempty"`
 }
 
-type MetricConfig struct {
-	Aggregators  []AggregatorConfig  `json:"aggregators,omitempty" yaml:"aggregators,omitempty"`
-	Destinations []DestinationConfig `json:"destinations,omitempty" yaml:"destinations,omitempty"`
+type MetricConfigV1 struct {
+	Aggregators []AggregatorConfigV1 `json:"aggregators,omitempty" yaml:"aggregators,omitempty"`
 }
 
-type AggregatorConfig struct {
+type AggregatorConfigV1 struct {
 	Id         string            `json:"id,omitempty" yaml:"id,omitempty"`
 	Scope      map[string]string `json:"scope,omitempty" yaml:"scope,omitempty"`
 	MetricName string            `json:"metricName,omitempty" yaml:"metricName,omitempty"`
 	Tags       []string          `json:"tags,omitempty" yaml:"tags,omitempty"`
 	TagAction  string            `json:"tagAction,omitempty" yaml:"tagAction,omitempty"`
+	Vendor     string            `json:"vendor,omitempty" yaml:"vendor,omitempty"`
 }
 
-type DestinationConfig struct {
-	Provider string `json:"provider,omitempty" yaml:"provider,omitempty"`
-	Host     string `json:"host,omitempty" yaml:"host,omitempty"`
-	APIKey   string `json:"apiKey,omitempty" yaml:"apiKey,omitempty"`
+type TraceConfigV1 struct {
+	TraceSampling []TraceSamplingConfigV1 `json:"traceSampling,omitempty" yaml:"traceSampling,omitempty"`
 }
 
-func (lsc LogSamplingConfig) Equals(other LogSamplingConfig) bool {
+type TraceSamplingConfigV1 struct {
+	UninterestingSampleRate int    `json:"uninterestingSampleRate,omitempty" yaml:"uninterestingSampleRate,omitempty"`
+	SlowSampleRate          int    `json:"slowSampleRate,omitempty" yaml:"slowSampleRate,omitempty"`
+	Vendor                  string `json:"vendor,omitempty" yaml:"vendor,omitempty"`
+}
+
+func (lsc LogSamplingConfigV1) Equals(other LogSamplingConfigV1) bool {
 	return lsc.Id == other.Id &&
 		lsc.RuleType == other.RuleType &&
 		lsc.SampleRate == other.SampleRate &&

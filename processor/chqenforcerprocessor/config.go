@@ -24,9 +24,10 @@ import (
 )
 
 type Config struct {
-	Statistics             StatisticsConfig        `mapstructure:"statistics"`
-	MetricAggregation      MetricAggregationConfig `mapstructure:"metric_aggregation"`
-	ConfigurationExtension *component.ID           `mapstructure:"configuration_extension"`
+	Statistics               StatisticsConfig        `mapstructure:"statistics"`
+	MetricAggregation        MetricAggregationConfig `mapstructure:"metric_aggregation"`
+	ConfigurationExtension   *component.ID           `mapstructure:"configuration_extension"`
+	DropDecorationAttributes bool                    `mapstructure:"drop_decoration_attributes"`
 }
 
 type StatisticsConfig struct {

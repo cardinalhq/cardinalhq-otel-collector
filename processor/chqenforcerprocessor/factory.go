@@ -40,6 +40,10 @@ func NewFactory() processor.Factory {
 	)
 }
 
+const (
+	defaultDropDecorationTags = true
+)
+
 func createDefaultConfig() component.Config {
 	return &Config{
 		Statistics: StatisticsConfig{
@@ -57,6 +61,7 @@ func createDefaultConfig() component.Config {
 		MetricAggregation: MetricAggregationConfig{
 			Interval: 10 * time.Second,
 		},
+		DropDecorationAttributes: defaultDropDecorationTags,
 	}
 }
 

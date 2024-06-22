@@ -67,7 +67,7 @@ func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, e
 					return true
 				}
 
-				if e.pbPhase != chqpb.Phase_PRE {
+				if e.config.DropDecorationAttributes {
 					removeCardinalFields(lr.Attributes())
 				}
 
@@ -156,6 +156,15 @@ func (e *chqEnforcer) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsR
 	return nil
 }
 
+func (e *chqEnforcer) idname() string {
+	name := "_unnamed"
+	parts := strings.Split(e.id.Name(), "/")
+	if len(parts) > 1 {
+		name = parts[1]
+	}
+	return name
+}
+
 func (e *chqEnforcer) updateLogsamplingConfig(sc sampler.SamplerConfig) {
-	e.sampler.UpdateConfig(&sc)
+	e.sampler.UpdateConfig(&sc, e.idname())
 }

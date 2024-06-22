@@ -23,20 +23,20 @@ import (
 func TestLogSamplingConfig_Equals(t *testing.T) {
 	tests := []struct {
 		name     string
-		lsc      LogSamplingConfig
-		other    LogSamplingConfig
+		lsc      LogSamplingConfigV1
+		other    LogSamplingConfigV1
 		expected bool
 	}{
 		{
 			"equal",
-			LogSamplingConfig{
+			LogSamplingConfigV1{
 				Id:         "id",
 				RuleType:   "ruleType",
 				Scope:      map[string]string{"key": "value"},
 				SampleRate: 0.5,
 				RPS:        100,
 			},
-			LogSamplingConfig{
+			LogSamplingConfigV1{
 				Id:         "id",
 				RuleType:   "ruleType",
 				Scope:      map[string]string{"key": "value"},
@@ -47,14 +47,14 @@ func TestLogSamplingConfig_Equals(t *testing.T) {
 		},
 		{
 			"different id",
-			LogSamplingConfig{
+			LogSamplingConfigV1{
 				Id:         "id",
 				RuleType:   "ruleType",
 				Scope:      map[string]string{"key": "value"},
 				SampleRate: 0.5,
 				RPS:        100,
 			},
-			LogSamplingConfig{
+			LogSamplingConfigV1{
 				Id:         "id2",
 				RuleType:   "ruleType",
 				Scope:      map[string]string{"key": "value"},
@@ -65,14 +65,14 @@ func TestLogSamplingConfig_Equals(t *testing.T) {
 		},
 		{
 			"different rule type",
-			LogSamplingConfig{
+			LogSamplingConfigV1{
 				Id:         "id",
 				RuleType:   "ruleType",
 				Scope:      map[string]string{"key": "value"},
 				SampleRate: 0.5,
 				RPS:        100,
 			},
-			LogSamplingConfig{
+			LogSamplingConfigV1{
 				Id:         "id",
 				RuleType:   "ruleType2",
 				Scope:      map[string]string{"key": "value"},
@@ -83,14 +83,14 @@ func TestLogSamplingConfig_Equals(t *testing.T) {
 		},
 		{
 			"different scope",
-			LogSamplingConfig{
+			LogSamplingConfigV1{
 				Id:         "id",
 				RuleType:   "ruleType",
 				Scope:      map[string]string{"key": "value"},
 				SampleRate: 0.5,
 				RPS:        100,
 			},
-			LogSamplingConfig{
+			LogSamplingConfigV1{
 				Id:         "id",
 				RuleType:   "ruleType",
 				Scope:      map[string]string{"key2": "value2"},
@@ -101,14 +101,14 @@ func TestLogSamplingConfig_Equals(t *testing.T) {
 		},
 		{
 			"different sample rate",
-			LogSamplingConfig{
+			LogSamplingConfigV1{
 				Id:         "id",
 				RuleType:   "ruleType",
 				Scope:      map[string]string{"key": "value"},
 				SampleRate: 0.5,
 				RPS:        100,
 			},
-			LogSamplingConfig{
+			LogSamplingConfigV1{
 				Id:         "id",
 				RuleType:   "ruleType",
 				Scope:      map[string]string{"key": "value"},
@@ -119,14 +119,14 @@ func TestLogSamplingConfig_Equals(t *testing.T) {
 		},
 		{
 			"different rps",
-			LogSamplingConfig{
+			LogSamplingConfigV1{
 				Id:         "id",
 				RuleType:   "ruleType",
 				Scope:      map[string]string{"key": "value"},
 				SampleRate: 0.5,
 				RPS:        100,
 			},
-			LogSamplingConfig{
+			LogSamplingConfigV1{
 				Id:         "id",
 				RuleType:   "ruleType",
 				Scope:      map[string]string{"key": "value"},
@@ -137,8 +137,8 @@ func TestLogSamplingConfig_Equals(t *testing.T) {
 		},
 		{
 			"empty",
-			LogSamplingConfig{},
-			LogSamplingConfig{},
+			LogSamplingConfigV1{},
+			LogSamplingConfigV1{},
 			true,
 		},
 	}

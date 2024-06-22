@@ -90,7 +90,7 @@ func (e *chqEnforcer) processDatapoint(now time.Time, metricName, serviceName st
 	if err := e.recordDatapoint(now, metricName, serviceName, rattr, sattr, dattr); err != nil {
 		e.logger.Error("Failed to record datapoint", zap.Error(err))
 	}
-	if e.pbPhase != chqpb.Phase_PRE {
+	if e.config.DropDecorationAttributes {
 		removeCardinalFields(dattr)
 	}
 }
@@ -208,6 +208,7 @@ func (e *chqEnforcer) postMetricStats(ctx context.Context, wrapper *chqpb.Metric
 }
 
 func (e *chqEnforcer) updateMetricsamplingConfig(sc sampler.SamplerConfig) {
-	e.aggregatorF.Configure(sc.Metrics.Aggregators)
-	e.aggregatorI.Configure(sc.Metrics.Aggregators)
+	name := e.idname()
+	e.aggregatorF.Configure(sc.Metrics.Aggregators, name)
+	e.aggregatorI.Configure(sc.Metrics.Aggregators, name)
 }

@@ -25,21 +25,21 @@ import (
 
 type MetricAggregator[T int64 | float64] interface {
 	Emit(now time.Time) map[int64]*AggregationSet[T]
-	Configure(rules []AggregatorConfig)
-	MatchAndAdd(t *time.Time, buckets []T, value []T, aggregationType AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (*AggregatorConfig, error)
+	Configure(rules []AggregatorConfigV1, vendor string)
+	MatchAndAdd(t *time.Time, buckets []T, value []T, aggregationType AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (*AggregatorConfigV1, error)
 }
 
 type MetricAggregatorImpl[T int64 | float64] struct {
 	sets      map[int64]*AggregationSet[T]
 	setsLock  sync.Mutex
-	rules     []AggregatorConfig
+	rules     []AggregatorConfigV1
 	rulesLock sync.RWMutex
 	interval  int64
 }
 
 var _ MetricAggregator[int64] = (*MetricAggregatorImpl[int64])(nil)
 
-func NewMetricAggregatorImpl[T int64 | float64](interval int64, rules []AggregatorConfig) *MetricAggregatorImpl[T] {
+func NewMetricAggregatorImpl[T int64 | float64](interval int64, rules []AggregatorConfigV1) *MetricAggregatorImpl[T] {
 	return &MetricAggregatorImpl[T]{
 		sets:     map[int64]*AggregationSet[T]{},
 		interval: interval,
@@ -63,10 +63,16 @@ func (m *MetricAggregatorImpl[T]) Emit(now time.Time) map[int64]*AggregationSet[
 	return ret
 }
 
-func (m *MetricAggregatorImpl[T]) Configure(rules []AggregatorConfig) {
+func (m *MetricAggregatorImpl[T]) Configure(rules []AggregatorConfigV1, vendor string) {
 	m.rulesLock.Lock()
 	defer m.rulesLock.Unlock()
-	m.rules = rules
+	newrules := []AggregatorConfigV1{}
+	for _, rule := range rules {
+		if rule.Vendor == vendor {
+			newrules = append(newrules, rule)
+		}
+	}
+	m.rules = newrules
 }
 
 func timebox(t time.Time, interval int64) int64 {
@@ -104,7 +110,7 @@ func (m *MetricAggregatorImpl[T]) MatchAndAdd(
 	rattr pcommon.Map,
 	iattr pcommon.Map,
 	mattr pcommon.Map,
-) (*AggregatorConfig, error) {
+) (*AggregatorConfigV1, error) {
 	m.rulesLock.RLock()
 	defer m.rulesLock.RUnlock()
 	t = nowtime(t)

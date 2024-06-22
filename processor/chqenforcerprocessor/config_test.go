@@ -116,6 +116,7 @@ func TestConfig(t *testing.T) {
 		MetricAggregation: MetricAggregationConfig{
 			Interval: 10 * time.Second,
 		},
+		DropDecorationAttributes: defaultDropDecorationTags,
 	}
 	assert.Equal(t, expected, e)
 }

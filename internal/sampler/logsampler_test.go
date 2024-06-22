@@ -25,13 +25,13 @@ import (
 func TestSamplerForType(t *testing.T) {
 	cases := []struct {
 		name         string
-		config       LogSamplingConfig
+		config       LogSamplingConfigV1
 		expectedType LogRuleType
 		expected     Sampler
 	}{
 		{
 			name: "random rule type",
-			config: LogSamplingConfig{
+			config: LogSamplingConfigV1{
 				RuleType:   "random",
 				SampleRate: 0.5,
 			},
@@ -40,7 +40,7 @@ func TestSamplerForType(t *testing.T) {
 		},
 		{
 			name: "rps rule type",
-			config: LogSamplingConfig{
+			config: LogSamplingConfigV1{
 				RuleType: "rps",
 				RPS:      100,
 			},
@@ -49,7 +49,7 @@ func TestSamplerForType(t *testing.T) {
 		},
 		{
 			name: "unknown rule type",
-			config: LogSamplingConfig{
+			config: LogSamplingConfigV1{
 				RuleType: "unknown",
 			},
 			expectedType: LogRuleTypeUnknown,
@@ -213,7 +213,7 @@ func TestShouldFilterLog(t *testing.T) {
 					"rule1",
 					LogRuleTypeRPS,
 					makeConstantSampler(),
-					LogSamplingConfig{Scope: map[string]string{"resource.service.name": "other-service"}},
+					LogSamplingConfigV1{Scope: map[string]string{"resource.service.name": "other-service"}},
 				},
 			},
 			map[string]string{"service.name": "my-service"},
@@ -228,7 +228,7 @@ func TestShouldFilterLog(t *testing.T) {
 					"rule1",
 					LogRuleTypeRPS,
 					makeConstantSampler(),
-					LogSamplingConfig{Scope: map[string]string{"resource.service.name": "my-service"}},
+					LogSamplingConfigV1{Scope: map[string]string{"resource.service.name": "my-service"}},
 				},
 			},
 			map[string]string{"service.name": "my-service"},
@@ -243,13 +243,13 @@ func TestShouldFilterLog(t *testing.T) {
 					"rule1",
 					LogRuleTypeRPS,
 					makeConstantSampler(),
-					LogSamplingConfig{Scope: map[string]string{"resource.service.name": "my-service"}},
+					LogSamplingConfigV1{Scope: map[string]string{"resource.service.name": "my-service"}},
 				},
 				"rule2": {
 					"rule2",
 					LogRuleTypeRPS,
 					makeConstantSampler(),
-					LogSamplingConfig{Scope: map[string]string{}},
+					LogSamplingConfigV1{Scope: map[string]string{}},
 				},
 			},
 			map[string]string{"service.name": "my-service"},
@@ -264,7 +264,7 @@ func TestShouldFilterLog(t *testing.T) {
 					"rule1",
 					LogRuleTypeRPS,
 					makeConstantSampler(),
-					LogSamplingConfig{Scope: map[string]string{}},
+					LogSamplingConfigV1{Scope: map[string]string{}},
 				},
 			},
 			map[string]string{"service.name": "my-service"},

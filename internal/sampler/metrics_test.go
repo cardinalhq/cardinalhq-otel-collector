@@ -239,7 +239,7 @@ func TestTimebox(t *testing.T) {
 
 func TestConfigure(t *testing.T) {
 	m := NewMetricAggregatorImpl[float64](10, nil)
-	rules := []AggregatorConfig{
+	rules := []AggregatorConfigV1{
 		{
 			Id:         "rule1",
 			MetricName: "metric1",
@@ -247,12 +247,12 @@ func TestConfigure(t *testing.T) {
 	}
 
 	assert.Empty(t, m.rules)
-	m.Configure(rules)
+	m.Configure(rules, "")
 	assert.Equal(t, rules, m.rules)
 }
 
 func TestMatchAndAdd(t *testing.T) {
-	conf := []AggregatorConfig{
+	conf := []AggregatorConfigV1{
 		{
 			Id:         "rule1",
 			MetricName: "metric1",

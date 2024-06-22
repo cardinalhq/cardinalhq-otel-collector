@@ -26,7 +26,7 @@ import (
 
 type LogSampler interface {
 	Sample(fingerprint string, rattr pcommon.Map, iattr pcommon.Map, lattr pcommon.Map) (droppingRule string)
-	UpdateConfig(config *SamplerConfig)
+	UpdateConfig(config *SamplerConfig, vendor string)
 }
 
 var _ LogSampler = (*LogSamplerImpl)(nil)
@@ -42,7 +42,7 @@ type logRule struct {
 	id       string
 	ruleType LogRuleType
 	sampler  Sampler
-	config   LogSamplingConfig
+	config   LogSamplingConfigV1
 }
 
 func NewLogSamplerImpl(ctx context.Context, logger *zap.Logger) *LogSamplerImpl {
@@ -53,10 +53,10 @@ func NewLogSamplerImpl(ctx context.Context, logger *zap.Logger) *LogSamplerImpl 
 	return ls
 }
 
-func (ls *LogSamplerImpl) UpdateConfig(config *SamplerConfig) {
+func (ls *LogSamplerImpl) UpdateConfig(config *SamplerConfig, vendor string) {
 	ls.Lock()
 	defer ls.Unlock()
-	ls.configure(config.Logs.Sampling)
+	ls.configure(config.Logs.Sampling, vendor)
 }
 
 func (ls *LogSamplerImpl) Sample(fingerprint string, rattr pcommon.Map, iattr pcommon.Map, lattr pcommon.Map) (droppingRule string) {
@@ -123,7 +123,7 @@ func randomToRPS(rate float64) int {
 	return int(1 / rate)
 }
 
-func (ls *LogSamplerImpl) configure(config []LogSamplingConfig) {
+func (ls *LogSamplerImpl) configure(config []LogSamplingConfigV1, vendor string) {
 	ls.logger.Info("Updating log sampling rules", zap.Any("config", config))
 	currentIDs := map[string]bool{}
 	for k := range ls.rules {
@@ -131,6 +131,9 @@ func (ls *LogSamplerImpl) configure(config []LogSamplingConfig) {
 	}
 
 	for _, c := range config {
+		if c.Vendor != vendor {
+			continue
+		}
 		if c.RuleType != "random" && c.RuleType != "rps" {
 			ls.logger.Error("Unknown log sampling rule type", zap.String("type", c.RuleType), zap.String("id", c.Id))
 			continue
@@ -153,7 +156,7 @@ func (ls *LogSamplerImpl) configure(config []LogSamplingConfig) {
 }
 
 // new rule must be started by the caller.
-func (ls *LogSamplerImpl) addRule(c LogSamplingConfig) {
+func (ls *LogSamplerImpl) addRule(c LogSamplingConfigV1) {
 	ls.logger.Info("Adding log sampling rule", zap.String("id", c.Id), zap.Any("config", c))
 	r := logRule{
 		id:       c.Id,
@@ -173,7 +176,7 @@ func (ls *LogSamplerImpl) addRule(c LogSamplingConfig) {
 	ls.rules[c.Id] = &r
 }
 
-func samplerForType(c LogSamplingConfig, logger *zap.Logger) (ruleType LogRuleType, sampler Sampler) {
+func samplerForType(c LogSamplingConfigV1, logger *zap.Logger) (ruleType LogRuleType, sampler Sampler) {
 	switch c.RuleType {
 	case "random":
 		return LogRuleTypeRandom, NewStaticSampler(int(1 / c.SampleRate))
@@ -189,7 +192,7 @@ func samplerForType(c LogSamplingConfig, logger *zap.Logger) (ruleType LogRuleTy
 }
 
 // existing rule must be stopped and started by the caller.
-func (ls *LogSamplerImpl) updateCurrentRule(r *logRule, c LogSamplingConfig) {
+func (ls *LogSamplerImpl) updateCurrentRule(r *logRule, c LogSamplingConfigV1) {
 	if r.config.Equals(c) {
 		return
 	}

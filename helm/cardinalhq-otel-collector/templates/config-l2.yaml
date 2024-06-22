@@ -67,12 +67,14 @@ data:
 
       chqenforcer/intakestats:
         configuration_extension: chqconfig/cardinalhq
+        drop_decoration_attributes: false
         statistics:
           phase: presample
           vendor: intakestats
 
       chqenforcer/cardinalhq:
         configuration_extension: chqconfig/cardinalhq
+        drop_decoration_attributes: false
         statistics:
           phase: postsample
           vendor: cardinalhq

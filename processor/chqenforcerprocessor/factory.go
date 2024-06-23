@@ -42,13 +42,15 @@ func NewFactory() processor.Factory {
 
 const (
 	defaultDropDecorationTags = true
+	defaultMetricAggregation  = 10 * time.Second
+	defaultStatisticsInterval = 1 * time.Minute
 )
 
 func createDefaultConfig() component.Config {
 	return &Config{
 		Statistics: StatisticsConfig{
 			Phase:    "postsample",
-			Interval: 5 * time.Minute,
+			Interval: defaultStatisticsInterval,
 			ClientConfig: confighttp.ClientConfig{
 				Timeout: 5 * time.Second,
 				Headers: map[string]configopaque.String{
@@ -58,7 +60,7 @@ func createDefaultConfig() component.Config {
 			},
 		},
 		MetricAggregation: MetricAggregationConfig{
-			Interval: 10 * time.Second,
+			Interval: defaultMetricAggregation,
 		},
 		DropDecorationAttributes: defaultDropDecorationTags,
 	}

@@ -17,3 +17,6 @@ release:
 
 push:
 	helm push cardinalhq-otel-collector-*.tgz oci://public.ecr.aws/b1d7g2f3 
+
+clean:
+	rm -f cardinalhq-otel-collector-*.tgz

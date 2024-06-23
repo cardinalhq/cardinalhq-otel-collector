@@ -12,10 +12,10 @@ collector:
       logs: https://intake.cardinalhq.io
       traces: https://intake.cardinalhq.io
       compression: gzip
-    cardinalHQ:
+    cardinalhq:
       otlpGRPC: https://chq-collector-grpc.svc.aws.dev.cardinalhq.net:443
       stats: https://stats-receiver.svc.aws.dev.cardinalhq.net
-      statsInterval: 30s
+      statsInterval: 5m
       samplerConfig: https://api.svc.aws.dev.cardinalhq.net/api/v1/samplerConfig
     zpages:
       port: 55679

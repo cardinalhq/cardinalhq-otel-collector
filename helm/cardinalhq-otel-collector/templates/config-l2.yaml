@@ -30,7 +30,7 @@ data:
           compression: {{ .Values.collector.endpoints.datadog.compression }}
 
       otlp/cardinalhq:
-        endpoint: {{ .Values.collector.endpoints.cardinalHQ.otlpGRPC}}
+        endpoint: {{ .Values.collector.endpoints.cardinalhq.otlpGRPC}}
         auth:
           authenticator: chqauth/cardinalhq
 
@@ -67,6 +67,7 @@ data:
 
       chqenforcer/intakestats:
         configuration_extension: chqconfig/cardinalhq
+        endpoint: {{ .Values.collector.endpoints.cardinalhq.stats }}
         drop_decoration_attributes: false
         statistics:
           phase: presample
@@ -74,6 +75,7 @@ data:
 
       chqenforcer/cardinalhq:
         configuration_extension: chqconfig/cardinalhq
+        endpoint: {{ .Values.collector.endpoints.cardinalhq.stats }}
         drop_decoration_attributes: false
         statistics:
           phase: postsample
@@ -81,6 +83,7 @@ data:
 
       chqenforcer/datadog:
         configuration_extension: chqconfig/cardinalhq
+        endpoint: {{ .Values.collector.endpoints.cardinalhq.stats }}
         statistics:
           phase: postsample
           vendor: datadog
@@ -145,6 +148,6 @@ data:
           api_key: ${env:CARDINALHQ_API_KEY}
       chqconfig/cardinalhq:
         source:
-          endpoint: {{ .Values.collector.endpoints.cardinalHQ.samplerConfig }}
+          endpoint: {{ .Values.collector.endpoints.cardinalhq.samplerConfig }}
           auth:
             authenticator: chqauth/cardinalhq

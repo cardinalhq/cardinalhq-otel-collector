@@ -27,13 +27,15 @@ type MetricStat struct {
 	TagName     string
 	ServiceName string
 	Phase       chqpb.Phase
+	VendorID    string
 	Count       int64
 	HLL         hll.HllSketch
-	VendorID    string
 }
 
+var _ stats.StatsObject = (*MetricStat)(nil)
+
 func (m *MetricStat) Key() uint64 {
-	return xxhash.Sum64String(m.MetricName + ":" + m.TagName + ":" + m.ServiceName + ":" + m.VendorID + ":" + m.Phase.String())
+	return xxhash.Sum64String(m.MetricName + ":" + m.TagName + ":" + m.ServiceName + ":" + m.Phase.String() + ":" + m.VendorID)
 }
 
 func (m *MetricStat) Increment(tag string, count int, _ int64) error {

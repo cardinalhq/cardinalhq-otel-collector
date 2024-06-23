@@ -71,7 +71,7 @@ func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, e
 					removeCardinalFields(lr.Attributes())
 				}
 
-				if err := e.recordLog(now, serviceName, fingerprint, e.pbPhase, lr.Body().AsString()); err != nil {
+				if err := e.recordLog(now, serviceName, fingerprint, lr.Body().AsString()); err != nil {
 					e.logger.Error("Failed to record log", zap.Error(err))
 				}
 				return false
@@ -95,12 +95,12 @@ func removeCardinalFields(attr pcommon.Map) {
 	})
 }
 
-func (e *chqEnforcer) recordLog(now time.Time, serviceName string, fingerprint int64, phase chqpb.Phase, message string) error {
+func (e *chqEnforcer) recordLog(now time.Time, serviceName string, fingerprint int64, message string) error {
 	logSize := int64(len(message))
 	rec := chqpb.LogStats{
 		ServiceName: serviceName,
 		Fingerprint: fingerprint,
-		Phase:       phase,
+		Phase:       e.pbPhase,
 		VendorId:    e.config.Statistics.Vendor,
 		Count:       1,
 		LogSize:     logSize,

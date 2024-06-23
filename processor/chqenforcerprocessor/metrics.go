@@ -129,8 +129,8 @@ func (e *chqEnforcer) recordDatapoint(now time.Time, metricName, serviceName str
 func (e *chqEnforcer) recordMetric(now time.Time, metricName, serviceName, tagName, tagValue string, count int) error {
 	rec := &MetricStat{
 		MetricName:  metricName,
-		ServiceName: serviceName,
 		TagName:     tagName,
+		ServiceName: serviceName,
 		Phase:       e.pbPhase,
 		VendorID:    e.config.Statistics.Vendor,
 		Count:       int64(count),

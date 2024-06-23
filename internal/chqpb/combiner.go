@@ -23,7 +23,7 @@ import (
 )
 
 func (l *LogStats) Key() uint64 {
-	key := fmt.Sprintf("%s:%d:%d", l.ServiceName, l.Fingerprint, int32(l.Phase))
+	key := fmt.Sprintf("%s:%d:%d:%s", l.ServiceName, l.Fingerprint, int32(l.Phase), l.VendorId)
 	return xxhash.Sum64String(key)
 }
 
@@ -34,7 +34,8 @@ func (l *LogStats) Matches(other stats.StatsObject) bool {
 	}
 	return l.ServiceName == otherLogStats.ServiceName &&
 		l.Fingerprint == otherLogStats.Fingerprint &&
-		l.Phase == otherLogStats.Phase
+		l.Phase == otherLogStats.Phase &&
+		l.VendorId == otherLogStats.VendorId
 }
 
 func (l *LogStats) Increment(_ string, count int, size int64) error {

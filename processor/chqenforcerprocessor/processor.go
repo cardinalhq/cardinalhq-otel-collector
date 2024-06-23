@@ -81,9 +81,11 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextCo
 	switch ttype {
 	case "logs":
 		statsExporter.logstats = stats.NewStatsCombiner[*chqpb.LogStats](now, config.Statistics.Interval)
+		statsExporter.logger.Info("sending log statistics", zap.Duration("interval", config.Statistics.Interval))
 		statsExporter.sampler = sampler.NewLogSamplerImpl(context.Background(), statsExporter.logger)
 	case "metrics":
 		statsExporter.metricstats = stats.NewStatsCombiner[*MetricStat](now, config.Statistics.Interval)
+		statsExporter.logger.Info("sending metric statistics", zap.Duration("interval", config.Statistics.Interval))
 		statsExporter.lastEmitCheck = time.Now()
 		interval := config.MetricAggregation.Interval.Milliseconds()
 		statsExporter.aggregatorI = sampler.NewMetricAggregatorImpl[int64](interval, nil)

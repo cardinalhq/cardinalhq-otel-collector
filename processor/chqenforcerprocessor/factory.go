@@ -50,8 +50,7 @@ func createDefaultConfig() component.Config {
 			Phase:    "postsample",
 			Interval: 5 * time.Minute,
 			ClientConfig: confighttp.ClientConfig{
-				Timeout:  5 * time.Second,
-				Endpoint: "https://api.cardinalhq.com",
+				Timeout: 5 * time.Second,
 				Headers: map[string]configopaque.String{
 					"User-Agent": "cardinalhq-otel-collector",
 				},

@@ -76,7 +76,7 @@ func ParquetNodeFromType(t any) (parquet.Node, error) {
 	case float64:
 		return parquet.Required(parquet.Leaf(parquet.DoubleType)), nil
 	case string:
-		return parquet.Required(parquet.String()), nil
+		return parquet.Optional(parquet.String()), nil
 	case bool:
 		return parquet.Required(parquet.Leaf(parquet.BooleanType)), nil
 	default:

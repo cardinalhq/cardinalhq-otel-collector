@@ -180,6 +180,7 @@ func (e *chqEnforcer) sendMetricStats(ctx context.Context, now time.Time, bucket
 	if err := e.postMetricStats(ctx, wrapper); err != nil {
 		e.logger.Error("Failed to send metric stats", zap.Error(err))
 	}
+	e.logger.Info("Sent metric stats", zap.Int("count", len(wrapper.Stats)))
 }
 
 func (e *chqEnforcer) postMetricStats(ctx context.Context, wrapper *chqpb.MetricStatsReport) error {

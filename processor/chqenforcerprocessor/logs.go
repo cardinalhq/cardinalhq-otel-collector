@@ -126,6 +126,7 @@ func (e *chqEnforcer) sendLogStats(ctx context.Context, now time.Time, bucketpil
 	if err := e.postLogStats(ctx, wrapper); err != nil {
 		e.logger.Error("Failed to send log stats", zap.Error(err))
 	}
+	e.logger.Info("Sent log stats", zap.Int("count", len(wrapper.Stats)))
 }
 
 func (e *chqEnforcer) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsReport) error {

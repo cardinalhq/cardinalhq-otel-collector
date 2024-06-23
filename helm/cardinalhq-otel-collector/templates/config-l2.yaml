@@ -67,24 +67,24 @@ data:
 
       chqenforcer/intakestats:
         configuration_extension: chqconfig/cardinalhq
-        endpoint: {{ .Values.collector.endpoints.cardinalhq.stats }}
         drop_decoration_attributes: false
         statistics:
+          endpoint: {{ .Values.collector.endpoints.cardinalhq.stats }}
           phase: presample
           vendor: intakestats
 
       chqenforcer/cardinalhq:
         configuration_extension: chqconfig/cardinalhq
-        endpoint: {{ .Values.collector.endpoints.cardinalhq.stats }}
         drop_decoration_attributes: false
         statistics:
+          endpoint: {{ .Values.collector.endpoints.cardinalhq.stats }}
           phase: postsample
           vendor: cardinalhq
 
       chqenforcer/datadog:
         configuration_extension: chqconfig/cardinalhq
-        endpoint: {{ .Values.collector.endpoints.cardinalhq.stats }}
         statistics:
+          endpoint: {{ .Values.collector.endpoints.cardinalhq.stats }}
           phase: postsample
           vendor: datadog
 

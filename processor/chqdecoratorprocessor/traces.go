@@ -36,33 +36,15 @@ import (
 )
 
 type spansProcessor struct {
-	logger              *zap.Logger
-	traceConfig         *TraceConfig
-	apiKey              string
-	estimatorWindowSize int
-	estimatorInterval   int64
-
-	estimators           map[uint64]*SlidingEstimatorStat
-	estimatorLock        sync.Mutex
-	sentFingerprints     fingerprintTracker
-	slowSampler          sampler.Sampler
-	hasErrorSampler      sampler.Sampler
-	uninterestingSampler sampler.Sampler
-	podName              string
+	logger  *zap.Logger
+	apiKey  string
+	podName string
 }
 
 func newSpansProcessor(set processor.Settings, config *Config) (*spansProcessor, error) {
 	sp := &spansProcessor{
-		logger:               set.Logger,
-		traceConfig:          &config.TraceConfig,
-		estimators:           make(map[uint64]*SlidingEstimatorStat),
-		estimatorWindowSize:  *config.TraceConfig.EstimatorWindowSize,
-		estimatorInterval:    *config.TraceConfig.EstimatorInterval,
-		sentFingerprints:     *newFingerprintTracker(),
-		slowSampler:          sampler.NewRPSSampler(sampler.WithMaxRPS(*config.TraceConfig.SlowRate)),
-		hasErrorSampler:      sampler.NewRPSSampler(sampler.WithMaxRPS(*config.TraceConfig.HasErrorRate)),
-		uninterestingSampler: sampler.NewRPSSampler(sampler.WithMaxRPS(*config.TraceConfig.UninterestingRate)),
-		podName:              os.Getenv("POD_NAME"),
+		logger:  set.Logger,
+		podName: os.Getenv("POD_NAME"),
 	}
 
 	if err := sp.slowSampler.Start(); err != nil {

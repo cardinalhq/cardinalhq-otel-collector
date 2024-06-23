@@ -19,6 +19,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/collector/component"
@@ -58,6 +59,17 @@ type chqEnforcer struct {
 	aggregatorI         sampler.MetricAggregator[int64]
 	aggregatorF         sampler.MetricAggregator[float64]
 	lastEmitCheck       time.Time
+
+	// for traces
+	traceConfig          *TraceConfig
+	estimatorWindowSize  int
+	estimatorInterval    int64
+	estimators           map[uint64]*SlidingEstimatorStat
+	estimatorLock        sync.Mutex
+	sentFingerprints     fingerprintTracker
+	slowSampler          sampler.Sampler
+	hasErrorSampler      sampler.Sampler
+	uninterestingSampler sampler.Sampler
 }
 
 func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextConsumer consumer.Metrics) *chqEnforcer {
@@ -90,6 +102,16 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextCo
 		interval := config.MetricAggregation.Interval.Milliseconds()
 		statsExporter.aggregatorI = sampler.NewMetricAggregatorImpl[int64](interval, nil)
 		statsExporter.aggregatorF = sampler.NewMetricAggregatorImpl[float64](interval, nil)
+	case "traces":
+		statsExporter.traceConfig = &config.TraceConfig
+		statsExporter.estimators = make(map[uint64]*SlidingEstimatorStat)
+		statsExporter.estimatorWindowSize = *config.TraceConfig.EstimatorWindowSize
+		statsExporter.estimatorInterval = *config.TraceConfig.EstimatorInterval
+		statsExporter.sentFingerprints = *newFingerprintTracker()
+		statsExporter.slowSampler = sampler.NewRPSSampler(sampler.WithMaxRPS(*config.TraceConfig.SlowRate))
+		statsExporter.hasErrorSampler = sampler.NewRPSSampler(sampler.WithMaxRPS(*config.TraceConfig.HasErrorRate))
+		statsExporter.uninterestingSampler = sampler.NewRPSSampler(sampler.WithMaxRPS(*config.TraceConfig.UninterestingRate))
+
 	}
 
 	return statsExporter

@@ -15,16 +15,18 @@
 package translate
 
 import (
+	"maps"
 	"slices"
 	"strings"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/trigram"
+	"github.com/cespare/xxhash/v2"
 )
 
-func CalculateTID(rattr, sattr, iattr pcommon.Map, prefix string) int64 {
+func CalculateTID(extra map[string]string, rattr, sattr, iattr pcommon.Map, prefix string) int64 {
 	tags := map[string]string{}
+	maps.Copy(extra, tags)
 	addKeys(rattr, "resource", tags)
 	addKeys(sattr, "scope", tags)
 	addKeys(iattr, prefix, tags)
@@ -54,5 +56,5 @@ func calculateTID(tags map[string]string) int64 {
 			items = append(items, v)
 		}
 	}
-	return trigram.JavaHashcode(strings.Join(items, ":"))
+	return int64(xxhash.Sum64String(strings.Join(items, ":")))
 }

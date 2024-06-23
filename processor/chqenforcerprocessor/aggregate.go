@@ -66,7 +66,7 @@ func (e *chqEnforcer) emitSetI(set *sampler.AggregationSet[int64]) {
 		dp.SetStartTimestamp(ts)
 		dp.SetIntValue(agg.Value()[0])
 
-		setTags(res, sm, m, dp, agg.Tags())
+		setTags(m.Name(), res, sm, m, dp, agg.Tags())
 
 		err := e.nextMetricReceiver.ConsumeMetrics(context.Background(), mmetrics)
 		if err != nil {
@@ -99,7 +99,7 @@ func (e *chqEnforcer) emitSetF(set *sampler.AggregationSet[float64]) {
 		dp.SetStartTimestamp(ts)
 		dp.SetDoubleValue(agg.Value()[0])
 
-		setTags(res, sm, m, dp, agg.Tags())
+		setTags(m.Name(), res, sm, m, dp, agg.Tags())
 
 		err := e.nextMetricReceiver.ConsumeMetrics(context.Background(), mmetrics)
 		if err != nil {
@@ -108,7 +108,7 @@ func (e *chqEnforcer) emitSetF(set *sampler.AggregationSet[float64]) {
 	}
 }
 
-func setTags(res pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint, tags map[string]string) {
+func setTags(metricName string, res pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint, tags map[string]string) {
 	for k, v := range tags {
 		section, tagname := sampler.SplitTag(k)
 		switch section {
@@ -123,7 +123,7 @@ func setTags(res pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, metric pmetri
 		}
 	}
 
-	tid := translate.CalculateTID(res.Resource().Attributes(), sm.Scope().Attributes(), dp.Attributes(), "metric")
+	tid := translate.CalculateTID(map[string]string{"name": metricName}, res.Resource().Attributes(), sm.Scope().Attributes(), dp.Attributes(), "metric")
 	dp.Attributes().PutInt(translate.CardinalFieldTID, tid)
 }
 
@@ -208,7 +208,7 @@ func (e *chqEnforcer) aggregateGaugeDatapoint(rms pmetric.ResourceMetrics, ils p
 		"metric.unit":               metric.Unit(),
 	}
 	rulematch := e.aggregateDatapoint(sampler.AggregationTypeAvg, rms, ils, metric, dp, metadata)
-	tid := translate.CalculateTID(rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes(), "metric")
+	tid := translate.CalculateTID(map[string]string{"name": metric.Name()}, rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes(), "metric")
 	dp.Attributes().PutInt(translate.CardinalFieldTID, tid)
 	dp.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, e.podName)
 	return rulematch != nil
@@ -227,7 +227,7 @@ func (e *chqEnforcer) aggregateSumDatapoint(rms pmetric.ResourceMetrics, ils pme
 		"metric.unit":                   metric.Unit(),
 	}
 	rulematch := e.aggregateDatapoint(sampler.AggregationTypeSum, rms, ils, metric, dp, metadata)
-	tid := translate.CalculateTID(rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes(), "metric")
+	tid := translate.CalculateTID(map[string]string{"name": metric.Name()}, rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes(), "metric")
 	dp.Attributes().PutInt(translate.CardinalFieldTID, tid)
 	dp.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, e.podName)
 	return rulematch != nil

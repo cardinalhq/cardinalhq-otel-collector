@@ -61,16 +61,13 @@ func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, e
 		rl.ScopeLogs().RemoveIf(func(ill plog.ScopeLogs) bool {
 			ill.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
 				fingerprint := getFingerprint(lr.Attributes())
-
 				shouldDrop := e.logSampler(fingerprint, rl, ill, lr)
 				if shouldDrop {
 					return true
 				}
-
 				if e.config.DropDecorationAttributes {
-					removeCardinalFields(lr.Attributes())
+					removeAllCardinalFields(lr.Attributes())
 				}
-
 				if err := e.recordLog(now, serviceName, fingerprint, lr.Body().AsString()); err != nil {
 					e.logger.Error("Failed to record log", zap.Error(err))
 				}
@@ -89,7 +86,7 @@ func (e *chqEnforcer) logSampler(fingerprint int64, rl plog.ResourceLogs, sl plo
 	return rule_match != ""
 }
 
-func removeCardinalFields(attr pcommon.Map) {
+func removeAllCardinalFields(attr pcommon.Map) {
 	attr.RemoveIf(func(k string, _ pcommon.Value) bool {
 		return strings.HasPrefix(k, translate.CardinalFieldPrefix)
 	})

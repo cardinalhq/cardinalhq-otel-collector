@@ -91,7 +91,7 @@ func (e *chqEnforcer) processDatapoint(now time.Time, metricName, serviceName st
 		e.logger.Error("Failed to record datapoint", zap.Error(err))
 	}
 	if e.config.DropDecorationAttributes {
-		removeCardinalFields(dattr)
+		removeAllCardinalFields(dattr)
 	}
 }
 

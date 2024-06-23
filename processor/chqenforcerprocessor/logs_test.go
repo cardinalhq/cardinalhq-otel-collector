@@ -23,14 +23,14 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
 
-func TestRemoveCardinalFields(t *testing.T) {
+func TestRemoveAllCardinalFields(t *testing.T) {
 	attr := pcommon.NewMap()
 	attr.PutStr("foo", "bar")
 	attr.PutStr(translate.CardinalFieldPrefixDot+"foo.field1", "value1")
 	attr.PutStr(translate.CardinalFieldPrefixDot+"field2", "value2")
 	attr.PutStr("baz", "qux")
 
-	removeCardinalFields(attr)
+	removeAllCardinalFields(attr)
 
 	assert.Equal(t, 2, attr.Len())
 

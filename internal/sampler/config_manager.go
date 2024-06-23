@@ -160,8 +160,8 @@ func (c *ConfigManagerImpl) checkUpdates() {
 	conf.hash = newhash
 	c.lastconf = &conf
 
-	for _, callback := range c.callbacks {
-		c.logger.Info("Calling callback", zap.Int("id", c.callbackCounter), zap.String("name", c.callbackNames[c.callbackCounter]))
+	for callbackId, callback := range c.callbacks {
+		c.logger.Info("Calling callback", zap.Int("id", callbackId), zap.String("name", c.callbackNames[callbackId]))
 		callback(conf)
 	}
 }

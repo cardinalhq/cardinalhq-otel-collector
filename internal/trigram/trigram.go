@@ -54,30 +54,3 @@ func ToTrigrams(s string) []string {
 	trigrams = append(trigrams, FieldExistsMarker)
 	return trigrams
 }
-
-// FieldTprint returns a hashcode for a field name and trigram
-func FieldTprint(name string, trigram string) int64 {
-	return JavaHashcode(name + ":" + trigram)
-}
-
-// JavaHashcode returns a hashcode for a string.  This is a 64-bit
-// implementation of the Java String hashcode function.
-func JavaHashcode(str string) int64 {
-	var h int64
-	length := len(str)
-	i := 0
-
-	for ; i+3 < length; i += 4 {
-		h = 31*31*31*31*h +
-			31*31*31*int64(str[i]) +
-			31*31*int64(str[i+1]) +
-			31*int64(str[i+2]) +
-			int64(str[i+3])
-	}
-
-	for ; i < length; i++ {
-		h = 31*h + int64(str[i])
-	}
-
-	return h
-}

@@ -114,7 +114,8 @@ data:
         drop_decoration_attributes: false
         statistics:
           endpoint: {{ .Values.collector.endpoints.cardinalhq.stats }}
-          auth: chqauth/cardinalhq
+          auth:
+            authenticator: chqauth/cardinalhq
           phase: presample
           vendor: intakestats
 
@@ -123,7 +124,8 @@ data:
         drop_decoration_attributes: false
         statistics:
           endpoint: {{ .Values.collector.endpoints.cardinalhq.stats }}
-          auth: chqauth/cardinalhq
+          auth:
+            authenticator: chqauth/cardinalhq
           phase: postsample
           vendor: cardinalhq
 
@@ -131,7 +133,8 @@ data:
         configuration_extension: chqconfig/cardinalhq
         statistics:
           endpoint: {{ .Values.collector.endpoints.cardinalhq.stats }}
-          auth: chqauth/cardinalhq
+          auth:
+            authenticator: chqauth/cardinalhq
           phase: postsample
           vendor: datadog
 

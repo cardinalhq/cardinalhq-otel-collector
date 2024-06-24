@@ -53,7 +53,7 @@ func calculateTID(tags map[string]string) int64 {
 	for _, k := range keys {
 		v := tags[k]
 		if v != "" {
-			items = append(items, v)
+			items = append(items, k, v)
 		}
 	}
 	return int64(xxhash.Sum64String(strings.Join(items, ":")))

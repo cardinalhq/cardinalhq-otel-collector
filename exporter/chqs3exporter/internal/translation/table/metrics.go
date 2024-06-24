@@ -19,14 +19,12 @@ import (
 	"fmt"
 	"maps"
 	"math"
-	"slices"
-	"strings"
 	"time"
 
 	"github.com/DataDog/sketches-go/ddsketch"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/trigram"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
@@ -199,27 +197,19 @@ func ensureExpectedKeysMetrics(m map[string]any) {
 			m[key] = val
 		}
 	}
-
-	m[translate.CardinalFieldTID] = calculateTID(m)
+	if _, ok := m[translate.CardinalFieldTID]; !ok {
+		m[translate.CardinalFieldTID] = calculateTID(m)
+	}
 }
 
 func calculateTID(tags map[string]any) int64 {
-	keys := []string{}
-	for k := range tags {
-		if k[0] != '_' {
-			keys = append(keys, k)
-		}
+	stringTags := map[string]string{}
+	for k, v := range tags {
+		stringTags[k] = valueToString(v)
 	}
-	slices.Sort(keys)
 
-	items := []string{}
-	for _, k := range keys {
-		v := valueToString(tags[k])
-		if v != "" {
-			items = append(items, v)
-		}
-	}
-	return trigram.JavaHashcode(strings.Join(items, ":"))
+	emptyMap := pcommon.NewMap()
+	return translate.CalculateTID(stringTags, emptyMap, emptyMap, emptyMap, "")
 }
 
 func valueToString(v any) string {

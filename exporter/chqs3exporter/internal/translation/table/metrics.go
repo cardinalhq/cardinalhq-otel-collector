@@ -203,7 +203,6 @@ func ensureExpectedKeysMetrics(m map[string]any) bool {
 		return false
 	}
 	keys := map[string]any{
-		translate.CardinalFieldRuleConfig:     "",
 		translate.CardinalFieldMetricType:     translate.CardinalMetricTypeGauge,
 		translate.CardinalFieldHostname:       findHostname(m),
 		translate.CardinalFieldBucketBounds:   "[]",

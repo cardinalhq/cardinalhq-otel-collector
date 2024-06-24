@@ -54,9 +54,6 @@ func (l *TableTranslator) LogsFromOtel(ol *plog.Logs) ([]map[string]any, error) 
 func ensureExpectedKeysLogs(m map[string]any) {
 	keys := map[string]any{
 		translate.CardinalFieldFingerprint: int64(0),
-		translate.CardinalFieldFiltered:    false,
-		translate.CardinalFieldRuleID:      "",
-		translate.CardinalFieldRuleConfig:  "",
 		translate.CardinalFieldHostname:    findHostname(m),
 		translate.CardinalFieldMessage:     "",
 		translate.CardinalFieldValue:       float64(1),

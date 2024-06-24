@@ -28,7 +28,6 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter/internal/metadata"
 )
 
-// NewFactory creates a factory for S3 exporter.
 func NewFactory() exporter.Factory {
 	return exporter.NewFactory(
 		metadata.Type,
@@ -41,7 +40,7 @@ func NewFactory() exporter.Factory {
 
 const defaultClientTimeout = 5 * time.Second
 const defaultEndpoint = "https://intake.cardinalhq.io"
-const userAgent = "cardinalhq-otel-collector-chqdatadogexporter-chqdatadogexporter"
+const userAgent = "cardinalhq-otel-collector-chqdatadogexporter"
 
 func createDefaultConfig() component.Config {
 	return &Config{

@@ -17,12 +17,12 @@ package table
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"maps"
 	"math"
 	"time"
 
 	"github.com/DataDog/sketches-go/ddsketch"
-	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
@@ -88,7 +88,11 @@ func (l *TableTranslator) toddGauge(metric pmetric.Metric, baseattrs map[string]
 		}
 		ret[translate.CardinalFieldName] = metric.Name()
 		ret[translate.CardinalFieldID] = l.idg.Make(time.Now())
-		ensureExpectedKeysMetrics(ret)
+		ok := ensureExpectedKeysMetrics(ret)
+		if !ok {
+			slog.Info("missing TID or other critical key", slog.String("metric", metric.Name()))
+			continue
+		}
 		rets = append(rets, ret)
 	}
 
@@ -118,7 +122,11 @@ func (l *TableTranslator) toddSum(metric pmetric.Metric, baseattrs map[string]an
 		}
 		ret[translate.CardinalFieldName] = metric.Name()
 		ret[translate.CardinalFieldID] = l.idg.Make(time.Now())
-		ensureExpectedKeysMetrics(ret)
+		ok := ensureExpectedKeysMetrics(ret)
+		if !ok {
+			slog.Info("missing TID or other critical key", slog.String("metric", metric.Name()))
+			continue
+		}
 		rets = append(rets, ret)
 	}
 
@@ -146,7 +154,11 @@ func (l *TableTranslator) toddHistogram(metric pmetric.Metric, baseattrs map[str
 		ret[translate.CardinalFieldName] = metric.Name()
 		ret[translate.CardinalFieldID] = l.idg.Make(time.Now())
 		ret[translate.CardinalFieldValue] = float64(-1)
-		ensureExpectedKeysMetrics(ret)
+		ok := ensureExpectedKeysMetrics(ret)
+		if !ok {
+			slog.Info("missing TID or other critical key", slog.String("metric", metric.Name()))
+			continue
+		}
 		rets = append(rets, ret)
 	}
 
@@ -169,7 +181,11 @@ func (l *TableTranslator) toddExponentialHistogram(metric pmetric.Metric, baseat
 		ret[translate.CardinalFieldName] = metric.Name()
 		ret[translate.CardinalFieldID] = l.idg.Make(time.Now())
 		ret[translate.CardinalFieldValue] = float64(-1)
-		ensureExpectedKeysMetrics(ret)
+		ok := ensureExpectedKeysMetrics(ret)
+		if !ok {
+			slog.Info("missing TID or other critical key", slog.String("metric", metric.Name()))
+			continue
+		}
 		rets = append(rets, ret)
 	}
 
@@ -181,7 +197,11 @@ func asJson[T uint64 | float64](s []T) string {
 	return string(ret)
 }
 
-func ensureExpectedKeysMetrics(m map[string]any) {
+func ensureExpectedKeysMetrics(m map[string]any) bool {
+	_, ok := m[translate.CardinalFieldTID]
+	if !ok {
+		return false
+	}
 	keys := map[string]any{
 		translate.CardinalFieldRuleConfig:     "",
 		translate.CardinalFieldMetricType:     translate.CardinalMetricTypeGauge,
@@ -197,19 +217,7 @@ func ensureExpectedKeysMetrics(m map[string]any) {
 			m[key] = val
 		}
 	}
-	if _, ok := m[translate.CardinalFieldTID]; !ok {
-		m[translate.CardinalFieldTID] = calculateTID(m)
-	}
-}
-
-func calculateTID(tags map[string]any) int64 {
-	stringTags := map[string]string{}
-	for k, v := range tags {
-		stringTags[k] = valueToString(v)
-	}
-
-	emptyMap := pcommon.NewMap()
-	return translate.CalculateTID(stringTags, emptyMap, emptyMap, emptyMap, "")
+	return true
 }
 
 func valueToString(v any) string {

@@ -100,6 +100,7 @@ func (e *chqEnforcer) emitSetF(set *sampler.AggregationSet[float64]) {
 		dp.SetDoubleValue(agg.Value()[0])
 
 		setTags(m.Name(), res, sm, m, dp, agg.Tags())
+		dp.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, e.podName)
 
 		err := e.nextMetricReceiver.ConsumeMetrics(context.Background(), mmetrics)
 		if err != nil {
@@ -208,9 +209,6 @@ func (e *chqEnforcer) aggregateGaugeDatapoint(rms pmetric.ResourceMetrics, ils p
 		"metric.unit":               metric.Unit(),
 	}
 	rulematch := e.aggregateDatapoint(sampler.AggregationTypeAvg, rms, ils, metric, dp, metadata)
-	tid := translate.CalculateTID(map[string]string{"name": metric.Name()}, rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes(), "metric")
-	dp.Attributes().PutInt(translate.CardinalFieldTID, tid)
-	dp.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, e.podName)
 	return rulematch != nil
 }
 
@@ -227,9 +225,6 @@ func (e *chqEnforcer) aggregateSumDatapoint(rms pmetric.ResourceMetrics, ils pme
 		"metric.unit":                   metric.Unit(),
 	}
 	rulematch := e.aggregateDatapoint(sampler.AggregationTypeSum, rms, ils, metric, dp, metadata)
-	tid := translate.CalculateTID(map[string]string{"name": metric.Name()}, rms.Resource().Attributes(), ils.Scope().Attributes(), dp.Attributes(), "metric")
-	dp.Attributes().PutInt(translate.CardinalFieldTID, tid)
-	dp.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, e.podName)
 	return rulematch != nil
 }
 

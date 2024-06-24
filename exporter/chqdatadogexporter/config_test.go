@@ -105,7 +105,7 @@ func TestConfig(t *testing.T) {
 				Compression: configcompression.TypeGzip,
 				Headers: map[string]configopaque.String{
 					"Alice":      "BobMetrics",
-					"User-Agent": "cardinalhq-otel-collector-chqdatadogexporter-chqdatadogexporter",
+					"User-Agent": "cardinalhq-otel-collector-chqdatadogexporter",
 				},
 			},
 		},
@@ -116,7 +116,7 @@ func TestConfig(t *testing.T) {
 				Compression: configcompression.TypeZstd,
 				Headers: map[string]configopaque.String{
 					"Alice":      "BobLogs",
-					"User-Agent": "cardinalhq-otel-collector-chqdatadogexporter-chqdatadogexporter",
+					"User-Agent": "cardinalhq-otel-collector-chqdatadogexporter",
 				},
 			},
 		},
@@ -127,7 +127,7 @@ func TestConfig(t *testing.T) {
 				Compression: configcompression.TypeDeflate,
 				Headers: map[string]configopaque.String{
 					"Alice":      "BobTraces",
-					"User-Agent": "cardinalhq-otel-collector-chqdatadogexporter-chqdatadogexporter",
+					"User-Agent": "cardinalhq-otel-collector-chqdatadogexporter",
 				},
 			},
 		},

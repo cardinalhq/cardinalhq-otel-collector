@@ -17,13 +17,17 @@ package chqdatadogexporter
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 
 	ddpb "github.com/cardinalhq/cardinalhq-otel-collector/internal/ddpb"
@@ -148,7 +152,18 @@ func (e *datadogExporter) sendMetrics(ctx context.Context, msg *ddpb.MetricPaylo
 
 	resp, err := e.httpClient.Do(req)
 	if err != nil {
-		return err
+		if !errors.Is(err, io.EOF) {
+			return err
+		}
+		urlerr, ok := err.(*url.Error)
+		if !ok {
+			return err
+		}
+		e.logger.Info("failed to send metrics due to EOF while reading response, ignoring",
+			zap.String("op", urlerr.Op),
+			zap.String("url", urlerr.URL),
+			zap.Bool("timeout", urlerr.Timeout()),
+			zap.Bool("temporary", urlerr.Temporary()))
 	}
 	defer resp.Body.Close()
 	e.messagesSubmitted.Add(ctx, int64(len(msg.Series)), metric.WithAttributeSet(e.commonAttributes), metric.WithAttributes(attribute.Int("http.code", resp.StatusCode)))

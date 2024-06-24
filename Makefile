@@ -102,8 +102,7 @@ buildtime/%.tstamp:: ${all_deps} Dockerfile
 		--tag ${IMAGE_PREFIX}$(patsubst %.tstamp,%,$(@F)):latest \
 		--tag ${IMAGE_PREFIX}$(patsubst %.tstamp,%,$(@F)):${GIT_BRANCH} \
 		--target $(patsubst %.tstamp,%,$(@F))-image \
-		--build-arg IMAGE_PREFIX=${IMAGE_PREFIX} \
-		--build-arg BUILD_TYPE=release \
+		--build-arg GIT_BRANCH=${GIT_BRANCH} \
 		-f Dockerfile \
 		--push .
 	echo >> buildtime/image-names.txt ${IMAGE_PREFIX}$(patsubst %.tstamp,%,$(@F)):latest
@@ -113,7 +112,7 @@ buildtime/%.tstamp:: ${all_deps} Dockerfile
 pre-build:
 	${BUILDX} \
 		--tag ${IMAGE_PREFIX}${IMAGE_TARGETS}:builder-latest \
-		--build-arg BUILD_TYPE=release \
+		--build-arg GIT_BRANCH=${GIT_BRANCH} \
 		-f Dockerfile.pre-build \
 		--push .
 

@@ -15,13 +15,15 @@
 FROM --platform=${BUILDPLATFORM} public.ecr.aws/b1d7g2f3/cardinalhq-otel-collector:builder-latest as build
 ARG TARGETOS
 ARG TARGETARCH
+ARG GIT_BRANCH
 ARG OTEL_VERSION=latest
 
 WORKDIR /build
 COPY . .
 RUN go install go.opentelemetry.io/collector/cmd/builder@${OTEL_VERSION}
 ENV GOOS=${TARGETOS} GOARCH=${TARGETARCH}
-RUN CGO_ENABLED=0 builder --config=cardinalhq-otel-collector.yaml
+RUN 's/version: v0.0.0-dev/'${GIT_BRANCH}'/' < cardinalhq-otel-collector.yaml > build.yaml
+RUN CGO_ENABLED=0 builder --config=build.yaml
 
 #FROM gcr.io/distroless/base-debian11 as cardinalhq-otel-collector-image
 FROM alpine:3 as cardinalhq-otel-collector-image

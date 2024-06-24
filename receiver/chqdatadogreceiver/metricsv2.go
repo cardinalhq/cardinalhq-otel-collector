@@ -208,11 +208,11 @@ func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPa
 	metric.SetName(v2.Metric)
 	metric.SetUnit(v2.Unit)
 
-	if v2.Metadata != nil && v2.Metadata.Origin != nil {
-		rAttr.PutInt("dd.origin.category", int64(v2.Metadata.Origin.OriginCategory))
-		rAttr.PutInt("dd.origin.product", int64(v2.Metadata.Origin.OriginProduct))
-		rAttr.PutInt("dd.origin.service", int64(v2.Metadata.Origin.OriginService))
-	}
+	// if v2.Metadata != nil && v2.Metadata.Origin != nil {
+	// 	rAttr.PutInt("dd.origin.category", int64(v2.Metadata.Origin.OriginCategory))
+	// 	rAttr.PutInt("dd.origin.product", int64(v2.Metadata.Origin.OriginProduct))
+	// 	rAttr.PutInt("dd.origin.service", int64(v2.Metadata.Origin.OriginService))
+	// }
 
 	kvTags := map[string]string{}
 	lAttr := pcommon.NewMap()
@@ -247,8 +247,7 @@ func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPa
 		for _, point := range v2.Points {
 			cdp := c.DataPoints().AppendEmpty()
 			lAttr.CopyTo(cdp.Attributes())
-			cdp.Attributes().PutBool("dd.israte", true)
-			cdp.Attributes().PutInt("dd.rateInterval", v2.Interval)
+			cdp.Attributes().PutInt("_dd.rateInterval", v2.Interval)
 			populateDatapoint(&cdp, point.Timestamp*1000, &v2.Interval, point.Value*float64(v2.Interval))
 		}
 	case ddpb.MetricPayload_COUNT:

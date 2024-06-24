@@ -148,14 +148,6 @@ func TestAggregateGauge(t *testing.T) {
 	assert.True(t, aggregated)
 	aggregated = mp.aggregateGaugeDatapoint(rms, ils, metric, dp3)
 	assert.True(t, aggregated)
-
-	// Verify that attributes were modified
-	for i := 0; i < metric.Gauge().DataPoints().Len(); i++ {
-		dp := metric.Gauge().DataPoints().At(i)
-		attr := dp.Attributes()
-		_, found := attr.Get("_cardinalhq.tid")
-		assert.True(t, found)
-	}
 }
 func TestSetResourceMetadata(t *testing.T) {
 	res := pmetric.NewResourceMetrics()

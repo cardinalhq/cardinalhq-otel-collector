@@ -108,20 +108,20 @@ func (e *datadogExporter) convertSumMetric(_ context.Context, m *ddpb.MetricPayl
 		if i == 0 {
 			lAttr := pcommon.NewMap()
 			dp.Attributes().CopyTo(lAttr)
-			if _, found := lAttr.Get("dd.israte"); found {
+			if v, found := lAttr.Get("_dd.rateInterval"); found {
 				m.Type = ddpb.MetricPayload_RATE
-				if v, found := lAttr.Get("dd.rateInterval"); found {
-					val := v.AsRaw()
-					if intval, ok := val.(int64); ok {
-						m.Interval = intval
-						value = value / float64(intval)
+				val := v.AsRaw()
+				if intval, ok := val.(int64); ok {
+					if intval <= 0 {
+						intval = 1
 					}
+					m.Interval = intval
+					value = value / float64(intval)
 				}
 			} else {
 				m.Type = ddpb.MetricPayload_COUNT
 			}
-			lAttr.Remove("dd.israte")
-			lAttr.Remove("dd.rateInterval")
+			lAttr.Remove("_dd.rateInterval")
 			m.Tags = append(m.Tags, tagStrings(rAttr, sAttr, lAttr)...)
 		}
 		m.Points = append(m.Points, &ddpb.MetricPayload_MetricPoint{

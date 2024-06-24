@@ -22,7 +22,7 @@ WORKDIR /build
 COPY . .
 RUN go install go.opentelemetry.io/collector/cmd/builder@${OTEL_VERSION}
 ENV GOOS=${TARGETOS} GOARCH=${TARGETARCH}
-RUN 's/version: v0.0.0-dev/'${GIT_BRANCH}'/' < cardinalhq-otel-collector.yaml > build.yaml
+RUN sed 's/v0.0.0-dev/'${GIT_BRANCH}'/' < cardinalhq-otel-collector.yaml > build.yaml
 RUN CGO_ENABLED=0 builder --config=build.yaml
 
 #FROM gcr.io/distroless/base-debian11 as cardinalhq-otel-collector-image

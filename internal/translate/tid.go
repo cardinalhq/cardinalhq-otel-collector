@@ -26,7 +26,7 @@ import (
 
 func CalculateTID(extra map[string]string, rattr, sattr, iattr pcommon.Map, prefix string) int64 {
 	tags := map[string]string{}
-	maps.Copy(extra, tags)
+	maps.Copy(tags, extra)
 	addKeys(rattr, "resource", tags)
 	addKeys(sattr, "scope", tags)
 	addKeys(iattr, prefix, tags)

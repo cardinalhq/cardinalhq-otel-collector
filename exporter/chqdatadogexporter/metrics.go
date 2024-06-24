@@ -164,6 +164,7 @@ func (e *datadogExporter) sendMetrics(ctx context.Context, msg *ddpb.MetricPaylo
 			zap.String("url", urlerr.URL),
 			zap.Bool("timeout", urlerr.Timeout()),
 			zap.Bool("temporary", urlerr.Temporary()))
+		return nil
 	}
 	defer resp.Body.Close()
 	e.messagesSubmitted.Add(ctx, int64(len(msg.Series)), metric.WithAttributeSet(e.commonAttributes), metric.WithAttributes(attribute.Int("http.code", resp.StatusCode)))

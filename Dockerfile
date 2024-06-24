@@ -27,6 +27,7 @@ RUN CGO_ENABLED=0 builder --config=build.yaml
 
 #FROM gcr.io/distroless/base-debian11 as cardinalhq-otel-collector-image
 FROM alpine:3 as cardinalhq-otel-collector-image
+RUN apk update && apk add --no-cache ca-certificates curl && rm -rf /var/cache/apk/*
 WORKDIR /app
 COPY --from=build /build/bin/cardinalhq-otel-collector /app/bin/cardinalhq-otel-collector
 

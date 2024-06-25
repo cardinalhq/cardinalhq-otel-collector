@@ -66,7 +66,9 @@ func (e *chqEnforcer) emitSetI(set *sampler.AggregationSet[int64]) {
 		dp.SetStartTimestamp(ts)
 		dp.SetIntValue(agg.Value()[0])
 
-		setTags(m.Name(), res, sm, m, dp, agg.Tags())
+		setTags(m.Name(), res, sm, m, dp, agg.Tags(), e.podName)
+		serviceName := getServiceName(res.Resource().Attributes())
+		e.processDatapoint(now, m.Name(), serviceName, res.Resource().Attributes(), sm.Scope().Attributes(), dp.Attributes())
 
 		err := e.nextMetricReceiver.ConsumeMetrics(context.Background(), mmetrics)
 		if err != nil {
@@ -99,8 +101,9 @@ func (e *chqEnforcer) emitSetF(set *sampler.AggregationSet[float64]) {
 		dp.SetStartTimestamp(ts)
 		dp.SetDoubleValue(agg.Value()[0])
 
-		setTags(m.Name(), res, sm, m, dp, agg.Tags())
-		dp.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, e.podName)
+		setTags(m.Name(), res, sm, m, dp, agg.Tags(), e.podName)
+		serviceName := getServiceName(res.Resource().Attributes())
+		e.processDatapoint(now, m.Name(), serviceName, res.Resource().Attributes(), sm.Scope().Attributes(), dp.Attributes())
 
 		err := e.nextMetricReceiver.ConsumeMetrics(context.Background(), mmetrics)
 		if err != nil {
@@ -109,7 +112,7 @@ func (e *chqEnforcer) emitSetF(set *sampler.AggregationSet[float64]) {
 	}
 }
 
-func setTags(metricName string, res pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint, tags map[string]string) {
+func setTags(metricName string, res pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint, tags map[string]string, podName string) {
 	for k, v := range tags {
 		section, tagname := sampler.SplitTag(k)
 		switch section {
@@ -124,6 +127,7 @@ func setTags(metricName string, res pmetric.ResourceMetrics, sm pmetric.ScopeMet
 		}
 	}
 
+	dp.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, podName)
 	tid := translate.CalculateTID(map[string]string{"name": metricName}, res.Resource().Attributes(), sm.Scope().Attributes(), dp.Attributes(), "metric")
 	dp.Attributes().PutInt(translate.CardinalFieldTID, tid)
 }

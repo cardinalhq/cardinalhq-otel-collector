@@ -46,13 +46,21 @@ func (e *chqEnforcer) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pme
 				switch m.Type() {
 				case pmetric.MetricTypeGauge:
 					m.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
+						drop := false
+						if e.pbPhase == chqpb.Phase_POST {
+							drop = e.aggregate(rm, ilm, m, dp)
+						}
 						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
-						return e.aggregate(rm, ilm, m, dp)
+						return drop
 					})
 				case pmetric.MetricTypeSum:
 					m.Sum().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
+						drop := false
+						if e.pbPhase == chqpb.Phase_POST {
+							drop = e.aggregate(rm, ilm, m, dp)
+						}
 						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
-						return e.aggregate(rm, ilm, m, dp)
+						return drop
 					})
 				case pmetric.MetricTypeHistogram:
 					m.Histogram().DataPoints().RemoveIf(func(dp pmetric.HistogramDataPoint) bool {

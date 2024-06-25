@@ -61,9 +61,11 @@ func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, e
 		rl.ScopeLogs().RemoveIf(func(ill plog.ScopeLogs) bool {
 			ill.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
 				fingerprint := getFingerprint(lr.Attributes())
-				shouldDrop := e.logSampler(fingerprint, rl, ill, lr)
-				if shouldDrop {
-					return true
+				if e.pbPhase == chqpb.Phase_POST {
+					shouldDrop := e.logSampler(fingerprint, rl, ill, lr)
+					if shouldDrop {
+						return true
+					}
 				}
 				if e.config.DropDecorationAttributes {
 					removeAllCardinalFields(lr.Attributes())

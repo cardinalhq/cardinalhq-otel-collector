@@ -137,6 +137,11 @@ data:
           receivers:
             - otlp/l1
             - chqdatadog/l1
+            {{- range $key, $config := .Values.collector.l1.additionalReceivers }}
+            {{- if and $config.enabled $config.logs }}
+            - {{ $config.name }}
+            {{- end }}
+            {{- end }}
           processors:
             - memory_limiter/l1
             - chqdecorator/l1
@@ -172,7 +177,7 @@ data:
             - otlp/l1
             - chqdatadog/l1
             {{- range $key, $config := .Values.collector.l1.additionalReceivers }}
-            {{- if $config.enabled }}
+            {{- if and $config.enabled $config.metrics }}
             - {{ $config.name }}
             {{- end }}
             {{- end }}
@@ -185,6 +190,11 @@ data:
           receivers:
             - otlp/l1
             - chqdatadog/l1
+            {{- range $key, $config := .Values.collector.l1.additionalReceivers }}
+            {{- if and $config.enabled $config.traces }}
+            - {{ $config.name }}
+            {{- end }}
+            {{- end }}
           processors:
             - memory_limiter/l1
           exporters:

@@ -1,8 +1,15 @@
+vendors:
+  datadog:
+    enabled: false
+
 collector:
   l1:
     additionalReceivers:
       - name: kafkametrics
         enabled: true
+        logs: false
+        metrics: true
+        traces: false
         config:
           config:
             brokers:

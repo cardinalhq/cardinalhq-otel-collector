@@ -140,6 +140,7 @@ func (e *chqEnforcer) recordMetric(now time.Time, metricName, serviceName, tagNa
 	if err != nil {
 		return err
 	}
+	e.logger.Info("Recorded metric", zap.String("metric", metricName), zap.String("tag", tagName), zap.String("value", tagValue))
 	if bucketpile != nil {
 		// TODO should send this to a channel and have a separate goroutine send it
 		go e.sendMetricStats(context.Background(), now, bucketpile)
@@ -155,14 +156,6 @@ func (e *chqEnforcer) sendMetricStats(ctx context.Context, now time.Time, bucket
 
 	for _, stats := range *bucketpile {
 		for _, ms := range stats {
-			item := &chqpb.MetricStats{
-				MetricName:  ms.MetricName,
-				ServiceName: ms.ServiceName,
-				TagName:     ms.TagName,
-				Phase:       ms.Phase,
-				Count:       ms.Count,
-				VendorId:    ms.VendorID,
-			}
 			if ms.HLL == nil {
 				e.logger.Error("HLL is nil", zap.Any("metric", ms))
 				continue
@@ -172,7 +165,15 @@ func (e *chqEnforcer) sendMetricStats(ctx context.Context, now time.Time, bucket
 				e.logger.Error("Failed to convert HLL to compact slice", zap.Error(err))
 				continue
 			}
-			item.Hll = b
+			item := &chqpb.MetricStats{
+				MetricName:  ms.MetricName,
+				ServiceName: ms.ServiceName,
+				TagName:     ms.TagName,
+				Phase:       ms.Phase,
+				Count:       ms.Count,
+				VendorId:    ms.VendorID,
+				Hll:         b,
+			}
 			wrapper.Stats = append(wrapper.Stats, item)
 		}
 	}

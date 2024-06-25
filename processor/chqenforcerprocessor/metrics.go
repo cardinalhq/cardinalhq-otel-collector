@@ -106,19 +106,19 @@ func (e *chqEnforcer) recordDatapoint(now time.Time, metricName, serviceName str
 	var errs error
 
 	rattr.Range(func(k string, v pcommon.Value) bool {
-		if !computeStatsOnField(k) {
+		if computeStatsOnField(k) {
 			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "resource."+k, v.AsString(), 1))
 		}
 		return true
 	})
 	sattr.Range(func(k string, v pcommon.Value) bool {
-		if !computeStatsOnField(k) {
+		if computeStatsOnField(k) {
 			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "scope."+k, v.AsString(), 1))
 		}
 		return true
 	})
 	dpAttr.Range(func(k string, v pcommon.Value) bool {
-		if !computeStatsOnField(k) {
+		if computeStatsOnField(k) {
 			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "metric."+k, v.AsString(), 1))
 		}
 		return true
@@ -155,14 +155,6 @@ func (e *chqEnforcer) sendMetricStats(ctx context.Context, now time.Time, bucket
 
 	for _, stats := range *bucketpile {
 		for _, ms := range stats {
-			item := &chqpb.MetricStats{
-				MetricName:  ms.MetricName,
-				ServiceName: ms.ServiceName,
-				TagName:     ms.TagName,
-				Phase:       ms.Phase,
-				Count:       ms.Count,
-				VendorId:    ms.VendorID,
-			}
 			if ms.HLL == nil {
 				e.logger.Error("HLL is nil", zap.Any("metric", ms))
 				continue
@@ -172,7 +164,15 @@ func (e *chqEnforcer) sendMetricStats(ctx context.Context, now time.Time, bucket
 				e.logger.Error("Failed to convert HLL to compact slice", zap.Error(err))
 				continue
 			}
-			item.Hll = b
+			item := &chqpb.MetricStats{
+				MetricName:  ms.MetricName,
+				ServiceName: ms.ServiceName,
+				TagName:     ms.TagName,
+				Phase:       ms.Phase,
+				Count:       ms.Count,
+				VendorId:    ms.VendorID,
+				Hll:         b,
+			}
 			wrapper.Stats = append(wrapper.Stats, item)
 		}
 	}

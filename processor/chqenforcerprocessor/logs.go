@@ -94,7 +94,7 @@ func removeAllCardinalFields(attr pcommon.Map) {
 
 func (e *chqEnforcer) recordLog(now time.Time, serviceName string, fingerprint int64, message string) error {
 	logSize := int64(len(message))
-	rec := chqpb.LogStats{
+	rec := &chqpb.LogStats{
 		ServiceName: serviceName,
 		Fingerprint: fingerprint,
 		Phase:       e.pbPhase,
@@ -103,7 +103,7 @@ func (e *chqEnforcer) recordLog(now time.Time, serviceName string, fingerprint i
 		LogSize:     logSize,
 		Exemplar:    message,
 	}
-	bucketpile, err := e.logstats.Record(now, &rec, "", 1, logSize)
+	bucketpile, err := e.logstats.Record(now, rec, "", 1, logSize)
 	if err != nil {
 		return err
 	}

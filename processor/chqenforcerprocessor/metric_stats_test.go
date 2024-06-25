@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
 )
 
 func TestMetricStat_Key(t *testing.T) {
@@ -36,26 +37,191 @@ func TestMetricStat_Key(t *testing.T) {
 	assert.Equal(t, uint64(0x24f43c4422ea113e), m.Key())
 }
 
+type testMetricStat struct{}
+
+func (t *testMetricStat) Matches(other stats.StatsObject) bool {
+	return true
+}
+
+func (t *testMetricStat) Initialize() error {
+	return nil
+}
+
+func (t *testMetricStat) Increment(tag string, value int, timestamp int64) error {
+	return nil
+}
+
+func (t *testMetricStat) Key() uint64 {
+	return 0
+}
+
 func TestMetricStat_Matches(t *testing.T) {
-	m := &MetricStat{
-		MetricName:  "test_metric",
-		TagName:     "test_tag",
-		ServiceName: "test_service",
-		VendorID:    "test_vendor",
-		Phase:       chqpb.Phase_PRE,
-		Count:       0,
+	tests := []struct {
+		name     string
+		m        *MetricStat
+		other    stats.StatsObject
+		expected bool
+	}{
+		{
+			"identical",
+			&MetricStat{
+				MetricName:  "test_metric",
+				TagName:     "test_tag",
+				ServiceName: "test_service",
+				VendorID:    "test_vendor",
+				Phase:       chqpb.Phase_PRE,
+				Count:       0,
+			},
+			&MetricStat{
+				MetricName:  "test_metric",
+				TagName:     "test_tag",
+				ServiceName: "test_service",
+				VendorID:    "test_vendor",
+				Phase:       chqpb.Phase_PRE,
+				Count:       0,
+			},
+			true,
+		},
+		{
+			"different type",
+			&MetricStat{
+				MetricName:  "test_metric",
+				TagName:     "test_tag",
+				ServiceName: "test_service",
+				VendorID:    "test_vendor",
+				Phase:       chqpb.Phase_PRE,
+				Count:       0,
+			},
+			&testMetricStat{},
+			false,
+		},
+		{
+			"different metric name",
+			&MetricStat{
+				MetricName:  "test_metric",
+				TagName:     "test_tag",
+				ServiceName: "test_service",
+				VendorID:    "test_vendor",
+				Phase:       chqpb.Phase_PRE,
+				Count:       0,
+			},
+			&MetricStat{
+				MetricName:  "test_metric2",
+				TagName:     "test_tag",
+				ServiceName: "test_service",
+				VendorID:    "test_vendor",
+				Phase:       chqpb.Phase_PRE,
+				Count:       0,
+			},
+			false,
+		},
+		{
+			"different tag name",
+			&MetricStat{
+				MetricName:  "test_metric",
+				TagName:     "test_tag",
+				ServiceName: "test_service",
+				VendorID:    "test_vendor",
+				Phase:       chqpb.Phase_PRE,
+				Count:       0,
+			},
+			&MetricStat{
+				MetricName:  "test_metric",
+				TagName:     "test_tag2",
+				ServiceName: "test_service",
+				VendorID:    "test_vendor",
+				Phase:       chqpb.Phase_PRE,
+				Count:       0,
+			},
+			false,
+		},
+		{
+			"different service name",
+			&MetricStat{
+				MetricName:  "test_metric",
+				TagName:     "test_tag",
+				ServiceName: "test_service",
+				VendorID:    "test_vendor",
+				Phase:       chqpb.Phase_PRE,
+				Count:       0,
+			},
+			&MetricStat{
+				MetricName:  "test_metric",
+				TagName:     "test_tag",
+				ServiceName: "test_service2",
+				VendorID:    "test_vendor",
+				Phase:       chqpb.Phase_PRE,
+				Count:       0,
+			},
+			false,
+		},
+		{
+			"different vendor id",
+			&MetricStat{
+				MetricName:  "test_metric",
+				TagName:     "test_tag",
+				ServiceName: "test_service",
+				VendorID:    "test_vendor",
+				Phase:       chqpb.Phase_PRE,
+				Count:       0,
+			},
+			&MetricStat{
+				MetricName:  "test_metric",
+				TagName:     "test_tag",
+				ServiceName: "test_service",
+				VendorID:    "test_vendor2",
+				Phase:       chqpb.Phase_PRE,
+				Count:       0,
+			},
+			false,
+		},
+		{
+			"different phase",
+			&MetricStat{
+				MetricName:  "test_metric",
+				TagName:     "test_tag",
+				ServiceName: "test_service",
+				VendorID:    "test_vendor",
+				Phase:       chqpb.Phase_PRE,
+				Count:       0,
+			},
+			&MetricStat{
+				MetricName:  "test_metric",
+				TagName:     "test_tag",
+				ServiceName: "test_service",
+				VendorID:    "test_vendor",
+				Phase:       chqpb.Phase_POST,
+				Count:       0,
+			},
+			false,
+		},
+		{
+			"different count",
+			&MetricStat{
+				MetricName:  "test_metric",
+				TagName:     "test_tag",
+				ServiceName: "test_service",
+				VendorID:    "test_vendor",
+				Phase:       chqpb.Phase_PRE,
+				Count:       0,
+			},
+			&MetricStat{
+				MetricName:  "test_metric",
+				TagName:     "test_tag",
+				ServiceName: "test_service",
+				VendorID:    "test_vendor",
+				Phase:       chqpb.Phase_PRE,
+				Count:       1,
+			},
+			true,
+		},
 	}
 
-	other := &MetricStat{
-		MetricName:  "test_metric",
-		TagName:     "test_tag",
-		ServiceName: "test_service",
-		VendorID:    "test_vendor",
-		Phase:       chqpb.Phase_PRE,
-		Count:       0,
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.m.Matches(tt.other))
+		})
 	}
-
-	assert.True(t, m.Matches(other))
 }
 
 func TestMetricStat_Initialize(t *testing.T) {

@@ -106,19 +106,19 @@ func (e *chqEnforcer) recordDatapoint(now time.Time, metricName, serviceName str
 	var errs error
 
 	rattr.Range(func(k string, v pcommon.Value) bool {
-		if !computeStatsOnField(k) {
+		if computeStatsOnField(k) {
 			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "resource."+k, v.AsString(), 1))
 		}
 		return true
 	})
 	sattr.Range(func(k string, v pcommon.Value) bool {
-		if !computeStatsOnField(k) {
+		if computeStatsOnField(k) {
 			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "scope."+k, v.AsString(), 1))
 		}
 		return true
 	})
 	dpAttr.Range(func(k string, v pcommon.Value) bool {
-		if !computeStatsOnField(k) {
+		if computeStatsOnField(k) {
 			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "metric."+k, v.AsString(), 1))
 		}
 		return true
@@ -140,7 +140,6 @@ func (e *chqEnforcer) recordMetric(now time.Time, metricName, serviceName, tagNa
 	if err != nil {
 		return err
 	}
-	e.logger.Info("Recorded metric", zap.String("metric", metricName), zap.String("tag", tagName), zap.String("value", tagValue))
 	if bucketpile != nil {
 		// TODO should send this to a channel and have a separate goroutine send it
 		go e.sendMetricStats(context.Background(), now, bucketpile)

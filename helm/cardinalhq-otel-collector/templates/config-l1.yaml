@@ -156,7 +156,7 @@ data:
           receivers:
             - forward/intakestats
           processors:
-            - chqenforcer/cardinalhq
+            - chqenforcer/intakestats
           exporters:
             - nop
         {{ range $name, $flags := .Values.vendors }}

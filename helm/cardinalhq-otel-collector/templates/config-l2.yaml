@@ -109,10 +109,10 @@ data:
             - cumulativetodelta/l2
             - chqdecorator/l2
           exporters:
-            - forward/intakestats:
+            - forward/intakestats
             {{ range $name, $flags := .Values.vendors -}}
             {{ if and $flags.enabled $flags.metrics -}}
-            - forward/{{ $name }}:
+            - forward/{{ $name }}
             {{ end -}}
             {{ end }}
         metrics/intakestats:
@@ -143,10 +143,10 @@ data:
             - groupbytrace/l2
             - chqdecorator/l2
           exporters:
-            - forward/intakestats:
+            - forward/intakestats
             {{ range $name, $flags := .Values.vendors -}}
             {{ if and $flags.enabled $flags.traces -}}
-            - forward/{{ $name }}:
+            - forward/{{ $name }}
             {{ end -}}
             {{ end }}
         traces/intakestats:

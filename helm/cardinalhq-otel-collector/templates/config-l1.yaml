@@ -14,14 +14,14 @@ data:
       {{- range $index, $config := .Values.collector.l1.defaultReceivers }}
       {{- if $config.enabled }}
       {{ $config.name }}:
-      {{- toYaml $config.config | nindent 8 }}:
+      {{- toYaml $config.config | nindent 8 }}
       {{- end }}
       {{- end }}
       # customer-added receivers
       {{- range $index, $config := .Values.collector.l1.additionalReceivers }}
       {{- if $config.enabled }}
       {{ $config.name }}:
-      {{- toYaml $config.config | nindent 8 }}:
+      {{- toYaml $config.config | nindent 8 }}
       {{- end }}
       {{- end }}
     exporters:
@@ -146,10 +146,10 @@ data:
             - memory_limiter/l1
             - chqdecorator/l1
           exporters:
-            - forward/intakestats:
+            - forward/intakestats
             {{ range $name, $flags := .Values.vendors -}}
             {{ if and $flags.enabled $flags.logs -}}
-            - forward/{{ $name }}:
+            - forward/{{ $name }}
             {{ end -}}
             {{ end }}
         logs/intakestats:

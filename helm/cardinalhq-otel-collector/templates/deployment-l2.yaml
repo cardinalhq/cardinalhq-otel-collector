@@ -69,7 +69,7 @@ spec:
                   key: {{ .Values.secrets.cardinalhq.field }}
           ports:
             - name: otlp2
-              containerPort: {{ .Values.collector.ports.internal.otlpGRPCPort }}
+              containerPort: 14317
               protocol: TCP
             - name: zpages
               containerPort: {{ .Values.collector.endpoints.zpages.port }}

@@ -30,8 +30,6 @@ vendors:
 
 collector:
   ports:
-    incoming:
-      otlpGRPCPort: 14317
     internal:
       otlpGRPCPort: 14317
   endpoints:

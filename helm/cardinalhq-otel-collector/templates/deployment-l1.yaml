@@ -68,11 +68,14 @@ spec:
                   name: {{ include "customerside.secret.cardinalhq.name" . }}
                   key: {{ .Values.secrets.cardinalhq.field }}
           ports:
-            - name: http
-              containerPort: {{ .Values.collector.ports.incoming.otlpHTTPPort }}
-              protocol: TCP
             - name: otlp
-              containerPort: {{ .Values.collector.ports.incoming.otlpGRPCPort }}
+              containerPort: 4317
+              protocol: TCP
+            - name: http
+              containerPort: 4318
+              protocol: TCP
+            - name: datadog
+              containerPort: 8126
               protocol: TCP
             - name: zpages
               containerPort: {{ .Values.collector.endpoints.zpages.port }}

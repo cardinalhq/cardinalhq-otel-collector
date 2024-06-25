@@ -14,4 +14,4 @@ spec:
   clusterIP: None
   ports:
     - name: otlp2
-      port: {{ .Values.collector.ports.incoming.otlpGRPCPort }}
+      port: {{ .Values.collector.ports.internal.otlpGRPCPort }}

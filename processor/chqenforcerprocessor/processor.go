@@ -17,6 +17,7 @@ package chqenforcerprocessor
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"sync"
@@ -32,6 +33,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
+	"github.com/hashicorp/go-multierror"
 )
 
 type chqEnforcer struct {
@@ -61,15 +63,14 @@ type chqEnforcer struct {
 	lastEmitCheck       time.Time
 
 	// for traces
-	traceConfig          *TraceConfig
 	estimatorWindowSize  int
 	estimatorInterval    int64
 	estimators           map[uint64]*SlidingEstimatorStat
 	estimatorLock        sync.Mutex
-	sentFingerprints     fingerprintTracker
 	slowSampler          sampler.Sampler
 	hasErrorSampler      sampler.Sampler
 	uninterestingSampler sampler.Sampler
+	sentFingerprints     *fingerprintTracker
 }
 
 func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextConsumer consumer.Metrics) *chqEnforcer {
@@ -103,15 +104,12 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextCo
 		statsExporter.aggregatorI = sampler.NewMetricAggregatorImpl[int64](interval, nil)
 		statsExporter.aggregatorF = sampler.NewMetricAggregatorImpl[float64](interval, nil)
 	case "traces":
-		statsExporter.traceConfig = &config.TraceConfig
 		statsExporter.estimators = make(map[uint64]*SlidingEstimatorStat)
 		statsExporter.estimatorWindowSize = *config.TraceConfig.EstimatorWindowSize
 		statsExporter.estimatorInterval = *config.TraceConfig.EstimatorInterval
-		statsExporter.sentFingerprints = *newFingerprintTracker()
 		statsExporter.slowSampler = sampler.NewRPSSampler(sampler.WithMaxRPS(*config.TraceConfig.SlowRate))
 		statsExporter.hasErrorSampler = sampler.NewRPSSampler(sampler.WithMaxRPS(*config.TraceConfig.HasErrorRate))
 		statsExporter.uninterestingSampler = sampler.NewRPSSampler(sampler.WithMaxRPS(*config.TraceConfig.UninterestingRate))
-
 	}
 
 	return statsExporter
@@ -139,12 +137,28 @@ func (e *chqEnforcer) Start(ctx context.Context, host component.Host) error {
 	e.configExtension = cext
 
 	e.configCallbackID = e.configExtension.RegisterCallback(e.id.String()+"/"+e.ttype, e.configUpdateCallback)
+
+	if e.ttype == "traces" {
+		if err := e.slowSampler.Start(); err != nil {
+			return fmt.Errorf("error starting slow sampler: %w", err)
+		}
+		if err := e.hasErrorSampler.Start(); err != nil {
+			return fmt.Errorf("error starting has error sampler: %w", err)
+		}
+		if err := e.uninterestingSampler.Start(); err != nil {
+			return fmt.Errorf("error starting uninteresting sampler: %w", err)
+		}
+		e.sentFingerprints = newFingerprintTracker()
+	}
 	return nil
 }
 
 func (e *chqEnforcer) Shutdown(ctx context.Context) error {
+	var errors *multierror.Error
 	e.configExtension.UnregisterCallback(e.configCallbackID)
-	return nil
+	errors = multierror.Append(errors, e.slowSampler.Stop())
+	errors = multierror.Append(errors, e.hasErrorSampler.Stop())
+	return errors.ErrorOrNil()
 }
 
 func (e *chqEnforcer) configUpdateCallback(sc sampler.SamplerConfig) {

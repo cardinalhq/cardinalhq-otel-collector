@@ -37,11 +37,7 @@ func NewFactory() processor.Factory {
 }
 
 func createDefaultConfig() component.Config {
-	return &Config{
-		MetricConfig: MetricConfig{
-			MetricAggregationInterval: 10,
-		},
-	}
+	return &Config{}
 }
 
 func createMetricsProcessor(

@@ -116,7 +116,90 @@ func TestConfig(t *testing.T) {
 		MetricAggregation: MetricAggregationConfig{
 			Interval: 10 * time.Second,
 		},
+		TraceConfig: TraceConfig{
+			GraphURL:            "http://example.com",
+			UninterestingRate:   &defaultUninterestingRate,
+			SlowRate:            &defaultSlowRate,
+			HasErrorRate:        &defaultHasErrorRate,
+			EstimatorWindowSize: &defaultEstimatorWindowSize,
+			EstimatorInterval:   &defaultEstimatorInterval,
+		},
 		DropDecorationAttributes: defaultDropDecorationTags,
 	}
 	assert.Equal(t, expected, e)
+}
+
+func TestTraceConfig_Validate(t *testing.T) {
+	//one := int(1)
+	//zero := int(0)
+
+	tests := []struct {
+		name      string
+		config    *TraceConfig
+		wantError bool
+	}{
+		{
+			"valid",
+			&TraceConfig{
+				GraphURL: "http://example.com",
+			},
+			false,
+		},
+		{
+			"invalid URL",
+			&TraceConfig{
+				GraphURL: "://example.com",
+			},
+			true,
+		},
+		{
+			"unsupported scheme",
+			&TraceConfig{
+				GraphURL: "ftp://example.com",
+			},
+			true,
+		},
+		{
+			"no graphurl",
+			&TraceConfig{},
+			false,
+		},
+		{
+			"invalid uninteresting rate",
+			&TraceConfig{
+				UninterestingRate: &[]int{-1}[0],
+			},
+			true,
+		},
+		{
+			"invalid slow rate",
+			&TraceConfig{
+				SlowRate: &[]int{-1}[0],
+			},
+			true,
+		},
+		{
+			"invalid has error rate",
+			&TraceConfig{
+				HasErrorRate: &[]int{-1}[0],
+			},
+			true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.config.Validate()
+			require.Equal(t, tt.wantError, err != nil)
+		})
+	}
+}
+
+func TestTraceConfig_ValidateAppliesDefaults(t *testing.T) {
+	cfg := &TraceConfig{}
+	err := cfg.Validate()
+	require.NoError(t, err)
+	require.NotNil(t, cfg.UninterestingRate)
+	require.NotNil(t, cfg.SlowRate)
+	require.NotNil(t, cfg.HasErrorRate)
 }

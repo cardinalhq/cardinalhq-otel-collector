@@ -17,22 +17,15 @@ data:
 
     exporters:
       nop:
-      chqdatadog/datadog:
-        api_key: ${env:DATADOG_API_KEY}
-        metrics:
-          endpoint: {{ .Values.collector.endpoints.datadog.metrics }}
-          compression: {{ .Values.collector.endpoints.datadog.compression }}
-        logs:
-          endpoint: {{ .Values.collector.endpoints.datadog.logs }}
-          compression: {{ .Values.collector.endpoints.datadog.compression }}
-        traces:
-          endpoint: {{ .Values.collector.endpoints.datadog.traces }}
-          compression: {{ .Values.collector.endpoints.datadog.compression }}
 
-      otlp/cardinalhq:
-        endpoint: {{ .Values.collector.endpoints.cardinalhq.otlpGRPC}}
-        auth:
-          authenticator: chqauth/cardinalhq
+      {{ range $name, $flags := .Values.vendors }}
+      {{ if and $flags.enabled -}}
+      {{ if or $flags.metrics $flags.traces }}
+      {{ $flags.exporter }}/{{ $name }}:
+        {{ toYaml $flags.config | nindent 8 }}
+      {{ end -}}
+      {{ end -}}
+      {{ end }}
 
     processors:
       # Limit collector process memory usage.  This should be the first processor
@@ -42,19 +35,22 @@ data:
         spike_limit_mib: 100
         check_interval: 5s
 
-      batch/cardinalhq:
-        timeout: 1s
-        send_batch_size: 100
-        send_batch_max_size: 1000
-      batch/datadog:
-        timeout: 1s
-        send_batch_size: 100
-        send_batch_max_size: 1000
       batch/intakestats:
         timeout: 1s
         send_batch_size: 100
         send_batch_max_size: 1000
-      
+
+      {{ range $name, $flags := .Values.vendors -}}
+      {{ if $flags.enabled -}}
+      {{ if or $flags.metrics $flags.traces }}
+      batch/{{ $name }}:
+        timeout: 1s
+        send_batch_size: 100
+        send_batch_max_size: 1000
+      {{ end -}}
+      {{ end -}}
+      {{ end -}}
+
       groupbytrace/l2:
         wait_duration: 60s
 
@@ -75,65 +71,103 @@ data:
           phase: presample
           vendor: intakestats
 
-      chqenforcer/cardinalhq:
+      {{ range $name, $flags := .Values.vendors -}}
+      {{ if $flags.enabled -}}
+      {{ if or $flags.metrics $flags.traces }}
+      chqenforcer/{{ $name }}:
         configuration_extension: chqconfig/cardinalhq
+        {{ if $flags.keepTags }}
         drop_decoration_attributes: false
+        {{ end }}
         statistics:
-          endpoint: {{ .Values.collector.endpoints.cardinalhq.stats }}
+          endpoint: {{ $.Values.collector.endpoints.cardinalhq.stats }}
           auth:
             authenticator: chqauth/cardinalhq
           phase: postsample
-          vendor: cardinalhq
-
-      chqenforcer/datadog:
-        configuration_extension: chqconfig/cardinalhq
-        statistics:
-          endpoint: {{ .Values.collector.endpoints.cardinalhq.stats }}
-          auth:
-            authenticator: chqauth/cardinalhq
-          phase: postsample
-          vendor: datadog
+          vendor: {{ $name }}
+      {{ end -}}
+      {{ end -}}
+      {{ end }}
 
     connectors:
-      forward/cardinalhq:
-      forward/datadog:
       forward/intakestats:
-        
+      {{ range $name, $flags := .Values.vendors -}}
+      {{ if $flags.enabled -}}
+      {{ if or $flags.metrics $flags.traces }}
+      forward/{{ $name }}:
+      {{ end -}}
+      {{ end -}}
+      {{ end }}
+
     service:
       pipelines:
         metrics/l2:
-          receivers: [otlp/l2]
-          processors: [memory_limiter/l2, cumulativetodelta/l2, chqdecorator/l2]
-          exporters: [forward/intakestats, forward/cardinalhq, forward/datadog]
+          receivers:
+            - otlp/l2
+          processors:
+            - memory_limiter/l2
+            - cumulativetodelta/l2
+            - chqdecorator/l2
+          exporters:
+            - forward/intakestats:
+            {{ range $name, $flags := .Values.vendors -}}
+            {{ if and $flags.enabled $flags.metrics -}}
+            - forward/{{ $name }}:
+            {{ end -}}
+            {{ end }}
         metrics/intakestats:
-          receivers: [forward/intakestats]
-          processors: [chqenforcer/intakestats]
-          exporters: [nop]
-        metrics/cardinalhq:
-          receivers: [forward/cardinalhq]
-          processors: [chqenforcer/cardinalhq, batch/cardinalhq]
-          exporters: [otlp/cardinalhq]
-        metrics/datadog:
-          receivers: [forward/datadog]
-          processors: [chqenforcer/datadog, batch/datadog]
-          exporters: [chqdatadog/datadog]
+          receivers:
+            - forward/intakestats
+          processors:
+            - chqenforcer/intakestats
+          exporters:
+            - nop
+        {{ range $name, $flags := .Values.vendors }}
+        {{ if and $flags.enabled $flags.metrics -}}
+        metrics/{{ $name }}:
+          receivers:
+            - forward/{{ $name }}
+          processors:
+            - chqenforcer/{{ $name }}
+            - batch/{{ $name }}
+          exporters:
+            - {{ $flags.exporter}}/{{ $name }}
+        {{ end -}}
+        {{- end -}}
 
         traces/l2:
-          receivers: [otlp/l2]
-          processors: [memory_limiter/l2, groupbytrace/l2, chqdecorator/l2]
-          exporters: [forward/intakestats, forward/cardinalhq, forward/datadog]
+          receivers:
+            - otlp/l2
+          processors:
+            - memory_limiter/l2
+            - groupbytrace/l2
+            - chqdecorator/l2
+          exporters:
+            - forward/intakestats:
+            {{ range $name, $flags := .Values.vendors -}}
+            {{ if and $flags.enabled $flags.traces -}}
+            - forward/{{ $name }}:
+            {{ end -}}
+            {{ end }}
         traces/intakestats:
-          receivers: [forward/intakestats]
-          processors: [chqenforcer/intakestats]
-          exporters: [nop]
-        traces/cardinalhq:
-          receivers: [forward/cardinalhq]
-          processors: [chqenforcer/cardinalhq, batch/cardinalhq]
-          exporters: [otlp/cardinalhq]
-        traces/datadog:
-          receivers: [forward/datadog]
-          processors: [chqenforcer/datadog, batch/datadog]
-          exporters: [chqdatadog/datadog]
+          receivers:
+            - forward/intakestats
+          processors:
+            - chqenforcer/intakestats
+          exporters:
+            - nop
+        {{ range $name, $flags := .Values.vendors }}
+        {{ if and $flags.enabled $flags.traces -}}
+        traces/{{ $name }}:
+          receivers:
+            - forward/{{ $name }}
+          processors:
+            - chqenforcer/{{ $name }}
+            - batch/{{ $name }}
+          exporters:
+            - {{ $flags.exporter}}/{{ $name }}
+        {{ end -}}
+        {{- end -}}
 
       {{ toYaml .Values.selfTelemetry | nindent 6 }}
 

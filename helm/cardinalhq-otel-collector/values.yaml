@@ -1,17 +1,40 @@
+vendors:
+  cardinalhq:
+    enabled: true
+    exporter: otlp
+    logs: true
+    metrics: true
+    traces: true
+    keepTags: true
+    config:
+      endpoint: https://chq-collector-grpc.svc.aws.dev.cardinalhq.net:443
+      auth:
+        authenticator: chqauth/cardinalhq
+  datadog:
+    enabled: true
+    exporter: chqdatadog
+    logs: true
+    metrics: true
+    traces: true
+    config:
+      api_key: ${env:DATADOG_API_KEY}
+      metrics:
+        endpoint: https://intake.cardinalhq.io
+        compression: gzip
+      logs:
+        endpoint: https://intake.cardinalhq.io
+        compression: gzip
+      traces:
+        endpoint: https://intake.cardinalhq.io
+        compression: gzip
+
 collector:
   ports:
     incoming:
-      otlpGRPCPort: 4317
-      otlpHTTPPort: 4318
-      datadogPort: 8126
+      otlpGRPCPort: 14317
     internal:
       otlpGRPCPort: 14317
   endpoints:
-    datadog:
-      metrics: https://intake.cardinalhq.io
-      logs: https://intake.cardinalhq.io
-      traces: https://intake.cardinalhq.io
-      compression: gzip
     cardinalhq:
       otlpGRPC: https://chq-collector-grpc.svc.aws.dev.cardinalhq.net:443
       stats: https://stats-receiver.svc.aws.dev.cardinalhq.net
@@ -36,19 +59,41 @@ collector:
       requests:
         cpu: 2000m
         memory: 2000Mi
+    defaultReceivers:
+      - name: otlp/l1
+        enabled: true
+        config:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:4317
+            http:
+              endpoint: 0.0.0.0:4318
+      - name: chqdatadog/l1
+        enabled: true
+        config:
+          endpoint: 0.0.0.0:8126
+    additionalReceivers: []
+    exporters:
+      logs:
+        - name: otlp/cardinalhq
+          enabled: true
+          vendor: cardinalhq
+        - name: chqdatadog/datadog
+          enabled: true
+          vendor: datadog
   l2:
     image:
       repository: public.ecr.aws/b1d7g2f3/cardinalhq-otel-collector
       tag: latest
     replicas: 2
     env:
-      gomemlimit: 700MiB
+      gomemlimit: 750MiB
     resources:
       limits:
-        cpu: 850m
+        cpu: 1000m
         memory: 1000Mi
       requests:
-        cpu: 850m
+        cpu: 1000m
         memory: 1000Mi
 loadbalancer:
   serviceName: collector-l2

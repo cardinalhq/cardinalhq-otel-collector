@@ -25,6 +25,8 @@ import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/processor/processorhelper"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
@@ -34,7 +36,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
-func (e *chqEnforcer) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
+func (e *chqEnforcer) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
 	now := time.Now()
 	md.ResourceMetrics().RemoveIf(func(rm pmetric.ResourceMetrics) bool {
 		serviceName := getServiceName(rm.Resource().Attributes())
@@ -47,7 +49,15 @@ func (e *chqEnforcer) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pme
 				case pmetric.MetricTypeGauge:
 					m.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
 						if e.pbPhase == chqpb.Phase_POST {
-							return e.aggregate(rm, ilm, m, dp)
+							agg := e.aggregate(rm, ilm, m, dp)
+							if agg {
+								e.aggregatedDatapoints.Add(ctx, 1, metric.WithAttributes(
+									attribute.String("metric_name", metricName),
+									attribute.String("service_name", serviceName),
+									attribute.String("vendor", e.vendor),
+									attribute.String("phase", e.pbPhase.String())))
+								return agg
+							}
 						}
 						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
 						return false
@@ -55,7 +65,15 @@ func (e *chqEnforcer) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pme
 				case pmetric.MetricTypeSum:
 					m.Sum().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
 						if e.pbPhase == chqpb.Phase_POST {
-							return e.aggregate(rm, ilm, m, dp)
+							agg := e.aggregate(rm, ilm, m, dp)
+							if agg {
+								e.aggregatedDatapoints.Add(ctx, 1, metric.WithAttributes(
+									attribute.String("metric_name", metricName),
+									attribute.String("service_name", serviceName),
+									attribute.String("vendor", e.vendor),
+									attribute.String("phase", e.pbPhase.String())))
+								return agg
+							}
 						}
 						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
 						return false

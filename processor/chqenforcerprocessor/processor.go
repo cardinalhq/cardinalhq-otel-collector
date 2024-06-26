@@ -27,12 +27,14 @@ import (
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/processor"
+	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqenforcerprocessor/internal/metadata"
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -55,12 +57,13 @@ type chqEnforcer struct {
 	sampler  sampler.LogSampler
 
 	// for metrics
-	metricstats         *stats.StatsCombiner[*MetricStat]
-	nextMetricReceiver  consumer.Metrics
-	aggregationInterval time.Duration
-	aggregatorI         sampler.MetricAggregator[int64]
-	aggregatorF         sampler.MetricAggregator[float64]
-	lastEmitCheck       time.Time
+	metricstats          *stats.StatsCombiner[*MetricStat]
+	nextMetricReceiver   consumer.Metrics
+	aggregationInterval  time.Duration
+	aggregatorI          sampler.MetricAggregator[int64]
+	aggregatorF          sampler.MetricAggregator[float64]
+	lastEmitCheck        time.Time
+	aggregatedDatapoints metric.Int64Counter
 
 	// for traces
 	estimatorWindowSize  int
@@ -73,7 +76,7 @@ type chqEnforcer struct {
 	sentFingerprints     *fingerprintTracker
 }
 
-func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextConsumer consumer.Metrics) *chqEnforcer {
+func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextConsumer consumer.Metrics) (*chqEnforcer, error) {
 	now := time.Now()
 	statsExporter := &chqEnforcer{
 		id:                 set.ID,
@@ -103,6 +106,10 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextCo
 		interval := config.MetricAggregation.Interval.Milliseconds()
 		statsExporter.aggregatorI = sampler.NewMetricAggregatorImpl[int64](interval, nil)
 		statsExporter.aggregatorF = sampler.NewMetricAggregatorImpl[float64](interval, nil)
+		err := statsExporter.setupMetricTelemetry()
+		if err != nil {
+			return nil, err
+		}
 	case "traces":
 		statsExporter.estimators = make(map[uint64]*SlidingEstimatorStat)
 		statsExporter.estimatorWindowSize = *config.TraceConfig.EstimatorWindowSize
@@ -112,7 +119,7 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextCo
 		statsExporter.uninterestingSampler = sampler.NewRPSSampler(sampler.WithMaxRPS(*config.TraceConfig.UninterestingRate))
 	}
 
-	return statsExporter
+	return statsExporter, nil
 }
 
 func (e *chqEnforcer) Capabilities() consumer.Capabilities {
@@ -159,6 +166,18 @@ func (e *chqEnforcer) Shutdown(ctx context.Context) error {
 	errors = multierror.Append(errors, e.slowSampler.Stop())
 	errors = multierror.Append(errors, e.hasErrorSampler.Stop())
 	return errors.ErrorOrNil()
+}
+
+func (e *chqEnforcer) setupMetricTelemetry() error {
+	m, err := metadata.Meter(e.telemetrySettings).Int64Counter("cardinalhq.enforcer.aggregated_datapoints",
+		metric.WithDescription("Number of aggregated datapoints"),
+		metric.WithUnit("1"),
+	)
+	if err != nil {
+		return err
+	}
+	e.aggregatedDatapoints = m
+	return nil
 }
 
 func (e *chqEnforcer) configUpdateCallback(sc sampler.SamplerConfig) {

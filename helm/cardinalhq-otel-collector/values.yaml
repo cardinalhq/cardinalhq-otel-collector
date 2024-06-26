@@ -29,6 +29,8 @@ vendors:
         compression: gzip
 
 collector:
+  aggregation:
+    interval: 2s
   ports:
     internal:
       otlpGRPCPort: 14317

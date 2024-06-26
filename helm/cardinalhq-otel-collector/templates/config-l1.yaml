@@ -97,6 +97,8 @@ data:
       chqenforcer/intakestats:
         configuration_extension: chqconfig/cardinalhq
         drop_decoration_attributes: false
+        metric_aggregation:
+          interval: {{ $.Values.collector.aggregation.interval }}
         statistics:
           endpoint: {{ .Values.collector.endpoints.cardinalhq.stats }}
           auth:
@@ -114,6 +116,8 @@ data:
         {{ if $flags.keepTags }}
         drop_decoration_attributes: false
         {{ end }}
+        metric_aggregation:
+          interval: {{ $.Values.collector.aggregation.interval }}
         statistics:
           endpoint: {{ $.Values.collector.endpoints.cardinalhq.stats }}
           auth:

@@ -57,9 +57,6 @@ data:
       cumulativetodelta/l2:
 
       chqdecorator/l2:
-        traces:
-          uninteresting_rate: 1000
-          has_error_rate: 4
 
       chqenforcer/intakestats:
         configuration_extension: chqconfig/cardinalhq
@@ -70,6 +67,9 @@ data:
             authenticator: chqauth/cardinalhq
           phase: presample
           vendor: intakestats
+        traces:
+          uninteresting_rate: 1000
+          has_error_rate: 4
 
       {{ range $name, $flags := .Values.vendors -}}
       {{ if $flags.enabled -}}
@@ -85,6 +85,9 @@ data:
             authenticator: chqauth/cardinalhq
           phase: postsample
           vendor: {{ $name }}
+        traces:
+          uninteresting_rate: 1000
+          has_error_rate: 4
       {{ end -}}
       {{ end -}}
       {{ end }}

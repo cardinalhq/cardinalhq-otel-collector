@@ -93,9 +93,7 @@ data:
       {{ end -}}
 
       chqdecorator/l1:
-        traces:
-          uninteresting_rate: 1000
-          has_error_rate: 4
+
       chqenforcer/intakestats:
         configuration_extension: chqconfig/cardinalhq
         drop_decoration_attributes: false
@@ -105,6 +103,9 @@ data:
             authenticator: chqauth/cardinalhq
           phase: presample
           vendor: intakestats
+        traces:
+          uninteresting_rate: 1000
+          has_error_rate: 4
 
       {{ range $name, $flags := .Values.vendors -}}
       {{ if and $flags.enabled $flags.logs -}}
@@ -119,6 +120,9 @@ data:
             authenticator: chqauth/cardinalhq
           phase: postsample
           vendor: {{ $name }}
+        traces:
+          uninteresting_rate: 1000
+          has_error_rate: 4
       {{ end -}}
       {{ end }}
 

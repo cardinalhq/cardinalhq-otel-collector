@@ -102,8 +102,8 @@ func (c *StatisticsConfig) Validate() error {
 func (c *MetricAggregationConfig) Validate() error {
 	var errs error
 
-	if c.Interval < 10*time.Second {
-		errs = multierr.Append(errs, errors.New("interval must be greater than or equal to 10s"))
+	if c.Interval < 1*time.Second {
+		errs = multierr.Append(errs, errors.New("interval must be greater than or equal to 1s"))
 	}
 
 	return errs

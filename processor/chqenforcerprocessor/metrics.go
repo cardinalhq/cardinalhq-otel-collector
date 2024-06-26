@@ -165,19 +165,21 @@ func (e *chqEnforcer) sendMetricStats(ctx context.Context, now time.Time, bucket
 				e.logger.Error("HLL is nil", zap.Any("metric", ms))
 				continue
 			}
+			estimate, _ := ms.HLL.GetEstimate() // ignore error for now
 			b, err := ms.HLL.ToCompactSlice()
 			if err != nil {
 				e.logger.Error("Failed to convert HLL to compact slice", zap.Error(err))
 				continue
 			}
 			item := &chqpb.MetricStats{
-				MetricName:  ms.MetricName,
-				ServiceName: ms.ServiceName,
-				TagName:     ms.TagName,
-				Phase:       ms.Phase,
-				Count:       ms.Count,
-				VendorId:    ms.VendorID,
-				Hll:         b,
+				MetricName:          ms.MetricName,
+				ServiceName:         ms.ServiceName,
+				TagName:             ms.TagName,
+				Phase:               ms.Phase,
+				Count:               ms.Count,
+				VendorId:            ms.VendorID,
+				CardinalityEstimate: estimate,
+				Hll:                 b,
 			}
 			wrapper.Stats = append(wrapper.Stats, item)
 		}

@@ -69,6 +69,7 @@ func (e *chqEnforcer) emitSetI(set *sampler.AggregationSet[int64]) {
 		setTags(m.Name(), res, sm, m, dp, agg.Tags(), e.podName)
 		serviceName := getServiceName(res.Resource().Attributes())
 		e.processDatapoint(now, m.Name(), serviceName, res.Resource().Attributes(), sm.Scope().Attributes(), dp.Attributes())
+		e.emit()
 
 		err := e.nextMetricReceiver.ConsumeMetrics(context.Background(), mmetrics)
 		if err != nil {
@@ -104,6 +105,7 @@ func (e *chqEnforcer) emitSetF(set *sampler.AggregationSet[float64]) {
 		setTags(m.Name(), res, sm, m, dp, agg.Tags(), e.podName)
 		serviceName := getServiceName(res.Resource().Attributes())
 		e.processDatapoint(now, m.Name(), serviceName, res.Resource().Attributes(), sm.Scope().Attributes(), dp.Attributes())
+		e.emit()
 
 		err := e.nextMetricReceiver.ConsumeMetrics(context.Background(), mmetrics)
 		if err != nil {

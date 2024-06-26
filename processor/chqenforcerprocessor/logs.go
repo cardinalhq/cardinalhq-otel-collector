@@ -24,6 +24,7 @@ import (
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
+	"go.opentelemetry.io/collector/processor/processorhelper"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
@@ -79,6 +80,10 @@ func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, e
 		})
 		return rl.ScopeLogs().Len() == 0
 	})
+
+	if ld.ResourceLogs().Len() == 0 {
+		return ld, processorhelper.ErrSkipProcessingData
+	}
 	return ld, nil
 }
 

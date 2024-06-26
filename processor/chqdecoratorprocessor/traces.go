@@ -64,7 +64,6 @@ func (sp *spansProcessor) processTraces(ctx context.Context, td ptrace.Traces) (
 }
 
 func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, hasError bool, fpError string) (ptrace.Traces, error) {
-	spancount := int64(0)
 	rss := td.ResourceSpans()
 	for i := 0; i < rss.Len(); i++ {
 		rs := rss.At(i)
@@ -73,7 +72,6 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 			ils := ilss.At(j)
 			spans := ils.Spans()
 			for k := 0; k < spans.Len(); k++ {
-				spancount++
 				span := spans.At(k)
 				span.Attributes().PutInt(translate.CardinalFieldFingerprint, int64(fingerprint))
 				span.Attributes().PutBool(translate.CardinalFieldTraceHasError, hasError)

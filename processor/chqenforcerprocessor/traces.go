@@ -24,11 +24,89 @@ import (
 	"time"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/spantagger"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"go.opentelemetry.io/collector/pdata/ptrace"
+	"go.opentelemetry.io/collector/processor/processorhelper"
+	"go.uber.org/zap"
 )
 
-func (e *chqEnforcer) ConsumeTraces(_ context.Context, td ptrace.Traces) (ptrace.Traces, error) {
+func (e *chqEnforcer) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
+	//
+	// At this stage, coming from the decorator and before being otherwise grouped,
+	// each trace bundle is its own thing.  We can pull the various flags out of
+	// any of the spans in the bundle, and use them to decide whether to filter
+	// the trace bundle.
+	//
+	fingerprint, hasError := e.getFingerprint(td)
+	if fingerprint == 0 {
+		return td, processorhelper.ErrSkipProcessingData
+	}
+	filtered, filteredReason := e.shouldFilter(td, fingerprint, hasError)
+	if !filtered {
+		filtered = e.maybeRateLimit(fingerprint, filtered, filteredReason)
+	}
+
+	if e.config.TraceConfig.GraphURL != "" {
+		if err := e.postFingerprint(ctx, td, fingerprint); err != nil {
+			e.logger.Warn("failed to post fingerprint", zap.Error(err))
+		}
+	}
+
+	if filtered {
+		return td, processorhelper.ErrSkipProcessingData
+	}
+
+	if e.config.DropDecorationAttributes {
+		dropDecorations(td)
+	}
 	return td, nil
+}
+
+func dropDecorations(td ptrace.Traces) {
+	rss := td.ResourceSpans()
+	for i := 0; i < rss.Len(); i++ {
+		rs := rss.At(i)
+		ilss := rs.ScopeSpans()
+		for j := 0; j < ilss.Len(); j++ {
+			ils := ilss.At(j)
+			spans := ils.Spans()
+			for k := 0; k < spans.Len(); k++ {
+				span := spans.At(k)
+				removeAllCardinalFields(span.Attributes())
+			}
+		}
+	}
+}
+
+func (e *chqEnforcer) getFingerprint(td ptrace.Traces) (uint64, bool) {
+	rs := td.ResourceSpans()
+	if rs.Len() == 0 {
+		return 0, false
+	}
+	rs0 := rs.At(0)
+	ilss := rs0.ScopeSpans()
+	if ilss.Len() == 0 {
+		return 0, false
+	}
+	ils0 := ilss.At(0)
+	spans := ils0.Spans()
+	if spans.Len() == 0 {
+		return 0, false
+	}
+	span0 := spans.At(0)
+
+	fingerprint := getFingerprint(span0.Attributes())
+	if fingerprint == 0 {
+		return 0, false
+	}
+
+	hasErrorVal, found := span0.Attributes().Get(translate.CardinalFieldTraceHasError)
+	if !found {
+		return 0, false
+	}
+	hasError := hasErrorVal.Bool()
+
+	return uint64(fingerprint), hasError
 }
 
 func (e *chqEnforcer) findSketch(fingerprint uint64) *SlidingEstimatorStat {
@@ -195,15 +273,3 @@ func (e *chqEnforcer) postFingerprint(ctx context.Context, td ptrace.Traces, fin
 
 	return nil
 }
-
-// if err := sp.postFingerprint(ctx, td, fingerprint); err != nil {
-//	sp.logger.Warn("failed to post fingerprint", zap.Error(err))
-//}
-
-// // First, check to see if this trace is interesting.  If it is not,
-// // we will have filtered set to true.  In that case, we only want to
-// // rate limit the unfiltered traces.
-// filtered, filteredReason := sp.shouldFilter(td, fingerprint, hasError)
-// if !filtered {
-// 	filtered = sp.maybeRateLimit(fingerprint, filtered, filteredReason)
-// }

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package chqdecoratorprocessor
+package chqenforcerprocessor
 
 import (
 	"context"
@@ -32,9 +32,9 @@ import (
 )
 
 func TestNewTrace(t *testing.T) {
-	sp := &spansProcessor{
+	sp := &chqEnforcer{
 		logger: zap.NewNop(),
-		sentFingerprints: fingerprintTracker{
+		sentFingerprints: &fingerprintTracker{
 			fingerprints: make(map[uint64]struct{}),
 		},
 	}
@@ -53,9 +53,9 @@ func TestNewTrace(t *testing.T) {
 }
 
 func TestDeleteTrace(t *testing.T) {
-	sp := &spansProcessor{
+	sp := &chqEnforcer{
 		logger: zap.NewNop(),
-		sentFingerprints: fingerprintTracker{
+		sentFingerprints: &fingerprintTracker{
 			fingerprints: make(map[uint64]struct{}),
 		},
 	}
@@ -101,10 +101,13 @@ func TestSendGraph(t *testing.T) {
 	}))
 
 	// Create a spansProcessor instance with the mock server URL
-	sp := &spansProcessor{
-		logger: zap.NewNop(),
-		traceConfig: &TraceConfig{
-			GraphURL: server.URL + "/graph",
+	sp := &chqEnforcer{
+		logger:     zap.NewNop(),
+		httpClient: server.Client(),
+		config: &Config{
+			TraceConfig: TraceConfig{
+				GraphURL: server.URL + "/graph",
+			},
 		},
 	}
 
@@ -210,7 +213,7 @@ func TestShouldFilter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sp := &spansProcessor{
+			sp := &chqEnforcer{
 				logger:              zap.NewNop(),
 				estimators:          make(map[uint64]*SlidingEstimatorStat),
 				estimatorWindowSize: 10,
@@ -229,7 +232,7 @@ func TestShouldFilter(t *testing.T) {
 }
 
 func TestRateLimitSlow(t *testing.T) {
-	sp := &spansProcessor{
+	sp := &chqEnforcer{
 		logger:      zap.NewNop(),
 		slowSampler: constantSampler(1),
 	}
@@ -383,7 +386,7 @@ func TestMaybeRateLimit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sp := &spansProcessor{
+			sp := &chqEnforcer{
 				logger:               zap.NewNop(),
 				slowSampler:          constantSampler(0),
 				hasErrorSampler:      constantSampler(0),

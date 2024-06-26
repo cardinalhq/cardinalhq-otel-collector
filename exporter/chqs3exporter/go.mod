@@ -5,8 +5,8 @@ go 1.22.3
 toolchain go1.22.4
 
 require (
-	github.com/DataDog/sketches-go v1.4.5
-	github.com/aws/aws-sdk-go v1.54.6
+	github.com/DataDog/sketches-go v1.4.6
+	github.com/aws/aws-sdk-go v1.54.8
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
 	github.com/oklog/ulid/v2 v2.1.0
 	github.com/parquet-go/parquet-go v0.22.0

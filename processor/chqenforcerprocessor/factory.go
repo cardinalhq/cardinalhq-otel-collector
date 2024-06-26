@@ -46,6 +46,14 @@ const (
 	defaultStatisticsInterval = 1 * time.Minute
 )
 
+var (
+	defaultUninterestingRate         = 1
+	defaultSlowRate                  = 2
+	defaultHasErrorRate              = 2
+	defaultEstimatorWindowSize       = 30
+	defaultEstimatorInterval   int64 = 10_000
+)
+
 func createDefaultConfig() component.Config {
 	return &Config{
 		Statistics: StatisticsConfig{
@@ -61,6 +69,13 @@ func createDefaultConfig() component.Config {
 		},
 		MetricAggregation: MetricAggregationConfig{
 			Interval: defaultMetricAggregation,
+		},
+		TraceConfig: TraceConfig{
+			UninterestingRate:   &defaultUninterestingRate,
+			SlowRate:            &defaultSlowRate,
+			HasErrorRate:        &defaultHasErrorRate,
+			EstimatorWindowSize: &defaultEstimatorWindowSize,
+			EstimatorInterval:   &defaultEstimatorInterval,
 		},
 		DropDecorationAttributes: defaultDropDecorationTags,
 	}

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package chqdecoratorprocessor
+package chqenforcerprocessor
 
 import "sync"
 
@@ -27,18 +27,18 @@ func newFingerprintTracker() *fingerprintTracker {
 	}
 }
 
-func (sp *spansProcessor) newTrace(fingerprint uint64) bool {
-	sp.sentFingerprints.Lock()
-	defer sp.sentFingerprints.Unlock()
-	if _, ok := sp.sentFingerprints.fingerprints[fingerprint]; ok {
+func (e *chqEnforcer) newTrace(fingerprint uint64) bool {
+	e.sentFingerprints.Lock()
+	defer e.sentFingerprints.Unlock()
+	if _, ok := e.sentFingerprints.fingerprints[fingerprint]; ok {
 		return false
 	}
-	sp.sentFingerprints.fingerprints[fingerprint] = struct{}{}
+	e.sentFingerprints.fingerprints[fingerprint] = struct{}{}
 	return true
 }
 
-func (sp *spansProcessor) deleteTrace(fingerprint uint64) {
-	sp.sentFingerprints.Lock()
-	defer sp.sentFingerprints.Unlock()
-	delete(sp.sentFingerprints.fingerprints, fingerprint)
+func (e *chqEnforcer) deleteTrace(fingerprint uint64) {
+	e.sentFingerprints.Lock()
+	defer e.sentFingerprints.Unlock()
+	delete(e.sentFingerprints.fingerprints, fingerprint)
 }

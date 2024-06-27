@@ -19,13 +19,18 @@ import (
 
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/config/configopaque"
+	"go.opentelemetry.io/collector/config/configretry"
+	"go.opentelemetry.io/collector/exporter/exporterhelper"
 )
 
 type Config struct {
-	APIKey  configopaque.String `mapstructure:"api_key"`
-	Metrics MetricsConfig       `mapstructure:"metrics"`
-	Logs    LogsConfig          `mapstructure:"logs"`
-	Traces  TracesConfig        `mapstructure:"traces"`
+	exporterhelper.TimeoutSettings `mapstructure:",squash"`
+	QueueConfig                    exporterhelper.QueueSettings `mapstructure:"sending_queue"`
+	RetryConfig                    configretry.BackOffConfig    `mapstructure:"retry_on_failure"`
+	APIKey                         configopaque.String          `mapstructure:"api_key"`
+	Metrics                        MetricsConfig                `mapstructure:"metrics"`
+	Logs                           LogsConfig                   `mapstructure:"logs"`
+	Traces                         TracesConfig                 `mapstructure:"traces"`
 }
 
 var errAPIKeyMissing = errors.New("api_key must be specified")

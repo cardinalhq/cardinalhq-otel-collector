@@ -45,22 +45,13 @@ func (e *datadogExporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics
 			ilm.Scope().Attributes().CopyTo(sAttr)
 			for k := 0; k < ilm.Metrics().Len(); k++ {
 				metric := ilm.Metrics().At(k)
-				m := &ddpb.MetricPayload_MetricSeries{
-					Metric: metric.Name(),
-					Unit:   metric.Unit(),
-				}
 				switch metric.Type() {
 				case pmetric.MetricTypeGauge:
-					if err := e.convertGaugeMetric(ctx, m, rAttr, sAttr, metric.Gauge()); err != nil {
-						return err
-					}
-					m.Type = ddpb.MetricPayload_GAUGE
-					msg.Series = append(msg.Series, m)
+					mlist := e.convertGaugeMetric(ctx, metric, rAttr, sAttr, metric.Gauge())
+					msg.Series = append(msg.Series, mlist...)
 				case pmetric.MetricTypeSum:
-					if err := e.convertSumMetric(ctx, m, rAttr, sAttr, metric.Sum()); err != nil {
-						return err
-					}
-					msg.Series = append(msg.Series, m)
+					mlist := e.convertSumMetric(ctx, metric, rAttr, sAttr, metric.Sum())
+					msg.Series = append(msg.Series, mlist...)
 				case pmetric.MetricTypeHistogram:
 					//
 				case pmetric.MetricTypeExponentialHistogram:
@@ -91,49 +82,63 @@ func valueAsFloat64(dp pmetric.NumberDataPoint) float64 {
 	return 0
 }
 
-func (e *datadogExporter) convertGaugeMetric(_ context.Context, m *ddpb.MetricPayload_MetricSeries, rAttr, sAttr pcommon.Map, g pmetric.Gauge) error {
+func (e *datadogExporter) convertGaugeMetric(_ context.Context, metric pmetric.Metric, rAttr, sAttr pcommon.Map, g pmetric.Gauge) []*ddpb.MetricPayload_MetricSeries {
+	ret := []*ddpb.MetricPayload_MetricSeries{}
 	for i := 0; i < g.DataPoints().Len(); i++ {
-		dp := g.DataPoints().At(i)
-		if i == 0 {
-			m.Tags = append(m.Tags, tagStrings(rAttr, sAttr, dp.Attributes())...)
+		m := &ddpb.MetricPayload_MetricSeries{
+			Metric: metric.Name(),
+			Unit:   metric.Unit(),
+			Type:   ddpb.MetricPayload_GAUGE,
 		}
+		dp := g.DataPoints().At(i)
+		m.Tags = append(m.Tags, tagStrings(rAttr, sAttr, dp.Attributes())...)
 		m.Points = append(m.Points, &ddpb.MetricPayload_MetricPoint{
 			Timestamp: dp.Timestamp().AsTime().Unix(),
 			Value:     valueAsFloat64(dp),
 		})
+		ret = append(ret, m)
 	}
-	return nil
+	return ret
 }
 
-func (e *datadogExporter) convertSumMetric(_ context.Context, m *ddpb.MetricPayload_MetricSeries, rAttr, sAttr pcommon.Map, s pmetric.Sum) error {
+func (e *datadogExporter) convertSumMetric(_ context.Context, metric pmetric.Metric, rAttr, sAttr pcommon.Map, s pmetric.Sum) []*ddpb.MetricPayload_MetricSeries {
+	ret := []*ddpb.MetricPayload_MetricSeries{}
 	for i := 0; i < s.DataPoints().Len(); i++ {
+		m := &ddpb.MetricPayload_MetricSeries{
+			Metric: metric.Name(),
+			Unit:   metric.Unit(),
+			Type:   ddpb.MetricPayload_COUNT,
+		}
 		dp := s.DataPoints().At(i)
 		value := valueAsFloat64(dp)
-		if i == 0 {
-			lAttr := pcommon.NewMap()
-			dp.Attributes().CopyTo(lAttr)
-			if v, found := lAttr.Get("_dd.rateInterval"); found {
-				m.Type = ddpb.MetricPayload_RATE
-				val := v.AsRaw()
-				if intval, ok := val.(int64); ok {
-					if intval <= 0 {
-						intval = 1
-					}
-					m.Interval = intval
-					value = value / float64(intval)
-				}
-			} else {
-				m.Type = ddpb.MetricPayload_COUNT
-			}
-			lAttr.Remove("_dd.rateInterval")
-			m.Tags = append(m.Tags, tagStrings(rAttr, sAttr, lAttr)...)
+		lAttr := dp.Attributes()
+		interval, hasInterval := getInterval(lAttr)
+		if hasInterval {
+			value = value / float64(interval)
+			m.Type = ddpb.MetricPayload_RATE
 		}
+		m.Tags = append(m.Tags, tagStrings(rAttr, sAttr, lAttr)...)
+		lAttr.Remove("_dd.rateInterval")
 		m.Points = append(m.Points, &ddpb.MetricPayload_MetricPoint{
 			Timestamp: dp.Timestamp().AsTime().Unix(),
 			Value:     value,
 		})
+		ret = append(ret, m)
 	}
-	return nil
+	return ret
+}
+
+func getInterval(lAttr pcommon.Map) (int64, bool) {
+	if v, found := lAttr.Get("_dd.rateInterval"); found {
+		val := v.AsRaw()
+		if intval, ok := val.(int64); ok {
+			if intval <= 0 {
+				intval = 1
+			}
+			return intval, true
+		}
+	}
+	return 1, false
 }
 
 func (e *datadogExporter) sendMetrics(ctx context.Context, msg *ddpb.MetricPayload) error {

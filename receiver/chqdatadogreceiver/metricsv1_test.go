@@ -29,8 +29,9 @@ func TestPopulateDatapoint(t *testing.T) {
 	value := 123.45         // Example value
 
 	populateDatapoint(&dp, ts, value)
+	expectedTimestamp := pcommon.Timestamp(1629878400 * time.Millisecond)
 
-	assert.Equal(t, pcommon.Timestamp(1629878400*time.Millisecond), dp.Timestamp())
+	assert.Equal(t, expectedTimestamp, dp.Timestamp())
+	assert.Equal(t, expectedTimestamp, dp.StartTimestamp())
 	assert.Equal(t, value, dp.DoubleValue())
-	assert.Equal(t, pcommon.Timestamp(1629878340*time.Millisecond), dp.StartTimestamp())
 }

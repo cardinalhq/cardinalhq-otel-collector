@@ -110,7 +110,7 @@ func (ddr *datadogReceiver) convertMetricV1(v1 SeriesV1) (pmetric.Metrics, error
 		for _, point := range v1.Points {
 			dp := g.DataPoints().AppendEmpty()
 			lAttr.CopyTo(dp.Attributes())
-			populateDatapoint(&dp, point.V1, v1.Interval, point.V2)
+			populateDatapoint(&dp, point.V1, point.V2)
 		}
 	case "count":
 		c := metric.SetEmptySum()
@@ -119,18 +119,16 @@ func (ddr *datadogReceiver) convertMetricV1(v1 SeriesV1) (pmetric.Metrics, error
 		for _, point := range v1.Points {
 			dp := c.DataPoints().AppendEmpty()
 			lAttr.CopyTo(dp.Attributes())
-			populateDatapoint(&dp, point.V1, v1.Interval, point.V2)
+			populateDatapoint(&dp, point.V1, point.V2)
 		}
 	}
 
 	return m, nil
 }
 
-func populateDatapoint(dp *pmetric.NumberDataPoint, ts int64, interval *int64, value float64) {
-	dp.SetTimestamp(pcommon.Timestamp(uint64(ts) * 1_000_000))
+func populateDatapoint(dp *pmetric.NumberDataPoint, ts int64, value float64) {
+	timestamp := pcommon.Timestamp(uint64(ts) * 1_000_000)
+	dp.SetTimestamp(timestamp)
 	dp.SetDoubleValue(value)
-	if interval != nil {
-		starttime := uint64(ts) - uint64(*interval)
-		dp.SetStartTimestamp(pcommon.Timestamp(starttime * 1_000_000))
-	}
+	dp.SetStartTimestamp(timestamp)
 }

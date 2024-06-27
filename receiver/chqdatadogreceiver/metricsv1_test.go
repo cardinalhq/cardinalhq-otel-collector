@@ -26,10 +26,9 @@ import (
 func TestPopulateDatapoint(t *testing.T) {
 	dp := pmetric.NewNumberDataPoint()
 	ts := int64(1629878400) // Example timestamp
-	interval := int64(60)   // Example interval
 	value := 123.45         // Example value
 
-	populateDatapoint(&dp, ts, &interval, value)
+	populateDatapoint(&dp, ts, value)
 
 	assert.Equal(t, pcommon.Timestamp(1629878400*time.Millisecond), dp.Timestamp())
 	assert.Equal(t, value, dp.DoubleValue())

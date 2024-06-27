@@ -90,8 +90,8 @@ func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, ddMetrics []*d
 		ddr.metricFilterCounter.Add(ctx, int64(keptDatapoints), metric.WithAttributeSet(asetKept))
 	}()
 
-	for _, metric := range ddMetrics {
-		if err := ddr.convertMetricV2(m, metric); err != nil {
+	for _, ddMetric := range ddMetrics {
+		if err := ddr.convertMetricV2(m, ddMetric); err != nil {
 			return err
 		}
 		count++
@@ -204,9 +204,9 @@ func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPa
 	sAttr := scope.Scope().Attributes()
 	sAttr.PutStr(string(semconv.AttributeTelemetrySDKName), "Datadog")
 
-	metric := scope.Metrics().AppendEmpty()
-	metric.SetName(v2.Metric)
-	metric.SetUnit(v2.Unit)
+	ddMetric := scope.Metrics().AppendEmpty()
+	ddMetric.SetName(v2.Metric)
+	ddMetric.SetUnit(v2.Unit)
 
 	// if v2.Metadata != nil && v2.Metadata.Origin != nil {
 	// 	rAttr.PutInt("dd.origin.category", int64(v2.Metadata.Origin.OriginCategory))
@@ -234,30 +234,30 @@ func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPa
 
 	switch v2.Type {
 	case ddpb.MetricPayload_GAUGE, ddpb.MetricPayload_UNSPECIFIED:
-		g := metric.SetEmptyGauge()
+		g := ddMetric.SetEmptyGauge()
 		for _, point := range v2.Points {
 			gdp := g.DataPoints().AppendEmpty()
 			lAttr.CopyTo(gdp.Attributes())
-			populateDatapoint(&gdp, point.Timestamp*1000, &v2.Interval, point.Value)
+			populateDatapoint(&gdp, point.Timestamp*1000, point.Value)
 		}
 	case ddpb.MetricPayload_RATE:
-		c := metric.SetEmptySum()
+		c := ddMetric.SetEmptySum()
 		c.SetIsMonotonic(false)
 		c.SetAggregationTemporality(pmetric.AggregationTemporalityDelta)
 		for _, point := range v2.Points {
 			cdp := c.DataPoints().AppendEmpty()
 			lAttr.CopyTo(cdp.Attributes())
 			cdp.Attributes().PutInt("_dd.rateInterval", v2.Interval)
-			populateDatapoint(&cdp, point.Timestamp*1000, &v2.Interval, point.Value*float64(v2.Interval))
+			populateDatapoint(&cdp, point.Timestamp*1000, point.Value*float64(v2.Interval))
 		}
 	case ddpb.MetricPayload_COUNT:
-		c := metric.SetEmptySum()
+		c := ddMetric.SetEmptySum()
 		c.SetIsMonotonic(false)
 		c.SetAggregationTemporality(pmetric.AggregationTemporalityDelta)
 		for _, point := range v2.Points {
 			cdp := c.DataPoints().AppendEmpty()
 			lAttr.CopyTo(cdp.Attributes())
-			populateDatapoint(&cdp, point.Timestamp*1000, &v2.Interval, point.Value)
+			populateDatapoint(&cdp, point.Timestamp*1000, point.Value)
 		}
 	}
 

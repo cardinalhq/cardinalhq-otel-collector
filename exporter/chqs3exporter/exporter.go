@@ -24,9 +24,6 @@ import (
 
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/exporter"
-	"go.opentelemetry.io/collector/pdata/plog"
-	"go.opentelemetry.io/collector/pdata/pmetric"
-	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/multierr"
@@ -109,44 +106,6 @@ func (e *s3Exporter) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: false}
 }
 
-func (e *s3Exporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
-	var errs error
-	oldestTimestamp, customerIDs, err := e.consumeMetrics(time.Now().UnixMilli(), md)
-	errs = multierr.Append(errs, err)
-	go e.writeClosed(customerIDs, oldestTimestamp, metricFilePrefix, e.metrics)
-	return errs
-}
-
-func (e *s3Exporter) consumeMetrics(now int64, md pmetric.Metrics) (int64, []string, error) {
-	if e.config.Timeboxes.Metrics.Interval <= 0 {
-		return 0, nil, nil
-	}
-	return e.appendMetrics(now, md)
-}
-
-func (e *s3Exporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {
-	var errs error
-	oldestTimestamp, customerIDs, err := e.consumeLogs(time.Now().UnixMilli(), logs)
-	errs = multierr.Append(errs, err)
-	go e.writeClosed(customerIDs, oldestTimestamp, logFilePrefix, e.logs)
-	return errs
-}
-
-func (e *s3Exporter) consumeLogs(now int64, logs plog.Logs) (int64, []string, error) {
-	if e.config.Timeboxes.Logs.Interval <= 0 {
-		return 0, nil, nil
-	}
-	return e.appendLogs(now, logs)
-}
-
-func (e *s3Exporter) ConsumeTraces(ctx context.Context, traces ptrace.Traces) error {
-	var errs error
-	oldestTimestamp, customerIDs, err := e.consumeTraces(time.Now().UnixMilli(), traces)
-	errs = multierr.Append(errs, err)
-	go e.writeClosed(customerIDs, oldestTimestamp, tracesFilePrefix, e.traces)
-	return errs
-}
-
 func (e *s3Exporter) writeClosed(customerIDs []string, oldestTimestamp int64, filePrefix string, acc timebox.Timebox[string, *TimeboxEntry]) {
 	e.telemetry.startGoProcWriter()
 	defer e.telemetry.finishGoProcWriter()
@@ -156,13 +115,6 @@ func (e *s3Exporter) writeClosed(customerIDs []string, oldestTimestamp int64, fi
 			e.logger.Error("Failed to write closed tables", zap.Error(err), zap.String("filePrefix", filePrefix), zap.Int64("oldestTimestamp", oldestTimestamp), zap.Strings("customerIDs", customerIDs))
 		}
 	}
-}
-
-func (e *s3Exporter) consumeTraces(now int64, traces ptrace.Traces) (int64, []string, error) {
-	if e.config.Timeboxes.Traces.Interval <= 0 {
-		return 0, nil, nil
-	}
-	return e.appendTraces(now, traces)
 }
 
 func (s *s3Exporter) writeTable(items map[int64][]*TimeboxEntry, telemetryType string, customerID string) error {
@@ -255,30 +207,6 @@ func (s *s3Exporter) MarshalTable(wr io.Writer, items []*TimeboxEntry) error {
 		return err
 	}
 	return writer.Close()
-}
-
-func (e *s3Exporter) appendMetrics(now int64, md pmetric.Metrics) (int64, []string, error) {
-	tbl, err := e.tb.MetricsFromOtel(&md)
-	if err != nil {
-		return 0, nil, err
-	}
-	return e.emitRows(now, false, tbl, e.metrics, metricFilePrefix)
-}
-
-func (e *s3Exporter) appendTraces(now int64, td ptrace.Traces) (int64, []string, error) {
-	tbl, err := e.tb.TracesFromOtel(&td)
-	if err != nil {
-		return 0, nil, err
-	}
-	return e.emitRows(now, true, tbl, e.traces, tracesFilePrefix)
-}
-
-func (e *s3Exporter) appendLogs(now int64, ld plog.Logs) (int64, []string, error) {
-	tbl, err := e.tb.LogsFromOtel(&ld)
-	if err != nil {
-		return 0, nil, err
-	}
-	return e.emitRows(now, true, tbl, e.logs, logFilePrefix)
 }
 
 func customerIDFromMap(m map[string]any) string {

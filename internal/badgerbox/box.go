@@ -30,6 +30,7 @@ type Box struct {
 	timefunc      TimeFunc
 	ttl           time.Duration
 	openIntervals map[int64]struct{}
+	keyprefix     string
 }
 
 type TimeFunc func() time.Time
@@ -37,21 +38,22 @@ type TimeFunc func() time.Time
 const (
 	NoTTL                = time.Duration(0)
 	intervalMarkerPrefix = "interval"
+	keySeparator         = "-"
 )
 
-func NewBox(kvs KVS, interval time.Duration, intervalCount int64, grace time.Duration, ttl time.Duration, timefunc TimeFunc) (*Box, error) {
-	if timefunc == nil {
-		timefunc = time.Now
-	}
+func NewBox(options ...BoxOptions) (*Box, error) {
 	box := &Box{
-		kvs:           kvs,
-		interval:      interval,
-		intervalCount: intervalCount,
-		grace:         grace,
-		ttl:           ttl,
-		timefunc:      timefunc,
-		openIntervals: map[int64]struct{}{},
+		interval:      time.Minute,
+		intervalCount: 60,
+		grace:         0,
+		timefunc:      time.Now,
+		ttl:           NoTTL,
+		openIntervals: make(map[int64]struct{}),
 	}
+	for _, opt := range options {
+		opt.apply(box)
+	}
+
 	if err := box.loadOpenIntervals(); err != nil {
 		return nil, err
 	}

@@ -212,6 +212,24 @@ annotations:
 {{- end }}
 
 {{/*
+Create annotations for pvc.
+*/}}
+{{- define "customerside.pvc.annotations" }}
+{{- if .Values.annotations }}
+{{- if or (.Values.annotations.pvc) (.Values.annotations.common) }}
+annotations:
+{{- if .Values.annotations.pvc }}
+{{- toYaml .Values.annotations.pvc | nindent 2 }}
+{{- end }}
+{{- if .Values.annotations.common }}
+{{- toYaml .Values.annotations.common | nindent 2 }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+
+{{/*
 Get the name of the datadog secret
 */}}
 {{- define "customerside.secret.datadog.name" -}}

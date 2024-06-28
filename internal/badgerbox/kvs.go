@@ -44,7 +44,8 @@ type KVS interface {
 }
 
 // Wiper interface is optional, and used mostly for testing,
-// using the in-memory KVS.
+// using the in-memory KVS.  This method may not be concurrent-safe,
+// and should not be used in production.
 type Wiper interface {
 	// Wipe removes all keys from the key-value store.
 	Wipe() error

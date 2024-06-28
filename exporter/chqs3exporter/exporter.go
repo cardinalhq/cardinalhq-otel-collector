@@ -110,7 +110,11 @@ func (e *s3Exporter) writeClosed(customerIDs []string, oldestTimestamp int64, fi
 	e.telemetry.startGoProcWriter()
 	defer e.telemetry.finishGoProcWriter()
 	for _, customerID := range customerIDs {
-		items := acc.Closed(customerID, oldestTimestamp, &TimeboxEntry{})
+		items, err := acc.Closed(customerID, oldestTimestamp, &TimeboxEntry{})
+		if err != nil {
+			e.logger.Error("Failed to get closed tables", zap.Error(err), zap.String("filePrefix", filePrefix), zap.Int64("oldestTimestamp", oldestTimestamp), zap.Strings("customerIDs", customerIDs))
+			continue
+		}
 		if err := e.writeTable(items, filePrefix, customerID); err != nil {
 			e.logger.Error("Failed to write closed tables", zap.Error(err), zap.String("filePrefix", filePrefix), zap.Int64("oldestTimestamp", oldestTimestamp), zap.Strings("customerIDs", customerIDs))
 		}
@@ -158,19 +162,28 @@ func (e *s3Exporter) Shutdown(context.Context) error {
 
 	scopes := e.logs.Scopes()
 	for _, scope := range scopes {
-		items := e.logs.Closed(scope, 0, &TimeboxEntry{})
+		items, err := e.logs.Closed(scope, 0, &TimeboxEntry{})
+		if err != nil {
+			errs = multierr.Append(errs, err)
+		}
 		errs = multierr.Append(errs, e.writeTable(items, logFilePrefix, scope))
 	}
 
 	scopes = e.metrics.Scopes()
 	for _, scope := range scopes {
-		items := e.metrics.Closed(scope, 0, &TimeboxEntry{})
+		items, err := e.metrics.Closed(scope, 0, &TimeboxEntry{})
+		if err != nil {
+			errs = multierr.Append(errs, err)
+		}
 		errs = multierr.Append(errs, e.writeTable(items, metricFilePrefix, scope))
 	}
 
 	scopes = e.traces.Scopes()
 	for _, scope := range scopes {
-		items := e.traces.Closed(scope, 0, &TimeboxEntry{})
+		items, err := e.traces.Closed(scope, 0, &TimeboxEntry{})
+		if err != nil {
+			errs = multierr.Append(errs, err)
+		}
 		errs = multierr.Append(errs, e.writeTable(items, tracesFilePrefix, scope))
 	}
 	return errs

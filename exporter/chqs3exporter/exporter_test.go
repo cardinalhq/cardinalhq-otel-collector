@@ -78,9 +78,11 @@ func TestLog(t *testing.T) {
 	assert.NotZero(t, oldest)
 	for _, cid := range cids {
 
-		items := exporter.logs.Closed(cid, oldest, &TimeboxEntry{})
+		items, err := exporter.logs.Closed(cid, oldest, &TimeboxEntry{})
+		assert.NoError(t, err)
 		assert.Len(t, items, 0)
-		items = exporter.logs.Closed(cid, lastTS+200_000, &TimeboxEntry{})
+		items, err = exporter.logs.Closed(cid, lastTS+200_000, &TimeboxEntry{})
+		assert.NoError(t, err)
 		assert.Len(t, items, 1)
 		assert.NoError(t, exporter.writeTable(items, "logs", cid))
 	}

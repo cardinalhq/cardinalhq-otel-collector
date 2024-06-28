@@ -60,10 +60,17 @@ func TestScopedTimeboxImpl_Append(t *testing.T) {
 	err := tbox.Append(scope, ts, item)
 	assert.NoError(t, err)
 
-	items := tbox.Items(scope, &MockEntry{})
-	assert.Equal(t, 1, len(items))
+	itemCount := 0
+	foundItems := map[int64][]*MockEntry{}
+	err = tbox.ForEach(scope, &MockEntry{}, func(ts int64, items map[int64][]*MockEntry) bool {
+		itemCount++
+		foundItems = items
+		return true
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 1, itemCount)
 
-	entry := items[tboxKey]
+	entry := foundItems[tboxKey]
 	assert.Equal(t, 1, len(entry))
 	assert.Equal(t, item, entry[0])
 }
@@ -123,13 +130,21 @@ func TestScopedTimeboxImpl_Closed(t *testing.T) {
 	err := timebox.Append(scope, ts, item)
 	assert.NoError(t, err)
 
-	closedItems := timebox.Closed(scope, now, &MockEntry{})
+	closedItems, err := timebox.Closed(scope, now, &MockEntry{})
+	assert.NoError(t, err)
 	assert.Equal(t, 1, len(closedItems))
 	assert.Equal(t, item, closedItems[tbox][0])
 
 	// Ensure the item is removed from the timebox
-	items := timebox.Items(scope, &MockEntry{})
-	assert.Empty(t, items[tbox])
+	found := false
+	err = timebox.ForEach(scope, &MockEntry{}, func(ts int64, items map[int64][]*MockEntry) bool {
+		if len(items) > 0 {
+			found = true
+		}
+		return true
+	})
+	assert.NoError(t, err)
+	assert.False(t, found)
 }
 
 func TestScopedTimeboxImpl_Closed_IntervalCount2(t *testing.T) {
@@ -144,7 +159,8 @@ func TestScopedTimeboxImpl_Closed_IntervalCount2(t *testing.T) {
 	err := timebox.Append(scope, ts, item)
 	assert.NoError(t, err)
 
-	closedItems := timebox.Closed(scope, now, &MockEntry{})
+	closedItems, err := timebox.Closed(scope, now, &MockEntry{})
+	assert.NoError(t, err)
 	assert.Equal(t, 0, len(closedItems))
 }
 
@@ -155,7 +171,8 @@ func TestScopedTimeboxImpl_ClosedMissingScope(t *testing.T) {
 	timebox := NewTimeboxImpl[int, *MockEntry](NewMemoryBufferFactory(), interval, intervalCount, grace)
 	scope := 1
 	now := int64(1234567890)
-	closedItems := timebox.Closed(scope, now, &MockEntry{})
+	closedItems, err := timebox.Closed(scope, now, &MockEntry{})
+	assert.NoError(t, err)
 	assert.Empty(t, closedItems)
 }
 
@@ -177,32 +194,25 @@ func TestScopedTimeboxImpl_Scopes(t *testing.T) {
 	assert.ElementsMatch(t, []int{scope1, scope2, scope3}, scopes)
 }
 
-func TestScopedTimeboxImpl_Items(t *testing.T) {
+func TestTimeboxImpl_TooOld(t *testing.T) {
 	interval := int64(1000)
-	grace := int64(200)
+	grace := int64(0)
 	intervalCount := int64(2)
-	timebox := NewTimeboxImpl[int, *MockEntry](NewMemoryBufferFactory(), interval, intervalCount, grace)
-	scope := 1
-	ts := int64(1234567890)
-	tbox := CalculateInterval(ts, interval)
-	item := &MockEntry{}
-	err := timebox.Append(scope, ts, item)
-	assert.NoError(t, err)
+	timebox := NewTimeboxImpl[int, *mm](nil, interval, intervalCount, grace)
 
-	items := timebox.Items(scope, &MockEntry{})
-	assert.Equal(t, 1, len(items))
+	// Test when ts is too old
+	for i := int64(0); i < 100; i++ {
+		ts := int64(500)
+		now := ts + interval*intervalCount + grace + 10 + (i * interval)
+		tooOld, remaining := timebox.TooOld(ts, now)
+		assert.True(t, tooOld)
+		assert.Equal(t, i+1, remaining)
+	}
 
-	entry := items[tbox]
-	assert.Equal(t, 1, len(entry))
-	assert.Equal(t, item, entry[0])
-}
-
-func TestScopedTimeboxImpl_ItemsMissingScope(t *testing.T) {
-	interval := int64(1000)
-	grace := int64(200)
-	intervalCount := int64(2)
-	timebox := NewTimeboxImpl[int, *MockEntry](NewMemoryBufferFactory(), interval, intervalCount, grace)
-	scope := 1
-	items := timebox.Items(scope, &MockEntry{})
-	assert.Empty(t, items)
+	// Test when ts is not too old
+	ts := int64(1000)
+	now := ts + interval*intervalCount + grace - 10
+	tooOld, remaining := timebox.TooOld(ts, now)
+	assert.False(t, tooOld)
+	assert.Equal(t, int64(0), remaining)
 }

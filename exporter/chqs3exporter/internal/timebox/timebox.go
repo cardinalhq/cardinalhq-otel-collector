@@ -15,6 +15,7 @@
 package timebox
 
 import (
+	"encoding/binary"
 	"sync"
 )
 
@@ -25,8 +26,10 @@ type Entry interface {
 
 type Timebox[T comparable, E Entry] interface {
 	Append(scope T, ts int64, item ...E) error
-	Closed(scope T, now int64, generator E) map[int64][]E
-	Items(scope T, generator E) map[int64][]E
+	Closed(scope T, now int64, generator E) (map[int64][]E, error)
+	// ForEach iterates over all the entries in the timebox, calling the provided function for each entry.
+	// If the function returns false, the iteration stops.
+	ForEach(scope T, generator E, f func(int64, map[int64][]E) bool) error
 	Scopes() []T
 	TooOld(ts int64, now int64) (bool, int64)
 }
@@ -66,7 +69,7 @@ func NewTimeboxImpl[T comparable, E Entry](bufferFactory BufferFactory, interval
 func (t *TimeboxImpl[T, E]) TooOld(ts int64, now int64) (bool, int64) {
 	tooold := now-ts >= t.Interval*t.IntervalCount+t.Grace
 	if tooold {
-		return true, (now - ts) / t.Interval
+		return true, (now-ts)/t.Interval - t.IntervalCount + 1
 	}
 	return false, 0
 }
@@ -93,15 +96,7 @@ func (t *TimeboxImpl[T, E]) Append(scope T, ts int64, newItems ...E) error {
 		if err != nil {
 			return err
 		}
-		length := int32(len(b))
-		lengthBytes := []byte{
-			byte(length >> 24),
-			byte(length >> 16),
-			byte(length >> 8),
-			byte(length),
-		}
-		_, err = t.items[scope][tbox].buffer.Write(lengthBytes)
-		if err != nil {
+		if err := binary.Write(t.items[scope][tbox].buffer, binary.LittleEndian, uint32(len(b))); err != nil {
 			return err
 		}
 		_, err = t.items[scope][tbox].buffer.Write(b)
@@ -128,11 +123,10 @@ func (t *TimeboxImpl[T, E]) ItemCount(scope T, ts int64) int {
 func (se *scopedEntry[E]) decode(generator E) ([]E, error) {
 	items := make([]E, se.itemCount)
 	for i := 0; i < se.itemCount; i++ {
-		lengthBytes := make([]byte, 4)
-		if _, err := se.buffer.Read(lengthBytes); err != nil {
+		length := uint32(0)
+		if err := binary.Read(se.buffer, binary.LittleEndian, &length); err != nil {
 			return nil, err
 		}
-		length := int32(lengthBytes[0])<<24 | int32(lengthBytes[1])<<16 | int32(lengthBytes[2])<<8 | int32(lengthBytes[3])
 		b := make([]byte, length)
 		if _, err := se.buffer.Read(b); err != nil {
 			return nil, err
@@ -146,46 +140,47 @@ func (se *scopedEntry[E]) decode(generator E) ([]E, error) {
 	return items, nil
 }
 
-func (t *TimeboxImpl[T, E]) Closed(scope T, now int64, generator E) map[int64][]E {
+func (t *TimeboxImpl[T, E]) Closed(scope T, now int64, generator E) (map[int64][]E, error) {
 	t.Lock()
 	defer t.Unlock()
 	ret := map[int64][]E{}
 	if _, ok := t.items[scope]; !ok {
-		return ret
+		return ret, nil
 	}
 	for ts, entry := range t.items[scope] {
 		if closed(now, entry.ts, t.Interval, t.IntervalCount, t.Grace) {
 			defer entry.buffer.Close()
 			items, err := entry.decode(generator)
 			if err != nil {
-				continue
+				return map[int64][]E{}, err
 			}
 			ret[ts] = items
 			delete(t.items[scope], ts)
 		}
 	}
-	return ret
+	return ret, nil
 }
 
 func closed(now, tbstart, interval, nIntervals, grace int64) bool {
 	return now-tbstart >= interval*nIntervals+grace
 }
 
-func (t *TimeboxImpl[T, E]) Items(scope T, generator E) map[int64][]E {
+func (t *TimeboxImpl[T, E]) ForEach(scope T, generator E, f func(int64, map[int64][]E) bool) error {
 	t.Lock()
 	defer t.Unlock()
-	ret := map[int64][]E{}
 	if _, ok := t.items[scope]; !ok {
-		return ret
+		return nil
 	}
 	for ts, entry := range t.items[scope] {
 		items, err := entry.decode(generator)
 		if err != nil {
-			continue
+			return err
 		}
-		ret[ts] = items
+		if !f(ts, map[int64][]E{ts: items}) {
+			return nil
+		}
 	}
-	return ret
+	return nil
 }
 
 func (t *TimeboxImpl[T, E]) Scopes() []T {

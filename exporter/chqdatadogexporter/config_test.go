@@ -25,12 +25,14 @@ import (
 	"go.opentelemetry.io/collector/config/configcompression"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/config/configopaque"
+	"go.opentelemetry.io/collector/config/configretry"
 	"go.opentelemetry.io/collector/confmap"
 	"go.opentelemetry.io/collector/confmap/converter/expandconverter"
 	"go.opentelemetry.io/collector/confmap/provider/envprovider"
 	"go.opentelemetry.io/collector/confmap/provider/fileprovider"
 	"go.opentelemetry.io/collector/confmap/provider/httpprovider"
 	"go.opentelemetry.io/collector/confmap/provider/yamlprovider"
+	"go.opentelemetry.io/collector/exporter/exporterhelper"
 	"go.opentelemetry.io/collector/otelcol"
 	"go.opentelemetry.io/collector/otelcol/otelcoltest"
 
@@ -97,7 +99,10 @@ func TestConfig(t *testing.T) {
 
 	e := cfg.Exporters[component.MustNewID("chqdatadog")].(*Config)
 	expected := &Config{
-		APIKey: configopaque.String("1234567890abcdef1234567890abcdef"),
+		TimeoutSettings: exporterhelper.NewDefaultTimeoutSettings(),
+		RetryConfig:     configretry.NewDefaultBackOffConfig(),
+		QueueConfig:     exporterhelper.NewDefaultQueueSettings(),
+		APIKey:          configopaque.String("1234567890abcdef1234567890abcdef"),
 		Metrics: MetricsConfig{
 			ClientConfig: confighttp.ClientConfig{
 				Timeout:     500 * time.Millisecond,

@@ -22,6 +22,7 @@ import (
 	"go.opentelemetry.io/collector/config/configcompression"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/config/configopaque"
+	"go.opentelemetry.io/collector/config/configretry"
 	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/collector/exporter/exporterhelper"
 
@@ -44,6 +45,9 @@ const userAgent = "cardinalhq-otel-collector-chqdatadogexporter"
 
 func createDefaultConfig() component.Config {
 	return &Config{
+		TimeoutSettings: exporterhelper.NewDefaultTimeoutSettings(),
+		RetryConfig:     configretry.NewDefaultBackOffConfig(),
+		QueueConfig:     exporterhelper.NewDefaultQueueSettings(),
 		Metrics: MetricsConfig{
 			ClientConfig: confighttp.ClientConfig{
 				Timeout:  defaultClientTimeout,
@@ -78,10 +82,14 @@ func createDefaultConfig() component.Config {
 }
 
 func createLogsExporter(ctx context.Context, params exporter.Settings, config component.Config) (exporter.Logs, error) {
-	e := newDatadogExporter(config.(*Config), params, "logs")
+	cfg := config.(*Config)
+	e := newDatadogExporter(cfg, params, "logs")
 	exp, err := exporterhelper.NewLogsExporter(
 		ctx, params, config,
 		e.ConsumeLogs,
+		exporterhelper.WithTimeout(exporterhelper.TimeoutSettings{Timeout: 0}),
+		exporterhelper.WithRetry(cfg.RetryConfig),
+		exporterhelper.WithQueue(cfg.QueueConfig),
 		exporterhelper.WithStart(e.Start),
 		exporterhelper.WithCapabilities(e.Capabilities()))
 	if err != nil {
@@ -93,10 +101,14 @@ func createLogsExporter(ctx context.Context, params exporter.Settings, config co
 }
 
 func createMetricsExporter(ctx context.Context, params exporter.Settings, config component.Config) (exporter.Metrics, error) {
-	e := newDatadogExporter(config.(*Config), params, "metrics")
+	cfg := config.(*Config)
+	e := newDatadogExporter(cfg, params, "metrics")
 	exp, err := exporterhelper.NewMetricsExporter(
 		ctx, params, config,
 		e.ConsumeMetrics,
+		exporterhelper.WithTimeout(exporterhelper.TimeoutSettings{Timeout: 0}),
+		exporterhelper.WithRetry(cfg.RetryConfig),
+		exporterhelper.WithQueue(cfg.QueueConfig),
 		exporterhelper.WithStart(e.Start),
 		exporterhelper.WithCapabilities(e.Capabilities()))
 	if err != nil {
@@ -108,10 +120,14 @@ func createMetricsExporter(ctx context.Context, params exporter.Settings, config
 }
 
 func createTracesExporter(ctx context.Context, params exporter.Settings, config component.Config) (exporter.Traces, error) {
-	e := newDatadogExporter(config.(*Config), params, "traces")
+	cfg := config.(*Config)
+	e := newDatadogExporter(cfg, params, "traces")
 	exp, err := exporterhelper.NewTracesExporter(
 		ctx, params, config,
 		e.ConsumeTraces,
+		exporterhelper.WithTimeout(exporterhelper.TimeoutSettings{Timeout: 0}),
+		exporterhelper.WithRetry(cfg.RetryConfig),
+		exporterhelper.WithQueue(cfg.QueueConfig),
 		exporterhelper.WithStart(e.Start),
 		exporterhelper.WithCapabilities(e.Capabilities()))
 	if err != nil {

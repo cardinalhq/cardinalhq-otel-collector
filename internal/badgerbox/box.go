@@ -17,7 +17,8 @@ package badgerbox
 import (
 	"fmt"
 	"math/rand"
-	"slices"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -28,29 +29,45 @@ type Box struct {
 	grace         time.Duration
 	timefunc      TimeFunc
 	ttl           time.Duration
-	openIntervals []time.Time
+	openIntervals map[int64]struct{}
 }
 
 type TimeFunc func() time.Time
 
 const (
 	NoTTL                = time.Duration(0)
-	intervalMarkerPrefix = "interval-"
+	intervalMarkerPrefix = "interval"
 )
 
-func NewBox(kvs KVS, interval time.Duration, intervalCount int64, grace time.Duration, ttl time.Duration, timefunc TimeFunc) *Box {
+func NewBox(kvs KVS, interval time.Duration, intervalCount int64, grace time.Duration, ttl time.Duration, timefunc TimeFunc) (*Box, error) {
 	if timefunc == nil {
 		timefunc = time.Now
 	}
-	return &Box{
+	box := &Box{
 		kvs:           kvs,
 		interval:      interval,
 		intervalCount: intervalCount,
 		grace:         grace,
 		ttl:           ttl,
 		timefunc:      timefunc,
-		openIntervals: []time.Time{},
+		openIntervals: map[int64]struct{}{},
 	}
+	if err := box.loadOpenIntervals(); err != nil {
+		return nil, err
+	}
+	return box, nil
+}
+
+func (b *Box) loadOpenIntervals() error {
+	return b.kvs.ForEachPrefix([]byte(intervalMarkerPrefix), func(key []byte, value []byte) bool {
+		interval, err := parseIntervalMarker(string(key))
+		if err != nil {
+			b.kvs.Delete(key)
+			return true
+		}
+		b.openIntervals[interval] = struct{}{}
+		return true
+	})
 }
 
 // Generate a random number between 100000000000 and 999999999999
@@ -82,6 +99,22 @@ func sanitizeScope(scope string) string {
 	return scope
 }
 
+func markerToInterval(interval int64) string {
+	return fmt.Sprintf("%s-%d", intervalMarkerPrefix, interval)
+}
+
+func parseIntervalMarker(marker string) (int64, error) {
+	parts := strings.Split(marker, "-")
+	if len(parts) < 2 {
+		return 0, fmt.Errorf("invalid interval marker: %s", marker)
+	}
+	interval, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid interval marker: %s", marker)
+	}
+	return interval, nil
+}
+
 // Put puts a new item into the timebox.  If the item's time is too old,
 // it will not be added, and a nil will be returned.
 func (b *Box) Put(scope string, ts time.Time, item []byte) (key []byte, err error) {
@@ -98,10 +131,12 @@ func (b *Box) Put(scope string, ts time.Time, item []byte) (key []byte, err erro
 	if err := b.kvs.Set([]byte(marker), []byte{}, b.ttl); err != nil {
 		return []byte{}, err
 	}
-	if !slices.Contains(b.openIntervals, intervalNumber) {
-		b.openIntervals = append(b.openIntervals, intervalNumber)
+	if _, ok := b.openIntervals[intervalNumber]; !ok {
+		if err := b.kvs.Set([]byte(markerToInterval(intervalNumber)), []byte{}, b.ttl); err != nil {
+			return []byte{}, err
+		}
+		b.openIntervals[intervalNumber] = struct{}{}
 	}
-	b.openIntervals 
 	return fullkey, nil
 }
 
@@ -118,9 +153,16 @@ func (b *Box) ForEach(scope string, ts time.Time, f func(key []byte, value []byt
 }
 
 func (b *Box) GetClosedIntervals(ts time.Time) ([]int64, error) {
-	tbox := b.intervalNumber(ts)
-	closedIntervals := map[string]time.Time{}
-	for _, i := range b.openIntervals {
-		if i < tbox {
-	return b.openIntervals, nil
+	intervals := []int64{}
+	for interval := range b.openIntervals {
+		if b.tooOld(ts) {
+			intervals = append(intervals, interval)
+		}
+	}
+	return intervals, nil
+}
+
+func (b *Box) CloseInterval(interval int64) error {
+	delete(b.openIntervals, interval)
+	return b.kvs.Delete([]byte(markerToInterval(interval)))
 }

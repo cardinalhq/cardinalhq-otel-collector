@@ -67,7 +67,9 @@ func TestBox_tooOld(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			box := NewBox(nil, interval, intervalCount, grace, NoTTL, timefunc)
+			kvs := NewMemoryKVS(nil)
+			box, err := NewBox(kvs, interval, intervalCount, grace, NoTTL, timefunc)
+			assert.NoError(t, err)
 			result := box.tooOld(tt.ts)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -75,7 +77,9 @@ func TestBox_tooOld(t *testing.T) {
 }
 
 func TestBox_intervalNumber(t *testing.T) {
-	box := NewBox(nil, time.Second, 2, time.Millisecond*200, time.Hour, nil)
+	kvs := NewMemoryKVS(nil)
+	box, err := NewBox(kvs, time.Second, 2, time.Millisecond*200, time.Hour, nil)
+	assert.NoError(t, err)
 	tests := []struct {
 		name     string
 		ts       time.Time
@@ -116,7 +120,9 @@ func TestBox_intervalNumber(t *testing.T) {
 }
 
 func TestBox_generatePrefix(t *testing.T) {
-	box := NewBox(nil, time.Second, 2, time.Millisecond*200, time.Hour, nil)
+	kvs := NewMemoryKVS(nil)
+	box, err := NewBox(kvs, time.Second, 2, time.Millisecond*200, time.Hour, nil)
+	assert.NoError(t, err)
 	tests := []struct {
 		name     string
 		scope    string
@@ -151,7 +157,9 @@ func TestBox_generatePrefix(t *testing.T) {
 }
 
 func TestBox_generateFullKey(t *testing.T) {
-	box := NewBox(nil, time.Second, 2, time.Millisecond*200, time.Hour, nil)
+	kvs := NewMemoryKVS(nil)
+	box, err := NewBox(kvs, time.Second, 2, time.Millisecond*200, time.Hour, nil)
+	assert.NoError(t, err)
 	tests := []struct {
 		name           string
 		scope          string
@@ -189,7 +197,8 @@ func TestBox_generateFullKey(t *testing.T) {
 func TestBox_Put(t *testing.T) {
 	kvs := NewMemoryKVS(nil)
 	timefunc := func() time.Time { return time.Unix(1000, 1000) }
-	box := NewBox(kvs, time.Second, 2, time.Millisecond*200, time.Hour, timefunc)
+	box, err := NewBox(kvs, time.Second, 2, time.Millisecond*200, time.Hour, timefunc)
+	assert.NoError(t, err)
 	tests := []struct {
 		name           string
 		scope          string
@@ -280,7 +289,8 @@ func TestSanitizeScope(t *testing.T) {
 func TestBox_ForEach(t *testing.T) {
 	timefunc := func() time.Time { return time.Unix(1000, 1000) }
 	kvs := NewMemoryKVS(timefunc)
-	box := NewBox(kvs, time.Second, 2, 0, 0, timefunc)
+	box, err := NewBox(kvs, time.Second, 2, 0, 0, timefunc)
+	assert.NoError(t, err)
 	tests := []struct {
 		name     string
 		items    map[string]string
@@ -357,4 +367,116 @@ func TestBox_ForEach(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestMarkerToInterval(t *testing.T) {
+	tests := []struct {
+		name     string
+		interval int64
+		expected string
+	}{
+		{
+			"positive interval",
+			123,
+			"interval-123",
+		},
+		{
+			"zero interval",
+			0,
+			"interval-0",
+		},
+		{
+			"negative interval",
+			-456,
+			"interval--456",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := markerToInterval(tt.interval)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestParseIntervalMarker(t *testing.T) {
+	tests := []struct {
+		name     string
+		marker   string
+		expected int64
+		err      bool
+	}{
+		{
+			"valid marker",
+			"interval-123",
+			123,
+			false,
+		},
+		{
+			"invalid marker",
+			"invalid",
+			0,
+			true,
+		},
+		{
+			"alpha interval",
+			"interval-abc",
+			0,
+			true,
+		},
+		{
+			"missing interval",
+			"interval-",
+			0,
+			true,
+		},
+		{
+			"negative interval",
+			"interval--456",
+			0,
+			true,
+		},
+		{
+			"extra parts",
+			"interval-123-extra",
+			123,
+			false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := parseIntervalMarker(tt.marker)
+			if tt.err {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestBox_loadOpenIntervals(t *testing.T) {
+	kvs := NewMemoryKVS(nil)
+	box, err := NewBox(kvs, time.Second, 2, time.Millisecond*200, time.Hour, nil)
+	assert.NoError(t, err)
+
+	// Set up the mock KVS with interval markers
+	err = kvs.Set([]byte("interval-123"), []byte{}, 0)
+	assert.NoError(t, err)
+	err = kvs.Set([]byte("interval-456"), []byte{}, 0)
+	assert.NoError(t, err)
+
+	// Call loadOpenIntervals
+	err = box.loadOpenIntervals()
+	assert.NoError(t, err)
+
+	// Verify that the openIntervals map is populated correctly
+	expectedIntervals := map[int64]struct{}{
+		123: {},
+		456: {},
+	}
+	assert.Equal(t, expectedIntervals, box.openIntervals)
 }

@@ -118,6 +118,9 @@ spec:
                 {{- include "customerside.pvc.annotations" . | nindent 16 }}
               spec:
                 accessModes: [ "ReadWriteOnce" ]
+                {{ if .Values.collector.l1.pvc.storageClassName }}
+                storageClassName: {{ .Values.collector.l1.pvc.storageClassName }}
+                {{ end }}
                 resources:
                   requests:
                     storage: {{ .Values.collector.l1.pvc.size }}

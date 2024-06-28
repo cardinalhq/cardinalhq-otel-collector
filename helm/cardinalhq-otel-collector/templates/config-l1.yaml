@@ -215,6 +215,7 @@ data:
         - health_check
         - chqauth/cardinalhq
         - chqconfig/cardinalhq
+        - storage/scratch
 
     extensions:
       zpages:
@@ -230,3 +231,5 @@ data:
           endpoint: {{ .Values.collector.endpoints.cardinalhq.samplerConfig }}
           auth:
             authenticator: chqauth/cardinalhq
+      storage/scratch:
+        directory: /app/scratch

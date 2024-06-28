@@ -101,8 +101,23 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /app/config
+            - name: buffer-scratch
+              mountPath: /app/scratch
       restartPolicy: Always
       volumes:
         - name: config
           configMap:
             name: {{ include "customerside.fullname" . }}-collector-config-l1
+        - name: buffer-scratch
+          ephemeral:
+            volumeClaimTemplate:
+              metadata:
+                labels:
+                  {{- include "customerside.labels" . | nindent 18 }}
+                  app.kubernetes.io/component: collector-l1
+                {{- include "customerside.pvc.annotations" . | nindent 16 }}
+              spec:
+                accessModes: [ "ReadWriteOnce" ]
+                resources:
+                  requests:
+                    storage: {{ .Values.collector.l1.pvc.size }}

@@ -42,3 +42,10 @@ type KVS interface {
 	// Close closes the key-value store.
 	Close() error
 }
+
+// Wiper interface is optional, and used mostly for testing,
+// using the in-memory KVS.
+type Wiper interface {
+	// Wipe removes all keys from the key-value store.
+	Wipe() error
+}

@@ -25,14 +25,16 @@ import (
 
 func TestNewMemoryKVS_with_timefunc(t *testing.T) {
 	timefunc := func() time.Time { return time.Unix(1000, 1000) }
-	kvs := NewMemoryKVS(timefunc)
+	kvsi := NewMemoryKVS(timefunc)
+	kvs := kvsi.(*MemoryKVS)
 	assert.NotNil(t, kvs)
 	assert.NotNil(t, kvs.kvs)
 	assert.NotNil(t, kvs.timefunc)
 }
 
 func TestNewMemoryKVS_without_timefunc(t *testing.T) {
-	kvs := NewMemoryKVS(nil)
+	kvsi := NewMemoryKVS(nil)
+	kvs := kvsi.(*MemoryKVS)
 	assert.NotNil(t, kvs)
 	assert.NotNil(t, kvs.kvs)
 	assert.NotNil(t, kvs.timefunc)
@@ -54,7 +56,8 @@ func TestMemoryKVS_Get_no_ttl(t *testing.T) {
 
 func TestMemoryKVS_Get_ttl_expired(t *testing.T) {
 	timefunc := func() time.Time { return time.Unix(1000, 1000) }
-	kvs := NewMemoryKVS(timefunc)
+	kvsi := NewMemoryKVS(timefunc)
+	kvs := kvsi.(*MemoryKVS)
 
 	key := []byte("key")
 	value := []byte("value")
@@ -85,7 +88,8 @@ func TestMemoryKVS_Get_ttl_not_expired(t *testing.T) {
 
 func TestMemoryKVS_Set_no_ttl(t *testing.T) {
 	timefunc := func() time.Time { return time.Unix(1000, 1000) }
-	kvs := NewMemoryKVS(timefunc)
+	kvsi := NewMemoryKVS(timefunc)
+	kvs := kvsi.(*MemoryKVS)
 
 	key := []byte("key")
 	value := []byte("value")
@@ -96,7 +100,8 @@ func TestMemoryKVS_Set_no_ttl(t *testing.T) {
 
 func TestMemoryKVS_expired(t *testing.T) {
 	timefunc := func() time.Time { return time.Unix(1000, 1000) }
-	kvs := NewMemoryKVS(timefunc)
+	kvsi := NewMemoryKVS(timefunc)
+	kvs := kvsi.(*MemoryKVS)
 
 	key := "key"
 	item := memoryItem{
@@ -113,7 +118,8 @@ func TestMemoryKVS_expired(t *testing.T) {
 
 func TestMemoryKVS_expiredItem(t *testing.T) {
 	timefunc := func() time.Time { return time.Unix(1000, 1000) }
-	kvs := NewMemoryKVS(timefunc)
+	kvsi := NewMemoryKVS(timefunc)
+	kvs := kvsi.(*MemoryKVS)
 
 	item := memoryItem{
 		value: []byte("value"),
@@ -128,7 +134,8 @@ func TestMemoryKVS_expiredItem(t *testing.T) {
 
 func TestMemoryKVS_expired_does_not_exist(t *testing.T) {
 	timefunc := func() time.Time { return time.Unix(1000, 1000) }
-	kvs := NewMemoryKVS(timefunc)
+	kvsi := NewMemoryKVS(timefunc)
+	kvs := kvsi.(*MemoryKVS)
 	assert.False(t, kvs.expired("key"))
 }
 
@@ -161,7 +168,39 @@ func TestMemoryKVS_Delete_not_exist(t *testing.T) {
 func TestMemoryKVS_Maintain(t *testing.T) {
 	timefunc := func() time.Time { return time.Unix(1000, 1000) }
 	kvs := NewMemoryKVS(timefunc)
-	assert.NoError(t, kvs.Maintain())
+
+	// will be expired
+	key1 := []byte("key1")
+	value1 := []byte("value1")
+	err := kvs.Set(key1, value1, time.Duration(-time.Hour))
+	assert.NoError(t, err)
+
+	// no ttl
+	key2 := []byte("key2")
+	value2 := []byte("value2")
+	err = kvs.Set(key2, value2, 0)
+	assert.NoError(t, err)
+
+	// future ttl will not be expired
+	key3 := []byte("key3")
+	value3 := []byte("value3")
+	err = kvs.Set(key3, value3, time.Second)
+	assert.NoError(t, err)
+
+	err = kvs.Maintain()
+	assert.NoError(t, err)
+
+	v, err := kvs.Get(key1)
+	assert.NoError(t, err)
+	assert.Nil(t, v)
+
+	v, err = kvs.Get(key2)
+	assert.NoError(t, err)
+	assert.Equal(t, value2, v)
+
+	v, err = kvs.Get(key3)
+	assert.NoError(t, err)
+	assert.Equal(t, value3, v)
 }
 
 func TestMemoryKVS_Close(t *testing.T) {
@@ -218,4 +257,24 @@ func TestMemoryKVS_ForEachPrefix(t *testing.T) {
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, keys, foundKeys)
 	assert.ElementsMatch(t, values, foundValues)
+}
+
+func TestMemoryKVS_Wipe(t *testing.T) {
+	timefunc := func() time.Time { return time.Unix(1000, 1000) }
+	kvs := NewMemoryKVS(timefunc)
+
+	key := []byte("key")
+	value := []byte("value")
+	err := kvs.Set(key, value, 0)
+	assert.NoError(t, err)
+
+	if wiper, ok := kvs.(Wiper); !ok {
+		t.Fatalf("MemoryKVS does not implement Wiper")
+	} else {
+		assert.NoError(t, wiper.Wipe())
+	}
+
+	v, err := kvs.Get(key)
+	assert.NoError(t, err)
+	assert.Nil(t, v)
 }

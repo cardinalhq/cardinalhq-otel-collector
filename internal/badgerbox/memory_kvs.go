@@ -31,10 +31,13 @@ type memoryItem struct {
 	ttl   time.Time
 }
 
-var _ KVS = (*MemoryKVS)(nil)
+var (
+	_ KVS   = (*MemoryKVS)(nil)
+	_ Wiper = (*MemoryKVS)(nil)
+)
 
 // NewMemoryKVS creates a new MemoryKVS.
-func NewMemoryKVS(timefunc TimeFunc) *MemoryKVS {
+func NewMemoryKVS(timefunc TimeFunc) KVS {
 	if timefunc == nil {
 		timefunc = time.Now
 	}
@@ -121,9 +124,21 @@ func (m *MemoryKVS) ForEachPrefix(prefix []byte, f func(k []byte, v []byte) bool
 }
 
 func (m *MemoryKVS) Maintain() error {
+	for k := range m.kvs {
+		if m.expired(k) {
+			delete(m.kvs, k)
+		}
+	}
 	return nil
 }
 
 func (m *MemoryKVS) Close() error {
+	return nil
+}
+
+func (m *MemoryKVS) Wipe() error {
+	m.Lock()
+	defer m.Unlock()
+	m.kvs = make(map[string]memoryItem)
 	return nil
 }

@@ -276,3 +276,85 @@ func TestSanitizeScope(t *testing.T) {
 		})
 	}
 }
+
+func TestBox_ForEach(t *testing.T) {
+	timefunc := func() time.Time { return time.Unix(1000, 1000) }
+	kvs := NewMemoryKVS(timefunc)
+	box := NewBox(kvs, time.Second, 2, 0, 0, timefunc)
+	tests := []struct {
+		name     string
+		items    map[string]string
+		scope    string
+		expected map[string]string
+	}{
+		{
+			"no items",
+			map[string]string{},
+			"scope1",
+			map[string]string{},
+		},
+		{
+			"one item different scope",
+			map[string]string{
+				"1000-scope2-100000000000": "value2",
+			},
+			"scope1",
+			map[string]string{},
+		},
+		{
+			"one item same scope",
+			map[string]string{
+				"1000-scope1-100000000000": "value1",
+			},
+			"scope1",
+			map[string]string{
+				"1000-scope1-100000000000": "value1",
+			},
+		},
+		{
+			"two items same scope",
+			map[string]string{
+				"1000-scope1-100000000000": "value1",
+				"1000-scope1-100000000001": "value2",
+			},
+			"scope1",
+			map[string]string{
+				"1000-scope1-100000000000": "value1",
+				"1000-scope1-100000000001": "value2",
+			},
+		},
+		{
+			"same scope different timeboxes",
+			map[string]string{
+				"1000-scope1-100000000000": "value1",
+				"1001-scope1-100000000000": "value2",
+			},
+			"scope1",
+			map[string]string{
+				"1000-scope1-100000000000": "value1",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if w, ok := kvs.(Wiper); ok {
+				w.Wipe()
+			} else {
+				t.Fatal("kvs does not implement Wiper")
+			}
+			for key, value := range tt.items {
+				err := kvs.Set([]byte(key), []byte(value), 0)
+				assert.NoError(t, err)
+			}
+
+			result := map[string]string{}
+			err := box.ForEach(tt.scope, timefunc(), func(key []byte, value []byte) bool {
+				result[string(key)] = string(value)
+				return true
+			})
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

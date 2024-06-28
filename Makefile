@@ -15,7 +15,7 @@
 TARGETS=bin/cardinalhq-otel-collector
 PLATFORM=linux/amd64,linux/arm64
 BUILDX=docker buildx build --pull --platform ${PLATFORM}
-IMAGE_PREFIX=public.ecr.aws/b1d7g2f3/
+IMAGE_PREFIX=public.ecr.aws/cardinalhq.io/
 
 #
 # Build targets.  Adding to these will cause magic to occur.

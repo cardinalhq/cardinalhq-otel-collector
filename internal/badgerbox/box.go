@@ -17,6 +17,7 @@ package badgerbox
 import (
 	"fmt"
 	"math/rand"
+	"slices"
 	"time"
 )
 
@@ -27,12 +28,14 @@ type Box struct {
 	grace         time.Duration
 	timefunc      TimeFunc
 	ttl           time.Duration
+	openIntervals []time.Time
 }
 
 type TimeFunc func() time.Time
 
 const (
-	NoTTL = time.Duration(0)
+	NoTTL                = time.Duration(0)
+	intervalMarkerPrefix = "interval-"
 )
 
 func NewBox(kvs KVS, interval time.Duration, intervalCount int64, grace time.Duration, ttl time.Duration, timefunc TimeFunc) *Box {
@@ -46,6 +49,7 @@ func NewBox(kvs KVS, interval time.Duration, intervalCount int64, grace time.Dur
 		grace:         grace,
 		ttl:           ttl,
 		timefunc:      timefunc,
+		openIntervals: []time.Time{},
 	}
 }
 
@@ -89,6 +93,15 @@ func (b *Box) Put(scope string, ts time.Time, item []byte) (key []byte, err erro
 	if err := b.kvs.Set(fullkey, item, b.ttl); err != nil {
 		return []byte{}, err
 	}
+	intervalNumber := b.intervalNumber(ts)
+	marker := fmt.Sprintf("%s-%d", intervalMarkerPrefix, intervalNumber)
+	if err := b.kvs.Set([]byte(marker), []byte{}, b.ttl); err != nil {
+		return []byte{}, err
+	}
+	if !slices.Contains(b.openIntervals, intervalNumber) {
+		b.openIntervals = append(b.openIntervals, intervalNumber)
+	}
+	b.openIntervals 
 	return fullkey, nil
 }
 
@@ -102,4 +115,12 @@ func (b *Box) ForEach(scope string, ts time.Time, f func(key []byte, value []byt
 	scope = sanitizeScope(scope)
 	prefix := b.generatePrefix(scope, ts)
 	return b.kvs.ForEachPrefix(prefix, f)
+}
+
+func (b *Box) GetClosedIntervals(ts time.Time) ([]int64, error) {
+	tbox := b.intervalNumber(ts)
+	closedIntervals := map[string]time.Time{}
+	for _, i := range b.openIntervals {
+		if i < tbox {
+	return b.openIntervals, nil
 }

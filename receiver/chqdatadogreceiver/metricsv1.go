@@ -102,10 +102,7 @@ func (ddr *datadogReceiver) convertMetricV1(v1 SeriesV1) (pmetric.Metrics, error
 
 	mtype := getMetricType(v1.Type)
 	switch mtype {
-	case "gauge", "rate":
-		if mtype == "rate" {
-			ddr.metricLogger.Warn("Rate type is not supported by OpenTelemetry, converting to gauge")
-		}
+	case "gauge":
 		g := metric.SetEmptyGauge()
 		for _, point := range v1.Points {
 			dp := g.DataPoints().AppendEmpty()
@@ -120,6 +117,20 @@ func (ddr *datadogReceiver) convertMetricV1(v1 SeriesV1) (pmetric.Metrics, error
 			dp := c.DataPoints().AppendEmpty()
 			lAttr.CopyTo(dp.Attributes())
 			populateDatapoint(&dp, point.V1, point.V2)
+		}
+	case "rate":
+		c := metric.SetEmptySum()
+		c.SetIsMonotonic(false)
+		c.SetAggregationTemporality(pmetric.AggregationTemporalityDelta)
+		interval := int64(1)
+		if v1.Interval != nil {
+			interval = *v1.Interval
+		}
+		for _, point := range v1.Points {
+			dp := c.DataPoints().AppendEmpty()
+			lAttr.CopyTo(dp.Attributes())
+			populateDatapoint(&dp, point.V1, point.V2/float64(interval))
+			dp.Attributes().PutInt("_dd.rateInterval", interval)
 		}
 	}
 

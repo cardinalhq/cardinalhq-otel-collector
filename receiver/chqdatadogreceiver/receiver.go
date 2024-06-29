@@ -77,19 +77,25 @@ func newDataDogReceiver(config *Config, params receiver.Settings) (component.Com
 func (ddr *datadogReceiver) Start(ctx context.Context, host component.Host) error {
 	ddmux := http.NewServeMux()
 
-	ddr.traceLogger.Info("datadog receiver listening for traces")
-	ddmux.HandleFunc("/v0.3/traces", ddr.handleTraces)
-	ddmux.HandleFunc("/v0.4/traces", ddr.handleTraces)
-	ddmux.HandleFunc("/v0.5/traces", ddr.handleTraces)
-	ddmux.HandleFunc("/v0.7/traces", ddr.handleTraces)
-	ddmux.HandleFunc("/api/v0.2/traces", ddr.handleTraces)
+	if ddr.nextTraceConsumer != nil {
+		ddr.traceLogger.Info("datadog receiver listening for traces")
+		ddmux.HandleFunc("/v0.3/traces", ddr.handleTraces)
+		ddmux.HandleFunc("/v0.4/traces", ddr.handleTraces)
+		ddmux.HandleFunc("/v0.5/traces", ddr.handleTraces)
+		ddmux.HandleFunc("/v0.7/traces", ddr.handleTraces)
+		ddmux.HandleFunc("/api/v0.2/traces", ddr.handleTraces)
+	}
 
-	ddr.logLogger.Info("datadog receiver listening for logs")
-	ddmux.HandleFunc("/api/v2/logs", ddr.handleLogs)
+	if ddr.nextLogConsumer != nil {
+		ddr.logLogger.Info("datadog receiver listening for logs")
+		ddmux.HandleFunc("/api/v2/logs", ddr.handleLogs)
+	}
 
-	ddr.metricLogger.Info("datadog receiver listening for metrics")
-	ddmux.HandleFunc("/api/v1/series", ddr.handleV1Series)
-	ddmux.HandleFunc("/api/v2/series", ddr.handleV2Series)
+	if ddr.nextMetricConsumer != nil {
+		ddr.metricLogger.Info("datadog receiver listening for metrics")
+		ddmux.HandleFunc("/api/v1/series", ddr.handleV1Series)
+		ddmux.HandleFunc("/api/v2/series", ddr.handleV2Series)
+	}
 
 	ddmux.HandleFunc("/api/v1/validate", ddr.handleV1Validate)
 	ddmux.HandleFunc("/intake", ddr.handleIntake)
@@ -98,12 +104,7 @@ func (ddr *datadogReceiver) Start(ctx context.Context, host component.Host) erro
 	ddmux.HandleFunc("/api/v1/metadata", ddr.handleMetadata)
 
 	var err error
-	ddr.server, err = ddr.config.ServerConfig.ToServer(
-		ctx,
-		host,
-		ddr.telemetrySettings,
-		ddmux,
-	)
+	ddr.server, err = ddr.config.ServerConfig.ToServer(ctx, host, ddr.telemetrySettings, ddmux)
 	if err != nil {
 		return fmt.Errorf("failed to create server definition: %w", err)
 	}

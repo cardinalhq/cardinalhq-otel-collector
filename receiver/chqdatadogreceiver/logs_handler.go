@@ -23,7 +23,11 @@ import (
 )
 
 func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request) {
-	apikey := getDDAPIKey(req)
+	if ddr.nextLogConsumer == nil {
+		http.Error(w, "Consumer not initialized", http.StatusServiceUnavailable)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 
 	ctx := ddr.obsrecv.StartLogsOp(req.Context())
@@ -39,13 +43,6 @@ func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request)
 	}
 	if req.Header.Get("Content-Type") != "application/json" {
 		writeError(w, http.StatusUnsupportedMediaType, nil)
-		return
-	}
-
-	if apikey == "" {
-		ddr.logLogger.Info("V1LOGS No API key found in request")
-		w.WriteHeader(http.StatusForbidden)
-		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
 		return
 	}
 

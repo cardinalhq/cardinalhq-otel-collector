@@ -23,7 +23,10 @@ import (
 )
 
 func (ddr *datadogReceiver) handleV1Series(w http.ResponseWriter, req *http.Request) {
-	apikey := getDDAPIKey(req)
+	if ddr.nextMetricConsumer == nil {
+		http.Error(w, "Consumer not initialized", http.StatusServiceUnavailable)
+		return
+	}
 	if req.Method != http.MethodPost && req.Method != http.MethodPut {
 		writeError(w, http.StatusMethodNotAllowed, nil)
 		return
@@ -37,13 +40,6 @@ func (ddr *datadogReceiver) handleV1Series(w http.ResponseWriter, req *http.Requ
 	defer func(metricCount *int) {
 		ddr.obsrecv.EndMetricsOp(ctx, "datadog", *metricCount, err)
 	}(&metricCount)
-
-	if apikey == "" {
-		ddr.metricLogger.Info("V1SERIES No API key found in request")
-		w.WriteHeader(http.StatusForbidden)
-		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
-		return
-	}
 
 	ddMetrics, httpCode, err := handleMetricsV1Payload(req)
 	if err != nil {
@@ -65,7 +61,10 @@ func (ddr *datadogReceiver) handleV1Series(w http.ResponseWriter, req *http.Requ
 }
 
 func (ddr *datadogReceiver) handleV2Series(w http.ResponseWriter, req *http.Request) {
-	apikey := getDDAPIKey(req)
+	if ddr.nextMetricConsumer == nil {
+		http.Error(w, "Consumer not initialized", http.StatusServiceUnavailable)
+		return
+	}
 	if req.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, nil)
 		return
@@ -77,13 +76,6 @@ func (ddr *datadogReceiver) handleV2Series(w http.ResponseWriter, req *http.Requ
 	defer func(metricCount *int) {
 		ddr.obsrecv.EndMetricsOp(ctx, "datadog", *metricCount, err)
 	}(&metricCount)
-
-	if apikey == "" {
-		ddr.metricLogger.Info("V2SERIES No API key found in request")
-		w.WriteHeader(http.StatusForbidden)
-		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
-		return
-	}
 
 	ddMetrics, httpCode, err := ddr.handleMetricsV2Payload(req)
 	if err != nil {

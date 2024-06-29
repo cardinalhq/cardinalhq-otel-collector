@@ -77,25 +77,19 @@ func newDataDogReceiver(config *Config, params receiver.Settings) (component.Com
 func (ddr *datadogReceiver) Start(ctx context.Context, host component.Host) error {
 	ddmux := http.NewServeMux()
 
-	if ddr.nextTraceConsumer != nil {
-		ddr.traceLogger.Info("datadog receiver listening for traces")
-		ddmux.HandleFunc("/v0.3/traces", ddr.handleTraces)
-		ddmux.HandleFunc("/v0.4/traces", ddr.handleTraces)
-		ddmux.HandleFunc("/v0.5/traces", ddr.handleTraces)
-		ddmux.HandleFunc("/v0.7/traces", ddr.handleTraces)
-		ddmux.HandleFunc("/api/v0.2/traces", ddr.handleTraces)
-	}
+	ddr.traceLogger.Info("datadog receiver listening for traces")
+	ddmux.HandleFunc("/v0.3/traces", ddr.handleTraces)
+	ddmux.HandleFunc("/v0.4/traces", ddr.handleTraces)
+	ddmux.HandleFunc("/v0.5/traces", ddr.handleTraces)
+	ddmux.HandleFunc("/v0.7/traces", ddr.handleTraces)
+	ddmux.HandleFunc("/api/v0.2/traces", ddr.handleTraces)
 
-	if ddr.nextLogConsumer != nil {
-		ddr.logLogger.Info("datadog receiver listening for logs")
-		ddmux.HandleFunc("/api/v2/logs", ddr.handleLogs)
-	}
+	ddr.logLogger.Info("datadog receiver listening for logs")
+	ddmux.HandleFunc("/api/v2/logs", ddr.handleLogs)
 
-	if ddr.nextMetricConsumer != nil {
-		ddr.metricLogger.Info("datadog receiver listening for metrics")
-		ddmux.HandleFunc("/api/v1/series", ddr.handleV1Series)
-		ddmux.HandleFunc("/api/v2/series", ddr.handleV2Series)
-	}
+	ddr.metricLogger.Info("datadog receiver listening for metrics")
+	ddmux.HandleFunc("/api/v1/series", ddr.handleV1Series)
+	ddmux.HandleFunc("/api/v2/series", ddr.handleV2Series)
 
 	ddmux.HandleFunc("/api/v1/validate", ddr.handleV1Validate)
 	ddmux.HandleFunc("/intake", ddr.handleIntake)
@@ -213,7 +207,10 @@ func (ddr *datadogReceiver) handleMetadata(w http.ResponseWriter, req *http.Requ
 }
 
 func (ddr *datadogReceiver) handleTraces(w http.ResponseWriter, req *http.Request) {
-	apikey := getDDAPIKey(req)
+	if ddr.nextTraceConsumer == nil {
+		http.Error(w, "Consumer not initialized", http.StatusServiceUnavailable)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 
 	obsCtx := ddr.obsrecv.StartTracesOp(req.Context())
@@ -224,13 +221,6 @@ func (ddr *datadogReceiver) handleTraces(w http.ResponseWriter, req *http.Reques
 	}(&spanCount)
 
 	var ddTraces []*ddpbtrace.TracerPayload
-
-	if apikey == "" {
-		ddr.traceLogger.Info("TRACES No API key found in request")
-		w.WriteHeader(http.StatusForbidden)
-		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
-		return
-	}
 
 	ddTraces, err = handlePayload(req)
 	if err != nil {

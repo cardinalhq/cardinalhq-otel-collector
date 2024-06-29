@@ -192,7 +192,7 @@ func TestGetAuthHeader(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			authHeader := getAuthHeader(tt.headers)
+			authHeader := getAuthHeader(tt.headers, apiKeyHeader)
 			assert.Equal(t, tt.expected, authHeader)
 		})
 	}

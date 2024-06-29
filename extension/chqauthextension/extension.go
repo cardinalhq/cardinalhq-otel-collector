@@ -15,5 +15,6 @@
 package chqauthextension
 
 const (
-	apiKeyHeader = "x-cardinalhq-api-key"
+	apiKeyHeader   = "x-cardinalhq-api-key"
+	ddApiKeyHeader = "dd-api-key"
 )

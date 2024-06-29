@@ -96,7 +96,10 @@ func (chq *chqServerAuth) serverStart(_ context.Context, _ component.Host) error
 }
 
 func (chq *chqServerAuth) serverAuthenticate(ctx context.Context, headers map[string][]string) (context.Context, error) {
-	auth := getAuthHeader(headers)
+	auth := getAuthHeader(headers, apiKeyHeader)
+	if auth == "" {
+		auth = getAuthHeader(headers, ddApiKeyHeader)
+	}
 	if auth == "" {
 		return ctx, errNoAuthHeader
 	}
@@ -200,12 +203,9 @@ func (chq *chqServerAuth) callValidateAPI(ctx context.Context, apiKey string) (*
 	}, nil
 }
 
-func getAuthHeader(h map[string][]string) string {
-	const (
-		headerKey = apiKeyHeader
-	)
+func getAuthHeader(h map[string][]string, key string) string {
 	for k, v := range h {
-		if strings.EqualFold(k, headerKey) {
+		if strings.EqualFold(k, key) {
 			return v[0]
 		}
 	}

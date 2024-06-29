@@ -107,7 +107,7 @@ func (ddr *datadogReceiver) convertMetricV1(v1 SeriesV1) (pmetric.Metrics, error
 		for _, point := range v1.Points {
 			dp := g.DataPoints().AppendEmpty()
 			lAttr.CopyTo(dp.Attributes())
-			populateDatapoint(&dp, point.V1, point.V2)
+			populateDatapoint(&dp, point.V1*1000, point.V2)
 		}
 	case "count":
 		c := metric.SetEmptySum()
@@ -116,7 +116,7 @@ func (ddr *datadogReceiver) convertMetricV1(v1 SeriesV1) (pmetric.Metrics, error
 		for _, point := range v1.Points {
 			dp := c.DataPoints().AppendEmpty()
 			lAttr.CopyTo(dp.Attributes())
-			populateDatapoint(&dp, point.V1, point.V2)
+			populateDatapoint(&dp, point.V1*1000, point.V2)
 		}
 	case "rate":
 		c := metric.SetEmptySum()
@@ -129,7 +129,7 @@ func (ddr *datadogReceiver) convertMetricV1(v1 SeriesV1) (pmetric.Metrics, error
 		for _, point := range v1.Points {
 			dp := c.DataPoints().AppendEmpty()
 			lAttr.CopyTo(dp.Attributes())
-			populateDatapoint(&dp, point.V1, point.V2/float64(interval))
+			populateDatapoint(&dp, point.V1*1000, point.V2/float64(interval))
 			dp.Attributes().PutInt("_dd.rateInterval", interval)
 		}
 	}

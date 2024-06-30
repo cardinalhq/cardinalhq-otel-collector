@@ -26,14 +26,6 @@ func (f boxOptionFunc) apply(box *Box) {
 	f(box)
 }
 
-func newBoxOptions(opts []BoxOptions) *Box {
-	box := &Box{}
-	for _, opt := range opts {
-		opt.apply(box)
-	}
-	return box
-}
-
 func WithKVS(kvs KVS) BoxOptions {
 	return boxOptionFunc(func(b *Box) {
 		b.kvs = kvs

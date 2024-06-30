@@ -64,7 +64,7 @@ func (b *Box) loadOpenIntervals() error {
 	return b.kvs.ForEachPrefix([]byte(intervalMarkerPrefix), func(key []byte, value []byte) bool {
 		interval, err := parseIntervalMarker(string(key))
 		if err != nil {
-			b.kvs.Delete(key)
+			_ = b.kvs.Delete(key)
 			return true
 		}
 		b.openIntervals[interval] = struct{}{}

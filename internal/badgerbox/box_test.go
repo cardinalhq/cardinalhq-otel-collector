@@ -349,7 +349,8 @@ func TestBox_ForEach(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if w, ok := kvs.(Wiper); ok {
-				w.Wipe()
+				err := w.Wipe()
+				assert.NoError(t, err)
 			} else {
 				t.Fatal("kvs does not implement Wiper")
 			}

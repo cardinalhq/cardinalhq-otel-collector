@@ -1,10 +1,24 @@
+// Copyright 2024 CardinalHQ, Inc
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package badgerbox
 
 import (
 	"errors"
 	"time"
 
-	"github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/v4"
 )
 
 type BadgerKVS struct {
@@ -41,7 +55,10 @@ func (b *BadgerKVS) Get(key []byte) ([]byte, error) {
 
 func (b *BadgerKVS) Set(key []byte, value []byte, ttl time.Duration) error {
 	return b.db.Update(func(txn *badger.Txn) error {
-		entry := badger.NewEntry(key, value).WithTTL(ttl)
+		entry := badger.NewEntry(key, value)
+		if ttl > 0 {
+			entry = entry.WithTTL(ttl)
+		}
 		return txn.SetEntry(entry)
 	})
 }
@@ -77,6 +94,9 @@ func (b *BadgerKVS) ForEachPrefix(prefix []byte, f func(key []byte, value []byte
 }
 
 func (b *BadgerKVS) Maintain() error {
+	if b.db.Opts().InMemory {
+		return nil
+	}
 	return b.db.RunValueLogGC(0.5)
 }
 

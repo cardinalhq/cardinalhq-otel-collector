@@ -433,7 +433,7 @@ func TestParseIntervalMarker(t *testing.T) {
 			true,
 		},
 		{
-			"negative interval",
+			"blank interval",
 			"interval--456",
 			0,
 			true,

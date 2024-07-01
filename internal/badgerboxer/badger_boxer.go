@@ -15,11 +15,15 @@
 package badgerboxer
 
 import (
+	"path/filepath"
+
 	"github.com/dgraph-io/badger/v4"
 	"go.opentelemetry.io/collector/component"
 )
 
 func BoxerFor(path string, kind component.Kind, ent component.ID, name string, opts ...BoxerOptions) (*Boxer, error) {
+	safeFilename := SafeFilename(kind, ent, name)
+	path = filepath.Join(path, safeFilename)
 	db, err := badger.Open(badger.DefaultOptions(path).WithMetricsEnabled(false))
 	if err != nil {
 		return nil, err

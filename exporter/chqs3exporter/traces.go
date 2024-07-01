@@ -33,6 +33,6 @@ func (e *s3Exporter) ConsumeTraces(ctx context.Context, traces ptrace.Traces) er
 
 	now := time.Now()
 	interval := e.boxer.IntervalForTime(now)
-	custmap := e.partitionByCustomerID(interval, tbl)
+	custmap := e.partitionTableByCustomerID(interval, tbl)
 	return e.writeTableByCustomerID(now, custmap)
 }

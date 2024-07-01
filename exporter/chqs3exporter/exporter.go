@@ -17,7 +17,6 @@ package chqs3exporter
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"strconv"
 	"sync"
@@ -31,7 +30,6 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/tagwriter"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/translation/table"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/boxer"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 type s3Exporter struct {
@@ -261,37 +259,4 @@ func (e *s3Exporter) upload(f *os.File, customerID string, interval int64) error
 	prefix := e.telemetryType + "_" + strconv.FormatInt(interval, 10)
 	now := e.boxer.TimeForInterval(interval)
 	return e.s3.writeBuffer(context.Background(), now, f, e.config, prefix, parquetFormat, e.metadata, customerID)
-}
-
-func (e *s3Exporter) updateTagMap(customerID string, interval int64, tags map[string]any) error {
-	e.taglock.Lock()
-	defer e.taglock.Unlock()
-	if _, ok := e.tags[customerID]; !ok {
-		e.tags[customerID] = map[int64]map[string]any{}
-	}
-	if _, ok := e.tags[customerID][interval]; !ok {
-		e.tags[customerID][interval] = map[string]any{}
-	}
-	for k, v := range tags {
-		current, ok := e.tags[customerID][interval][k]
-		if ok {
-			if fmt.Sprintf("%T", current) != fmt.Sprintf("%T", v) {
-				return fmt.Errorf("Mismatched types: key = %s: %T %T", k, current, v)
-			}
-		} else {
-			e.tags[customerID][interval][k] = v
-		}
-	}
-	return nil
-}
-
-func customerIDFromMap(m map[string]any) string {
-	customerID, found := m[translate.CardinalFieldCustomerID]
-	if !found {
-		return ""
-	}
-	if cid, ok := customerID.(string); ok {
-		return cid
-	}
-	return ""
 }

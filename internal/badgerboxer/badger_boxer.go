@@ -30,5 +30,9 @@ func BoxerFor(path string, kind component.Kind, ent component.ID, name string, o
 	}
 	kvs := NewBadgerKVS(db)
 	box, err := NewBoxer(append(opts, WithKVS(kvs))...)
+	if err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	return box, nil
 }

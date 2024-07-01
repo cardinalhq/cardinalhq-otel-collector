@@ -20,8 +20,6 @@ import (
 type s3Writer struct {
 }
 
-var _ dataWriter = (*s3Writer)(nil)
-
 // generate the s3 time key based on partition configuration
 func getTimeKey(time time.Time, partition string, customerID string) string {
 	var timeKey string

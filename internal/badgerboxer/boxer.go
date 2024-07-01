@@ -77,24 +77,28 @@ func randomSuffix() int64 {
 	return rand.Int63n(999_999_999_999-100_000_000_000) + 100_000_000_000
 }
 
-func (b *Boxer) intervalNumber(ts time.Time) int64 {
+func (b *Boxer) IntervalForTime(ts time.Time) int64 {
 	return ts.UnixNano() / int64(b.interval)
 }
 
 func (b *Boxer) generateFullKey(scope string, ts time.Time) []byte {
-	r := fmt.Sprintf("%d-%s-%d", b.intervalNumber(ts), scope, randomSuffix())
+	r := fmt.Sprintf("%d-%s-%d", b.IntervalForTime(ts), scope, randomSuffix())
 	return []byte(r)
 }
 
 func (b *Boxer) generatePrefix(scope string, ts time.Time) []byte {
-	r := fmt.Sprintf("%d-%s-", b.intervalNumber(ts), scope)
+	r := fmt.Sprintf("%d-%s-", b.IntervalForTime(ts), scope)
 	return []byte(r)
 }
 
-// replace any non-letter, non-number characters with an underscore
+func (b *Boxer) generateIntervalPrefix(interval int64) []byte {
+	return []byte(strconv.FormatInt(interval, 10) + keySeparator)
+}
+
+// replace any non-letter, non-number, non-period characters with an underscore
 func sanitizeScope(scope string) string {
 	for i := 0; i < len(scope); i++ {
-		if !((scope[i] >= 'a' && scope[i] <= 'z') || (scope[i] >= 'A' && scope[i] <= 'Z') || (scope[i] >= '0' && scope[i] <= '9')) {
+		if !((scope[i] >= 'a' && scope[i] <= 'z') || (scope[i] >= 'A' && scope[i] <= 'Z') || (scope[i] >= '0' && scope[i] <= '9') || scope[i] == '.') {
 			scope = scope[:i] + "_" + scope[i+1:]
 		}
 	}
@@ -117,6 +121,24 @@ func parseIntervalMarker(marker string) (int64, error) {
 	return interval, nil
 }
 
+func (b *Boxer) TimeForInterval(interval int64) time.Time {
+	return time.Unix(0, 0).Add(b.interval * time.Duration(interval))
+}
+
+func (b *Boxer) SplitKey(key []byte) (scope string, ts time.Time, err error) {
+	parts := strings.Split(string(key), "-")
+	if len(parts) < 3 {
+		return "", time.Time{}, fmt.Errorf("invalid key: %s", key)
+	}
+	tsint, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		return "", time.Time{}, fmt.Errorf("invalid key: %s", key)
+	}
+	ts = b.TimeForInterval(tsint)
+	scope = parts[1]
+	return
+}
+
 // Put puts a new item into the timebox.  If the item's time is too old,
 // it will not be added, and a nil will be returned.
 func (b *Boxer) Put(scope string, ts time.Time, item []byte) (key []byte, err error) {
@@ -128,7 +150,7 @@ func (b *Boxer) Put(scope string, ts time.Time, item []byte) (key []byte, err er
 	if err := b.kvs.Set(fullkey, item, b.ttl); err != nil {
 		return []byte{}, err
 	}
-	intervalNumber := b.intervalNumber(ts)
+	intervalNumber := b.IntervalForTime(ts)
 	marker := fmt.Sprintf("%s-%d", intervalMarkerPrefix, intervalNumber)
 	if err := b.kvs.Set([]byte(marker), []byte{}, b.ttl); err != nil {
 		return []byte{}, err
@@ -146,20 +168,48 @@ func (b *Boxer) tooOld(ts time.Time) bool {
 	return (b.timefunc().Sub(ts) > b.interval*time.Duration(b.intervalCount)+b.grace)
 }
 
-// ForEach calls the given function for each item in the timebox.
+func (b *Boxer) intervalTooOld(interval int64) bool {
+	currentInterval := b.IntervalForTime(b.timefunc().Add(-b.grace))
+	return interval < currentInterval-int64(b.intervalCount)
+}
+
+// ForEachScope calls the given function for each item in the timebox.
 // If the function returns false, the iteration stops.
-func (b *Boxer) ForEach(scope string, ts time.Time, f func(key []byte, value []byte) bool) error {
+func (b *Boxer) ForEachScope(scope string, ts time.Time, f func(scope string, ts time.Time, value []byte) bool) error {
 	scope = sanitizeScope(scope)
 	prefix := b.generatePrefix(scope, ts)
-	return b.kvs.ForEachPrefix(prefix, f)
+	return b.foreach(prefix, f)
+}
+
+func (b *Boxer) ForEach(tbox int64, f func(scope string, ts time.Time, value []byte) bool) error {
+	prefix := b.generateIntervalPrefix(tbox)
+	return b.foreach(prefix, f)
+}
+
+func (b *Boxer) foreach(prefix []byte, f func(scope string, ts time.Time, value []byte) bool) error {
+	return b.kvs.ForEachPrefix(prefix, func(key []byte, value []byte) bool {
+		scope, ts, err := b.SplitKey(key)
+		if err != nil {
+			return false
+		}
+		return f(scope, ts, value)
+	})
 }
 
 func (b *Boxer) GetClosedIntervals(ts time.Time) ([]int64, error) {
 	intervals := []int64{}
 	for interval := range b.openIntervals {
-		if b.tooOld(ts) {
+		if b.intervalTooOld(interval) {
 			intervals = append(intervals, interval)
 		}
+	}
+	return intervals, nil
+}
+
+func (b *Boxer) GetAllIntervals() ([]int64, error) {
+	intervals := []int64{}
+	for interval := range b.openIntervals {
+		intervals = append(intervals, interval)
 	}
 	return intervals, nil
 }
@@ -167,4 +217,19 @@ func (b *Boxer) GetClosedIntervals(ts time.Time) ([]int64, error) {
 func (b *Boxer) CloseInterval(interval int64) error {
 	delete(b.openIntervals, interval)
 	return b.kvs.Delete([]byte(markerToInterval(interval)))
+}
+
+func (b *Boxer) Maintain() error {
+	return b.kvs.Maintain()
+}
+
+func (b *Boxer) Wipe() error {
+	if wiper, ok := b.kvs.(Wiper); ok {
+		return wiper.Wipe()
+	}
+	return nil
+}
+
+func (b *Boxer) Close() error {
+	return b.kvs.Close()
 }

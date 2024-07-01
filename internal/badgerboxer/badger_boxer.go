@@ -21,15 +21,21 @@ import (
 	"go.opentelemetry.io/collector/component"
 )
 
-func BoxerFor(path string, kind component.Kind, ent component.ID, name string, opts ...BoxerOptions) (*Boxer, error) {
-	safeFilename := SafeFilename(kind, ent, name)
-	path = filepath.Join(path, safeFilename)
-	db, err := badger.Open(badger.DefaultOptions(path).WithMetricsEnabled(false))
+func BoxerFor(path string, kind component.Kind, ent component.ID, name string, boxerOpts ...BoxerOptions) (*Boxer, error) {
+	var opts badger.Options
+	if path == "" {
+		opts = badger.DefaultOptions("").WithInMemory(true).WithMetricsEnabled(false)
+	} else {
+		safeFilename := SafeFilename(kind, ent, name)
+		path = filepath.Join(path, safeFilename)
+		opts = badger.DefaultOptions(path).WithMetricsEnabled(false)
+	}
+	db, err := badger.Open(opts)
 	if err != nil {
 		return nil, err
 	}
 	kvs := NewBadgerKVS(db)
-	box, err := NewBoxer(append(opts, WithKVS(kvs))...)
+	box, err := NewBoxer(append(boxerOpts, WithKVS(kvs))...)
 	if err != nil {
 		_ = db.Close()
 		return nil, err

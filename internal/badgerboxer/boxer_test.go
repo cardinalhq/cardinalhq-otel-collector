@@ -76,6 +76,37 @@ func TestBox_tooOld(t *testing.T) {
 	}
 }
 
+func TestBox_intervalTooOld(t *testing.T) {
+	interval := time.Second
+	intervalCount := int64(2)
+	grace := time.Millisecond * 200
+	timefunc := func() time.Time { return time.Unix(1000, 1000) }
+
+	tests := []struct {
+		name     string
+		interval int64
+		expected bool
+	}{
+		{"very early", 0, true},
+		{"just shy of grace", 997, false},
+		{"-2 from now", 998, false},
+		{"-1 from now", 999, false},
+		{"now", 1000, false},
+		{"one interval from now", 1001, false},
+		{"two intervals from now", 1002, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kvs := NewMemoryKVS(nil)
+			box, err := NewBoxer(WithKVS(kvs), WithInterval(interval), WithIntervalCount(intervalCount), WithGrace(grace), WithTimeFunc(timefunc))
+			assert.NoError(t, err)
+			result := box.intervalTooOld(tt.interval)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestBox_intervalNumber(t *testing.T) {
 	kvs := NewMemoryKVS(nil)
 	box, err := NewBoxer(WithKVS(kvs), WithInterval(time.Second), WithIntervalCount(2), WithGrace(time.Millisecond*200), WithTTL(time.Hour))
@@ -113,7 +144,7 @@ func TestBox_intervalNumber(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := box.intervalNumber(tt.ts)
+			result := box.IntervalForTime(tt.ts)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -286,7 +317,7 @@ func TestSanitizeScope(t *testing.T) {
 	}
 }
 
-func TestBox_ForEach(t *testing.T) {
+func TestBox_ForEachScope(t *testing.T) {
 	timefunc := func() time.Time { return time.Unix(1000, 1000) }
 	kvs := NewMemoryKVS(timefunc)
 	box, err := NewBoxer(WithKVS(kvs), WithInterval(time.Second), WithIntervalCount(2), WithTimeFunc(timefunc))
@@ -295,13 +326,13 @@ func TestBox_ForEach(t *testing.T) {
 		name     string
 		items    map[string]string
 		scope    string
-		expected map[string]string
+		expected []string
 	}{
 		{
 			"no items",
 			map[string]string{},
 			"scope1",
-			map[string]string{},
+			[]string{},
 		},
 		{
 			"one item different scope",
@@ -309,7 +340,7 @@ func TestBox_ForEach(t *testing.T) {
 				"1000-scope2-100000000000": "value2",
 			},
 			"scope1",
-			map[string]string{},
+			[]string{},
 		},
 		{
 			"one item same scope",
@@ -317,9 +348,7 @@ func TestBox_ForEach(t *testing.T) {
 				"1000-scope1-100000000000": "value1",
 			},
 			"scope1",
-			map[string]string{
-				"1000-scope1-100000000000": "value1",
-			},
+			[]string{"value1"},
 		},
 		{
 			"two items same scope",
@@ -328,10 +357,7 @@ func TestBox_ForEach(t *testing.T) {
 				"1000-scope1-100000000001": "value2",
 			},
 			"scope1",
-			map[string]string{
-				"1000-scope1-100000000000": "value1",
-				"1000-scope1-100000000001": "value2",
-			},
+			[]string{"value1", "value2"},
 		},
 		{
 			"same scope different timeboxes",
@@ -340,9 +366,7 @@ func TestBox_ForEach(t *testing.T) {
 				"1001-scope1-100000000000": "value2",
 			},
 			"scope1",
-			map[string]string{
-				"1000-scope1-100000000000": "value1",
-			},
+			[]string{"value1"},
 		},
 	}
 
@@ -359,13 +383,92 @@ func TestBox_ForEach(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			result := map[string]string{}
-			err := box.ForEach(tt.scope, timefunc(), func(key []byte, value []byte) bool {
-				result[string(key)] = string(value)
+			result := []string{}
+			err := box.ForEachScope(tt.scope, timefunc(), func(scope string, ts time.Time, value []byte) bool {
+				result = append(result, string(value))
 				return true
 			})
 			assert.NoError(t, err)
-			assert.Equal(t, tt.expected, result)
+			assert.ElementsMatch(t, tt.expected, result)
+		})
+	}
+}
+
+func TestBox_ForEach(t *testing.T) {
+	timefunc := func() time.Time { return time.Unix(1000, 1000) }
+	kvs := NewMemoryKVS(timefunc)
+	box, err := NewBoxer(WithKVS(kvs), WithInterval(time.Second), WithIntervalCount(2), WithTimeFunc(timefunc))
+	assert.NoError(t, err)
+	tests := []struct {
+		name     string
+		items    map[string]string
+		tbox     int64
+		expected []string
+	}{
+		{
+			"no items",
+			map[string]string{},
+			1000,
+			[]string{},
+		},
+		{
+			"one item different tbox",
+			map[string]string{
+				"1000-scope2-100000000000": "value2",
+			},
+			1001,
+			[]string{},
+		},
+		{
+			"one item, this tbox",
+			map[string]string{
+				"1000-scope1-100000000000": "value1",
+			},
+			1000,
+			[]string{"value1"},
+		},
+		{
+			"two items same scope",
+			map[string]string{
+				"1000-scope1-100000000000": "value1",
+				"1000-scope1-100000000001": "value2",
+			},
+			1000,
+			[]string{"value1", "value2"},
+		},
+		{
+			"multiple scopes and tboxes",
+			map[string]string{
+				"1000-scope1-100000000000": "value1",
+				"1001-scope1-100000000000": "value2",
+				"1000-scope2-100000000000": "value3",
+				"1001-scope2-100000000000": "value4",
+			},
+			1000,
+			[]string{"value1", "value3"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if w, ok := kvs.(Wiper); ok {
+				err := w.Wipe()
+				assert.NoError(t, err)
+			} else {
+				t.Fatal("kvs does not implement Wiper")
+			}
+			for key, value := range tt.items {
+				err := kvs.Set([]byte(key), []byte(value), 0)
+				assert.NoError(t, err)
+			}
+
+			result := []string{}
+			err := box.ForEach(tt.tbox, func(scope string, ts time.Time, value []byte) bool {
+				result = append(result, string(value))
+				return true
+			})
+			assert.NoError(t, err)
+			assert.ElementsMatch(t, tt.expected, result)
 		})
 	}
 }
@@ -480,4 +583,82 @@ func TestBox_loadOpenIntervals(t *testing.T) {
 		456: {},
 	}
 	assert.Equal(t, expectedIntervals, box.openIntervals)
+}
+
+func TestIntervalToTimestamp(t *testing.T) {
+	tests := []struct {
+		name     string
+		interval time.Duration
+		count    int64
+		expected time.Time
+	}{
+		{
+			"zero count",
+			time.Minute,
+			0,
+			time.Unix(0, 0),
+		},
+		{
+			"interval is 1 minute, count is 1",
+			time.Minute,
+			1,
+			time.Unix(60, 0),
+		},
+		{
+			"interval is 1 minute, count is 10",
+			time.Minute,
+			10,
+			time.Unix(600, 0),
+		},
+		{
+			"interval is 1 hour, count is 1",
+			time.Hour,
+			1,
+			time.Unix(3600, 0),
+		},
+		{
+			"interval is 1 hour, count is 10",
+			time.Hour,
+			10,
+			time.Unix(36000, 0),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kvs := NewMemoryKVS(nil)
+			boxer, err := NewBoxer(WithKVS(kvs), WithInterval(tt.interval), WithIntervalCount(2), WithGrace(time.Millisecond*200))
+			assert.NoError(t, err)
+			result := boxer.TimeForInterval(tt.count)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestBox_GetClosedIntervals(t *testing.T) {
+	timefunc := func() time.Time { return time.Unix(1000, 1000) }
+	kvs := NewMemoryKVS(timefunc)
+	// Set up the mock KVS with interval markers
+	assert.NoError(t, kvs.Set([]byte("interval-1230"), []byte{}, 0))
+	assert.NoError(t, kvs.Set([]byte("interval-4560"), []byte{}, 0))
+	// will be expired
+	assert.NoError(t, kvs.Set([]byte("interval-1"), []byte{}, 0))
+	assert.NoError(t, kvs.Set([]byte("interval-2"), []byte{}, 0))
+	assert.NoError(t, kvs.Set([]byte("interval-997"), []byte{}, 0))
+
+	box, err := NewBoxer(WithKVS(kvs), WithInterval(time.Second), WithIntervalCount(2), WithGrace(time.Millisecond*200), WithTimeFunc(timefunc))
+	assert.NoError(t, err)
+
+	allIntervals, err := box.GetAllIntervals()
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []int64{1, 2, 997, 1230, 4560}, allIntervals, "all intervals did not check out")
+
+	intervals, err := box.GetClosedIntervals(time.Unix(1000, 1000))
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []int64{1, 2}, intervals, "time 1000 did not return the expected intervals")
+
+	box.timefunc = func() time.Time { return time.Unix(4560, 1000) }
+	intervals, err = box.GetClosedIntervals(time.Unix(4560, 1000))
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []int64{1, 2, 997, 1230}, intervals, "time 4560 did not return the expected intervals")
 }

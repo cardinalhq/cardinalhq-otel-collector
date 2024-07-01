@@ -19,24 +19,20 @@ import (
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/ptrace"
-	"go.uber.org/multierr"
 )
 
 func (e *s3Exporter) ConsumeTraces(ctx context.Context, traces ptrace.Traces) error {
 	if e.config.Timeboxes.Traces.Interval <= 0 {
 		return nil
 	}
-	var errs error
-	oldestTimestamp, customerIDs, err := e.appendTraces(time.Now().UnixMilli(), traces)
-	errs = multierr.Append(errs, err)
-	go e.writeClosed(customerIDs, oldestTimestamp, tracesFilePrefix, e.traces)
-	return errs
-}
 
-func (e *s3Exporter) appendTraces(now int64, td ptrace.Traces) (int64, []string, error) {
-	tbl, err := e.tb.TracesFromOtel(&td)
+	tbl, err := e.tb.TracesFromOtel(&traces)
 	if err != nil {
-		return 0, nil, err
+		return err
 	}
-	return e.emitRows(now, true, tbl, e.traces, tracesFilePrefix)
+
+	now := time.Now()
+	interval := e.boxer.IntervalForTime(now)
+	custmap := e.partitionByCustomerID(interval, tbl)
+	return e.writeTableByCustomerID(now, custmap)
 }

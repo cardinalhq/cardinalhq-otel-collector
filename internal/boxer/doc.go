@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package badgerboxer
+package boxer
 
 //
 // The package badgerbox provides a simple interface for storing and retrieving

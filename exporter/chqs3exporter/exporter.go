@@ -30,7 +30,7 @@ import (
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/tagwriter"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/translation/table"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/badgerboxer"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/boxer"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
@@ -39,7 +39,7 @@ type s3Exporter struct {
 	config          *Config
 	logger          *zap.Logger
 	tb              table.Translator
-	boxer           *badgerboxer.Boxer
+	boxer           *boxer.Boxer
 	telemetryType   string
 	metadata        map[string]string
 	telemetry       *exporterTelemetry
@@ -85,14 +85,14 @@ func newS3Exporter(config *Config, params exporter.Settings, ttype string) (*s3E
 	return s3LogsExporter, nil
 }
 
-func (e *s3Exporter) Start(ctx context.Context, host component.Host) error {
+func (e *s3Exporter) Start(_ context.Context, _ component.Host) error {
 	var err error
 
 	filepath := e.config.Buffering.Directory
 	if e.config.Buffering.Type == bufferTypeMemory {
 		filepath = ""
 	}
-	box, err := badgerboxer.BoxerFor(filepath, component.KindExporter, e.id, e.telemetryType)
+	box, err := boxer.BoxerFor(filepath, component.KindExporter, e.id, e.telemetryType)
 	if err != nil {
 		return err
 	}
@@ -106,7 +106,7 @@ func (e *s3Exporter) Start(ctx context.Context, host component.Host) error {
 	return nil
 }
 
-func (e *s3Exporter) Shutdown(context.Context) error {
+func (e *s3Exporter) Shutdown(_ context.Context) error {
 	var errs error
 
 	// signal the watcher to stop processing data.  We will flush the

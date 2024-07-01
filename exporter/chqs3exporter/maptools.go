@@ -15,7 +15,6 @@
 package chqs3exporter
 
 import (
-	"encoding/json"
 	"time"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
@@ -106,7 +105,7 @@ func (e *s3Exporter) writeTableByCustomerIDAndInterval(tbl map[string]map[int64]
 }
 
 func (e *s3Exporter) writeTableForCustomerID(customerID string, now time.Time, tbl []map[string]any) error {
-	b, err := json.Marshal(tbl)
+	b, err := gobEncode(tbl)
 	if err != nil {
 		return err
 	}

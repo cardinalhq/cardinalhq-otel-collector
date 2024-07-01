@@ -36,8 +36,6 @@ func TestUpdateTagMap(t *testing.T) {
 
 	err := e.updateTagMap(customerID, interval, tags)
 	assert.NoError(t, err)
-
-	// Verify that the tags have been updated correctly
 	assert.Equal(t, tags, e.tags[customerID][interval])
 
 	// Verify that updating with different types returns an error
@@ -45,4 +43,17 @@ func TestUpdateTagMap(t *testing.T) {
 		"key1": 123,
 	})
 	assert.Error(t, err)
+
+	// Add another field to the map
+	err = e.updateTagMap(customerID, interval, map[string]any{
+		"key3": 1234,
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 3, len(e.tags[customerID][interval]))
+	newmap := map[string]any{
+		"key1": "value1",
+		"key2": "value2",
+		"key3": 1234,
+	}
+	assert.Equal(t, newmap, e.tags[customerID][interval])
 }

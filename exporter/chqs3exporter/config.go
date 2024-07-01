@@ -6,6 +6,7 @@ package chqs3exporter
 import (
 	"errors"
 	"os"
+	"time"
 
 	"go.uber.org/multierr"
 )
@@ -25,9 +26,9 @@ type S3UploaderConfig struct {
 }
 
 type TimeboxConfig struct {
-	Interval          int64 `mapstructure:"interval"`
-	GracePeriod       int64 `mapstructure:"grace_period"`
-	OpenIntervalCount int64 `mapstructure:"open_interval_count"`
+	Interval          time.Duration `mapstructure:"interval"`
+	GracePeriod       time.Duration `mapstructure:"grace_period"`
+	OpenIntervalCount int64         `mapstructure:"open_interval_count"`
 }
 
 // TimeboxConfig contains the configuration for the timebox

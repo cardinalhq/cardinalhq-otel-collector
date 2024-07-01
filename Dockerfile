@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM --platform=${BUILDPLATFORM} public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:builder-latest as build
+FROM --platform=${BUILDPLATFORM} public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:builder-latest AS build
 ARG TARGETOS
 ARG TARGETARCH
 ARG GIT_BRANCH
@@ -26,7 +26,7 @@ RUN sed 's/v0.0.0-dev/'${GIT_BRANCH}'/' < cardinalhq-otel-collector.yaml > build
 RUN CGO_ENABLED=0 builder --config=build.yaml
 
 #FROM gcr.io/distroless/base-debian11 as cardinalhq-otel-collector-image
-FROM alpine:3 as cardinalhq-otel-collector-image
+FROM alpine:3 AS cardinalhq-otel-collector-image
 RUN apk update && apk add --no-cache ca-certificates curl && rm -rf /var/cache/apk/*
 WORKDIR /app
 COPY --from=build /build/bin/cardinalhq-otel-collector /app/bin/cardinalhq-otel-collector

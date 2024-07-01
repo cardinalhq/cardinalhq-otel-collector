@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM --platform=${BUILDPLATFORM} golang:latest as build
+FROM --platform=${BUILDPLATFORM} golang:latest AS build
 ARG TARGETOS
 ARG TARGETARCH
 ARG OTEL_VERSION=latest

@@ -106,6 +106,11 @@ func (l *TableTranslator) toddSum(metric pmetric.Metric, baseattrs map[string]an
 		dp := metric.Sum().DataPoints().At(i)
 		ret := maps.Clone(baseattrs)
 		addAttributes(ret, dp.Attributes(), "metric")
+		if metric.Sum().AggregationTemporality() == pmetric.AggregationTemporalityCumulative && !metric.Sum().IsMonotonic() {
+			ret[translate.CardinalFieldMetricType] = translate.CardinalMetricTypeGauge
+		} else {
+			ret[translate.CardinalFieldMetricType] = translate.CardinalMetricTypeCount
+		}
 		ret[translate.CardinalFieldMetricType] = translate.CardinalMetricTypeCount
 		ret[translate.CardinalFieldTimestamp] = dp.Timestamp().AsTime().UnixMilli()
 		switch dp.ValueType() {

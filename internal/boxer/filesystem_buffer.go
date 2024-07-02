@@ -130,16 +130,24 @@ func (b *FilesystemBuffer) CloseIntervalScope(interval int64, scope string) erro
 }
 
 func unlockedCloseIntervalScope(b *FilesystemBuffer, interval int64, scope string) error {
-	file, ok := b.openFiles[interval][scope]
-	if !ok {
+	if _, ok := b.openFiles[interval]; !ok {
 		return nil
 	}
+	if _, ok := b.openFiles[interval][scope]; !ok {
+		return nil
+	}
+	file := b.openFiles[interval][scope]
+
 	delete(b.openFiles[interval], scope)
 	if len(b.openFiles[interval]) == 0 {
 		delete(b.openFiles, interval)
 	}
 
-	return file.Close()
+	var errs *multierror.Error
+	errs = multierror.Append(errs, file.Close())
+	errs = multierror.Append(errs, os.Remove(file.Name()))
+
+	return errs.ErrorOrNil()
 }
 
 func (b *FilesystemBuffer) CloseInterval(interval int64) error {

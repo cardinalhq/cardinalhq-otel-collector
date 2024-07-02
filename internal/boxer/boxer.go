@@ -120,6 +120,10 @@ func (b *Boxer) CloseInterval(interval int64) error {
 	return errs.ErrorOrNil()
 }
 
+func (b *Boxer) GetScopesForInterval(interval int64) ([]string, error) {
+	return b.buffer.GetScopes(interval)
+}
+
 func (b *Boxer) Maintain() error {
 	return nil
 }

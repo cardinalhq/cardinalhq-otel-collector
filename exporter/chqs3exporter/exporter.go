@@ -92,9 +92,7 @@ func (e *s3Exporter) Start(_ context.Context, _ component.Host) error {
 		filepath = ""
 	}
 
-	opts := []boxer.BoxerOptions{
-		boxer.WithKeySuffix(e.telemetryType),
-	}
+	opts := []boxer.BoxerOptions{}
 	switch e.telemetryType {
 	case logFilePrefix:
 		opts = append(opts, boxer.WithInterval(e.config.Timeboxes.Logs.Interval))
@@ -318,42 +316,46 @@ func (e *s3Exporter) writeInterval(interval int64) error {
 		closeCustomerFiles(writers, e.logger)
 	}()
 
-	err := e.boxer.ForEach(interval, func(customerID string, ts time.Time, key []byte, value []byte) bool {
-		logger := e.logger.With(
-			zap.String("customerID", customerID),
-			zap.Time("timestamp", ts),
-			zap.Int64("interval", interval),
-			zap.String("key", string(key)),
-		)
-		logger.Info("Processing interval")
-		tableRows := []map[string]any{}
-		if err := gobDecode(value, &tableRows); err != nil {
-			logger.Error("Failed to unmarshal table", zap.Error(err))
-			return true
-		}
-		if !ensureCustomerID(tableRows, customerID, logger) {
-			return true
-		}
-		logger.Info("Writing rows", zap.Int("count", len(tableRows)))
-		if _, ok := writers[customerID]; !ok {
-			writer, err := e.newParquetWriter(customerID, interval)
-			if err != nil {
-				logger.Error("Failed to create parquet writer", zap.Error(err))
-				return true
-			}
-			writers[customerID] = writer
-		}
-		f := writers[customerID]
-
-		if _, err := f.writer.WriteRows(tableRows); err != nil {
-			logger.Error("Failed to write rows", zap.Error(err))
-			return false
-		}
-		return true
-	})
-
+	customerIDs, err := e.boxer.GetScopesForInterval(interval)
 	if err != nil {
 		return err
+	}
+
+	for _, customerID := range customerIDs {
+		err := e.boxer.ForEach(interval, customerID, func(value []byte) (bool, error) {
+			logger := e.logger.With(
+				zap.String("customerID", customerID),
+				zap.Int64("interval", interval),
+			)
+			logger.Info("Processing interval")
+			tableRows := []map[string]any{}
+			if err := gobDecode(value, &tableRows); err != nil {
+				logger.Error("Failed to unmarshal table", zap.Error(err))
+				return false, err
+			}
+			if !ensureCustomerID(tableRows, customerID, logger) {
+				return false, fmt.Errorf("customer ID mismatch")
+			}
+			logger.Info("Writing rows", zap.Int("count", len(tableRows)))
+			if _, ok := writers[customerID]; !ok {
+				writer, err := e.newParquetWriter(customerID, interval)
+				if err != nil {
+					logger.Error("Failed to create parquet writer", zap.Error(err))
+					return false, err
+				}
+				writers[customerID] = writer
+			}
+			f := writers[customerID]
+
+			if _, err := f.writer.WriteRows(tableRows); err != nil {
+				logger.Error("Failed to write rows", zap.Error(err))
+				return false, err
+			}
+			return true, nil
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	keys := maps.Keys(writers)

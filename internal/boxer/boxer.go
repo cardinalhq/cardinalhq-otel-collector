@@ -17,6 +17,7 @@ package boxer
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -226,6 +227,11 @@ func (b *Boxer) CloseInterval(interval int64) error {
 		keys = append(keys, key)
 		return true
 	})
+	skeys := []string{}
+	for _, k := range keys {
+		skeys = append(skeys, string(k))
+	}
+	slog.Info("closing interval", "interval", interval, "keys", skeys)
 	return b.kvs.Delete(keys...)
 }
 

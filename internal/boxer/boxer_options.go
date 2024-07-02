@@ -68,8 +68,8 @@ func WithOpenIntervals(openIntervals map[int64]struct{}) BoxerOptions {
 	})
 }
 
-func WithKeyPrefix(keyprefix string) BoxerOptions {
+func WithKeySuffix(keySuffix string) BoxerOptions {
 	return boxerOptionFunc(func(b *Boxer) {
-		b.keyprefix = keyprefix
+		b.keySuffix = keySuffix
 	})
 }

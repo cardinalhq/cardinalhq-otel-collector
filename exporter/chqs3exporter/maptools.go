@@ -15,11 +15,11 @@
 package chqs3exporter
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"github.com/hashicorp/go-multierror"
-	"go.uber.org/multierr"
 	"go.uber.org/zap"
 )
 
@@ -94,23 +94,42 @@ func (e *s3Exporter) writeTableByCustomerID(now time.Time, tbl map[string][]map[
 }
 
 func (e *s3Exporter) writeTableByCustomerIDAndInterval(tbl map[string]map[int64][]map[string]any) error {
-	var errs error
+	var errs *multierror.Error
 	for cid, intervals := range tbl {
 		for interval, metrics := range intervals {
 			ts := e.boxer.TimeForInterval(interval)
-			errs = multierr.Append(errs, e.writeTableForCustomerID(cid, ts, metrics))
+			errs = multierror.Append(errs, e.writeTableForCustomerID(cid, ts, metrics))
 		}
 	}
-	return errs
+	return errs.ErrorOrNil()
 }
 
 func (e *s3Exporter) writeTableForCustomerID(customerID string, now time.Time, tbl []map[string]any) error {
+	if len(tbl) == 0 {
+		e.logger.Info("no items to put to KVS", zap.String("customerID", customerID), zap.Time("timestamp", now))
+	}
+	// validate the customer ID
+	for _, item := range tbl {
+		cid := customerIDFromMap(item)
+		if cid != customerID {
+			return fmt.Errorf("customer ID mismatch: %s != %s", customerID, cid)
+		}
+	}
+
 	b, err := gobEncode(tbl)
 	if err != nil {
 		return err
 	}
-	if _, err := e.boxer.Put(customerID, now, b); err != nil {
+	key, err := e.boxer.Put(customerID, now, b)
+	if err != nil {
+		e.logger.Error("failed to put items to KVS", zap.Error(err))
 		return err
 	}
+	e.logger.Info("put items to KVS",
+		zap.String("customerID", customerID),
+		zap.Time("timestamp", now),
+		zap.Int("count", len(tbl)),
+		zap.String("key", string(key)),
+		zap.Int64("interval", e.boxer.IntervalForTime(now)))
 	return nil
 }

@@ -225,6 +225,49 @@ func TestBox_generateFullKey(t *testing.T) {
 	}
 }
 
+func TestBox_generateFullKey_withSuffix(t *testing.T) {
+	kvs := NewMemoryKVS(nil)
+	box, err := NewBoxer(WithKVS(kvs), WithInterval(time.Second), WithIntervalCount(2), WithGrace(time.Millisecond*200), WithTTL(time.Hour), WithKeySuffix("martin"))
+	assert.NoError(t, err)
+	tests := []struct {
+		name           string
+		scope          string
+		ts             time.Time
+		expectedPrefix []byte
+		expectedSuffix []byte
+	}{
+		{
+			"test1",
+			"scope1",
+			time.Unix(0, 0),
+			[]byte("0-scope1-"),
+			[]byte("-martin"),
+		},
+		{
+			"test2",
+			"scope2",
+			time.Unix(1, 0),
+			[]byte("1-scope2-"),
+			[]byte("-martin"),
+		},
+		{
+			"test3",
+			"scope3",
+			time.Unix(2, 0),
+			[]byte("2-scope3-"),
+			[]byte("-martin"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := box.generateFullKey(tt.scope, tt.ts)
+			assert.Greater(t, len(result), len(tt.expectedPrefix))
+			assert.Equal(t, tt.expectedPrefix, result[:len(tt.expectedPrefix)])
+			assert.Equal(t, tt.expectedSuffix, result[len(result)-len(tt.expectedSuffix):])
+		})
+	}
+}
+
 func TestBox_Put(t *testing.T) {
 	kvs := NewMemoryKVS(nil)
 	timefunc := func() time.Time { return time.Unix(1000, 1000) }
@@ -323,15 +366,17 @@ func TestBox_ForEachScope(t *testing.T) {
 	box, err := NewBoxer(WithKVS(kvs), WithInterval(time.Second), WithIntervalCount(2), WithTimeFunc(timefunc))
 	assert.NoError(t, err)
 	tests := []struct {
-		name     string
-		items    map[string]string
-		scope    string
-		expected []string
+		name         string
+		items        map[string]string
+		scope        string
+		expected     []string
+		expectedKeys []string
 	}{
 		{
 			"no items",
 			map[string]string{},
 			"scope1",
+			[]string{},
 			[]string{},
 		},
 		{
@@ -341,6 +386,7 @@ func TestBox_ForEachScope(t *testing.T) {
 			},
 			"scope1",
 			[]string{},
+			[]string{},
 		},
 		{
 			"one item same scope",
@@ -349,6 +395,7 @@ func TestBox_ForEachScope(t *testing.T) {
 			},
 			"scope1",
 			[]string{"value1"},
+			[]string{"1000-scope1-100000000000"},
 		},
 		{
 			"two items same scope",
@@ -358,6 +405,7 @@ func TestBox_ForEachScope(t *testing.T) {
 			},
 			"scope1",
 			[]string{"value1", "value2"},
+			[]string{"1000-scope1-100000000000", "1000-scope1-100000000001"},
 		},
 		{
 			"same scope different timeboxes",
@@ -367,6 +415,7 @@ func TestBox_ForEachScope(t *testing.T) {
 			},
 			"scope1",
 			[]string{"value1"},
+			[]string{"1000-scope1-100000000000"},
 		},
 	}
 
@@ -384,12 +433,15 @@ func TestBox_ForEachScope(t *testing.T) {
 			}
 
 			result := []string{}
-			err := box.ForEachScope(tt.scope, timefunc(), func(scope string, ts time.Time, value []byte) bool {
+			resultKeys := []string{}
+			err := box.ForEachScope(tt.scope, timefunc(), func(scope string, ts time.Time, key []byte, value []byte) bool {
 				result = append(result, string(value))
+				resultKeys = append(resultKeys, string(key))
 				return true
 			})
 			assert.NoError(t, err)
 			assert.ElementsMatch(t, tt.expected, result)
+			assert.ElementsMatch(t, tt.expectedKeys, resultKeys)
 		})
 	}
 }
@@ -400,15 +452,17 @@ func TestBox_ForEach(t *testing.T) {
 	box, err := NewBoxer(WithKVS(kvs), WithInterval(time.Second), WithIntervalCount(2), WithTimeFunc(timefunc))
 	assert.NoError(t, err)
 	tests := []struct {
-		name     string
-		items    map[string]string
-		tbox     int64
-		expected []string
+		name         string
+		items        map[string]string
+		tbox         int64
+		expected     []string
+		expectedKeys []string
 	}{
 		{
 			"no items",
 			map[string]string{},
 			1000,
+			[]string{},
 			[]string{},
 		},
 		{
@@ -418,6 +472,7 @@ func TestBox_ForEach(t *testing.T) {
 			},
 			1001,
 			[]string{},
+			[]string{},
 		},
 		{
 			"one item, this tbox",
@@ -426,6 +481,7 @@ func TestBox_ForEach(t *testing.T) {
 			},
 			1000,
 			[]string{"value1"},
+			[]string{"1000-scope1-100000000000"},
 		},
 		{
 			"two items same scope",
@@ -435,6 +491,7 @@ func TestBox_ForEach(t *testing.T) {
 			},
 			1000,
 			[]string{"value1", "value2"},
+			[]string{"1000-scope1-100000000000", "1000-scope1-100000000001"},
 		},
 		{
 			"multiple scopes and tboxes",
@@ -446,6 +503,7 @@ func TestBox_ForEach(t *testing.T) {
 			},
 			1000,
 			[]string{"value1", "value3"},
+			[]string{"1000-scope1-100000000000", "1000-scope2-100000000000"},
 		},
 	}
 
@@ -463,12 +521,15 @@ func TestBox_ForEach(t *testing.T) {
 			}
 
 			result := []string{}
-			err := box.ForEach(tt.tbox, func(scope string, ts time.Time, value []byte) bool {
+			resultKeys := []string{}
+			err := box.ForEach(tt.tbox, func(scope string, ts time.Time, key []byte, value []byte) bool {
 				result = append(result, string(value))
+				resultKeys = append(resultKeys, string(key))
 				return true
 			})
 			assert.NoError(t, err)
 			assert.ElementsMatch(t, tt.expected, result)
+			assert.ElementsMatch(t, tt.expectedKeys, resultKeys)
 		})
 	}
 }
@@ -591,36 +652,56 @@ func TestIntervalToTimestamp(t *testing.T) {
 		interval time.Duration
 		count    int64
 		expected time.Time
+		ms       int64
 	}{
 		{
 			"zero count",
 			time.Minute,
 			0,
 			time.Unix(0, 0),
+			0,
 		},
 		{
 			"interval is 1 minute, count is 1",
 			time.Minute,
 			1,
 			time.Unix(60, 0),
+			60_000,
 		},
 		{
 			"interval is 1 minute, count is 10",
 			time.Minute,
 			10,
 			time.Unix(600, 0),
+			600_000,
 		},
 		{
 			"interval is 1 hour, count is 1",
 			time.Hour,
 			1,
 			time.Unix(3600, 0),
+			3_600_000,
 		},
 		{
 			"interval is 1 hour, count is 10",
 			time.Hour,
 			10,
-			time.Unix(36000, 0),
+			time.Unix(0, 0).Add(time.Hour * 10),
+			36_000_000,
+		},
+		{
+			"interval is 10s",
+			time.Second * 10,
+			1,
+			time.Unix(10, 0),
+			10_000,
+		},
+		{
+			"interval is 10s, count is 171987956",
+			time.Second * 10,
+			171987956,
+			time.Unix(1719879560, 0),
+			1_719_879_560_000,
 		},
 	}
 
@@ -631,6 +712,7 @@ func TestIntervalToTimestamp(t *testing.T) {
 			assert.NoError(t, err)
 			result := boxer.TimeForInterval(tt.count)
 			assert.Equal(t, tt.expected, result)
+			assert.Equal(t, tt.ms, result.UnixMilli())
 		})
 	}
 }
@@ -661,4 +743,19 @@ func TestBox_GetClosedIntervals(t *testing.T) {
 	intervals, err = box.GetClosedIntervals(time.Unix(4560, 1000))
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, []int64{1, 2, 997, 1230}, intervals, "time 4560 did not return the expected intervals")
+}
+
+func TestBox_IntervalsAndTime(t *testing.T) {
+	b := &Boxer{
+		interval:      time.Hour,
+		intervalCount: 2,
+	}
+
+	interval := 1234
+	ts := b.TimeForInterval(int64(interval))
+	assert.Equal(t, time.Unix(0, 0).Add(time.Hour*time.Duration(interval)), ts)
+	i2 := b.IntervalForTime(ts)
+	assert.Equal(t, int64(interval), i2)
+	ts2 := b.TimeForInterval(i2)
+	assert.Equal(t, ts, ts2)
 }

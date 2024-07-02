@@ -30,7 +30,7 @@ type Boxer struct {
 	timefunc      TimeFunc
 	ttl           time.Duration
 	openIntervals map[int64]struct{}
-	keyprefix     string
+	keySuffix     string
 }
 
 type TimeFunc func() time.Time
@@ -82,7 +82,7 @@ func (b *Boxer) IntervalForTime(ts time.Time) int64 {
 }
 
 func (b *Boxer) generateFullKey(scope string, ts time.Time) []byte {
-	r := fmt.Sprintf("%d-%s-%d", b.IntervalForTime(ts), scope, randomSuffix())
+	r := fmt.Sprintf("%d-%s-%d-%s", b.IntervalForTime(ts), scope, randomSuffix(), b.keySuffix)
 	return []byte(r)
 }
 
@@ -175,24 +175,24 @@ func (b *Boxer) intervalTooOld(interval int64) bool {
 
 // ForEachScope calls the given function for each item in the timebox.
 // If the function returns false, the iteration stops.
-func (b *Boxer) ForEachScope(scope string, ts time.Time, f func(scope string, ts time.Time, value []byte) bool) error {
+func (b *Boxer) ForEachScope(scope string, ts time.Time, f func(scope string, ts time.Time, key []byte, value []byte) bool) error {
 	scope = sanitizeScope(scope)
 	prefix := b.generatePrefix(scope, ts)
 	return b.foreach(prefix, f)
 }
 
-func (b *Boxer) ForEach(tbox int64, f func(scope string, ts time.Time, value []byte) bool) error {
+func (b *Boxer) ForEach(tbox int64, f func(scope string, ts time.Time, key []byte, value []byte) bool) error {
 	prefix := b.generateIntervalPrefix(tbox)
 	return b.foreach(prefix, f)
 }
 
-func (b *Boxer) foreach(prefix []byte, f func(scope string, ts time.Time, value []byte) bool) error {
+func (b *Boxer) foreach(prefix []byte, f func(scope string, ts time.Time, key []byte, value []byte) bool) error {
 	return b.kvs.ForEachPrefix(prefix, func(key []byte, value []byte) bool {
 		scope, ts, err := b.SplitKey(key)
 		if err != nil {
 			return false
 		}
-		return f(scope, ts, value)
+		return f(scope, ts, key, value)
 	})
 }
 

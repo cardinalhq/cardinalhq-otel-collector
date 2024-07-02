@@ -24,11 +24,11 @@ import (
 func BoxerFor(path string, kind component.Kind, ent component.ID, name string, boxerOpts ...BoxerOptions) (*Boxer, error) {
 	var opts badger.Options
 	if path == "" {
-		opts = badger.DefaultOptions("").WithInMemory(true).WithMetricsEnabled(false)
+		opts = badger.DefaultOptions("").WithInMemory(true)
 	} else {
 		safeFilename := SafeFilename(kind, ent, name)
 		path = filepath.Join(path, safeFilename)
-		opts = badger.DefaultOptions(path).WithMetricsEnabled(false)
+		opts = badger.DefaultOptions(path)
 	}
 	db, err := badger.Open(opts)
 	if err != nil {

@@ -67,8 +67,8 @@ func TestBox_tooOld(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			kvs := NewMemoryKVS(nil)
-			box, err := NewBoxer(WithKVS(kvs), WithInterval(interval), WithIntervalCount(intervalCount), WithGrace(grace), WithTimeFunc(timefunc))
+			buffer := NewMemoryBuffer()
+			box, err := NewBoxer(WithBufferStorage(buffer), WithInterval(interval), WithIntervalCount(intervalCount), WithGrace(grace), WithTimeFunc(timefunc))
 			assert.NoError(t, err)
 			result := box.tooOld(tt.ts)
 			assert.Equal(t, tt.expected, result)
@@ -98,18 +98,18 @@ func TestBox_intervalTooOld(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			kvs := NewMemoryKVS(nil)
-			box, err := NewBoxer(WithKVS(kvs), WithInterval(interval), WithIntervalCount(intervalCount), WithGrace(grace), WithTimeFunc(timefunc))
+			buffer := NewMemoryBuffer()
+			box, err := NewBoxer(WithBufferStorage(buffer), WithInterval(interval), WithIntervalCount(intervalCount), WithGrace(grace), WithTimeFunc(timefunc))
 			assert.NoError(t, err)
-			result := box.intervalTooOld(tt.interval)
+			result := box.intervalTooOld(timefunc(), tt.interval)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
 
 func TestBox_intervalNumber(t *testing.T) {
-	kvs := NewMemoryKVS(nil)
-	box, err := NewBoxer(WithKVS(kvs), WithInterval(time.Second), WithIntervalCount(2), WithGrace(time.Millisecond*200), WithTTL(time.Hour))
+	buffer := NewMemoryBuffer()
+	box, err := NewBoxer(WithBufferStorage(buffer), WithInterval(time.Second), WithIntervalCount(2), WithGrace(time.Millisecond*200))
 	assert.NoError(t, err)
 	tests := []struct {
 		name     string
@@ -150,500 +150,159 @@ func TestBox_intervalNumber(t *testing.T) {
 	}
 }
 
-func TestBox_generatePrefix(t *testing.T) {
-	kvs := NewMemoryKVS(nil)
-	box, err := NewBoxer(WithKVS(kvs), WithInterval(time.Second), WithIntervalCount(2), WithGrace(time.Millisecond*200), WithTTL(time.Hour))
-	assert.NoError(t, err)
-	tests := []struct {
-		name     string
-		scope    string
-		ts       time.Time
-		expected []byte
-	}{
-		{
-			"test1",
-			"scope1",
-			time.Unix(0, 0),
-			[]byte("0-scope1-"),
-		},
-		{
-			"test2",
-			"scope2",
-			time.Unix(1, 0),
-			[]byte("1-scope2-"),
-		},
-		{
-			"test3",
-			"scope3",
-			time.Unix(2, 0),
-			[]byte("2-scope3-"),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := box.generatePrefix(tt.scope, tt.ts)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestBox_generateFullKey(t *testing.T) {
-	kvs := NewMemoryKVS(nil)
-	box, err := NewBoxer(WithKVS(kvs), WithInterval(time.Second), WithIntervalCount(2), WithGrace(time.Millisecond*200), WithTTL(time.Hour))
-	assert.NoError(t, err)
-	tests := []struct {
-		name           string
-		scope          string
-		ts             time.Time
-		expectedPrefix []byte
-	}{
-		{
-			"test1",
-			"scope1",
-			time.Unix(0, 0),
-			[]byte("0-scope1-"),
-		},
-		{
-			"test2",
-			"scope2",
-			time.Unix(1, 0),
-			[]byte("1-scope2-"),
-		},
-		{
-			"test3",
-			"scope3",
-			time.Unix(2, 0),
-			[]byte("2-scope3-"),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := box.generateFullKey(tt.scope, tt.ts)
-			assert.Greater(t, len(result), len(tt.expectedPrefix))
-			assert.Equal(t, tt.expectedPrefix, result[:len(tt.expectedPrefix)])
-		})
-	}
-}
-
-func TestBox_generateFullKey_withSuffix(t *testing.T) {
-	kvs := NewMemoryKVS(nil)
-	box, err := NewBoxer(WithKVS(kvs), WithInterval(time.Second), WithIntervalCount(2), WithGrace(time.Millisecond*200), WithTTL(time.Hour), WithKeySuffix("martin"))
-	assert.NoError(t, err)
-	tests := []struct {
-		name           string
-		scope          string
-		ts             time.Time
-		expectedPrefix []byte
-		expectedSuffix []byte
-	}{
-		{
-			"test1",
-			"scope1",
-			time.Unix(0, 0),
-			[]byte("0-scope1-"),
-			[]byte("-martin"),
-		},
-		{
-			"test2",
-			"scope2",
-			time.Unix(1, 0),
-			[]byte("1-scope2-"),
-			[]byte("-martin"),
-		},
-		{
-			"test3",
-			"scope3",
-			time.Unix(2, 0),
-			[]byte("2-scope3-"),
-			[]byte("-martin"),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := box.generateFullKey(tt.scope, tt.ts)
-			assert.Greater(t, len(result), len(tt.expectedPrefix))
-			assert.Equal(t, tt.expectedPrefix, result[:len(tt.expectedPrefix)])
-			assert.Equal(t, tt.expectedSuffix, result[len(result)-len(tt.expectedSuffix):])
-		})
-	}
-}
-
 func TestBox_Put(t *testing.T) {
-	kvs := NewMemoryKVS(nil)
 	timefunc := func() time.Time { return time.Unix(1000, 1000) }
-	box, err := NewBoxer(WithKVS(kvs), WithInterval(time.Second), WithIntervalCount(2), WithGrace(time.Millisecond*200), WithTTL(time.Hour), WithTimeFunc(timefunc))
+	buffer := NewMemoryBuffer()
+	box, err := NewBoxer(WithBufferStorage(buffer), WithInterval(time.Second), WithIntervalCount(2), WithGrace(time.Millisecond*200), WithTimeFunc(timefunc))
 	assert.NoError(t, err)
 	tests := []struct {
-		name           string
-		scope          string
-		ts             time.Time
-		value          []byte
-		expectedPrefix []byte
-		expectedAdded  bool
+		name         string
+		scope        string
+		ts           time.Time
+		value        []byte
+		expectTooOld bool
 	}{
 		{
 			"test1",
 			"scope1",
 			time.Unix(0, 0),
 			[]byte("value1"),
-			[]byte{},
-			false,
+			true,
 		},
 		{
 			"test2",
 			"scope2",
 			time.Unix(1001, 0),
 			[]byte("value2"),
-			[]byte("1001-scope2-"),
-			true,
+			false,
 		},
 		{
 			"test3",
 			"scope3",
 			time.Unix(1000, 0),
 			[]byte("value3"),
-			[]byte("1000-scope3-"),
-			true,
+			false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			key, err := box.Put(tt.scope, tt.ts, tt.value)
+			tooOld, err := box.Put(tt.scope, tt.ts, tt.value)
 			assert.NoError(t, err)
-			if tt.expectedAdded {
-				assert.Greater(t, len(key), len(tt.expectedPrefix))
-				assert.Equal(t, tt.expectedPrefix, key[:len(tt.expectedPrefix)])
-			} else {
-				assert.Equal(t, 0, len(key))
-			}
-		})
-	}
-}
-
-func TestSanitizeScope(t *testing.T) {
-	tests := []struct {
-		name     string
-		scope    string
-		expected string
-	}{
-		{
-			"no special characters",
-			"abc123",
-			"abc123",
-		},
-		{
-			"with special characters",
-			"abc!@#123",
-			"abc___123",
-		},
-		{
-			"with spaces",
-			"abc 123",
-			"abc_123",
-		},
-		{
-			"with uppercase letters",
-			"ABC123",
-			"ABC123",
-		},
-		{
-			"with mixed case letters",
-			"aBc-123",
-			"aBc_123",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := sanitizeScope(tt.scope)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestBox_ForEachScope(t *testing.T) {
-	timefunc := func() time.Time { return time.Unix(1000, 1000) }
-	kvs := NewMemoryKVS(timefunc)
-	box, err := NewBoxer(WithKVS(kvs), WithInterval(time.Second), WithIntervalCount(2), WithTimeFunc(timefunc))
-	assert.NoError(t, err)
-	tests := []struct {
-		name         string
-		items        map[string]string
-		scope        string
-		expected     []string
-		expectedKeys []string
-	}{
-		{
-			"no items",
-			map[string]string{},
-			"scope1",
-			[]string{},
-			[]string{},
-		},
-		{
-			"one item different scope",
-			map[string]string{
-				"1000-scope2-100000000000": "value2",
-			},
-			"scope1",
-			[]string{},
-			[]string{},
-		},
-		{
-			"one item same scope",
-			map[string]string{
-				"1000-scope1-100000000000": "value1",
-			},
-			"scope1",
-			[]string{"value1"},
-			[]string{"1000-scope1-100000000000"},
-		},
-		{
-			"two items same scope",
-			map[string]string{
-				"1000-scope1-100000000000": "value1",
-				"1000-scope1-100000000001": "value2",
-			},
-			"scope1",
-			[]string{"value1", "value2"},
-			[]string{"1000-scope1-100000000000", "1000-scope1-100000000001"},
-		},
-		{
-			"same scope different timeboxes",
-			map[string]string{
-				"1000-scope1-100000000000": "value1",
-				"1001-scope1-100000000000": "value2",
-			},
-			"scope1",
-			[]string{"value1"},
-			[]string{"1000-scope1-100000000000"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if w, ok := kvs.(Wiper); ok {
-				err := w.Wipe()
-				assert.NoError(t, err)
-			} else {
-				t.Fatal("kvs does not implement Wiper")
-			}
-			for key, value := range tt.items {
-				err := kvs.Set([]byte(key), []byte(value), 0)
-				assert.NoError(t, err)
-			}
-
-			result := []string{}
-			resultKeys := []string{}
-			err := box.ForEachScope(tt.scope, timefunc(), func(scope string, ts time.Time, key []byte, value []byte) bool {
-				result = append(result, string(value))
-				resultKeys = append(resultKeys, string(key))
-				return true
-			})
-			assert.NoError(t, err)
-			assert.ElementsMatch(t, tt.expected, result)
-			assert.ElementsMatch(t, tt.expectedKeys, resultKeys)
+			assert.Equal(t, tt.expectTooOld, tooOld)
 		})
 	}
 }
 
 func TestBox_ForEach(t *testing.T) {
 	timefunc := func() time.Time { return time.Unix(1000, 1000) }
-	kvs := NewMemoryKVS(timefunc)
-	box, err := NewBoxer(WithKVS(kvs), WithInterval(time.Second), WithIntervalCount(2), WithTimeFunc(timefunc))
-	assert.NoError(t, err)
 	tests := []struct {
-		name         string
-		items        map[string]string
-		tbox         int64
-		expected     []string
-		expectedKeys []string
+		name     string
+		records  []*BufferRecord
+		tbox     int64
+		scope    string
+		expected []string
 	}{
 		{
 			"no items",
-			map[string]string{},
+			[]*BufferRecord{},
 			1000,
-			[]string{},
+			"scope1",
 			[]string{},
 		},
 		{
 			"one item different tbox",
-			map[string]string{
-				"1000-scope2-100000000000": "value2",
+			[]*BufferRecord{
+				{
+					Interval: 1001,
+					Scope:    "scope1",
+					Contents: []byte("value1"),
+				},
 			},
-			1001,
-			[]string{},
+			1000,
+			"scope1",
 			[]string{},
 		},
 		{
 			"one item, this tbox",
-			map[string]string{
-				"1000-scope1-100000000000": "value1",
+			[]*BufferRecord{
+				{
+					Interval: 1000,
+					Scope:    "scope1",
+					Contents: []byte("value1"),
+				},
 			},
 			1000,
+			"scope1",
 			[]string{"value1"},
-			[]string{"1000-scope1-100000000000"},
 		},
 		{
 			"two items same scope",
-			map[string]string{
-				"1000-scope1-100000000000": "value1",
-				"1000-scope1-100000000001": "value2",
+			[]*BufferRecord{
+				{
+					Interval: 1000,
+					Scope:    "scope1",
+					Contents: []byte("value1"),
+				},
+				{
+					Interval: 1000,
+					Scope:    "scope1",
+					Contents: []byte("value2"),
+				},
 			},
 			1000,
+			"scope1",
 			[]string{"value1", "value2"},
-			[]string{"1000-scope1-100000000000", "1000-scope1-100000000001"},
 		},
 		{
 			"multiple scopes and tboxes",
-			map[string]string{
-				"1000-scope1-100000000000": "value1",
-				"1001-scope1-100000000000": "value2",
-				"1000-scope2-100000000000": "value3",
-				"1001-scope2-100000000000": "value4",
+			[]*BufferRecord{
+				{
+					Interval: 1000,
+					Scope:    "scope1",
+					Contents: []byte("value1"),
+				},
+				{
+					Interval: 1001,
+					Scope:    "scope1",
+					Contents: []byte("value2"),
+				},
+				{
+					Interval: 1000,
+					Scope:    "scope2",
+					Contents: []byte("value3"),
+				},
+				{
+					Interval: 1001,
+					Scope:    "scope2",
+					Contents: []byte("value4"),
+				},
 			},
 			1000,
-			[]string{"value1", "value3"},
-			[]string{"1000-scope1-100000000000", "1000-scope2-100000000000"},
+			"scope1",
+			[]string{"value1"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if w, ok := kvs.(Wiper); ok {
-				err := w.Wipe()
-				assert.NoError(t, err)
-			} else {
-				t.Fatal("kvs does not implement Wiper")
-			}
-			for key, value := range tt.items {
-				err := kvs.Set([]byte(key), []byte(value), 0)
+			buffer := NewMemoryBuffer()
+			box, err := NewBoxer(WithBufferStorage(buffer), WithInterval(time.Second), WithIntervalCount(2), WithGrace(time.Millisecond*200), WithTimeFunc(timefunc))
+			assert.NoError(t, err)
+
+			for _, record := range tt.records {
+				err = buffer.Write(record)
 				assert.NoError(t, err)
 			}
 
 			result := []string{}
-			resultKeys := []string{}
-			err := box.ForEach(tt.tbox, func(scope string, ts time.Time, key []byte, value []byte) bool {
+			err = box.ForEach(tt.tbox, tt.scope, func(value []byte) (bool, error) {
 				result = append(result, string(value))
-				resultKeys = append(resultKeys, string(key))
-				return true
+				return true, nil
 			})
 			assert.NoError(t, err)
 			assert.ElementsMatch(t, tt.expected, result)
-			assert.ElementsMatch(t, tt.expectedKeys, resultKeys)
 		})
 	}
-}
-
-func TestMarkerToInterval(t *testing.T) {
-	tests := []struct {
-		name     string
-		interval int64
-		expected string
-	}{
-		{
-			"positive interval",
-			123,
-			"interval-123",
-		},
-		{
-			"zero interval",
-			0,
-			"interval-0",
-		},
-		{
-			"negative interval",
-			-456,
-			"interval--456",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := markerToInterval(tt.interval)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestParseIntervalMarker(t *testing.T) {
-	tests := []struct {
-		name     string
-		marker   string
-		expected int64
-		err      bool
-	}{
-		{
-			"valid marker",
-			"interval-123",
-			123,
-			false,
-		},
-		{
-			"invalid marker",
-			"invalid",
-			0,
-			true,
-		},
-		{
-			"alpha interval",
-			"interval-abc",
-			0,
-			true,
-		},
-		{
-			"missing interval",
-			"interval-",
-			0,
-			true,
-		},
-		{
-			"blank interval",
-			"interval--456",
-			0,
-			true,
-		},
-		{
-			"extra parts",
-			"interval-123-extra",
-			123,
-			false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := parseIntervalMarker(tt.marker)
-			if tt.err {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expected, result)
-			}
-		})
-	}
-}
-
-func TestBox_loadOpenIntervals(t *testing.T) {
-	kvs := NewMemoryKVS(nil)
-	box, err := NewBoxer(WithKVS(kvs), WithInterval(time.Second), WithIntervalCount(2), WithGrace(time.Millisecond*200), WithTTL(time.Hour))
-	assert.NoError(t, err)
-
-	// Set up the mock KVS with interval markers
-	err = kvs.Set([]byte("interval-123"), []byte{}, 0)
-	assert.NoError(t, err)
-	err = kvs.Set([]byte("interval-456"), []byte{}, 0)
-	assert.NoError(t, err)
-
-	// Call loadOpenIntervals
-	err = box.loadOpenIntervals()
-	assert.NoError(t, err)
-
-	// Verify that the openIntervals map is populated correctly
-	expectedIntervals := map[int64]struct{}{
-		123: {},
-		456: {},
-	}
-	assert.Equal(t, expectedIntervals, box.openIntervals)
 }
 
 func TestIntervalToTimestamp(t *testing.T) {
@@ -707,10 +366,10 @@ func TestIntervalToTimestamp(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			kvs := NewMemoryKVS(nil)
-			boxer, err := NewBoxer(WithKVS(kvs), WithInterval(tt.interval), WithIntervalCount(2), WithGrace(time.Millisecond*200))
+			buffer := NewMemoryBuffer()
+			box, err := NewBoxer(WithBufferStorage(buffer), WithInterval(tt.interval), WithIntervalCount(2), WithGrace(time.Millisecond*200))
 			assert.NoError(t, err)
-			result := boxer.TimeForInterval(tt.count)
+			result := box.TimeForInterval(tt.count)
 			assert.Equal(t, tt.expected, result)
 			assert.Equal(t, tt.ms, result.UnixMilli())
 		})
@@ -719,16 +378,30 @@ func TestIntervalToTimestamp(t *testing.T) {
 
 func TestBox_GetClosedIntervals(t *testing.T) {
 	timefunc := func() time.Time { return time.Unix(1000, 1000) }
-	kvs := NewMemoryKVS(timefunc)
-	// Set up the mock KVS with interval markers
-	assert.NoError(t, kvs.Set([]byte("interval-1230"), []byte{}, 0))
-	assert.NoError(t, kvs.Set([]byte("interval-4560"), []byte{}, 0))
-	// will be expired
-	assert.NoError(t, kvs.Set([]byte("interval-1"), []byte{}, 0))
-	assert.NoError(t, kvs.Set([]byte("interval-2"), []byte{}, 0))
-	assert.NoError(t, kvs.Set([]byte("interval-997"), []byte{}, 0))
+	buffer := NewMemoryBuffer()
 
-	box, err := NewBoxer(WithKVS(kvs), WithInterval(time.Second), WithIntervalCount(2), WithGrace(time.Millisecond*200), WithTimeFunc(timefunc))
+	buffer.Write(&BufferRecord{
+		Interval: 1,
+		Scope:    "scope1",
+	})
+	buffer.Write(&BufferRecord{
+		Interval: 2,
+		Scope:    "scope1",
+	})
+	buffer.Write(&BufferRecord{
+		Interval: 997,
+		Scope:    "scope1",
+	})
+	buffer.Write(&BufferRecord{
+		Interval: 1230,
+		Scope:    "scope1",
+	})
+	buffer.Write(&BufferRecord{
+		Interval: 4560,
+		Scope:    "scope1",
+	})
+
+	box, err := NewBoxer(WithBufferStorage(buffer), WithInterval(time.Second), WithIntervalCount(2), WithGrace(time.Millisecond*200), WithTimeFunc(timefunc))
 	assert.NoError(t, err)
 
 	allIntervals, err := box.GetAllIntervals()
@@ -761,60 +434,42 @@ func TestBox_IntervalsAndTime(t *testing.T) {
 }
 
 func TestBox_CloseInterval(t *testing.T) {
-	kvs := NewMemoryKVS(nil)
-	box, err := NewBoxer(WithKVS(kvs), WithInterval(time.Second), WithIntervalCount(2), WithGrace(time.Millisecond*200), WithTTL(time.Hour))
-	assert.NoError(t, err)
+	buffer := NewMemoryBuffer()
+	box, err := NewBoxer(WithBufferStorage(buffer), WithInterval(time.Second), WithIntervalCount(2), WithGrace(time.Millisecond*200))
 
-	// Add some items to the open intervals
-	box.openIntervals[1000] = struct{}{}
-	box.openIntervals[2000] = struct{}{}
-	box.openIntervals[3000] = struct{}{}
+	records := []*BufferRecord{
+		{
+			Interval: 1000,
+			Scope:    "scope1",
+			Contents: []byte("value1"),
+		},
+		{
+			Interval: 1001,
+			Scope:    "scope1",
+			Contents: []byte("value2"),
+		},
+		{
+			Interval: 1001,
+			Scope:    "scope2",
+			Contents: []byte("value3"),
+		},
+		{
+			Interval: 1001,
+			Scope:    "scope2",
+			Contents: []byte("value4"),
+		},
+	}
 
-	// Add some keys to the KVS
-	err = kvs.Set([]byte("interval-1000"), []byte{}, time.Hour)
-	assert.NoError(t, err)
-	err = kvs.Set([]byte("interval-2000"), []byte{}, time.Hour)
-	assert.NoError(t, err)
-	err = kvs.Set([]byte("interval-3000"), []byte{}, time.Hour)
-	assert.NoError(t, err)
-	err = kvs.Set([]byte("1000-scope1-100000000000"), []byte("value1"), time.Hour)
-	assert.NoError(t, err)
-	err = kvs.Set([]byte("2000-scope2-100000000000"), []byte("value2"), time.Hour)
-	assert.NoError(t, err)
-	err = kvs.Set([]byte("3000-scope3-100000000000"), []byte("value3"), time.Hour)
-	assert.NoError(t, err)
+	for _, record := range records {
+		err = buffer.Write(record)
+		assert.NoError(t, err)
+	}
 
-	// Close an interval
-	err = box.CloseInterval(2000)
+	err = box.CloseInterval(1000)
 	assert.NoError(t, err)
 
 	// Check that the interval is closed
-	_, ok := box.openIntervals[2000]
-	assert.False(t, ok)
-
-	// Check that the keys are deleted
-	v, err := kvs.Get([]byte("interval-2000"))
+	intervals, err := box.GetAllIntervals()
 	assert.NoError(t, err)
-	assert.Nil(t, v)
-	v, err = kvs.Get([]byte("2000-scope2-100000000000"))
-	assert.NoError(t, err)
-	assert.Nil(t, v)
-
-	// Check that other intervals and keys are not affected
-	_, ok = box.openIntervals[1000]
-	assert.True(t, ok)
-	_, ok = box.openIntervals[3000]
-	assert.True(t, ok)
-	v, err = kvs.Get([]byte("interval-1000"))
-	assert.NoError(t, err)
-	assert.NotNil(t, v)
-	v, err = kvs.Get([]byte("interval-3000"))
-	assert.NoError(t, err)
-	assert.NotNil(t, v)
-	v, err = kvs.Get([]byte("1000-scope1-100000000000"))
-	assert.NoError(t, err)
-	assert.NotNil(t, v)
-	v, err = kvs.Get([]byte("3000-scope3-100000000000"))
-	assert.NoError(t, err)
-	assert.NotNil(t, v)
+	assert.ElementsMatch(t, []int64{1000, 1001}, intervals)
 }

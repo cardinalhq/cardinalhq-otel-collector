@@ -92,9 +92,7 @@ func (e *s3Exporter) Start(_ context.Context, _ component.Host) error {
 		filepath = ""
 	}
 
-	opts := []boxer.BoxerOptions{
-		boxer.WithKeySuffix(e.telemetryType),
-	}
+	opts := []boxer.BoxerOptions{}
 	switch e.telemetryType {
 	case logFilePrefix:
 		opts = append(opts, boxer.WithInterval(e.config.Timeboxes.Logs.Interval))
@@ -238,67 +236,34 @@ func (e *s3Exporter) consumeTags(customerID string, interval int64) map[string]a
 	return intervalTags
 }
 
-type parquetWriter struct {
-	writer tagwriter.MapWriter
-	file   *os.File
-}
-
-func (e *s3Exporter) newParquetWriter(customerID string, interval int64) (*parquetWriter, error) {
+func (e *s3Exporter) newParquetWriter(customerID string, interval int64) (tagwriter.MapWriter, *os.File, error) {
 	tags := e.consumeTags(customerID, interval)
 	if len(tags) == 0 {
-		return nil, errors.New("no tags found")
+		keys := map[string][]int64{}
+		for k, v := range e.tags {
+			keys[k] = maps.Keys(v)
+		}
+		e.logger.Info("No tags found", zap.String("customerID", customerID), zap.Int64("interval", interval), zap.Any("keys", keys))
+		return nil, nil, errors.New("no tags found")
 	}
 
 	schema, err := tagwriter.ParquetSchemaFromMap("schema", tags)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create parquet schema: %w", err)
+		return nil, nil, fmt.Errorf("failed to create parquet schema: %w", err)
 	}
 
 	f, err := os.CreateTemp(e.config.Buffering.Directory, "parquet-*")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create temp file: %w", err)
+		return nil, nil, fmt.Errorf("failed to create temp file: %w", err)
 	}
 
 	writer, err := tagwriter.NewParquetMapWriter(f, schema)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create parquet writer: %w", err)
+		_ = f.Close()
+		return nil, nil, fmt.Errorf("failed to create parquet writer: %w", err)
 	}
 
-	return &parquetWriter{
-		writer: writer,
-		file:   f,
-	}, nil
-}
-
-func closeWriter(f *parquetWriter, logger *zap.Logger) {
-	if err := closeParquetWriter(f); err != nil {
-		logger.Error("Failed to close parquet writer", zap.Error(err))
-	}
-	if f.file != nil {
-		if err := f.file.Close(); err != nil {
-			logger.Error("Failed to close temp file", zap.Error(err))
-		}
-		if err := os.Remove(f.file.Name()); err != nil {
-			logger.Error("Failed to remove temp file", zap.Error(err))
-		}
-	}
-	f.file = nil
-}
-
-func closeParquetWriter(f *parquetWriter) error {
-	if f.writer != nil {
-		if err := f.writer.Close(); err != nil {
-			return fmt.Errorf("failed to close parquet writer: %w", err)
-		}
-	}
-	f.writer = nil
-	return nil
-}
-
-func closeCustomerFiles(customerFiles map[string]*parquetWriter, logger *zap.Logger) {
-	for _, writer := range customerFiles {
-		closeWriter(writer, logger)
-	}
+	return writer, f, nil
 }
 
 func ensureCustomerID(tableRows []map[string]any, customerID string, logger *zap.Logger) bool {
@@ -312,72 +277,80 @@ func ensureCustomerID(tableRows []map[string]any, customerID string, logger *zap
 	return true
 }
 
-func (e *s3Exporter) writeInterval(interval int64) error {
-	writers := map[string]*parquetWriter{}
+func (e *s3Exporter) saveAndUploadParquet(customerID string, interval int64) error {
+	writer, f, err := e.newParquetWriter(customerID, interval)
+	if err != nil {
+		return err
+	}
+	logger := e.logger.With(zap.String("customerID", customerID), zap.Int64("interval", interval), zap.String("tempFilename", f.Name()))
 	defer func() {
-		closeCustomerFiles(writers, e.logger)
+		if writer != nil {
+			if err := writer.Close(); err != nil {
+				logger.Error("Failed to close writer", zap.Error(err))
+			}
+		}
+		if f != nil {
+			if err := f.Close(); err != nil {
+				logger.Error("Failed to close file", zap.Error(err))
+			}
+			if err := os.Remove(f.Name()); err != nil {
+				logger.Error("Failed to remove file", zap.Error(err))
+			}
+		}
 	}()
 
-	err := e.boxer.ForEach(interval, func(customerID string, ts time.Time, key []byte, value []byte) bool {
-		logger := e.logger.With(
-			zap.String("customerID", customerID),
-			zap.Time("timestamp", ts),
-			zap.Int64("interval", interval),
-			zap.String("key", string(key)),
-		)
+	err = e.boxer.ForEach(interval, customerID, func(value []byte) (bool, error) {
 		logger.Info("Processing interval")
 		tableRows := []map[string]any{}
 		if err := gobDecode(value, &tableRows); err != nil {
 			logger.Error("Failed to unmarshal table", zap.Error(err))
-			return true
+			return false, err
 		}
 		if !ensureCustomerID(tableRows, customerID, logger) {
-			return true
+			return false, fmt.Errorf("customer ID mismatch")
 		}
 		logger.Info("Writing rows", zap.Int("count", len(tableRows)))
-		if _, ok := writers[customerID]; !ok {
-			writer, err := e.newParquetWriter(customerID, interval)
-			if err != nil {
-				logger.Error("Failed to create parquet writer", zap.Error(err))
-				return true
-			}
-			writers[customerID] = writer
-		}
-		f := writers[customerID]
-
-		if _, err := f.writer.WriteRows(tableRows); err != nil {
+		if _, err := writer.WriteRows(tableRows); err != nil {
 			logger.Error("Failed to write rows", zap.Error(err))
-			return false
+			return false, err
 		}
-		return true
+		return true, nil
 	})
-
 	if err != nil {
 		return err
 	}
 
-	keys := maps.Keys(writers)
-	for _, customerID := range keys {
-		writer := writers[customerID]
+	if err := writer.Close(); err != nil {
+		return err
+	}
+	writer = nil
 
-		if err := closeParquetWriter(writer); err != nil {
-			e.logger.Error("Failed to close parquet writer", zap.Error(err))
-			closeWriter(writer, e.logger)
-			continue
-		}
+	if size, err := filesize(f); err != nil {
+		logger.Error("Failed to get file size, assuming something useful is there...", zap.Error(err))
+	} else if size == 0 {
+		logger.Info("Skipping empty file")
+		return nil
+	}
 
-		if size, err := filesize(writer.file); err != nil {
-			e.logger.Error("Failed to get file size, assuming something useful is there...", zap.Error(err))
-		} else if size == 0 {
-			e.logger.Info("Skipping empty file", zap.String("customerID", customerID), zap.Int64("interval", interval))
-			closeWriter(writer, e.logger)
-			continue
-		}
+	return e.upload(f, &s3Writer{}, customerID, interval)
+}
 
-		if err := e.upload(writer.file, &s3Writer{}, customerID, interval); err != nil {
-			e.logger.Error("Failed to upload file", zap.Error(err))
+func (e *s3Exporter) writeInterval(interval int64) error {
+	customerIDs, err := e.boxer.GetScopesForInterval(interval)
+	if err != nil {
+		return err
+	}
+
+	for _, customerID := range customerIDs {
+		defer func(customerID string) {
+			if err := e.boxer.CloseIntervalScope(interval, customerID); err != nil {
+				e.logger.Error("Failed to close interval scope", zap.Error(err))
+			}
+		}(customerID)
+		if err := e.saveAndUploadParquet(customerID, interval); err != nil {
+			e.logger.Error("Failed to save and upload parquet", zap.Error(err))
+			return err
 		}
-		closeWriter(writer, e.logger)
 	}
 
 	return nil

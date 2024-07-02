@@ -100,10 +100,10 @@ func TestUpload(t *testing.T) {
 	customerID := "test-customer"
 	interval := int64(1234567890)
 
-	kvs := boxer.NewMemoryKVS(nil)
+	buffer := boxer.NewMemoryBuffer()
 	opts := []boxer.BoxerOptions{
 		boxer.WithInterval(time.Second),
-		boxer.WithKVS(kvs),
+		boxer.WithBufferStorage(buffer),
 	}
 	id := component.MustNewIDWithName("exporter", "test-name")
 	box, err := boxer.BoxerFor(config.Buffering.Directory, component.KindExporter, id, "logs", opts...)

@@ -221,8 +221,8 @@ func TestPartitionTableByCustomerIDAndInterval(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			kvs := boxer.NewMemoryKVS(nil)
-			box, err := boxer.NewBoxer(boxer.WithInterval(time.Second), boxer.WithKVS(kvs))
+			buffer := boxer.NewMemoryBuffer()
+			box, err := boxer.NewBoxer(boxer.WithInterval(time.Second), boxer.WithBufferStorage(buffer))
 			assert.NoError(t, err)
 			e := &s3Exporter{
 				boxer: box,
@@ -338,8 +338,8 @@ func TestPartitionByCustomerID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			kvs := boxer.NewMemoryKVS(nil)
-			box, err := boxer.NewBoxer(boxer.WithInterval(time.Second), boxer.WithKVS(kvs))
+			buffer := boxer.NewMemoryBuffer()
+			box, err := boxer.NewBoxer(boxer.WithInterval(time.Second), boxer.WithBufferStorage(buffer))
 			assert.NoError(t, err)
 			e := &s3Exporter{
 				boxer: box,

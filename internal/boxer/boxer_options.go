@@ -26,9 +26,9 @@ func (f boxerOptionFunc) apply(box *Boxer) {
 	f(box)
 }
 
-func WithKVS(kvs KVS) BoxerOptions {
+func WithBufferStorage(buffer Buffer) BoxerOptions {
 	return boxerOptionFunc(func(b *Boxer) {
-		b.kvs = kvs
+		b.buffer = buffer
 	})
 }
 
@@ -53,23 +53,5 @@ func WithGrace(grace time.Duration) BoxerOptions {
 func WithTimeFunc(timefunc TimeFunc) BoxerOptions {
 	return boxerOptionFunc(func(b *Boxer) {
 		b.timefunc = timefunc
-	})
-}
-
-func WithTTL(ttl time.Duration) BoxerOptions {
-	return boxerOptionFunc(func(b *Boxer) {
-		b.ttl = ttl
-	})
-}
-
-func WithOpenIntervals(openIntervals map[int64]struct{}) BoxerOptions {
-	return boxerOptionFunc(func(b *Boxer) {
-		b.openIntervals = openIntervals
-	})
-}
-
-func WithKeySuffix(keySuffix string) BoxerOptions {
-	return boxerOptionFunc(func(b *Boxer) {
-		b.keySuffix = keySuffix
 	})
 }

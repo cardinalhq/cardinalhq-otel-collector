@@ -120,16 +120,16 @@ func (e *s3Exporter) writeTableForCustomerID(customerID string, now time.Time, t
 	if err != nil {
 		return err
 	}
-	key, err := e.boxer.Put(customerID, now, b)
+	tooOld, err := e.boxer.Put(customerID, now, b)
 	if err != nil {
 		e.logger.Error("failed to put items to KVS", zap.Error(err))
 		return err
 	}
-	e.logger.Info("put items to KVS",
+	e.logger.Info("put items to store",
 		zap.String("customerID", customerID),
 		zap.Time("timestamp", now),
 		zap.Int("count", len(tbl)),
-		zap.String("key", string(key)),
+		zap.Bool("tooOld", tooOld),
 		zap.Int64("interval", e.boxer.IntervalForTime(now)))
 	return nil
 }

@@ -15,14 +15,21 @@
 package boxer
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestMemoryBuffer_Write(t *testing.T) {
-	buffer := NewMemoryBuffer()
+func TestFilesystemBuffer_Write(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "boxer-test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	// Create a new FilesystemBuffer
+	buffer := NewFilesystemBuffer(tempDir)
 
 	record := &BufferRecord{
 		Interval: 123,
@@ -30,7 +37,7 @@ func TestMemoryBuffer_Write(t *testing.T) {
 		Contents: []byte("test"),
 	}
 
-	err := buffer.Write(record)
+	err = buffer.Write(record)
 	assert.NoError(t, err)
 
 	scopes, err := buffer.GetScopes(123)
@@ -42,21 +49,48 @@ func TestMemoryBuffer_Write(t *testing.T) {
 	assert.Equal(t, []int64{123}, intervals)
 }
 
-func TestMemoryBuffer_Write_closed(t *testing.T) {
-	buffer := NewMemoryBuffer()
+func TestFilesystemBuffer_Write_closed(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "boxer-test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	// Create a new FilesystemBuffer
+	buffer := NewFilesystemBuffer(tempDir)
 	assert.NoError(t, buffer.Shutdown())
 
 	record := &BufferRecord{
 		Interval: 123,
 		Scope:    "test",
-		Contents: []byte("test")}
+		Contents: []byte("test"),
+	}
 
-	err := buffer.Write(record)
+	err = buffer.Write(record)
 	assert.ErrorIs(t, err, ErrShutdown)
 }
 
-func TestMemoryBuffer_GetScopes_GetIntervals(t *testing.T) {
-	buffer := NewMemoryBuffer()
+func TestFilesystemBuffer_ShutdownCalledThrice(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "boxer-test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	// Create a new FilesystemBuffer
+	buffer := NewFilesystemBuffer(tempDir)
+
+	assert.NoError(t, buffer.Shutdown())
+	assert.NoError(t, buffer.Shutdown())
+	assert.NoError(t, buffer.Shutdown())
+}
+
+func TestFilesystemBuffer_GetScopes_GetIntervals(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "boxer-test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	// Create a new FilesystemBuffer
+	buffer := NewFilesystemBuffer(tempDir)
 
 	record := &BufferRecord{
 		Interval: 123,
@@ -64,7 +98,7 @@ func TestMemoryBuffer_GetScopes_GetIntervals(t *testing.T) {
 		Contents: []byte("test-123"),
 	}
 
-	err := buffer.Write(record)
+	err = buffer.Write(record)
 	assert.NoError(t, err)
 
 	scopes, err := buffer.GetScopes(123)
@@ -106,82 +140,15 @@ func TestMemoryBuffer_GetScopes_GetIntervals(t *testing.T) {
 	assert.ElementsMatch(t, []int64{123, 124}, intervals)
 }
 
-func TestMemoryBuffer_GetScopes_closed(t *testing.T) {
-	buffer := NewMemoryBuffer()
-	assert.NoError(t, buffer.Shutdown())
+func TestFilesystemBuffer_ForEach(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "boxer-test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
 
-	scopes, err := buffer.GetScopes(123)
-	assert.ErrorIs(t, err, ErrShutdown)
-	assert.Nil(t, scopes)
-}
+	// Create a new FilesystemBuffer
+	buffer := NewFilesystemBuffer(tempDir)
 
-func TestMemoryBuffer_GetIntervals_closed(t *testing.T) {
-	buffer := NewMemoryBuffer()
-	assert.NoError(t, buffer.Shutdown())
-
-	intervals, err := buffer.GetIntervals()
-	assert.ErrorIs(t, err, ErrShutdown)
-	assert.Nil(t, intervals)
-}
-
-func TestMemoryBuffer_CloseIntervalScope(t *testing.T) {
-	buffer := NewMemoryBuffer()
-
-	record := &BufferRecord{
-		Interval: 123,
-		Scope:    "test",
-		Contents: []byte("test"),
-	}
-
-	err := buffer.Write(record)
-	assert.NoError(t, err)
-
-	err = buffer.CloseIntervalScope(123, "test")
-	assert.NoError(t, err)
-
-	scopes, err := buffer.GetScopes(123)
-	assert.NoError(t, err)
-	assert.Empty(t, scopes)
-
-	intervals, err := buffer.GetIntervals()
-	assert.NoError(t, err)
-	assert.Empty(t, intervals)
-}
-
-func TestMemoryBuffer_CloseIntervalScope_closed(t *testing.T) {
-	buffer := NewMemoryBuffer()
-	assert.NoError(t, buffer.Shutdown())
-
-	err := buffer.CloseIntervalScope(123, "test")
-	assert.ErrorIs(t, err, ErrShutdown)
-}
-
-func TestMemoryBuffer_CloseIntervalScope_notFound(t *testing.T) {
-	buffer := NewMemoryBuffer()
-
-	err := buffer.CloseIntervalScope(123, "test")
-	assert.NoError(t, err)
-}
-
-func TestMemoryBuffer_Shutdown(t *testing.T) {
-	buffer := NewMemoryBuffer()
-
-	record := &BufferRecord{
-		Interval: 123,
-		Scope:    "test",
-		Contents: []byte("test"),
-	}
-
-	err := buffer.Write(record)
-	assert.NoError(t, err)
-
-	assert.NoError(t, buffer.Shutdown())
-
-	err = buffer.Write(record)
-	assert.ErrorIs(t, err, ErrShutdown)
-}
-
-func TestMemoryBuffer_ForEach(t *testing.T) {
 	records := []*BufferRecord{
 		{
 			Interval: 123,
@@ -210,15 +177,13 @@ func TestMemoryBuffer_ForEach(t *testing.T) {
 		},
 	}
 
-	buffer := NewMemoryBuffer()
-
 	for _, record := range records {
 		err := buffer.Write(record)
 		assert.NoError(t, err)
 	}
 
 	var results []*BufferRecord
-	err := buffer.ForEach(123, "test", func(record *BufferRecord) (bool, error) {
+	err = buffer.ForEach(123, "test", func(record *BufferRecord) (bool, error) {
 		results = append(results, record)
 		return true, nil
 	})
@@ -270,4 +235,38 @@ func TestMemoryBuffer_ForEach(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.Empty(t, results)
+}
+
+func TestFilesystemBuffer_CloseInterval(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "boxer-test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	// Create a new FilesystemBuffer
+	buffer := NewFilesystemBuffer(tempDir)
+
+	record := &BufferRecord{
+		Interval: 123,
+		Scope:    "test",
+		Contents: []byte("test-123"),
+	}
+
+	err = buffer.Write(record)
+	assert.NoError(t, err)
+
+	scopes, err := buffer.GetScopes(123)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"test"}, scopes)
+
+	err = buffer.CloseIntervalScope(123, "test")
+	assert.NoError(t, err)
+
+	scopes, err = buffer.GetScopes(123)
+	assert.NoError(t, err)
+	assert.Empty(t, scopes)
+
+	intervals, err := buffer.GetIntervals()
+	assert.NoError(t, err)
+	assert.Empty(t, intervals)
 }

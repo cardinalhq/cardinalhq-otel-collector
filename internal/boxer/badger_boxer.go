@@ -34,8 +34,8 @@ func BoxerFor(path string, kind component.Kind, ent component.ID, name string, b
 	if err != nil {
 		return nil, err
 	}
-	kvs := NewBadgerKVS(db)
-	box, err := NewBoxer(append(boxerOpts, WithKVS(kvs))...)
+	storage := NewFilesystemBuffer(path)
+	box, err := NewBoxer(append(boxerOpts, WithBufferStorage(storage))...)
 	if err != nil {
 		_ = db.Close()
 		return nil, err

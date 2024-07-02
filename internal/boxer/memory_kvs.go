@@ -91,10 +91,12 @@ func (m *MemoryKVS) expiredItem(item memoryItem) bool {
 	return false
 }
 
-func (m *MemoryKVS) Delete(key []byte) error {
+func (m *MemoryKVS) Delete(key ...[]byte) error {
 	m.Lock()
 	defer m.Unlock()
-	delete(m.kvs, string(key))
+	for _, k := range key {
+		delete(m.kvs, string(k))
+	}
 	return nil
 }
 

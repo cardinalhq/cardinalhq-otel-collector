@@ -63,9 +63,14 @@ func (b *BadgerKVS) Set(key []byte, value []byte, ttl time.Duration) error {
 	})
 }
 
-func (b *BadgerKVS) Delete(key []byte) error {
+func (b *BadgerKVS) Delete(keys ...[]byte) error {
 	return b.db.Update(func(txn *badger.Txn) error {
-		return txn.Delete(key)
+		for _, key := range keys {
+			if err := txn.Delete(key); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 }
 

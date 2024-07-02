@@ -224,11 +224,13 @@ func (b *Boxer) GetAllIntervals() ([]int64, error) {
 func (b *Boxer) CloseInterval(interval int64) error {
 	var errs *multierror.Error
 	delete(b.openIntervals, interval)
+	keys := [][]byte{}
 	errs = multierror.Append(errs, b.kvs.Delete([]byte(markerToInterval(interval))))
 	b.kvs.ForEachPrefix(b.generateIntervalPrefix(interval), func(key []byte, value []byte) bool {
-		errs = multierror.Append(errs, b.kvs.Delete(key))
+		keys = append(keys, key)
 		return true
 	})
+	errs = multierror.Append(errs, b.kvs.Delete(keys...))
 	return errs.ErrorOrNil()
 }
 

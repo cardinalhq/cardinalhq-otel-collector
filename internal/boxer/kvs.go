@@ -29,7 +29,7 @@ type KVS interface {
 
 	// Delete deletes the value for the given key.
 	// If the key does not exist, it does nothing.
-	Delete(key []byte) error
+	Delete(key ...[]byte) error
 
 	// ForEachPrefix calls the given function for each key-value pair with the given prefix.
 	// If the function returns false, the iteration stops.

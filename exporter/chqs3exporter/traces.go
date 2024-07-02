@@ -12,17 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package timebox
+package chqs3exporter
 
 import (
-	"io"
+	"context"
+	"time"
+
+	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
-type Buffer interface {
-	io.Writer
-	io.ReadCloser
-}
+func (e *s3Exporter) ConsumeTraces(ctx context.Context, traces ptrace.Traces) error {
+	if e.config.Timeboxes.Traces.Interval <= 0 {
+		return nil
+	}
 
-type BufferFactory interface {
-	NewBuffer() (Buffer, error)
+	tbl, err := e.tb.TracesFromOtel(&traces)
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	interval := e.boxer.IntervalForTime(now)
+	custmap := e.partitionTableByCustomerID(interval, tbl)
+	return e.writeTableByCustomerID(now, custmap)
 }

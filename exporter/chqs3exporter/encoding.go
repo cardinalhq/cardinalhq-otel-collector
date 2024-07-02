@@ -16,22 +16,21 @@ package chqs3exporter
 
 import (
 	"bytes"
-	"sync"
+	"encoding/gob"
 )
 
-// This is shared across all instances of the exporter.
-
-var bufferpool = sync.Pool{
-	New: func() interface{} {
-		return &bytes.Buffer{}
-	},
+func gobEncode(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(v)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
-func getBuffer() *bytes.Buffer {
-	return bufferpool.Get().(*bytes.Buffer)
-}
-
-func putBuffer(b *bytes.Buffer) {
-	b.Reset()
-	bufferpool.Put(b)
+func gobDecode(data []byte, v any) error {
+	buf := bytes.NewBuffer(data)
+	dec := gob.NewDecoder(buf)
+	return dec.Decode(v)
 }

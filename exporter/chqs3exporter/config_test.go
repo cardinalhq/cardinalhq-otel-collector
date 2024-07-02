@@ -67,6 +67,9 @@ func TestLoadConfig(t *testing.T) {
 					GracePeriod: 10000,
 				},
 			},
+			Buffering: BufferingConfig{
+				Type: "memory",
+			},
 		},
 	)
 }
@@ -101,6 +104,9 @@ func TestConfig(t *testing.T) {
 			S3Prefix:    "bar",
 			S3Partition: "minute",
 			Endpoint:    "http://endpoint.com",
+		},
+		Buffering: BufferingConfig{
+			Type: "memory",
 		},
 	}
 	assert.Equal(t, expected, e)
@@ -138,6 +144,9 @@ func TestConfigForS3CompatibleSystems(t *testing.T) {
 			Endpoint:         "alternative-s3-system.example.com",
 			S3ForcePathStyle: true,
 			DisableSSL:       true,
+		},
+		Buffering: BufferingConfig{
+			Type: "memory",
 		},
 	}
 	assert.Equal(t, expected, e)

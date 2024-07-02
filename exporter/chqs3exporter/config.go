@@ -6,6 +6,7 @@ package chqs3exporter
 import (
 	"errors"
 	"os"
+	"time"
 
 	"go.uber.org/multierr"
 )
@@ -25,9 +26,9 @@ type S3UploaderConfig struct {
 }
 
 type TimeboxConfig struct {
-	Interval          int64 `mapstructure:"interval"`
-	GracePeriod       int64 `mapstructure:"grace_period"`
-	OpenIntervalCount int64 `mapstructure:"open_interval_count"`
+	Interval          time.Duration `mapstructure:"interval"`
+	GracePeriod       time.Duration `mapstructure:"grace_period"`
+	OpenIntervalCount int64         `mapstructure:"open_interval_count"`
 }
 
 // TimeboxConfig contains the configuration for the timebox
@@ -37,7 +38,7 @@ type TimeboxesConfig struct {
 	Traces  TimeboxConfig `mapstructure:"traces"`
 }
 
-type BufferFactoryConfig struct {
+type BufferingConfig struct {
 	Type      string `mapstructure:"type"`
 	Directory string `mapstructure:"directory"`
 }
@@ -49,9 +50,9 @@ const (
 
 // Config contains the main configuration options for the s3 exporter
 type Config struct {
-	S3Uploader S3UploaderConfig    `mapstructure:"s3uploader"`
-	Timeboxes  TimeboxesConfig     `mapstructure:"timeboxes"`
-	Buffering  BufferFactoryConfig `mapstructure:"buffering"`
+	S3Uploader S3UploaderConfig `mapstructure:"s3uploader"`
+	Timeboxes  TimeboxesConfig  `mapstructure:"timeboxes"`
+	Buffering  BufferingConfig  `mapstructure:"buffering"`
 }
 
 func (c *Config) Validate() error {
@@ -95,23 +96,28 @@ func (tb TimeboxConfig) Validate() error {
 	return errs
 }
 
-func (c BufferFactoryConfig) Validate() error {
+func (c BufferingConfig) Validate() error {
 	var errs error
 
 	if c.Type != "" && c.Type != bufferTypeMemory && c.Type != bufferTypeDisk {
 		errs = multierr.Append(errs, errors.New("type must be either "+bufferTypeMemory+" or "+bufferTypeDisk+" (default is "+bufferTypeMemory+")"))
 	}
 
-	if c.Directory != "" {
-		c.Directory = os.TempDir()
-		//err := emptyOldFiles(c.Directory)
-		//if err != nil {
-		//	errs = multierr.Append(errs, err)
-		//}
-		err := testWritable(c.Directory)
-		if err != nil {
-			errs = multierr.Append(errs, err)
-		}
+	if c.Type == bufferTypeMemory {
+		return nil
+	}
+
+	if c.Directory == "" {
+		errs = multierr.Append(errs, errors.New("directory is required when type is disk"))
+	}
+
+	//err := emptyOldFiles(c.Directory)
+	//if err != nil {
+	//	errs = multierr.Append(errs, err)
+	//}
+	err := testWritable(c.Directory)
+	if err != nil {
+		errs = multierr.Append(errs, err)
 	}
 
 	return errs

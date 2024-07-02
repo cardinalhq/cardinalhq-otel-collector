@@ -17,10 +17,13 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
-type s3Writer struct {
+type s3Writer struct{}
+
+type filewriter interface {
+	writeBuffer(ctx context.Context, now time.Time, buf io.Reader, config *Config, metadata string, format string, kv map[string]string, customerID string) error
 }
 
-var _ dataWriter = (*s3Writer)(nil)
+var _ filewriter = (*s3Writer)(nil)
 
 // generate the s3 time key based on partition configuration
 func getTimeKey(time time.Time, partition string, customerID string) string {

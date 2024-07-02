@@ -12,8 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package timebox
+package chqs3exporter
 
-func CalculateInterval(now int64, interval int64) int64 {
-	return now - (now % interval)
+import (
+	"context"
+
+	"go.opentelemetry.io/collector/pdata/pmetric"
+)
+
+func (e *s3Exporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
+	if e.config.Timeboxes.Metrics.Interval <= 0 {
+		return nil
+	}
+
+	tbl, err := e.tb.MetricsFromOtel(&md)
+	if err != nil {
+		return err
+	}
+
+	custmap := e.partitionTableByCustomerIDAndInterval(tbl)
+	return e.writeTableByCustomerIDAndInterval(custmap)
 }

@@ -7,6 +7,7 @@ import (
 	"context"
 
 	"go.opentelemetry.io/collector/component"
+	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/collector/exporter/exporterhelper"
 
@@ -30,45 +31,52 @@ func createDefaultConfig() component.Config {
 			Region:      "us-east-1",
 			S3Partition: "minute",
 		},
+		Buffering: BufferingConfig{
+			Type: bufferTypeMemory,
+		},
 	}
 }
 
-func createLogsExporter(ctx context.Context,
-	params exporter.Settings,
-	config component.Config) (exporter.Logs, error) {
-
-	s3Exporter := newS3Exporter(config.(*Config), params)
-
+func createLogsExporter(ctx context.Context, params exporter.Settings, config component.Config) (exporter.Logs, error) {
+	exp, err := newS3Exporter(config.(*Config), params, logFilePrefix)
+	if err != nil {
+		return nil, err
+	}
 	return exporterhelper.NewLogsExporter(ctx, params,
 		config,
-		s3Exporter.ConsumeLogs,
-		exporterhelper.WithShutdown(s3Exporter.Shutdown),
-		exporterhelper.WithCapabilities(s3Exporter.Capabilities()))
+		exp.ConsumeLogs,
+		exporterhelper.WithStart(exp.Start),
+		exporterhelper.WithShutdown(exp.Shutdown),
+		exporterhelper.WithCapabilities(capabilities()))
 }
 
-func createMetricsExporter(ctx context.Context,
-	params exporter.Settings,
-	config component.Config) (exporter.Metrics, error) {
-
-	s3Exporter := newS3Exporter(config.(*Config), params)
-
+func createMetricsExporter(ctx context.Context, params exporter.Settings, config component.Config) (exporter.Metrics, error) {
+	exp, err := newS3Exporter(config.(*Config), params, metricFilePrefix)
+	if err != nil {
+		return nil, err
+	}
 	return exporterhelper.NewMetricsExporter(ctx, params,
 		config,
-		s3Exporter.ConsumeMetrics,
-		exporterhelper.WithShutdown(s3Exporter.Shutdown),
-		exporterhelper.WithCapabilities(s3Exporter.Capabilities()))
+		exp.ConsumeMetrics,
+		exporterhelper.WithStart(exp.Start),
+		exporterhelper.WithShutdown(exp.Shutdown),
+		exporterhelper.WithCapabilities(capabilities()))
 }
 
-func createTracesExporter(ctx context.Context,
-	params exporter.Settings,
-	config component.Config) (exporter.Traces, error) {
-
-	s3Exporter := newS3Exporter(config.(*Config), params)
-
+func createTracesExporter(ctx context.Context, params exporter.Settings, config component.Config) (exporter.Traces, error) {
+	exp, err := newS3Exporter(config.(*Config), params, tracesFilePrefix)
+	if err != nil {
+		return nil, err
+	}
 	return exporterhelper.NewTracesExporter(ctx,
 		params,
 		config,
-		s3Exporter.ConsumeTraces,
-		exporterhelper.WithShutdown(s3Exporter.Shutdown),
-		exporterhelper.WithCapabilities(s3Exporter.Capabilities()))
+		exp.ConsumeTraces,
+		exporterhelper.WithStart(exp.Start),
+		exporterhelper.WithShutdown(exp.Shutdown),
+		exporterhelper.WithCapabilities(capabilities()))
+}
+
+func capabilities() consumer.Capabilities {
+	return consumer.Capabilities{MutatesData: false}
 }

@@ -759,3 +759,62 @@ func TestBox_IntervalsAndTime(t *testing.T) {
 	ts2 := b.TimeForInterval(i2)
 	assert.Equal(t, ts, ts2)
 }
+
+func TestBox_CloseInterval(t *testing.T) {
+	kvs := NewMemoryKVS(nil)
+	box, err := NewBoxer(WithKVS(kvs), WithInterval(time.Second), WithIntervalCount(2), WithGrace(time.Millisecond*200), WithTTL(time.Hour))
+	assert.NoError(t, err)
+
+	// Add some items to the open intervals
+	box.openIntervals[1000] = struct{}{}
+	box.openIntervals[2000] = struct{}{}
+	box.openIntervals[3000] = struct{}{}
+
+	// Add some keys to the KVS
+	err = kvs.Set([]byte("interval-1000"), []byte{}, time.Hour)
+	assert.NoError(t, err)
+	err = kvs.Set([]byte("interval-2000"), []byte{}, time.Hour)
+	assert.NoError(t, err)
+	err = kvs.Set([]byte("interval-3000"), []byte{}, time.Hour)
+	assert.NoError(t, err)
+	err = kvs.Set([]byte("1000-scope1-100000000000"), []byte("value1"), time.Hour)
+	assert.NoError(t, err)
+	err = kvs.Set([]byte("2000-scope2-100000000000"), []byte("value2"), time.Hour)
+	assert.NoError(t, err)
+	err = kvs.Set([]byte("3000-scope3-100000000000"), []byte("value3"), time.Hour)
+	assert.NoError(t, err)
+
+	// Close an interval
+	err = box.CloseInterval(2000)
+	assert.NoError(t, err)
+
+	// Check that the interval is closed
+	_, ok := box.openIntervals[2000]
+	assert.False(t, ok)
+
+	// Check that the keys are deleted
+	v, err := kvs.Get([]byte("interval-2000"))
+	assert.NoError(t, err)
+	assert.Nil(t, v)
+	v, err = kvs.Get([]byte("2000-scope2-100000000000"))
+	assert.NoError(t, err)
+	assert.Nil(t, v)
+
+	// Check that other intervals and keys are not affected
+	_, ok = box.openIntervals[1000]
+	assert.True(t, ok)
+	_, ok = box.openIntervals[3000]
+	assert.True(t, ok)
+	v, err = kvs.Get([]byte("interval-1000"))
+	assert.NoError(t, err)
+	assert.NotNil(t, v)
+	v, err = kvs.Get([]byte("interval-3000"))
+	assert.NoError(t, err)
+	assert.NotNil(t, v)
+	v, err = kvs.Get([]byte("1000-scope1-100000000000"))
+	assert.NoError(t, err)
+	assert.NotNil(t, v)
+	v, err = kvs.Get([]byte("3000-scope3-100000000000"))
+	assert.NoError(t, err)
+	assert.NotNil(t, v)
+}

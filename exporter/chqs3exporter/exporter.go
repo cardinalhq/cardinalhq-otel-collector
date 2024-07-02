@@ -113,7 +113,6 @@ func (e *s3Exporter) Start(_ context.Context, _ component.Host) error {
 		return err
 	}
 	e.boxer = box
-	_ = e.boxer.Wipe()
 
 	e.writerClosed = make(chan struct{})
 	dbtaskContext, doneFunc := context.WithCancel(context.Background())
@@ -136,7 +135,7 @@ func (e *s3Exporter) Shutdown(_ context.Context) error {
 	if err != nil {
 		errs = multierr.Append(errs, err)
 	} else {
-		e.logger.Info("Processing remaining intervals", zap.Int("count", len(allIntervals)), zap.Int64s("intervals", allIntervals))
+		e.logger.Debug("Processing remaining intervals", zap.Int("count", len(allIntervals)), zap.Int64s("intervals", allIntervals))
 		for _, interval := range allIntervals {
 			if err := e.processInterval(interval); err != nil {
 				errs = multierr.Append(errs, err)
@@ -148,9 +147,7 @@ func (e *s3Exporter) Shutdown(_ context.Context) error {
 }
 
 func (e *s3Exporter) databaseTask(ctx context.Context, closedChan chan struct{}) {
-	maintainTicker := time.NewTicker(5 * time.Minute)
 	closeTicker := time.NewTicker(1 * time.Second)
-	defer maintainTicker.Stop()
 	defer closeTicker.Stop()
 	defer close(closedChan)
 	e.logger.Info("Database task started")
@@ -159,34 +156,10 @@ func (e *s3Exporter) databaseTask(ctx context.Context, closedChan chan struct{})
 		case <-ctx.Done():
 			e.logger.Info("Database task exiting")
 			return
-		case <-maintainTicker.C:
-			e.processMaintainTimer()
 		case now := <-closeTicker.C:
 			e.processClosedTimer(now)
 		}
 	}
-}
-
-func (e *s3Exporter) processMaintainTimer() {
-	defer func() {
-		if err := recover(); err != nil {
-			e.logger.Error("Panic in processMaintainTimer", zap.Any("error", err))
-		}
-	}()
-
-	e.logger.Info("Maintaining database")
-	// limit the number of cycles to prevent the exporter from getting stuck
-	for i := 0; i < 100; i++ {
-		e.logger.Info("Running database cleaning cycle")
-		err := e.boxer.Maintain()
-		if err != nil {
-			if errors.Is(err, boxer.MaintainNotNeeded) {
-				e.logger.Error("Failed to maintain database", zap.Error(err))
-			}
-			break
-		}
-	}
-	e.logger.Info("Database maintained")
 }
 
 func (e *s3Exporter) processClosedTimer(now time.Time) {
@@ -243,7 +216,7 @@ func (e *s3Exporter) newParquetWriter(customerID string, interval int64) (tagwri
 		for k, v := range e.tags {
 			keys[k] = maps.Keys(v)
 		}
-		e.logger.Info("No tags found", zap.String("customerID", customerID), zap.Int64("interval", interval), zap.Any("keys", keys))
+		e.logger.Warn("No tags found", zap.String("customerID", customerID), zap.Int64("interval", interval), zap.Any("keys", keys))
 		return nil, nil, errors.New("no tags found")
 	}
 
@@ -270,7 +243,7 @@ func ensureCustomerID(tableRows []map[string]any, customerID string, logger *zap
 	for _, row := range tableRows {
 		cid := customerIDFromMap(row)
 		if cid != customerID {
-			logger.Info("Customer ID mismatch", zap.String("tableCustomerID", cid))
+			logger.Warn("Customer ID mismatch", zap.String("tableCustomerID", cid))
 			return false
 		}
 	}
@@ -300,7 +273,7 @@ func (e *s3Exporter) saveAndUploadParquet(customerID string, interval int64) err
 	}()
 
 	err = e.boxer.ForEach(interval, customerID, func(value []byte) (bool, error) {
-		logger.Info("Processing interval")
+		logger.Debug("Processing interval")
 		tableRows := []map[string]any{}
 		if err := gobDecode(value, &tableRows); err != nil {
 			logger.Error("Failed to unmarshal table", zap.Error(err))
@@ -309,7 +282,7 @@ func (e *s3Exporter) saveAndUploadParquet(customerID string, interval int64) err
 		if !ensureCustomerID(tableRows, customerID, logger) {
 			return false, fmt.Errorf("customer ID mismatch")
 		}
-		logger.Info("Writing rows", zap.Int("count", len(tableRows)))
+		logger.Debug("Writing rows", zap.Int("count", len(tableRows)))
 		if _, err := writer.WriteRows(tableRows); err != nil {
 			logger.Error("Failed to write rows", zap.Error(err))
 			return false, err

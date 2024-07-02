@@ -106,7 +106,7 @@ func (e *s3Exporter) writeTableByCustomerIDAndInterval(tbl map[string]map[int64]
 
 func (e *s3Exporter) writeTableForCustomerID(customerID string, now time.Time, tbl []map[string]any) error {
 	if len(tbl) == 0 {
-		e.logger.Info("no items to put to KVS", zap.String("customerID", customerID), zap.Time("timestamp", now))
+		e.logger.Debug("no items to put to store", zap.String("customerID", customerID), zap.Time("timestamp", now))
 	}
 	// validate the customer ID
 	for _, item := range tbl {
@@ -125,7 +125,7 @@ func (e *s3Exporter) writeTableForCustomerID(customerID string, now time.Time, t
 		e.logger.Error("failed to put items to KVS", zap.Error(err))
 		return err
 	}
-	e.logger.Info("put items to store",
+	e.logger.Debug("put items to store",
 		zap.String("customerID", customerID),
 		zap.Time("timestamp", now),
 		zap.Int("count", len(tbl)),

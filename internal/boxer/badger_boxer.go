@@ -15,29 +15,19 @@
 package boxer
 
 import (
-	"path/filepath"
-
-	"github.com/dgraph-io/badger/v4"
 	"go.opentelemetry.io/collector/component"
 )
 
 func BoxerFor(path string, kind component.Kind, ent component.ID, name string, boxerOpts ...BoxerOptions) (*Boxer, error) {
-	var opts badger.Options
+	var storage Buffer
 	if path == "" {
-		opts = badger.DefaultOptions("").WithInMemory(true)
+		storage = NewMemoryBuffer()
 	} else {
-		safeFilename := SafeFilename(kind, ent, name)
-		path = filepath.Join(path, safeFilename)
-		opts = badger.DefaultOptions(path)
+		storage = NewFilesystemBuffer(path)
 	}
-	db, err := badger.Open(opts)
-	if err != nil {
-		return nil, err
-	}
-	storage := NewFilesystemBuffer(path)
 	box, err := NewBoxer(append(boxerOpts, WithBufferStorage(storage))...)
 	if err != nil {
-		_ = db.Close()
+		_ = storage.Shutdown()
 		return nil, err
 	}
 	return box, nil

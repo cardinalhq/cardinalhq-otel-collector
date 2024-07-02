@@ -15,6 +15,7 @@
 package boxer
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -39,6 +40,10 @@ const (
 	NoTTL                = time.Duration(0)
 	intervalMarkerPrefix = "interval"
 	keySeparator         = "-"
+)
+
+var (
+	MaintainNotNeeded = errors.New("maintain not needed")
 )
 
 func NewBoxer(options ...BoxerOptions) (*Boxer, error) {

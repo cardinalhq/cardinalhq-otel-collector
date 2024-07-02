@@ -97,7 +97,11 @@ func (b *BadgerKVS) Maintain() error {
 	if b.db.Opts().InMemory {
 		return nil
 	}
-	return b.db.RunValueLogGC(0.5)
+	err := b.db.RunValueLogGC(0.5)
+	if err != nil && !errors.Is(err, badger.ErrNoRewrite) {
+		return nil
+	}
+	return err
 }
 
 func (b *BadgerKVS) Close() error {

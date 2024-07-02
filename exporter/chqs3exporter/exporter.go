@@ -354,7 +354,6 @@ func (e *s3Exporter) writeInterval(interval int64) error {
 	keys := maps.Keys(writers)
 	for _, customerID := range keys {
 		writer := writers[customerID]
-		delete(writers, customerID)
 
 		if err := closeParquetWriter(writer); err != nil {
 			e.logger.Error("Failed to close parquet writer", zap.Error(err))

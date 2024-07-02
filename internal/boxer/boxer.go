@@ -132,13 +132,6 @@ func (b *Boxer) Maintain() error {
 	return nil
 }
 
-func (b *Boxer) Wipe() error {
-	if wiper, ok := b.buffer.(Wiper); ok {
-		return wiper.Wipe()
-	}
-	return nil
-}
-
 func (b *Boxer) Close() error {
 	return b.buffer.Shutdown()
 }

@@ -30,7 +30,6 @@ type MemoryBuffer struct {
 
 var (
 	_ Buffer = (*MemoryBuffer)(nil)
-	_ Wiper  = (*MemoryBuffer)(nil)
 )
 
 func NewMemoryBuffer() *MemoryBuffer {

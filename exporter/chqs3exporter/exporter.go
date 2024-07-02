@@ -177,10 +177,15 @@ func (e *s3Exporter) processMaintainTimer() {
 	}()
 
 	e.logger.Info("Maintaining database")
-	if err := e.boxer.Maintain(); err != nil {
-		if errors.Is(err, boxer.MaintainNotNeeded) {
-			e.logger.Error("Failed to maintain database", zap.Error(err))
-			return
+	// limit the number of cycles to prevent the exporter from getting stuck
+	for i := 0; i < 100; i++ {
+		e.logger.Info("Running database cleaning cycle")
+		err := e.boxer.Maintain()
+		if err != nil {
+			if errors.Is(err, boxer.MaintainNotNeeded) {
+				e.logger.Error("Failed to maintain database", zap.Error(err))
+			}
+			break
 		}
 	}
 	e.logger.Info("Database maintained")
@@ -269,7 +274,7 @@ func closeWriter(f *parquetWriter, logger *zap.Logger) {
 	if err := closeParquetWriter(f); err != nil {
 		logger.Error("Failed to close parquet writer", zap.Error(err))
 	}
-	if f.file == nil {
+	if f.file != nil {
 		if err := f.file.Close(); err != nil {
 			logger.Error("Failed to close temp file", zap.Error(err))
 		}

@@ -21,6 +21,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/go-multierror"
 )
 
 type Boxer struct {
@@ -220,8 +222,14 @@ func (b *Boxer) GetAllIntervals() ([]int64, error) {
 }
 
 func (b *Boxer) CloseInterval(interval int64) error {
+	var errs *multierror.Error
 	delete(b.openIntervals, interval)
-	return b.kvs.Delete([]byte(markerToInterval(interval)))
+	errs = multierror.Append(errs, b.kvs.Delete([]byte(markerToInterval(interval))))
+	b.kvs.ForEachPrefix(b.generateIntervalPrefix(interval), func(key []byte, value []byte) bool {
+		errs = multierror.Append(errs, b.kvs.Delete(key))
+		return true
+	})
+	return errs.ErrorOrNil()
 }
 
 func (b *Boxer) Maintain() error {

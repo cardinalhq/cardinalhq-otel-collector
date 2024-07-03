@@ -28,12 +28,12 @@ import (
 func customerIDFromMap(m map[string]any) string {
 	customerID, found := m[translate.CardinalFieldCustomerID]
 	if !found {
-		return ""
+		return "_default"
 	}
 	if cid, ok := customerID.(string); ok {
 		return cid
 	}
-	return ""
+	return "_default"
 }
 
 // timestampFromMap extracts a timestamp from a map.

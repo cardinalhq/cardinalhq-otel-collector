@@ -11,6 +11,7 @@ func TestXidGenerator_Make(t *testing.T) {
 	x := NewXIDGenerator()
 	id := x.Make(time.Now())
 	assert.NotEmpty(t, id, "failed to generate ID")
+	assert.Len(t, id, 20, "ID has wrong length")
 }
 
 func TestXidGenerator_Make_many(t *testing.T) {
@@ -21,4 +22,7 @@ func TestXidGenerator_Make_many(t *testing.T) {
 		ids[id] = true
 	}
 	assert.Len(t, ids, 1000, "failed to generate unique IDs")
+	for id := range ids {
+		assert.Len(t, id, 20, "ID %s has wrong length", id)
+	}
 }

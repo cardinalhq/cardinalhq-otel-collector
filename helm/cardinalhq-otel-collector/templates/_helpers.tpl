@@ -234,7 +234,7 @@ Get the name of the datadog secret
 */}}
 {{- define "customerside.secret.datadog.name" -}}
 {{- if .Values.secrets.create -}}
-{{ include "customerside.fullname" .}}-datadog-apikey
+{{ include "customerside.fullname" .}}-dd-apikey
 {{- else -}}
 {{- .Values.secrets.datadog.name }}
 {{- end -}}
@@ -245,9 +245,20 @@ Get the name of the cardinalhq secret
 */}}
 {{- define "customerside.secret.cardinalhq.name" -}}
 {{- if .Values.secrets.create -}}
-{{ include "customerside.fullname" .}}-cardinalhq-apikey
+{{ include "customerside.fullname" .}}-chq-apikey
 {{- else -}}
 {{- .Values.secrets.cardinalhq.name }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Get the name of the cardinalhq secret
+*/}}
+{{- define "customerside.secret.aws.name" -}}
+{{- if .Values.secrets.create -}}
+{{ include "customerside.fullname" .}}-aws-creds
+{{- else -}}
+{{- .Values.secrets.aws.name }}
 {{- end -}}
 {{- end -}}
 

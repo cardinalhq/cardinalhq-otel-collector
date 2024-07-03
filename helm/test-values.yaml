@@ -14,3 +14,8 @@ collector:
           brokers:
             - kafka:9092
           topic: otel-metrics
+
+chqs3:
+  config:
+    s3uploader:
+      s3_bucket: my-special-bucket

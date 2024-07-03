@@ -5,7 +5,7 @@ metadata:
     {{- include "customerside.labels" . | nindent 4 }}
     app.kubernetes.io/component: collector-l2
   {{- include "customerside.service.annotations" . | nindent 2 }}
-  name: {{ include "customerside.fullname" . }}-collector-l2
+  name: {{ include "customerside.fullname" . }}-l2
   {{- include "customerside.namespace" . | nindent 2 }}
 spec:
   selector:

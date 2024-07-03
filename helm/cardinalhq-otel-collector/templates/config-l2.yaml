@@ -5,7 +5,7 @@ metadata:
     {{- include "customerside.labels" . | nindent 4 }}
     app.kubernetes.io/component: collector-l2
   {{- include "customerside.configMap.annotations" . | nindent 2 }}
-  name: {{ include "customerside.fullname" . }}-collector-config-l2
+  name: {{ include "customerside.fullname" . }}-l2
   {{- include "customerside.namespace" . | nindent 2 }}
 data:
   config.yaml: |-
@@ -26,6 +26,11 @@ data:
       {{ end -}}
       {{ end -}}
       {{ end }}
+
+{{ if .Values.chqs3.enabled }}
+      chqs3/l2:
+      {{ include "customerside.chqs3.config" . | nindent 2 }}
+{{ end }}
 
     processors:
       # Limit collector process memory usage.  This should be the first processor
@@ -117,6 +122,9 @@ data:
             - chqdecorator/l2
           exporters:
             - forward/intakestats
+{{ if .Values.chqs3.enabled }}
+            - chqs3/l2
+{{ end }}
             {{ range $name, $flags := .Values.vendors -}}
             {{ if and $flags.enabled $flags.metrics -}}
             - forward/{{ $name }}
@@ -151,6 +159,9 @@ data:
             - chqdecorator/l2
           exporters:
             - forward/intakestats
+{{ if .Values.chqs3.enabled }}
+            - chqs3/l2
+{{ end }}
             {{ range $name, $flags := .Values.vendors -}}
             {{ if and $flags.enabled $flags.traces -}}
             - forward/{{ $name }}

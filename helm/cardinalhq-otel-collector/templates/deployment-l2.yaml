@@ -5,7 +5,7 @@ metadata:
     {{- include "customerside.labels" . | nindent 4 }}
     app.kubernetes.io/component: collector-l2
   {{- include "customerside.deployment.annotations" . | nindent 2 }}
-  name: {{ include "customerside.fullname" . }}-collector-l2
+  name: {{ include "customerside.fullname" . }}-l2
   {{- include "customerside.namespace" . | nindent 2 }}
 spec:
   replicas: {{ .Values.collector.l2.replicas | default 2 }}
@@ -67,6 +67,18 @@ spec:
                 secretKeyRef:
                   name: {{ include "customerside.secret.cardinalhq.name" . }}
                   key: {{ .Values.secrets.cardinalhq.field }}
+{{ if .Values.chqs3.enabled }}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "customerside.secret.aws.name" . }}
+                  key: {{ .Values.secrets.aws.accessKeyField }}
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "customerside.secret.aws.name" . }}
+                  key: {{ .Values.secrets.aws.secretKeyField }}
+{{ end }}
           ports:
             - name: otlp2
               containerPort: 14317
@@ -101,7 +113,7 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: {{ include "customerside.fullname" . }}-collector-config-l2
+            name: {{ include "customerside.fullname" . }}-l2
         - name: buffer-scratch
           ephemeral:
             volumeClaimTemplate:

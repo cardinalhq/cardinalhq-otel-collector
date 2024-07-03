@@ -5,7 +5,7 @@ metadata:
     {{- include "customerside.labels" . | nindent 4 }}
     app.kubernetes.io/component: collector-l1
   {{- include "customerside.configMap.annotations" . | nindent 2 }}
-  name: {{ include "customerside.fullname" . }}-collector-config-l1
+  name: {{ include "customerside.fullname" . }}-l1
   {{- include "customerside.namespace" . | nindent 2 }}
 data:
   config.yaml: |-
@@ -41,7 +41,7 @@ data:
               max_interval: 10s
         resolver:
           k8s:
-            service: "{{ include "customerside.fullname" . }}-collector-l2.${env:POD_NAMESPACE}"
+            service: "{{ include "customerside.fullname" . }}-l2.${env:POD_NAMESPACE}"
             ports:
               - {{ .Values.collector.ports.internal.otlpGRPCPort }}
       loadbalancing/traces:
@@ -59,7 +59,7 @@ data:
               max_interval: 10s
         resolver:
           k8s:
-            service: "{{ include "customerside.name" . }}-collector-l2.${env:POD_NAMESPACE}"
+            service: "{{ include "customerside.name" . }}-l2.${env:POD_NAMESPACE}"
             ports:
               - {{ .Values.collector.ports.internal.otlpGRPCPort }}
 
@@ -69,6 +69,11 @@ data:
         {{ toYaml $flags.config | nindent 8 }}
       {{ end -}}
       {{ end }}
+    
+{{ if .Values.chqs3.enabled }}
+      chqs3/l1:
+      {{ include "customerside.chqs3.config" . | nindent 2 }}
+{{ end }}
 
     processors:
       # Limit collector process memory usage.  This should be the first processor
@@ -155,6 +160,9 @@ data:
             - chqdecorator/l1
           exporters:
             - forward/intakestats
+{{ if .Values.chqs3.enabled }}
+            - chqs3/l1
+{{ end }}
             {{ range $name, $flags := .Values.vendors -}}
             {{ if and $flags.enabled $flags.logs -}}
             - forward/{{ $name }}

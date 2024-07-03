@@ -127,6 +127,37 @@ secrets:
     apiKey: dummy-datadog-api-key
     # the field to pull the secret from
     field: api-key
+  aws:
+    name:
+    accessKey: dummy-aws-access-key
+    accessKeyField: AWS_ACCESS_KEY_ID
+    secretKey: dummy-aws-secret-key
+    secretKeyField: AWS_SECRET_ACCESS_KEY
+
+chqs3:
+  enabled: true
+  config:
+    s3uploader:
+      region: us-east-1
+      s3_bucket: dummy-bucket
+      s3_prefix: otel-raw
+      s3_partition: minute
+    buffering:
+      type: disk
+      directory: /app/scratch
+    timeboxes:
+      logs:
+        interval: 10s
+        open_interval_count: 1
+        grace_period: 1s
+      metrics:
+        interval: 10s
+        open_interval_count: 4
+        grace_period: 2s
+      traces:
+        interval: 10s
+        open_interval_count: 1
+        grace_period: 1s
 
 # Annotations for various resources.
 annotations:

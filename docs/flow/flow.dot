@@ -35,13 +35,15 @@ digraph G {
         c1_forwarder_cardinalhq [label="forward/cardinalhq" color="#ffdddd"];
         c1_forwarder_datadog [label="forward/datadog" color="#ffdddd"];
         c1_forwarder_stats [label="forward/intakestats" color="#ffdddd"];
-        
+        c1_chqs3 [label="chqs3" color="#ffdddd"];
+         
         c1_receiver_datadog -> c1_memory_limiter;
         c1_receiver_otlp -> c1_memory_limiter;
         c1_memory_limiter -> c1_chqdecorator [color=red];
         c1_chqdecorator -> c1_forwarder_datadog;
         c1_chqdecorator -> c1_forwarder_cardinalhq;
         c1_chqdecorator -> c1_forwarder_stats;
+        c1_chqdecorator -> c1_chqs3;
     }
 
     subgraph cluster_2 {
@@ -129,6 +131,7 @@ digraph G {
         c5_forwarder_cardinalhq [label="forward/cardinalhq" color="#ffdddd"];
         c5_forwarder_datadog [label="forward/datadog" color="#ffdddd"];
         c5_forwarder_stats [label="forward/intakestats" color="#ffdddd"];
+        c5_chqs3 [label="chqs3" color="#ffdddd"];
 
         c5_receiver_otlp -> c5_memory_limiter;
         c5_memory_limiter -> c5_cumulativetodelta [color=red];
@@ -136,6 +139,7 @@ digraph G {
         c5_chqdecorator -> c5_forwarder_cardinalhq;
         c5_chqdecorator -> c5_forwarder_datadog;
         c5_chqdecorator -> c5_forwarder_stats;
+        c5_chqdecorator -> c5_chqs3;
     }
 
     subgraph cluster_201 {
@@ -223,6 +227,7 @@ digraph G {
         c9_forwarder_cardinalhq [label="forward/cardinalhq" color="#ffdddd"];
         c9_forwarder_datadog [label="forward/datadog" color="#ffdddd"];
         c9_forwarder_stats [label="forward/intakestats" color="#ffdddd"];
+        c9_chqs3 [label="chqs3" color="#ffdddd"];
 
         c9_receiver_otlp -> c9_memory_limiter;
         c9_memory_limiter -> c9_groupbytrace [color=red];
@@ -230,6 +235,7 @@ digraph G {
         c9_chqdecorator -> c9_forwarder_cardinalhq;
         c9_chqdecorator -> c9_forwarder_datadog;
         c9_chqdecorator -> c9_forwarder_stats;
+        c9_chqdecorator -> c9_chqs3;
     }
 
     subgraph cluster_401 {

@@ -15,7 +15,7 @@
 package idgen
 
 import (
-	crand "crypto/rand"
+	"math/rand"
 	"time"
 
 	"github.com/oklog/ulid/v2"
@@ -37,7 +37,7 @@ var _ IDGenerator = &ULIDGenerator{}
 
 func NewULIDGenerator() *ULIDGenerator {
 	return &ULIDGenerator{
-		entropy: ulid.Monotonic(crand.Reader, 0),
+		entropy: ulid.Monotonic(rand.New(rand.NewSource(time.Now().UnixNano())), 0),
 	}
 }
 

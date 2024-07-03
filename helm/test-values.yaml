@@ -18,4 +18,5 @@ collector:
 chqs3:
   config:
     s3uploader:
+      region: us-west-2
       s3_bucket: my-special-bucket

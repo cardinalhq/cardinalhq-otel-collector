@@ -117,30 +117,30 @@ secrets:
     # if "create" is false, use this reference.  It is not used if "create" is true.
     name:
     # if "create" is true, use this value to create the secret.
-    apiKey: dummy-chq-api-key
+    apiKey:
     # the field to pull the secret from
     field: api-key
   datadog:
     # if "create" is false, use this reference.  It is not used if "create" is true.
     name:
     # if "create" is true, use this value to create the secret.
-    apiKey: dummy-datadog-api-key
+    apiKey: ""
     # the field to pull the secret from
     field: api-key
   aws:
     name:
-    accessKey: dummy-aws-access-key
+    accessKey: ""
     accessKeyField: AWS_ACCESS_KEY_ID
-    secretKey: dummy-aws-secret-key
+    secretKey: ""
     secretKeyField: AWS_SECRET_ACCESS_KEY
 
 chqs3:
   enabled: true
   config:
     s3uploader:
-      region: us-east-1
-      s3_bucket: dummy-bucket
-      s3_prefix: otel-raw
+      region: ""
+      s3_bucket: ""
+      s3_prefix: ""
       s3_partition: minute
     buffering:
       type: disk

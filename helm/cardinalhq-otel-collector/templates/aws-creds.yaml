@@ -1,0 +1,16 @@
+{{- if .Values.secrets.create -}}
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    {{- include "customerside.labels" . | nindent 4 }}
+  {{- include "customerside.secret.annotations" . | nindent 2 }}
+  name: {{ include "customerside.secret.aws.name" . }}
+  {{- include "customerside.namespace" . | nindent 2 }}
+type: Opaque
+data:
+  {{ .Values.secrets.aws.accessKeyField }}: |-
+    {{ b64enc .Values.secrets.aws.accessKey }}
+  {{ .Values.secrets.aws.secretKeyField }}: |-
+    {{ b64enc .Values.secrets.aws.secretKey }}
+{{- end -}}

@@ -9,8 +9,8 @@ require (
 	github.com/aws/aws-sdk-go v1.54.13
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/oklog/ulid/v2 v2.1.0
 	github.com/parquet-go/parquet-go v0.23.0
+	github.com/rs/xid v1.5.0
 	github.com/stretchr/testify v1.9.0
 	go.opentelemetry.io/collector/component v0.104.0
 	go.opentelemetry.io/collector/confmap v0.104.0

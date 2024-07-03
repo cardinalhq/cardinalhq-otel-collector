@@ -34,6 +34,6 @@ type TableTranslator struct {
 
 func NewTableTranslator() *TableTranslator {
 	return &TableTranslator{
-		idg: idgen.NewULIDGenerator(),
+		idg: idgen.NewXIDGenerator(),
 	}
 }

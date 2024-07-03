@@ -10,5 +10,5 @@ metadata:
 type: Opaque
 data:
   {{ .Values.secrets.cardinalhq.field }}: |-
-    {{ b64enc .Values.secrets.cardinalhq.apiKey }}
+    {{ required "A valid cardinalhq secret apiKey is required when create=true!" .Values.secrets.cardinalhq.apiKey | b64enc }}
 {{- end -}}

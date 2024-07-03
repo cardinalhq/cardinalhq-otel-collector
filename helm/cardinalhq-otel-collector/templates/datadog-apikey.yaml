@@ -10,5 +10,5 @@ metadata:
 type: Opaque
 data:
   {{ .Values.secrets.datadog.field }}: |-
-    {{ b64enc .Values.secrets.datadog.apiKey }}
+    {{ required "A valid datadog secret apiKey is required when create=true!" .Values.secrets.datadog.apiKey | b64enc }}
 {{- end -}}

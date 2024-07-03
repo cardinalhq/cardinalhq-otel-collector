@@ -8,10 +8,3 @@
   # {{ required "A valid datadog secret name is required when create=false!" .Values.secrets.datadog.name }}
   # {{ required "A valid aws secret name is required when create=false!" .Values.secrets.aws.name }}
 {{ end }}
-
-{{ if .Values.secrets.create }}
-  # {{ required "A valid cardinalhq secret apiKey is required when create=true!" .Values.secrets.cardinalhq.apiKey }}
-  # {{ required "A valid datadog secret apiKey is required when create=true!" .Values.secrets.datadog.apiKey }}
-  # {{ required "A valid aws secret accessKey is required when create=true!" .Values.secrets.aws.accessKey }}
-  # {{ required "A valid aws secret secretKey is required when create=true!" .Values.secrets.aws.secretKey }}
-{{ end }}

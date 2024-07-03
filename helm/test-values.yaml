@@ -20,3 +20,14 @@ chqs3:
     s3uploader:
       region: us-west-2
       s3_bucket: my-special-bucket
+      s3_prefix: otel-raw
+
+secrets:
+  create: true
+  cardinalhq:
+    apiKey: cardinalhq-secret
+  datadog:
+    apiKey: datadog-secret
+  aws:
+    accessKey: aws-secret
+    secretKey: aws-secret

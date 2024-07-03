@@ -9,7 +9,7 @@ vendors:
     config:
       sending_queue:
         storage: file_storage/scratch
-        queue_size: 100000
+        queue_size: 2000
       endpoint: https://chq-collector-grpc.svc.aws.dev.cardinalhq.net:443
       auth:
         authenticator: chqauth/cardinalhq
@@ -22,7 +22,7 @@ vendors:
     config:
       sending_queue:
         storage: file_storage/scratch
-        queue_size: 100000
+        queue_size: 2000
       api_key: ${env:DATADOG_API_KEY}
       metrics:
         endpoint: https://intake.cardinalhq.io

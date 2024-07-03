@@ -10,7 +10,7 @@ metadata:
 type: Opaque
 data:
   {{ .Values.secrets.aws.accessKeyField }}: |-
-    {{ b64enc .Values.secrets.aws.accessKey }}
+    {{ required "A valid aws secret accessKey is required when create=true!" .Values.secrets.aws.accessKey | b64enc }}
   {{ .Values.secrets.aws.secretKeyField }}: |-
-    {{ b64enc .Values.secrets.aws.secretKey }}
+    {{ required "A valid aws secret secretKey is required when create=true!" .Values.secrets.aws.secretKey | b64enc }}
 {{- end -}}

@@ -15,5 +15,5 @@
 *}
 
 {{ define "customerside.chqs3.config" }}
-    {{- toYaml .Values.chqs3.config | nindent 6 }}
+  {{- toYaml .Values.chqs3.config | nindent 6 }}
 {{ end }}

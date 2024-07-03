@@ -1,10 +1,10 @@
 {{ if .Values.chqs3.enabled}}
-  # {{ required "A valid s3uploader.region is required!" .Values.chqs3.config.s3uploader.region }}
-  # {{ required "A valid s3uploader.bucket is required!" .Values.chqs3.config.s3uploader.s3_bucket }}
+  {{ $_ := required "A valid s3uploader.region is required!" .Values.chqs3.config.s3uploader.region }}
+  {{ $_ := required "A valid s3uploader.bucket is required!" .Values.chqs3.config.s3uploader.s3_bucket }}
 {{ end }}
 
 {{ if eq .Values.secrets.create false }}
-  # {{ required "A valid cardinalhq secret name is required when create=false!" .Values.secrets.cardinalhq.name }}
-  # {{ required "A valid datadog secret name is required when create=false!" .Values.secrets.datadog.name }}
-  # {{ required "A valid aws secret name is required when create=false!" .Values.secrets.aws.name }}
+  {{ $_ := required "A valid cardinalhq secret name is required when create=false!" .Values.secrets.cardinalhq.name }}
+  {{ $_ := required "A valid datadog secret name is required when create=false!" .Values.secrets.datadog.name }}
+  {{ $_ := required "A valid aws secret name is required when create=false!" .Values.secrets.aws.name }}
 {{ end }}

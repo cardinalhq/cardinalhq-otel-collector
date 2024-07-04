@@ -163,8 +163,15 @@ func (e *chqEnforcer) Start(ctx context.Context, host component.Host) error {
 func (e *chqEnforcer) Shutdown(ctx context.Context) error {
 	var errors *multierror.Error
 	e.configExtension.UnregisterCallback(e.configCallbackID)
-	errors = multierror.Append(errors, e.slowSampler.Stop())
-	errors = multierror.Append(errors, e.hasErrorSampler.Stop())
+	if e.slowSampler != nil {
+		errors = multierror.Append(errors, e.slowSampler.Stop())
+	}
+	if e.hasErrorSampler != nil {
+		errors = multierror.Append(errors, e.hasErrorSampler.Stop())
+	}
+	if e.uninterestingSampler != nil {
+		errors = multierror.Append(errors, e.uninterestingSampler.Stop())
+	}
 	return errors.ErrorOrNil()
 }
 

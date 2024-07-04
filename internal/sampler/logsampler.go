@@ -75,23 +75,25 @@ func getServiceName(rattr pcommon.Map) string {
 }
 
 func (ls *LogSamplerImpl) shouldFilter(fingerprint string, rattr pcommon.Map, iattr pcommon.Map, lattr pcommon.Map) (droppingRule string) {
+	if len(ls.rules) == 0 {
+		return ""
+	}
+
 	ret := ""
 	matched := false
-
-	serviceName := getServiceName(rattr)
-
+	key := fmt.Sprintf("%s:%s", getServiceName(rattr), fingerprint)
 	randval := rand.Float64()
+	attrs := map[string]pcommon.Map{
+		"resource": rattr,
+		"scope":    iattr,
+		"log":      lattr,
+	}
+
 	for rid, r := range ls.rules {
 		// if we already have a rule, don't bother checking any more random rules.
 		if matched && r.ruleType == LogRuleTypeRandom {
 			continue
 		}
-		attrs := map[string]pcommon.Map{
-			"resource": rattr,
-			"scope":    iattr,
-			"log":      lattr,
-		}
-		key := fmt.Sprintf("%s:%s", serviceName, fingerprint)
 		if matchscope(r.config.Scope, attrs) {
 			rate := r.sampler.GetSampleRate(key)
 			wasHit := shouldFilter(rate, randval)
@@ -101,6 +103,7 @@ func (ls *LogSamplerImpl) shouldFilter(fingerprint string, rattr pcommon.Map, ia
 			}
 		}
 	}
+
 	return ret
 }
 

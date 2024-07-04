@@ -32,14 +32,3 @@ func logRuletypeToInt(ruleType string) LogRuleType {
 		return LogRuleTypeUnknown
 	}
 }
-
-func intToLogRuleType(ruleType LogRuleType) string {
-	switch ruleType {
-	case LogRuleTypeRandom:
-		return "random"
-	case LogRuleTypeRPS:
-		return "rps"
-	default:
-		return "unknown"
-	}
-}

@@ -15,6 +15,7 @@
 package sampler
 
 import (
+	"log"
 	"slices"
 	"strings"
 
@@ -61,6 +62,9 @@ func matchscope(scope map[string]string, attrs map[string]pcommon.Map) bool {
 
 func matchTag(key string, tags pcommon.Map, value string) bool {
 	if v, ok := tags.Get(key); ok {
+		if key == "_cardinalhq.fingerprint" {
+			log.Printf("fingerprint: %s(%T) == %s(%T)", v.AsString(), v.AsString(), value, value)
+		}
 		return v.AsString() == value
 	}
 	return false

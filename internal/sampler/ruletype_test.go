@@ -50,34 +50,3 @@ func TestRuletypeToInt(t *testing.T) {
 		})
 	}
 }
-
-func TestIntToRuleType(t *testing.T) {
-	testCases := []struct {
-		name     string
-		ruleType LogRuleType
-		expected string
-	}{
-		{
-			name:     "random rule type",
-			ruleType: LogRuleTypeRandom,
-			expected: "random",
-		},
-		{
-			name:     "rps rule type",
-			ruleType: LogRuleTypeRPS,
-			expected: "rps",
-		},
-		{
-			name:     "unknown rule type",
-			ruleType: LogRuleTypeUnknown,
-			expected: "unknown",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := intToLogRuleType(tc.ruleType)
-			assert.Equal(t, tc.expected, got)
-		})
-	}
-}

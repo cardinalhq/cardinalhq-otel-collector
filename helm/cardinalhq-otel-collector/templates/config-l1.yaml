@@ -79,8 +79,8 @@ data:
       # Limit collector process memory usage.  This should be the first processor
       # in the processor list.
       memory_limiter/l1:
-        limit_mib: 1500
-        spike_limit_mib: 100
+        limit_mib: {{ .Values.collector.l1.memory_limiter.limit_mib }}
+        spike_limit_mib: {{ .Values.collector.l1.memory_limiter.spike_limit_mib }}
         check_interval: 5s
 
       batch/intakestats:

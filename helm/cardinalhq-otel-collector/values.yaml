@@ -57,14 +57,17 @@ collector:
       tag: latest
     replicas: 2
     env:
-      gomemlimit: 1500MiB
+      gomemlimit: 850MiB
     resources:
       limits:
         cpu: 2000m
-        memory: 2000Mi
+        memory: 1000Mi
       requests:
         cpu: 2000m
-        memory: 2000Mi
+        memory: 1000Mi
+    memory_limiter:
+      limit_mib: 875
+      spike_limit_mib: 100
     pvc:
       size: 8Gi
     defaultReceivers:
@@ -95,7 +98,7 @@ collector:
       tag: latest
     replicas: 2
     env:
-      gomemlimit: 750MiB
+      gomemlimit: 850MiB
     resources:
       limits:
         cpu: 1000m
@@ -103,6 +106,9 @@ collector:
       requests:
         cpu: 1000m
         memory: 1000Mi
+    memory_limiter:
+      limit_mib: 875
+      spike_limit_mib: 100
     pvc:
       size: 8Gi
 loadbalancer:

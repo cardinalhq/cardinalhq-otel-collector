@@ -16,6 +16,8 @@ package chqs3exporter
 
 import (
 	"fmt"
+	"os"
+	"sync"
 	"time"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
@@ -23,15 +25,62 @@ import (
 	"go.uber.org/zap"
 )
 
+var (
+	foundCustomerId = ""
+	foundOnce       = sync.Once{}
+	foundClusterId  = ""
+)
+
+func getIDs() {
+	foundCustomerId = os.Getenv("CARDINALHQ_CUSTOMER_ID")
+	if foundCustomerId == "" {
+		foundCustomerId = "_default"
+	}
+	foundClusterId = os.Getenv("CARDINALHQ_CLUSTER_ID")
+	if foundClusterId == "" {
+		foundClusterId = "_default"
+	}
+}
+func customerIDFromEnv() string {
+	foundOnce.Do(func() {
+		getIDs()
+	})
+	return foundCustomerId
+}
+
+func clusterIDFromEnv() string {
+	foundOnce.Do(func() {
+		getIDs()
+	})
+	return foundClusterId
+}
+
 // customerIDFromMap extracts a customer ID from a map.
 // If the customer ID is not found or is not a string, it returns an empty string.
 func customerIDFromMap(m map[string]any) string {
-	customerID, found := m[translate.CardinalFieldCustomerID]
-	if !found {
-		return "_default"
+	customerID := customerIDFromEnv()
+	if customerID != "_default" {
+		return customerID
 	}
-	if cid, ok := customerID.(string); ok {
-		return cid
+	id, found := m[translate.CardinalFieldCustomerID]
+	if found {
+		if cid, ok := id.(string); ok {
+			return cid
+		}
+	}
+	return "_default"
+}
+
+func getClusterIDFromMap(m map[string]any) string {
+	clusterID := clusterIDFromEnv()
+	if clusterID != "_default" {
+		return clusterID
+	}
+	id, found := m[translate.CardinalFieldClusterID]
+	if found {
+		if cid, ok := id.(string); ok {
+			return cid
+		}
 	}
 	return "_default"
 }

@@ -219,10 +219,10 @@ func (e *s3Exporter) processInterval(interval int64) error {
 	return nil
 }
 
-func (e *s3Exporter) consumeTags(customerID string, interval int64) map[string]any {
+func (e *s3Exporter) consumeTags(ids string, interval int64) map[string]any {
 	e.taglock.Lock()
 	defer e.taglock.Unlock()
-	tags, ok := e.tags[customerID]
+	tags, ok := e.tags[ids]
 	if !ok {
 		return nil
 	}
@@ -230,18 +230,19 @@ func (e *s3Exporter) consumeTags(customerID string, interval int64) map[string]a
 	if !ok {
 		return nil
 	}
-	delete(e.tags[customerID], interval)
+	delete(e.tags[ids], interval)
 	return intervalTags
 }
 
-func (e *s3Exporter) newParquetWriter(customerID string, interval int64) (tagwriter.MapWriter, *os.File, error) {
-	tags := e.consumeTags(customerID, interval)
+func (e *s3Exporter) newParquetWriter(ids string, interval int64) (tagwriter.MapWriter, *os.File, error) {
+	tags := e.consumeTags(ids, interval)
 	if len(tags) == 0 {
 		keys := map[string][]int64{}
 		for k, v := range e.tags {
 			keys[k] = maps.Keys(v)
 		}
-		e.logger.Warn("No tags found", zap.String("customerID", customerID), zap.Int64("interval", interval), zap.Any("keys", keys))
+		customerID, clusterID := splitCustomerID(ids)
+		e.logger.Warn("No tags found", zap.String("customerID", customerID), zap.String("clusterID", clusterID), zap.Int64("interval", interval), zap.Any("keys", keys))
 		return nil, nil, errors.New("no tags found")
 	}
 
@@ -275,12 +276,13 @@ func ensureCustomerID(tableRows []map[string]any, customerID string, logger *zap
 	return true
 }
 
-func (e *s3Exporter) saveAndUploadParquet(customerID string, interval int64) error {
-	writer, f, err := e.newParquetWriter(customerID, interval)
+func (e *s3Exporter) saveAndUploadParquet(ids string, interval int64) error {
+	writer, f, err := e.newParquetWriter(ids, interval)
 	if err != nil {
 		return err
 	}
-	logger := e.logger.With(zap.String("customerID", customerID), zap.Int64("interval", interval), zap.String("tempFilename", f.Name()))
+	customerID, clusterID := splitCustomerID(ids)
+	logger := e.logger.With(zap.String("customerID", customerID), zap.String("clusterID", clusterID), zap.Int64("interval", interval), zap.String("tempFilename", f.Name()))
 	defer func() {
 		if writer != nil {
 			if err := writer.Close(); err != nil {
@@ -297,7 +299,7 @@ func (e *s3Exporter) saveAndUploadParquet(customerID string, interval int64) err
 		}
 	}()
 
-	err = e.boxer.ForEach(interval, customerID, func(value []byte) (bool, error) {
+	err = e.boxer.ForEach(interval, ids, func(value []byte) (bool, error) {
 		logger.Debug("Processing interval")
 		tableRows := []map[string]any{}
 		if err := gobDecode(value, &tableRows); err != nil {
@@ -330,22 +332,22 @@ func (e *s3Exporter) saveAndUploadParquet(customerID string, interval int64) err
 		return nil
 	}
 
-	return e.upload(f, &s3Writer{}, customerID, interval)
+	return e.upload(f, &s3Writer{}, ids, interval)
 }
 
 func (e *s3Exporter) writeInterval(interval int64) error {
-	customerIDs, err := e.boxer.GetScopesForInterval(interval)
+	ids, err := e.boxer.GetScopesForInterval(interval)
 	if err != nil {
 		return err
 	}
 
-	for _, customerID := range customerIDs {
-		defer func(customerID string) {
-			if err := e.boxer.CloseIntervalScope(interval, customerID); err != nil {
+	for _, id := range ids {
+		defer func(id string) {
+			if err := e.boxer.CloseIntervalScope(interval, id); err != nil {
 				e.logger.Error("Failed to close interval scope", zap.Error(err))
 			}
-		}(customerID)
-		if err := e.saveAndUploadParquet(customerID, interval); err != nil {
+		}(id)
+		if err := e.saveAndUploadParquet(id, interval); err != nil {
 			e.logger.Error("Failed to save and upload parquet", zap.Error(err))
 			return err
 		}
@@ -362,12 +364,13 @@ func filesize(f *os.File) (int64, error) {
 	return stat.Size(), nil
 }
 
-func (e *s3Exporter) upload(f io.ReadSeeker, writer filewriter, customerID string, interval int64) error {
+func (e *s3Exporter) upload(f io.ReadSeeker, writer filewriter, ids string, interval int64) error {
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
 		return fmt.Errorf("failed to seek to start of file: %w", err)
 	}
 	now := e.boxer.TimeForInterval(interval)
 	prefix := e.telemetryType + "_" + strconv.FormatInt(now.UnixMilli(), 10)
-	e.logger.Info("Uploading file", zap.String("customerID", customerID), zap.String("prefix", prefix))
-	return writer.writeBuffer(context.Background(), now, f, e.config, prefix, parquetFormat, e.metadata, customerID)
+	customerID, clusterID := splitCustomerID(ids)
+	e.logger.Info("Uploading file", zap.String("customerID", customerID), zap.String("clusterID", clusterID), zap.String("prefix", prefix))
+	return writer.writeBuffer(context.Background(), now, f, e.config, prefix, parquetFormat, e.metadata, ids)
 }

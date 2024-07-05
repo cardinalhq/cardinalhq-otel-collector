@@ -17,6 +17,7 @@ package chqs3exporter
 import (
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -99,12 +100,18 @@ func timestampFromMap(m map[string]any) (time.Time, bool) {
 	return time.UnixMilli(tsMillis), true
 }
 
+func keyFromMap(m map[string]any) string {
+	cid := customerIDFromMap(m)
+	clid := getClusterIDFromMap(m)
+	return fmt.Sprintf("%s/%s", cid, clid)
+}
+
 func (e *s3Exporter) partitionTableByCustomerID(interval int64, tbl []map[string]any) map[string][]map[string]any {
 	custmap := map[string][]map[string]any{}
 	for _, log := range tbl {
-		customerID := customerIDFromMap(log)
-		custmap[customerID] = append(custmap[customerID], log)
-		if err := e.updateTagMap(customerID, interval, log); err != nil {
+		key := keyFromMap(log)
+		custmap[key] = append(custmap[key], log)
+		if err := e.updateTagMap(key, interval, log); err != nil {
 			e.logger.Error("failed to update tag map", zap.Error(err))
 		}
 	}
@@ -114,20 +121,20 @@ func (e *s3Exporter) partitionTableByCustomerID(interval int64, tbl []map[string
 func (e *s3Exporter) partitionTableByCustomerIDAndInterval(tbl []map[string]any) map[string]map[int64][]map[string]any {
 	custmap := make(map[string]map[int64][]map[string]any)
 	for _, m := range tbl {
-		cid := customerIDFromMap(m)
+		key := keyFromMap(m)
 		ts, found := timestampFromMap(m)
 		if !found {
 			ts = time.Now()
 		}
 		interval := e.boxer.IntervalForTime(ts)
-		if _, ok := custmap[cid]; !ok {
-			custmap[cid] = make(map[int64][]map[string]any)
+		if _, ok := custmap[key]; !ok {
+			custmap[key] = make(map[int64][]map[string]any)
 		}
-		if _, ok := custmap[cid][interval]; !ok {
-			custmap[cid][interval] = make([]map[string]any, 0)
+		if _, ok := custmap[key][interval]; !ok {
+			custmap[key][interval] = make([]map[string]any, 0)
 		}
-		custmap[cid][interval] = append(custmap[cid][interval], m)
-		if err := e.updateTagMap(cid, interval, m); err != nil {
+		custmap[key][interval] = append(custmap[key][interval], m)
+		if err := e.updateTagMap(key, interval, m); err != nil {
 			e.logger.Error("failed to update tag map", zap.Error(err))
 		}
 	}
@@ -153,14 +160,27 @@ func (e *s3Exporter) writeTableByCustomerIDAndInterval(tbl map[string]map[int64]
 	return errs.ErrorOrNil()
 }
 
-func (e *s3Exporter) writeTableForCustomerID(customerID string, now time.Time, tbl []map[string]any) error {
+func splitCustomerID(ids string) (string, string) {
+	parts := strings.Split(ids, "/")
+	cid, clid := "_default", "_default"
+	if len(parts) > 0 {
+		cid = parts[0]
+	}
+	if len(parts) > 1 {
+		clid = parts[1]
+	}
+	return cid, clid
+}
+
+func (e *s3Exporter) writeTableForCustomerID(ids string, now time.Time, tbl []map[string]any) error {
+	customerID, clusterID := splitCustomerID(ids)
 	if len(tbl) == 0 {
-		e.logger.Debug("no items to put to store", zap.String("customerID", customerID), zap.Time("timestamp", now))
+		e.logger.Debug("no items to put to store", zap.String("customerID", customerID), zap.String("clusterID", clusterID), zap.Time("timestamp", now))
 	}
 	// validate the customer ID
 	for _, item := range tbl {
 		cid := customerIDFromMap(item)
-		if cid != customerID {
+		if customerID != cid {
 			return fmt.Errorf("customer ID mismatch: %s != %s", customerID, cid)
 		}
 	}
@@ -169,13 +189,14 @@ func (e *s3Exporter) writeTableForCustomerID(customerID string, now time.Time, t
 	if err != nil {
 		return err
 	}
-	tooOld, err := e.boxer.Put(customerID, now, b)
+	tooOld, err := e.boxer.Put(ids, now, b)
 	if err != nil {
 		e.logger.Error("failed to put items to KVS", zap.Error(err))
 		return err
 	}
 	e.logger.Debug("put items to store",
 		zap.String("customerID", customerID),
+		zap.String("clusterID", clusterID),
 		zap.Time("timestamp", now),
 		zap.Int("count", len(tbl)),
 		zap.Bool("tooOld", tooOld),

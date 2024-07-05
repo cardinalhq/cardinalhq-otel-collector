@@ -1,6 +1,33 @@
+identity:
+  # (required) The customer ID.  This is obtained from Cardinal's UI.
+  customerId: ""
+  # (required) The cluster ID.  This is obtained from Cardinal's UI, and should be unique per helm install.
+  clusterId: ""
+
+s3:
+  enabled: true
+  # (required) The region of the S3 bucket.
+  region: ""
+  # (required) The name of the S3 bucket.
+  bucket: ""
+  # (required) Timeboxes for s3uploader.  These should not generally be changed.
+  timeboxes:
+    logs:
+      interval: 10s
+      open_interval_count: 1
+      grace_period: 1s
+    metrics:
+      interval: 10s
+      open_interval_count: 4
+      grace_period: 2s
+    traces:
+      interval: 10s
+      open_interval_count: 1
+      grace_period: 1s
+
 vendors:
   cardinalhq:
-    enabled: true
+    enabled: false
     exporter: otlp
     logs: true
     metrics: true
@@ -139,31 +166,6 @@ secrets:
     accessKeyField: AWS_ACCESS_KEY_ID
     secretKey: ""
     secretKeyField: AWS_SECRET_ACCESS_KEY
-
-chqs3:
-  enabled: true
-  config:
-    s3uploader:
-      region: ""
-      s3_bucket: ""
-      s3_prefix: ""
-      s3_partition: minute
-    buffering:
-      type: disk
-      directory: /app/scratch
-    timeboxes:
-      logs:
-        interval: 10s
-        open_interval_count: 1
-        grace_period: 1s
-      metrics:
-        interval: 10s
-        open_interval_count: 4
-        grace_period: 2s
-      traces:
-        interval: 10s
-        open_interval_count: 1
-        grace_period: 1s
 
 # Annotations for various resources.
 annotations:

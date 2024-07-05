@@ -1,3 +1,22 @@
+identity:
+  clusterId: my-cluster-id
+  customerId: my-customer-id
+
+s3:
+  enabled: true
+  region: us-west-2
+  bucket: my-special-bucket
+
+secrets:
+  create: true
+  cardinalhq:
+    apiKey: cardinalhq-secret
+  datadog:
+    apiKey: datadog-secret
+  aws:
+    accessKey: aws-secret
+    secretKey: aws-secret
+
 vendors:
   datadog:
     enabled: false
@@ -15,19 +34,4 @@ collector:
             - kafka:9092
           topic: otel-metrics
 
-chqs3:
-  config:
-    s3uploader:
-      region: us-west-2
-      s3_bucket: my-special-bucket
-      s3_prefix: otel-raw
 
-secrets:
-  create: true
-  cardinalhq:
-    apiKey: cardinalhq-secret
-  datadog:
-    apiKey: datadog-secret
-  aws:
-    accessKey: aws-secret
-    secretKey: aws-secret

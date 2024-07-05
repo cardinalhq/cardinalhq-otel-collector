@@ -1,10 +1,15 @@
-{{ if .Values.chqs3.enabled}}
-  {{ $_ := required "A valid s3uploader.region is required!" .Values.chqs3.config.s3uploader.region }}
-  {{ $_ := required "A valid s3uploader.bucket is required!" .Values.chqs3.config.s3uploader.s3_bucket }}
+{{ if .Values.s3.enabled}}
+  {{ $_ := required "A valid s3.region is required!" .Values.s3.region }}
+  {{ $_ := required "A valid s3.bucket is required!" .Values.s3.bucket }}
 {{ end }}
 
 {{ if eq .Values.secrets.create false }}
   {{ $_ := required "A valid cardinalhq secret name is required when create=false!" .Values.secrets.cardinalhq.name }}
   {{ $_ := required "A valid datadog secret name is required when create=false!" .Values.secrets.datadog.name }}
-  {{ $_ := required "A valid aws secret name is required when create=false!" .Values.secrets.aws.name }}
+  {{ if .Values.s3.enabled }}
+    {{ $_ := required "A valid aws secret name is required when create=false and s3 is enabled!" .Values.secrets.aws.name }}
+  {{ end }}
 {{ end }}
+
+{{ $_ := required "identity.clusterId must be set" .Values.identity.clusterId }}
+{{ $_ := required "identity.customerId must be set" .Values.identity.customerId }}

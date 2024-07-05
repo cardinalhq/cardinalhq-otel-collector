@@ -27,9 +27,9 @@ data:
       {{ end -}}
       {{ end }}
 
-{{ if .Values.chqs3.enabled }}
+{{ if .Values.s3.enabled }}
       chqs3/l2:
-      {{ include "customerside.chqs3.config" . | nindent 2 }}
+      {{ include "customerside.chqs3.config" . | nindent 8 }}
 {{ end }}
 
     processors:
@@ -122,7 +122,7 @@ data:
             - chqdecorator/l2
           exporters:
             - forward/intakestats
-{{ if .Values.chqs3.enabled }}
+{{ if .Values.s3.enabled }}
             - chqs3/l2
 {{ end }}
             {{ range $name, $flags := .Values.vendors -}}
@@ -159,7 +159,7 @@ data:
             - chqdecorator/l2
           exporters:
             - forward/intakestats
-{{ if .Values.chqs3.enabled }}
+{{ if .Values.s3.enabled }}
             - chqs3/l2
 {{ end }}
             {{ range $name, $flags := .Values.vendors -}}

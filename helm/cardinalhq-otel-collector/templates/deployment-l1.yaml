@@ -67,7 +67,7 @@ spec:
                 secretKeyRef:
                   name: {{ include "customerside.secret.cardinalhq.name" . }}
                   key: {{ .Values.secrets.cardinalhq.field }}
-{{ if .Values.chqs3.enabled }}
+{{ if .Values.s3.enabled }}
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:

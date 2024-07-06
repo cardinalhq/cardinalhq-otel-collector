@@ -114,7 +114,7 @@ func TestCalculateTID(t *testing.T) {
 	tids := make(map[int64]bool)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actual := CalculateTID(tt.extra, tt.rattr, tt.sattr, tt.iattr, tt.prefix)
+			actual := CalculateTID(tt.extra, tt.rattr, tt.sattr, tt.iattr, tt.prefix, nil)
 			assert.Equal(t, tt.expected, actual)
 			assert.False(t, tids[actual], "duplicate TID")
 			tids[actual] = true

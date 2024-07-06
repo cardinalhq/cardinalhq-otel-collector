@@ -28,10 +28,12 @@ import (
 )
 
 type logProcessor struct {
-	sampler sampler.LogSampler
-	logger  *zap.Logger
-	finger  fingerprinter.Fingerprinter
-	podName string
+	sampler    sampler.LogSampler
+	logger     *zap.Logger
+	finger     fingerprinter.Fingerprinter
+	podName    string
+	customerID string
+	clusterID  string
 }
 
 func newLogsProcessor(set processor.Settings) (*logProcessor, error) {

@@ -18,6 +18,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"go.opentelemetry.io/collector/pdata/plog"
 )
 
@@ -26,7 +27,7 @@ func (e *s3Exporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {
 		return nil
 	}
 
-	tbl, err := e.tb.LogsFromOtel(&logs)
+	tbl, err := e.tb.LogsFromOtel(&logs, translate.EnvironmentFromEnv())
 	if err != nil {
 		return err
 	}

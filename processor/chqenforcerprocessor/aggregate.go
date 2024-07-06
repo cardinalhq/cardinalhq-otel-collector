@@ -130,7 +130,7 @@ func setTags(metricName string, res pmetric.ResourceMetrics, sm pmetric.ScopeMet
 	}
 
 	dp.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, podName)
-	tid := translate.CalculateTID(map[string]string{"name": metricName}, res.Resource().Attributes(), sm.Scope().Attributes(), dp.Attributes(), "metric")
+	tid := translate.CalculateTID(map[string]string{"name": metricName}, res.Resource().Attributes(), sm.Scope().Attributes(), dp.Attributes(), "metric", translate.EnvironmentFromEnv())
 	dp.Attributes().PutInt(translate.CardinalFieldTID, tid)
 }
 

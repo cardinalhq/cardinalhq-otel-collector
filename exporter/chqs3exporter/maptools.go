@@ -16,9 +16,7 @@ package chqs3exporter
 
 import (
 	"fmt"
-	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
@@ -26,43 +24,9 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	foundCustomerId = ""
-	foundOnce       = sync.Once{}
-	foundClusterId  = ""
-)
-
-func getIDs() {
-	foundCustomerId = os.Getenv("CARDINALHQ_CUSTOMER_ID")
-	if foundCustomerId == "" {
-		foundCustomerId = "_default"
-	}
-	foundClusterId = os.Getenv("CARDINALHQ_CLUSTER_ID")
-	if foundClusterId == "" {
-		foundClusterId = "_default"
-	}
-}
-func customerIDFromEnv() string {
-	foundOnce.Do(func() {
-		getIDs()
-	})
-	return foundCustomerId
-}
-
-func clusterIDFromEnv() string {
-	foundOnce.Do(func() {
-		getIDs()
-	})
-	return foundClusterId
-}
-
 // customerIDFromMap extracts a customer ID from a map.
 // If the customer ID is not found or is not a string, it returns an empty string.
 func customerIDFromMap(m map[string]any) string {
-	customerID := customerIDFromEnv()
-	if customerID != "_default" {
-		return customerID
-	}
 	id, found := m[translate.CardinalFieldCustomerID]
 	if found {
 		if cid, ok := id.(string); ok {
@@ -72,18 +36,33 @@ func customerIDFromMap(m map[string]any) string {
 	return "_default"
 }
 
-func getClusterIDFromMap(m map[string]any) string {
-	clusterID := clusterIDFromEnv()
-	if clusterID != "_default" {
-		return clusterID
-	}
-	id, found := m[translate.CardinalFieldClusterID]
+func collectorIDFromMap(m map[string]any) string {
+	id, found := m[translate.CardinalFieldCollectorID]
 	if found {
 		if cid, ok := id.(string); ok {
 			return cid
 		}
 	}
 	return "_default"
+}
+
+func getIDs(m map[string]any, environment *translate.Environment) (string, string) {
+	cid := ""
+	clid := ""
+
+	if environment == nil {
+		environment = translate.EnvironmentFromEnv()
+	}
+	cid = environment.CustomerID()
+	clid = environment.CollectorID()
+	if cid == "" {
+		cid = customerIDFromMap(m)
+	}
+	if clid == "" {
+		clid = collectorIDFromMap(m)
+	}
+
+	return cid, clid
 }
 
 // timestampFromMap extracts a timestamp from a map.
@@ -101,8 +80,7 @@ func timestampFromMap(m map[string]any) (time.Time, bool) {
 }
 
 func keyFromMap(m map[string]any) string {
-	cid := customerIDFromMap(m)
-	clid := getClusterIDFromMap(m)
+	cid, clid := getIDs(m, nil)
 	return fmt.Sprintf("%s/%s", cid, clid)
 }
 

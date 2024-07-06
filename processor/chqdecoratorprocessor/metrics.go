@@ -52,6 +52,8 @@ func (mp *metricProcessor) processMetrics(ctx context.Context, md pmetric.Metric
 						dattr := dp.Attributes()
 						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 						dattr.PutInt(translate.CardinalFieldTID, tid)
+						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
+						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 					}
 				case pmetric.MetricTypeSum:
 					for l := 0; l < m.Sum().DataPoints().Len(); l++ {
@@ -59,6 +61,8 @@ func (mp *metricProcessor) processMetrics(ctx context.Context, md pmetric.Metric
 						dattr := dp.Attributes()
 						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 						dattr.PutInt(translate.CardinalFieldTID, tid)
+						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
+						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 					}
 				case pmetric.MetricTypeHistogram:
 					for l := 0; l < m.Histogram().DataPoints().Len(); l++ {
@@ -66,6 +70,8 @@ func (mp *metricProcessor) processMetrics(ctx context.Context, md pmetric.Metric
 						dattr := dp.Attributes()
 						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 						dattr.PutInt(translate.CardinalFieldTID, tid)
+						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
+						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 					}
 				case pmetric.MetricTypeSummary:
 					for l := 0; l < m.Summary().DataPoints().Len(); l++ {
@@ -73,6 +79,8 @@ func (mp *metricProcessor) processMetrics(ctx context.Context, md pmetric.Metric
 						dattr := dp.Attributes()
 						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 						dattr.PutInt(translate.CardinalFieldTID, tid)
+						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
+						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 					}
 				case pmetric.MetricTypeExponentialHistogram:
 					for l := 0; l < m.ExponentialHistogram().DataPoints().Len(); l++ {
@@ -80,6 +88,8 @@ func (mp *metricProcessor) processMetrics(ctx context.Context, md pmetric.Metric
 						dattr := dp.Attributes()
 						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 						dattr.PutInt(translate.CardinalFieldTID, tid)
+						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
+						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 					}
 				}
 			}

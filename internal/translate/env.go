@@ -1,6 +1,7 @@
 package translate
 
 import (
+	"log/slog"
 	"os"
 	"strings"
 	"sync"
@@ -45,6 +46,8 @@ func environmentFromEnv() *Environment {
 
 	tags["customer_id"] = customerid
 	tags["collector_id"] = collectorid
+
+	slog.Info("Environment tags", slog.Any("tags", tags))
 
 	return &Environment{
 		tags: tags,

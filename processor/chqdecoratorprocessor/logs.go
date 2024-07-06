@@ -53,6 +53,7 @@ func newLogsProcessor(set processor.Settings) (*logProcessor, error) {
 }
 
 func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
+	environment := translate.EnvironmentFromEnv()
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
@@ -67,6 +68,8 @@ func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs,
 				log.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)
 				log.Attributes().PutStr(translate.CardinalFieldLevel, level)
 				log.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, lp.podName)
+				log.Attributes().PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
+				log.Attributes().PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 			}
 		}
 	}

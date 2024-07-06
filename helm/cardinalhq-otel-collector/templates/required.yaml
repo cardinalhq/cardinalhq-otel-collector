@@ -11,5 +11,5 @@
   {{ end }}
 {{ end }}
 
-{{ $_ := required "identity.clusterId must be set" .Values.identity.clusterId }}
+{{ $_ := required "identity.collectorId must be set" .Values.identity.collectorId }}
 {{ $_ := required "identity.customerId must be set" .Values.identity.customerId }}

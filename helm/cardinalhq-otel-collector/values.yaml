@@ -1,8 +1,8 @@
 identity:
   # (required) The customer ID.  This is obtained from Cardinal's UI.
   customerId: ""
-  # (required) The cluster ID.  This is obtained from Cardinal's UI, and should be unique per helm install.
-  clusterId: ""
+  # (required) The collector ID.  This is obtained from Cardinal's UI, and should be unique per helm install.
+  collectorId: ""
 
 s3:
   enabled: true

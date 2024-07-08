@@ -179,7 +179,7 @@ data:
           exporters:
             - forward/intakestats
 {{ if .Values.s3.enabled }}
-            - spanstats/l2s3
+            - spanmetrics/l2
             - chqs3/l2
 {{ end }}
             {{ range $name, $flags := .Values.vendors -}}

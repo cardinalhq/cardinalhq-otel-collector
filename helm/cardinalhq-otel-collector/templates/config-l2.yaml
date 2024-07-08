@@ -103,6 +103,10 @@ data:
 
     connectors:
       forward/intakestats:
+{{ if .Values.s3.enabled }}
+      forward/chqs3:
+      spanmetrics/l2:
+{{ end }}
       {{ range $name, $flags := .Values.vendors -}}
       {{ if $flags.enabled -}}
       {{ if or $flags.metrics $flags.traces }}
@@ -122,9 +126,7 @@ data:
             - chqdecorator/l2
           exporters:
             - forward/intakestats
-{{ if .Values.s3.enabled }}
-            - chqs3/l2
-{{ end }}
+            - forward/chqs3
             {{ range $name, $flags := .Values.vendors -}}
             {{ if and $flags.enabled $flags.metrics -}}
             - forward/{{ $name }}
@@ -150,6 +152,23 @@ data:
         {{ end -}}
         {{- end -}}
 
+{{ if .Values.s3.enabled }}
+        metrics/l2s3:
+          receivers:
+            - forward/chqs3
+          exporters:
+            - chqs3/l2
+
+        traces/spanstats:
+          receivers:
+            - spanmetrics/l2
+          processors:
+            - chqdecorator/l2
+          exporters:
+            - forward/chqs3
+{{ end }}
+
+
         traces/l2:
           receivers:
             - otlp/l2
@@ -160,6 +179,7 @@ data:
           exporters:
             - forward/intakestats
 {{ if .Values.s3.enabled }}
+            - spanstats/l2s3
             - chqs3/l2
 {{ end }}
             {{ range $name, $flags := .Values.vendors -}}
@@ -167,6 +187,7 @@ data:
             - forward/{{ $name }}
             {{ end -}}
             {{ end }}
+
         traces/intakestats:
           receivers:
             - forward/intakestats

@@ -91,12 +91,12 @@ digraph G {
         label="Logs L1 Intake Stats";
         labelloc="b";
 
-        c1_forwarder_stats -> c4_forwarder_stats [style=dashed];
+        c1_forwarder_stats -> c100_forwarder_stats [style=dashed];
 
-        c4_forwarder_stats [label="forward/intakestats" color="#ddddff"];
-        c4_chqenforcer_stats [label="chqenforcer/intakestats" color="#ddffdd"];
+        c100_forwarder_stats [label="forward/intakestats" color="#ddddff"];
+        c100_chqenforcer_stats [label="chqenforcer/intakestats" color="#ddffdd"];
 
-        c4_forwarder_stats -> c4_chqenforcer_stats [color=red];
+        c100_forwarder_stats -> c100_chqenforcer_stats [color=red];
     }
     
     subgraph cluster_100 {
@@ -105,14 +105,14 @@ digraph G {
 		node [style=filled,color=white];
         label="Metrics L1 Intake";
         
-        c4_receiver_otlp [label="otlp/l1" color="#ddddff"];
-        c4_receiver_datadog [label="chqdatadog/l1" color="#ddddff"];
-        c4_memory_limiter [label="memory_limiter" color="#ddffdd"];
-        c4_exporter_loadbalance [label="loadbalancing/l2" color="#ffdddd"];
+        c100_receiver_otlp [label="otlp/l1" color="#ddddff"];
+        c100_receiver_datadog [label="chqdatadog/l1" color="#ddddff"];
+        c100_memory_limiter [label="memory_limiter" color="#ddffdd"];
+        c100_exporter_loadbalance [label="loadbalancing/l2" color="#ffdddd"];
         
-        c4_receiver_datadog -> c4_memory_limiter;
-        c4_receiver_otlp -> c4_memory_limiter;
-        c4_memory_limiter -> c4_exporter_loadbalance;
+        c100_receiver_datadog -> c100_memory_limiter;
+        c100_receiver_otlp -> c100_memory_limiter;
+        c100_memory_limiter -> c100_exporter_loadbalance;
     }
     
     subgraph cluster_200 { 
@@ -122,24 +122,24 @@ digraph G {
         label="Metrics L2 Intake";
         labelloc="b";
         
-        c4_exporter_loadbalance -> c5_receiver_otlp [style=dotted color=blue]
+        c100_exporter_loadbalance -> c200_receiver_otlp [style=dotted color=blue]
         
-        c5_receiver_otlp [label="otlp/l2" color="#ddddff"];
-        c5_memory_limiter [label="memory_limiter" color="#ddffdd"];
-        c5_cumulativetodelta [label="cumulativetodelta" color="#ddffdd"];
-        c5_chqdecorator [label="chqdecorator" color="#ddffdd"];
-        c5_forwarder_cardinalhq [label="forward/cardinalhq" color="#ffdddd"];
-        c5_forwarder_datadog [label="forward/datadog" color="#ffdddd"];
-        c5_forwarder_stats [label="forward/intakestats" color="#ffdddd"];
-        c5_chqs3 [label="chqs3" color="#ffdddd"];
+        c200_receiver_otlp [label="otlp/l2" color="#ddddff"];
+        c200_memory_limiter [label="memory_limiter" color="#ddffdd"];
+        c200_cumulativetodelta [label="cumulativetodelta" color="#ddffdd"];
+        c200_chqdecorator [label="chqdecorator" color="#ddffdd"];
+        c200_forwarder_cardinalhq [label="forward/cardinalhq" color="#ffdddd"];
+        c200_forwarder_datadog [label="forward/datadog" color="#ffdddd"];
+        c200_forwarder_stats [label="forward/intakestats" color="#ffdddd"];
+        c200_forwarder_chqs3 [label="forward/chqs3" color="#ffdddd"];
 
-        c5_receiver_otlp -> c5_memory_limiter;
-        c5_memory_limiter -> c5_cumulativetodelta [color=red];
-        c5_cumulativetodelta -> c5_chqdecorator [color=red];
-        c5_chqdecorator -> c5_forwarder_cardinalhq;
-        c5_chqdecorator -> c5_forwarder_datadog;
-        c5_chqdecorator -> c5_forwarder_stats;
-        c5_chqdecorator -> c5_chqs3;
+        c200_receiver_otlp -> c200_memory_limiter;
+        c200_memory_limiter -> c200_cumulativetodelta [color=red];
+        c200_cumulativetodelta -> c200_chqdecorator [color=red];
+        c200_chqdecorator -> c200_forwarder_cardinalhq;
+        c200_chqdecorator -> c200_forwarder_datadog;
+        c200_chqdecorator -> c200_forwarder_stats;
+        c200_chqdecorator -> c200_forwarder_chqs3;
     }
 
     subgraph cluster_201 {
@@ -149,16 +149,16 @@ digraph G {
         label="Metrics L2 CardinalHQ";
         labelloc="b";
 
-        c5_forwarder_cardinalhq -> c6_forwarder_cardinalhq [style=dashed];
+        c200_forwarder_cardinalhq -> c201_forwarder_cardinalhq [style=dashed];
 
-        c6_forwarder_cardinalhq [label="forward/cardinalhq" color="#ddddff"];
-        c6_chqenforcer_cardinalhq [label="chqenforcer/cardinalhq" color="#ddffdd"];
-        c6_batcher_cardinalhq [label="batch/cardinalhq" color="#ddffdd"];
-        c6_otlp_cardinalhq [label="otlp/cardinalhq" color="#ffdddd"];
+        c201_forwarder_cardinalhq [label="forward/cardinalhq" color="#ddddff"];
+        c201_chqenforcer_cardinalhq [label="chqenforcer/cardinalhq" color="#ddffdd"];
+        c201_batcher_cardinalhq [label="batch/cardinalhq" color="#ddffdd"];
+        c201_otlp_cardinalhq [label="otlp/cardinalhq" color="#ffdddd"];
 
-        c6_forwarder_cardinalhq -> c6_chqenforcer_cardinalhq [color=red];
-        c6_chqenforcer_cardinalhq -> c6_batcher_cardinalhq [color=red];
-        c6_batcher_cardinalhq -> c6_otlp_cardinalhq;
+        c201_forwarder_cardinalhq -> c201_chqenforcer_cardinalhq [color=red];
+        c201_chqenforcer_cardinalhq -> c201_batcher_cardinalhq [color=red];
+        c201_batcher_cardinalhq -> c201_otlp_cardinalhq;
     }
 
     subgraph cluster_202 {
@@ -168,16 +168,16 @@ digraph G {
         label="Metrics L2 Datadog";
         labelloc="b";
 
-        c5_forwarder_datadog -> c7_forwarder_datadog [style=dashed];
+        c200_forwarder_datadog -> c202_forwarder_datadog [style=dashed];
 
-        c7_forwarder_datadog [label="forward/datadog" color="#ddddff"];
-        c7_chqenforcer_datadog [label="chqenforcer/datadog" color="#ddffdd"];
-        c7_batcher_datadog [label="batcher/datadog" color="#ddffdd"];
-        c7_chqdatadog_datadog [label="chqdatadog/datadog" color="#ffdddd"];
+        c202_forwarder_datadog [label="forward/datadog" color="#ddddff"];
+        c202_chqenforcer_datadog [label="chqenforcer/datadog" color="#ddffdd"];
+        c202_batcher_datadog [label="batcher/datadog" color="#ddffdd"];
+        c202_chqdatadog_datadog [label="chqdatadog/datadog" color="#ffdddd"];
 
-        c7_forwarder_datadog -> c7_chqenforcer_datadog [color=red];
-        c7_chqenforcer_datadog -> c7_batcher_datadog [color=red];
-        c7_batcher_datadog -> c7_chqdatadog_datadog;
+        c202_forwarder_datadog -> c202_chqenforcer_datadog [color=red];
+        c202_chqenforcer_datadog -> c202_batcher_datadog [color=red];
+        c202_batcher_datadog -> c202_chqdatadog_datadog;
     }
 
     subgraph cluster_203 {
@@ -187,12 +187,27 @@ digraph G {
         label="Metrics L2 Intake Stats";
         labelloc="b";
 
-        c5_forwarder_stats -> c8_forwarder_stats [style=dashed];
+        c200_forwarder_stats -> c203_forwarder_stats [style=dashed];
 
-        c8_forwarder_stats [label="forward/intakestats" color="#ddddff"];
-        c8_chqenforcer_stats [label="chqenforcer/intakestats" color="#ddffdd"];
+        c203_forwarder_stats [label="forward/intakestats" color="#ddddff"];
+        c203_chqenforcer_stats [label="chqenforcer/intakestats" color="#ddffdd"];
 
-        c8_forwarder_stats -> c8_chqenforcer_stats [color=red];
+        c203_forwarder_stats -> c203_chqenforcer_stats [color=red];
+    }
+
+        subgraph cluster_204 {
+        style=filled;
+        color="#ffffbb";
+        node [style=filled,color=white];
+        label="Metrics L2 S3 Writer";
+        labelloc="b";
+
+        c200_forwarder_chqs3 -> c204_forwarder_chqs3 [style=dashed];
+
+        c204_forwarder_chqs3 [label="forward/chqs3" color="#ddddff"];
+        c204_chqs3 [label="chqs3" color="#ffdddd"];
+
+        c204_forwarder_chqs3 -> c204_chqs3 [color=red];
     }
 
     subgraph cluster_300 {
@@ -201,14 +216,14 @@ digraph G {
         node [style=filled,color=white];
         label="Spans L1 Intake";
         
-        c8_receiver_otlp [label="otlp/l1" color="#ddddff"];
-        c8_receiver_datadog [label="chqdatadog/l1" color="#ddddff"];
-        c8_memory_limiter [label="memory_limiter" color="#ddffdd"];
-        c8_exporter_loadbalance [label="loadbalancing/l2" color="#ffdddd"];
+        c203_receiver_otlp [label="otlp/l1" color="#ddddff"];
+        c203_receiver_datadog [label="chqdatadog/l1" color="#ddddff"];
+        c203_memory_limiter [label="memory_limiter" color="#ddffdd"];
+        c203_exporter_loadbalance [label="loadbalancing/l2" color="#ffdddd"];
         
-        c8_receiver_datadog -> c8_memory_limiter;
-        c8_receiver_otlp -> c8_memory_limiter;
-        c8_memory_limiter -> c8_exporter_loadbalance;
+        c203_receiver_datadog -> c203_memory_limiter;
+        c203_receiver_otlp -> c203_memory_limiter;
+        c203_memory_limiter -> c203_exporter_loadbalance;
     }
 
     subgraph cluster_400 {
@@ -218,24 +233,26 @@ digraph G {
         label="Spans L2 Intake";
         labelloc="b";
         
-        c8_exporter_loadbalance -> c9_receiver_otlp [style=dotted color=blue]
+        c203_exporter_loadbalance -> c400_receiver_otlp [style=dotted color=blue]
         
-        c9_receiver_otlp [label="otlp/l2" color="#ddddff"];
-        c9_memory_limiter [label="memory_limiter" color="#ddffdd"];
-        c9_groupbytrace [label="groupbytrace" color="#ddffdd"];
-        c9_chqdecorator [label="chqdecorator" color="#ddffdd"];
-        c9_forwarder_cardinalhq [label="forward/cardinalhq" color="#ffdddd"];
-        c9_forwarder_datadog [label="forward/datadog" color="#ffdddd"];
-        c9_forwarder_stats [label="forward/intakestats" color="#ffdddd"];
-        c9_chqs3 [label="chqs3" color="#ffdddd"];
+        c400_receiver_otlp [label="otlp/l2" color="#ddddff"];
+        c400_memory_limiter [label="memory_limiter" color="#ddffdd"];
+        c400_groupbytrace [label="groupbytrace" color="#ddffdd"];
+        c400_chqdecorator [label="chqdecorator" color="#ddffdd"];
+        c400_forwarder_cardinalhq [label="forward/cardinalhq" color="#ffdddd"];
+        c400_forwarder_datadog [label="forward/datadog" color="#ffdddd"];
+        c400_forwarder_stats [label="forward/intakestats" color="#ffdddd"];
+        c400_chqs3 [label="chqs3" color="#ffdddd"];
+        c400_spanstats [label="spanstats" color="#ffdddd"];
 
-        c9_receiver_otlp -> c9_memory_limiter;
-        c9_memory_limiter -> c9_groupbytrace [color=red];
-        c9_groupbytrace -> c9_chqdecorator [color=red];
-        c9_chqdecorator -> c9_forwarder_cardinalhq;
-        c9_chqdecorator -> c9_forwarder_datadog;
-        c9_chqdecorator -> c9_forwarder_stats;
-        c9_chqdecorator -> c9_chqs3;
+        c400_receiver_otlp -> c400_memory_limiter;
+        c400_memory_limiter -> c400_groupbytrace [color=red];
+        c400_groupbytrace -> c400_chqdecorator [color=red];
+        c400_chqdecorator -> c400_forwarder_cardinalhq;
+        c400_chqdecorator -> c400_forwarder_datadog;
+        c400_chqdecorator -> c400_forwarder_stats;
+        c400_chqdecorator -> c400_chqs3;
+        c400_chqdecorator -> c400_spanstats;
     }
 
     subgraph cluster_401 {
@@ -245,16 +262,16 @@ digraph G {
         label="Spans L2 CardinalHQ";
         labelloc="b";
 
-        c9_forwarder_cardinalhq -> c10_forwarder_cardinalhq [style=dashed];
+        c400_forwarder_cardinalhq -> c401_forwarder_cardinalhq [style=dashed];
 
-        c10_forwarder_cardinalhq [label="forward/cardinalhq" color="#ddddff"];
-        c10_chqenforcer_cardinalhq [label="chqenforcer/cardinalhq" color="#ddffdd"];
-        c10_batcher_cardinalhq [label="batch/cardinalhq" color="#ddffdd"];
-        c10_otlp_cardinalhq [label="otlp/cardinalhq" color="#ffdddd"];
+        c401_forwarder_cardinalhq [label="forward/cardinalhq" color="#ddddff"];
+        c401_chqenforcer_cardinalhq [label="chqenforcer/cardinalhq" color="#ddffdd"];
+        c401_batcher_cardinalhq [label="batch/cardinalhq" color="#ddffdd"];
+        c401_otlp_cardinalhq [label="otlp/cardinalhq" color="#ffdddd"];
 
-        c10_forwarder_cardinalhq -> c10_chqenforcer_cardinalhq [color=red];
-        c10_chqenforcer_cardinalhq -> c10_batcher_cardinalhq [color=red];
-        c10_batcher_cardinalhq -> c10_otlp_cardinalhq;
+        c401_forwarder_cardinalhq -> c401_chqenforcer_cardinalhq [color=red];
+        c401_chqenforcer_cardinalhq -> c401_batcher_cardinalhq [color=red];
+        c401_batcher_cardinalhq -> c401_otlp_cardinalhq;
     }
 
     subgraph cluster_402 {
@@ -264,16 +281,16 @@ digraph G {
         label="Spans L2 Datadog";
         labelloc="b";
 
-        c9_forwarder_datadog -> c11_forwarder_datadog [style=dashed];
+        c400_forwarder_datadog -> c402_forwarder_datadog [style=dashed];
 
-        c11_forwarder_datadog [label="forward/datadog" color="#ddddff"];
-        c11_chqenforcer_datadog [label="chqenforcer/datadog" color="#ddffdd"];
-        c11_batcher_datadog [label="batcher/datadog" color="#ddffdd"];
-        c11_chqdatadog_datadog [label="chqdatadog/datadog" color="#ffdddd"];
+        c402_forwarder_datadog [label="forward/datadog" color="#ddddff"];
+        c402_chqenforcer_datadog [label="chqenforcer/datadog" color="#ddffdd"];
+        c402_batcher_datadog [label="batcher/datadog" color="#ddffdd"];
+        c402_chqdatadog_datadog [label="chqdatadog/datadog" color="#ffdddd"];
 
-        c11_forwarder_datadog -> c11_chqenforcer_datadog [color=red];
-        c11_chqenforcer_datadog -> c11_batcher_datadog [color=red];
-        c11_batcher_datadog -> c11_chqdatadog_datadog;
+        c402_forwarder_datadog -> c402_chqenforcer_datadog [color=red];
+        c402_chqenforcer_datadog -> c402_batcher_datadog [color=red];
+        c402_batcher_datadog -> c402_chqdatadog_datadog;
     }
 
     subgraph cluster_403 {
@@ -283,11 +300,29 @@ digraph G {
         label="Spans L2 Intake Stats";
         labelloc="b";
 
-        c9_forwarder_stats -> c12_forwarder_stats [style=dashed];
+        c400_forwarder_stats -> c403_forwarder_stats [style=dashed];
 
-        c12_forwarder_stats [label="forward/intakestats" color="#ddddff"];
-        c12_chqenforcer_stats [label="chqenforcer/intakestats" color="#ddffdd"];
+        c403_forwarder_stats [label="forward/intakestats" color="#ddddff"];
+        c403_chqenforcer_stats [label="chqenforcer/intakestats" color="#ddffdd"];
 
-        c12_forwarder_stats -> c12_chqenforcer_stats [color=red];
+        c403_forwarder_stats -> c403_chqenforcer_stats [color=red];
+    }
+
+    subgraph cluster_404 {
+        style=filled;
+        color="#ddffff";
+        node [style=filled,color=white];
+        label="Spans L2 Span Stats";
+        labelloc="b";
+
+        c400_spanstats -> c404_spanstats [style=dashed];
+        c404_forwarder_chqs3 [label="forward/chqs3" color="#ffdddd"];
+
+        c404_spanstats [label="spanstats" color="#ddddff"];
+        c404_chqdecorator [label="chqdecorator" color="#ddffdd"];
+
+        c404_spanstats -> c404_chqdecorator [color=red];
+        c404_chqdecorator -> c404_forwarder_chqs3;
+        c404_forwarder_chqs3 -> c204_forwarder_chqs3 [style=dashed];
     }
 }

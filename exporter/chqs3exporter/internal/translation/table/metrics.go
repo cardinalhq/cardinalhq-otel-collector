@@ -28,7 +28,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
-func (l *TableTranslator) MetricsFromOtel(om *pmetric.Metrics) ([]map[string]any, error) {
+func (l *TableTranslator) MetricsFromOtel(om *pmetric.Metrics, environment *translate.Environment) ([]map[string]any, error) {
 	rets := []map[string]any{}
 
 	for i := 0; i < om.ResourceMetrics().Len(); i++ {
@@ -37,6 +37,11 @@ func (l *TableTranslator) MetricsFromOtel(om *pmetric.Metrics) ([]map[string]any
 			imm := rm.ScopeMetrics().At(j)
 			for k := 0; k < imm.Metrics().Len(); k++ {
 				baseret := map[string]any{translate.CardinalFieldTelemetryType: translate.CardinalTelemetryTypeMetrics}
+				if environment != nil {
+					for k, v := range environment.Tags() {
+						baseret["env."+k] = v
+					}
+				}
 				addAttributes(baseret, rm.Resource().Attributes(), "resource")
 				addAttributes(baseret, imm.Scope().Attributes(), "scope")
 				metric := imm.Metrics().At(k)

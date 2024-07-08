@@ -24,12 +24,17 @@ import (
 	"github.com/cespare/xxhash/v2"
 )
 
-func CalculateTID(extra map[string]string, rattr, sattr, iattr pcommon.Map, prefix string) int64 {
+func CalculateTID(extra map[string]string, rattr, sattr, iattr pcommon.Map, prefix string, environment *Environment) int64 {
 	tags := map[string]string{}
 	maps.Copy(tags, extra)
 	addKeys(rattr, "resource", tags)
 	addKeys(sattr, "scope", tags)
 	addKeys(iattr, prefix, tags)
+	if environment != nil {
+		for k, v := range environment.tags {
+			tags["env."+k] = v
+		}
+	}
 	return calculateTID(tags)
 }
 

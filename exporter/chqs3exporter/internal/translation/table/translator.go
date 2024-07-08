@@ -20,17 +20,20 @@ import (
 	"go.opentelemetry.io/collector/pdata/ptrace"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/idgen"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 type Translator interface {
-	LogsFromOtel(ol *plog.Logs) ([]map[string]any, error)
-	MetricsFromOtel(om *pmetric.Metrics) ([]map[string]any, error)
-	TracesFromOtel(ot *ptrace.Traces) ([]map[string]any, error)
+	LogsFromOtel(ol *plog.Logs, environment *translate.Environment) ([]map[string]any, error)
+	MetricsFromOtel(om *pmetric.Metrics, environment *translate.Environment) ([]map[string]any, error)
+	TracesFromOtel(ot *ptrace.Traces, environment *translate.Environment) ([]map[string]any, error)
 }
 
 type TableTranslator struct {
 	idg idgen.IDGenerator
 }
+
+var _ Translator = (*TableTranslator)(nil)
 
 func NewTableTranslator() *TableTranslator {
 	return &TableTranslator{

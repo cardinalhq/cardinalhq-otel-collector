@@ -22,7 +22,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
-func (l *TableTranslator) LogsFromOtel(ol *plog.Logs) ([]map[string]any, error) {
+func (l *TableTranslator) LogsFromOtel(ol *plog.Logs, environment *translate.Environment) ([]map[string]any, error) {
 	rets := []map[string]any{}
 
 	for i := 0; i < ol.ResourceLogs().Len(); i++ {
@@ -42,6 +42,11 @@ func (l *TableTranslator) LogsFromOtel(ol *plog.Logs) ([]map[string]any, error) 
 				}
 				ret[translate.CardinalFieldTimestamp] = ts
 				ret[translate.CardinalFieldID] = l.idg.Make(time.Now())
+				if environment != nil {
+					for k, v := range environment.Tags() {
+						ret["env."+k] = v
+					}
+				}
 				ensureExpectedKeysLogs(ret)
 				rets = append(rets, ret)
 			}

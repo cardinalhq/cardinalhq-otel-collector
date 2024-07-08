@@ -17,6 +17,7 @@ package chqs3exporter
 import (
 	"context"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 )
 
@@ -25,7 +26,7 @@ func (e *s3Exporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) err
 		return nil
 	}
 
-	tbl, err := e.tb.MetricsFromOtel(&md)
+	tbl, err := e.tb.MetricsFromOtel(&md, translate.EnvironmentFromEnv())
 	if err != nil {
 		return err
 	}

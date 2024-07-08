@@ -64,7 +64,7 @@ const (
 	CardinalFieldDecoratorPodName  = CardinalFieldPrefixDot + "decorator.pod_name"
 	CardinalFieldCustomerID        = CardinalFieldPrefixDot + "customer_id"
 	CardinalFieldCustomerName      = CardinalFieldPrefixDot + "customer_name"
-	CardinalFieldClusterID         = CardinalFieldPrefixDot + "cluster_id"
+	CardinalFieldCollectorID       = CardinalFieldPrefixDot + "collector_id"
 
 	CardinalMetricTypeCount                = "count"
 	CardinalMetricTypeExponentialHistogram = "exponential_histogram"

@@ -64,6 +64,7 @@ func (sp *spansProcessor) processTraces(ctx context.Context, td ptrace.Traces) (
 }
 
 func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, hasError bool, fpError string) (ptrace.Traces, error) {
+	environment := translate.EnvironmentFromEnv()
 	rss := td.ResourceSpans()
 	for i := 0; i < rss.Len(); i++ {
 		rs := rss.At(i)
@@ -83,6 +84,8 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, h
 					span.Attributes().PutBool(translate.CardinalFieldIsRootSpan, true)
 				}
 				span.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, sp.podName)
+				span.Attributes().PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
+				span.Attributes().PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 			}
 		}
 	}

@@ -21,7 +21,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
-func (l *TableTranslator) TracesFromOtel(ot *ptrace.Traces) ([]map[string]any, error) {
+func (l *TableTranslator) TracesFromOtel(ot *ptrace.Traces, environment *translate.Environment) ([]map[string]any, error) {
 	rets := []map[string]any{}
 
 	for i := 0; i < ot.ResourceSpans().Len(); i++ {
@@ -50,6 +50,11 @@ func (l *TableTranslator) TracesFromOtel(ot *ptrace.Traces) ([]map[string]any, e
 				ret[translate.CardinalFieldSpanEndTime] = span.EndTimestamp().AsTime().UnixMilli()
 				ret[translate.CardinalFieldScopeSchemaURL] = iss.SchemaUrl()
 				ret[translate.CardinalFieldResourceSchemaURL] = rs.SchemaUrl()
+				if environment != nil {
+					for k, v := range environment.Tags() {
+						ret["env."+k] = v
+					}
+				}
 				ensureExpectedKeysTraces(ret)
 				rets = append(rets, ret)
 			}

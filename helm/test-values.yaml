@@ -1,5 +1,5 @@
 identity:
-  clusterId: my-cluster-id
+  collectorId: my-collector-id
   customerId: my-customer-id
 
 s3:

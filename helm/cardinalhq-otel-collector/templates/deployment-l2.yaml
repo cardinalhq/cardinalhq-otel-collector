@@ -69,8 +69,8 @@ spec:
                   key: {{ .Values.secrets.cardinalhq.field }}
             - name: CARDINALHQ_CUSTOMER_ID
               value: {{ .Values.identity.customerId }}
-            - name: CARDINALHQ_CLUSTER_ID
-              value: {{ .Values.identity.clusterId }}
+            - name: CARDINALHQ_COLLECTOR_ID
+              value: {{ .Values.identity.collectorId }}
 {{ if .Values.s3.enabled }}
             - name: AWS_ACCESS_KEY_ID
               valueFrom:

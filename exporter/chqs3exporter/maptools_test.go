@@ -41,20 +41,57 @@ func TestCustomerIDFromMap(t *testing.T) {
 			map[string]any{
 				"foo": "value",
 			},
-			"",
+			"_default",
 		},
 		{
 			"non-string customer_id field",
 			map[string]any{
 				translate.CardinalFieldCustomerID: 12345,
 			},
-			"",
+			"_default",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := customerIDFromMap(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestCollectorIDFromMap(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    map[string]any
+		expected string
+	}{
+		{
+			"collector_id field",
+			map[string]any{
+				translate.CardinalFieldCollectorID: "12345",
+			},
+			"12345",
+		},
+		{
+			"no collector_id field",
+			map[string]any{
+				"foo": "value",
+			},
+			"_default",
+		},
+		{
+			"non-string collector_id field",
+			map[string]any{
+				translate.CardinalFieldCollectorID: 12345,
+			},
+			"_default",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := collectorIDFromMap(tt.input)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -123,28 +160,31 @@ func TestPartitionTableByCustomerIDAndInterval(t *testing.T) {
 			"single entry",
 			[]map[string]any{
 				{
-					translate.CardinalFieldCustomerID: "alice",
-					translate.CardinalFieldTimestamp:  ts,
-					"foo":                             "value",
+					translate.CardinalFieldCustomerID:  "alice",
+					translate.CardinalFieldCollectorID: "12345",
+					translate.CardinalFieldTimestamp:   ts,
+					"foo":                              "value",
 				},
 			},
 			map[string]map[int64][]map[string]any{
-				"alice": {
+				"alice/12345": {
 					1: []map[string]any{
 						{
-							translate.CardinalFieldCustomerID: "alice",
-							translate.CardinalFieldTimestamp:  ts,
-							"foo":                             "value",
+							translate.CardinalFieldCustomerID:  "alice",
+							translate.CardinalFieldCollectorID: "12345",
+							translate.CardinalFieldTimestamp:   ts,
+							"foo":                              "value",
 						},
 					},
 				},
 			},
 			map[string]map[int64]map[string]any{
-				"alice": {
+				"alice/12345": {
 					1: {
-						translate.CardinalFieldCustomerID: "alice",
-						translate.CardinalFieldTimestamp:  ts,
-						"foo":                             "value",
+						translate.CardinalFieldCustomerID:  "alice",
+						translate.CardinalFieldCollectorID: "12345",
+						translate.CardinalFieldTimestamp:   ts,
+						"foo":                              "value",
 					},
 				},
 			},
@@ -153,66 +193,75 @@ func TestPartitionTableByCustomerIDAndInterval(t *testing.T) {
 			"multiple entries",
 			[]map[string]any{
 				{
-					translate.CardinalFieldCustomerID: "alice",
-					translate.CardinalFieldTimestamp:  ts,
-					"item1":                           "value1",
+					translate.CardinalFieldCustomerID:  "alice",
+					translate.CardinalFieldCollectorID: "12345",
+					translate.CardinalFieldTimestamp:   ts,
+					"item1":                            "value1",
 				},
 				{
-					translate.CardinalFieldCustomerID: "alice",
-					translate.CardinalFieldTimestamp:  ts * 3,
-					"item2":                           "value2",
+					translate.CardinalFieldCustomerID:  "alice",
+					translate.CardinalFieldCollectorID: "12345",
+					translate.CardinalFieldTimestamp:   ts * 3,
+					"item2":                            "value2",
 				},
 				{
-					translate.CardinalFieldCustomerID: "bob",
-					translate.CardinalFieldTimestamp:  ts * 2,
-					"item3":                           "value3",
+					translate.CardinalFieldCustomerID:  "bob",
+					translate.CardinalFieldCollectorID: "12345",
+					translate.CardinalFieldTimestamp:   ts * 2,
+					"item3":                            "value3",
 				},
 			},
 			map[string]map[int64][]map[string]any{
-				"alice": {
+				"alice/12345": {
 					1: []map[string]any{
 						{
-							translate.CardinalFieldCustomerID: "alice",
-							translate.CardinalFieldTimestamp:  ts,
-							"item1":                           "value1",
+							translate.CardinalFieldCustomerID:  "alice",
+							translate.CardinalFieldCollectorID: "12345",
+							translate.CardinalFieldTimestamp:   ts,
+							"item1":                            "value1",
 						},
 					},
 					3: []map[string]any{
 						{
-							translate.CardinalFieldCustomerID: "alice",
-							translate.CardinalFieldTimestamp:  ts * 3,
-							"item2":                           "value2",
+							translate.CardinalFieldCustomerID:  "alice",
+							translate.CardinalFieldCollectorID: "12345",
+							translate.CardinalFieldTimestamp:   ts * 3,
+							"item2":                            "value2",
 						},
 					},
 				},
-				"bob": {
+				"bob/12345": {
 					2: []map[string]any{
 						{
-							translate.CardinalFieldCustomerID: "bob",
-							translate.CardinalFieldTimestamp:  ts * 2,
-							"item3":                           "value3",
+							translate.CardinalFieldCustomerID:  "bob",
+							translate.CardinalFieldCollectorID: "12345",
+							translate.CardinalFieldTimestamp:   ts * 2,
+							"item3":                            "value3",
 						},
 					},
 				},
 			},
 			map[string]map[int64]map[string]any{
-				"alice": {
+				"alice/12345": {
 					1: {
-						translate.CardinalFieldCustomerID: "alice",
-						translate.CardinalFieldTimestamp:  ts,
-						"item1":                           "value1",
+						translate.CardinalFieldCustomerID:  "alice",
+						translate.CardinalFieldCollectorID: "12345",
+						translate.CardinalFieldTimestamp:   ts,
+						"item1":                            "value1",
 					},
 					3: {
-						translate.CardinalFieldCustomerID: "alice",
-						translate.CardinalFieldTimestamp:  ts * 3,
-						"item2":                           "value2",
+						translate.CardinalFieldCustomerID:  "alice",
+						translate.CardinalFieldCollectorID: "12345",
+						translate.CardinalFieldTimestamp:   ts * 3,
+						"item2":                            "value2",
 					},
 				},
-				"bob": {
+				"bob/12345": {
 					2: {
-						translate.CardinalFieldCustomerID: "bob",
-						translate.CardinalFieldTimestamp:  ts * 2,
-						"item3":                           "value3",
+						translate.CardinalFieldCustomerID:  "bob",
+						translate.CardinalFieldCollectorID: "12345",
+						translate.CardinalFieldTimestamp:   ts * 2,
+						"item3":                            "value3",
 					},
 				},
 			},
@@ -252,26 +301,29 @@ func TestPartitionByCustomerID(t *testing.T) {
 			"single entry",
 			[]map[string]any{
 				{
-					translate.CardinalFieldCustomerID: "alice",
-					translate.CardinalFieldTimestamp:  1000,
-					"foo":                             "value",
+					translate.CardinalFieldCustomerID:  "alice",
+					translate.CardinalFieldCollectorID: "12345",
+					translate.CardinalFieldTimestamp:   1000,
+					"foo":                              "value",
 				},
 			},
 			map[string][]map[string]any{
-				"alice": {
+				"alice/12345": {
 					{
-						translate.CardinalFieldCustomerID: "alice",
-						translate.CardinalFieldTimestamp:  1000,
-						"foo":                             "value",
+						translate.CardinalFieldCustomerID:  "alice",
+						translate.CardinalFieldCollectorID: "12345",
+						translate.CardinalFieldTimestamp:   1000,
+						"foo":                              "value",
 					},
 				},
 			},
 			map[string]map[int64]map[string]any{
-				"alice": {
+				"alice/12345": {
 					1: {
-						translate.CardinalFieldCustomerID: "alice",
-						translate.CardinalFieldTimestamp:  1000,
-						"foo":                             "value",
+						translate.CardinalFieldCustomerID:  "alice",
+						translate.CardinalFieldCollectorID: "12345",
+						translate.CardinalFieldTimestamp:   1000,
+						"foo":                              "value",
 					},
 				},
 			},
@@ -280,56 +332,64 @@ func TestPartitionByCustomerID(t *testing.T) {
 			"multiple entries",
 			[]map[string]any{
 				{
-					translate.CardinalFieldCustomerID: "alice",
-					translate.CardinalFieldTimestamp:  1000,
-					"item1":                           "value1",
+					translate.CardinalFieldCustomerID:  "alice",
+					translate.CardinalFieldCollectorID: "12345",
+					translate.CardinalFieldTimestamp:   1000,
+					"item1":                            "value1",
 				},
 				{
-					translate.CardinalFieldCustomerID: "alice",
-					translate.CardinalFieldTimestamp:  3000,
-					"item2":                           "value2",
+					translate.CardinalFieldCustomerID:  "alice",
+					translate.CardinalFieldCollectorID: "12345",
+					translate.CardinalFieldTimestamp:   3000,
+					"item2":                            "value2",
 				},
 				{
-					translate.CardinalFieldCustomerID: "bob",
-					translate.CardinalFieldTimestamp:  2000,
-					"item3":                           "value3",
+					translate.CardinalFieldCustomerID:  "bob",
+					translate.CardinalFieldCollectorID: "12345",
+					translate.CardinalFieldTimestamp:   2000,
+					"item3":                            "value3",
 				},
 			},
 			map[string][]map[string]any{
-				"alice": {
+				"alice/12345": {
 					{
-						translate.CardinalFieldCustomerID: "alice",
-						translate.CardinalFieldTimestamp:  1000,
-						"item1":                           "value1",
+						translate.CardinalFieldCustomerID:  "alice",
+						translate.CardinalFieldCollectorID: "12345",
+						translate.CardinalFieldTimestamp:   1000,
+						"item1":                            "value1",
 					},
 					{
-						translate.CardinalFieldCustomerID: "alice",
-						translate.CardinalFieldTimestamp:  3000,
-						"item2":                           "value2",
+						translate.CardinalFieldCustomerID:  "alice",
+						translate.CardinalFieldCollectorID: "12345",
+						translate.CardinalFieldTimestamp:   3000,
+						"item2":                            "value2",
 					},
 				},
-				"bob": {
+				"bob/12345": {
 					{
-						translate.CardinalFieldCustomerID: "bob",
-						translate.CardinalFieldTimestamp:  2000,
-						"item3":                           "value3",
+						translate.CardinalFieldCustomerID:  "bob",
+						translate.CardinalFieldCollectorID: "12345",
+						translate.CardinalFieldTimestamp:   2000,
+						"item3":                            "value3",
 					},
 				},
 			},
 			map[string]map[int64]map[string]any{
-				"alice": {
+				"alice/12345": {
 					1: {
-						translate.CardinalFieldCustomerID: "alice",
-						translate.CardinalFieldTimestamp:  1000,
-						"item1":                           "value1",
-						"item2":                           "value2",
+						translate.CardinalFieldCustomerID:  "alice",
+						translate.CardinalFieldCollectorID: "12345",
+						translate.CardinalFieldTimestamp:   1000,
+						"item1":                            "value1",
+						"item2":                            "value2",
 					},
 				},
-				"bob": {
+				"bob/12345": {
 					1: {
-						translate.CardinalFieldCustomerID: "bob",
-						translate.CardinalFieldTimestamp:  2000,
-						"item3":                           "value3",
+						translate.CardinalFieldCustomerID:  "bob",
+						translate.CardinalFieldCollectorID: "12345",
+						translate.CardinalFieldTimestamp:   2000,
+						"item3":                            "value3",
 					},
 				},
 			},

@@ -35,6 +35,7 @@ func newMetricProcessor(set processor.Settings) (*metricProcessor, error) {
 }
 
 func (mp *metricProcessor) processMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
+	environment := translate.EnvironmentFromEnv()
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
 		rm := md.ResourceMetrics().At(i)
 		rattr := rm.Resource().Attributes()
@@ -49,36 +50,46 @@ func (mp *metricProcessor) processMetrics(ctx context.Context, md pmetric.Metric
 					for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
 						dp := m.Gauge().DataPoints().At(l)
 						dattr := dp.Attributes()
-						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric")
+						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 						dattr.PutInt(translate.CardinalFieldTID, tid)
+						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
+						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 					}
 				case pmetric.MetricTypeSum:
 					for l := 0; l < m.Sum().DataPoints().Len(); l++ {
 						dp := m.Sum().DataPoints().At(l)
 						dattr := dp.Attributes()
-						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric")
+						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 						dattr.PutInt(translate.CardinalFieldTID, tid)
+						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
+						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 					}
 				case pmetric.MetricTypeHistogram:
 					for l := 0; l < m.Histogram().DataPoints().Len(); l++ {
 						dp := m.Histogram().DataPoints().At(l)
 						dattr := dp.Attributes()
-						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric")
+						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 						dattr.PutInt(translate.CardinalFieldTID, tid)
+						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
+						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 					}
 				case pmetric.MetricTypeSummary:
 					for l := 0; l < m.Summary().DataPoints().Len(); l++ {
 						dp := m.Summary().DataPoints().At(l)
 						dattr := dp.Attributes()
-						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric")
+						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 						dattr.PutInt(translate.CardinalFieldTID, tid)
+						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
+						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 					}
 				case pmetric.MetricTypeExponentialHistogram:
 					for l := 0; l < m.ExponentialHistogram().DataPoints().Len(); l++ {
 						dp := m.ExponentialHistogram().DataPoints().At(l)
 						dattr := dp.Attributes()
-						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric")
+						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 						dattr.PutInt(translate.CardinalFieldTID, tid)
+						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
+						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 					}
 				}
 			}

@@ -159,7 +159,7 @@ data:
           exporters:
             - chqs3/l2
 
-        traces/spanstats:
+        traces/spanmetrics:
           receivers:
             - spanmetrics/l2
           processors:

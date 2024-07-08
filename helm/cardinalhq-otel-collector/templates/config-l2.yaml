@@ -106,6 +106,7 @@ data:
 {{ if .Values.s3.enabled }}
       forward/chqs3:
       spanmetrics/l2:
+        aggregation_temporality: "AGGREGATION_TEMPORALITY_DELTA"
 {{ end }}
       {{ range $name, $flags := .Values.vendors -}}
       {{ if $flags.enabled -}}
@@ -159,7 +160,7 @@ data:
           exporters:
             - chqs3/l2
 
-        traces/spanmetrics:
+        metrics/spanmetrics:
           receivers:
             - spanmetrics/l2
           processors:

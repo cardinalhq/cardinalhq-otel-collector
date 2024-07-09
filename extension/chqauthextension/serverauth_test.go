@@ -107,11 +107,12 @@ func TestSetCache(t *testing.T) {
 
 func TestGetAttribute(t *testing.T) {
 	ad := &authData{
-		apiKey:     "key1",
-		clientID:   "client1",
-		clientName: "John Doe",
-		valid:      true,
-		expiry:     time.Now().Add(time.Hour),
+		apiKey:      "key1",
+		environment: map[string]string{"env1": "value1"},
+		clientID:    "client1",
+		clientName:  "John Doe",
+		valid:       true,
+		expiry:      time.Now().Add(time.Hour),
 	}
 
 	tests := []struct {
@@ -121,6 +122,10 @@ func TestGetAttribute(t *testing.T) {
 		{
 			"api_key",
 			"key1",
+		},
+		{
+			"environment",
+			map[string]string{"env1": "value1"},
 		},
 		{
 			"client_id",
@@ -149,7 +154,7 @@ func TestGetAttribute(t *testing.T) {
 
 func TestGetAttributeNames(t *testing.T) {
 	ad := &authData{}
-	expected := []string{"api_key", "client_id", "client_name", "valid"}
+	expected := []string{"api_key", "environment", "client_id", "client_name", "valid"}
 	names := ad.GetAttributeNames()
 	assert.ElementsMatch(t, expected, names)
 }
@@ -194,6 +199,58 @@ func TestGetAuthHeader(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			authHeader := getAuthHeader(tt.headers, apiKeyHeader)
 			assert.Equal(t, tt.expected, authHeader)
+		})
+	}
+}
+
+func TestGetEnvFromHeaders(t *testing.T) {
+	tests := []struct {
+		name     string
+		headers  map[string][]string
+		expected map[string]string
+	}{
+		{
+			"no headers",
+			map[string][]string{},
+			map[string]string{},
+		},
+		{
+			"no env headers",
+			map[string][]string{
+				"Content-Type": {"application/json"},
+			},
+			map[string]string{},
+		},
+		{
+			"single env header",
+			map[string][]string{
+				"x-cardinalhq-environment": {"bar=bax"},
+				"Content-Type":             {"application/json"},
+			},
+			map[string]string{"bar": "bax"},
+		},
+		{
+			"multiple env headers",
+			map[string][]string{
+				"x-cardinalhq-environment": {"foo=bar;baz=qux"},
+				"Content-Type":             {"application/json"},
+			},
+			map[string]string{"foo": "bar", "baz": "qux"},
+		},
+		{
+			"case insensitive",
+			map[string][]string{
+				"X-CARDINALHQ-ENVIRONmenT": {"foo=bar"},
+				"Content-Type":             {"application/json"},
+			},
+			map[string]string{"foo": "bar"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			env := getEnvFromHeaders(tt.headers)
+			assert.Equal(t, tt.expected, env)
 		})
 	}
 }

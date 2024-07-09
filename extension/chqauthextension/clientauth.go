@@ -73,7 +73,9 @@ type chqPerRPCAuth struct {
 func (chq *chqClientAuth) perRPCCredentials() (creds.PerRPCCredentials, error) {
 	metadata := map[string]string{
 		apiKeyHeader: chq.config.APIKey,
-		envKeyHeader: encodeEnv(chq.config.Environment),
+	}
+	if len(chq.env) > 0 {
+		metadata[envKeyHeader] = encodeEnv(chq.env)
 	}
 	return &chqPerRPCAuth{
 		metadata: metadata,

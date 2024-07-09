@@ -46,25 +46,6 @@ func collectorIDFromMap(m map[string]any) string {
 	return "_default"
 }
 
-func getIDs(m map[string]any, environment *translate.Environment) (string, string) {
-	cid := ""
-	clid := ""
-
-	if environment == nil {
-		environment = translate.EnvironmentFromEnv()
-	}
-	cid = environment.CustomerID()
-	clid = environment.CollectorID()
-	if cid == "" {
-		cid = customerIDFromMap(m)
-	}
-	if clid == "" {
-		clid = collectorIDFromMap(m)
-	}
-
-	return cid, clid
-}
-
 // timestampFromMap extracts a timestamp from a map.
 // If the timestamp is not found or is not an int64, it returns false.
 func timestampFromMap(m map[string]any) (time.Time, bool) {
@@ -80,8 +61,7 @@ func timestampFromMap(m map[string]any) (time.Time, bool) {
 }
 
 func keyFromMap(m map[string]any) string {
-	cid, clid := getIDs(m, nil)
-	return fmt.Sprintf("%s/%s", cid, clid)
+	return fmt.Sprintf("%s/%s", customerIDFromMap(m), collectorIDFromMap(m))
 }
 
 func (e *s3Exporter) partitionTableByCustomerID(interval int64, tbl []map[string]any) map[string][]map[string]any {

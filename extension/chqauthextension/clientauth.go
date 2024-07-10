@@ -62,6 +62,7 @@ func (chq *chqClientAuth) roundTripper(base http.RoundTripper) (http.RoundTrippe
 func (c *chqRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	newReq := req.Clone(req.Context())
 	newReq.Header.Set(apiKeyHeader, c.apiKey)
+	newReq.Header.Set(envKeyHeader, encodeEnv(c.env))
 	return c.base.RoundTrip(newReq)
 }
 

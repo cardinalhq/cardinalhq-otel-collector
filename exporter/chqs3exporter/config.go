@@ -136,31 +136,3 @@ func testWritable(dir string) error {
 	defer os.Remove(file.Name())
 	return nil
 }
-
-// delete all files and direcories starting at 'dir'
-/* func emptyOldFiles(dir string) error {
-	d, err := os.ReadDir(dir)
-	if err != nil {
-		return err
-	}
-
-	for _, entry := range d {
-		if entry.Name()[0] == '.' {
-			continue
-		}
-		if entry.IsDir() {
-			err := os.RemoveAll(dir + "/" + entry.Name())
-			if err != nil {
-				return err
-			}
-		} else {
-			err := os.Remove(dir + "/" + entry.Name())
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-*/

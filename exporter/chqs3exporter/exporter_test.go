@@ -107,6 +107,7 @@ func TestUpload(t *testing.T) {
 	}
 	id := component.MustNewIDWithName("exporter", "test-name")
 	box, err := boxer.BoxerFor(config.Buffering.Directory, component.KindExporter, id, "logs", opts...)
+	assert.NoError(t, err)
 
 	// Create the s3Exporter instance
 	exporter := &s3Exporter{

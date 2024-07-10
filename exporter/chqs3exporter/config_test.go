@@ -48,6 +48,7 @@ func TestLoadConfig(t *testing.T) {
 	e := cfg.Exporters[component.MustNewID("chqs3")].(*Config)
 	assert.Equal(t, e,
 		&Config{
+			IDSource: "env",
 			S3Uploader: S3UploaderConfig{
 				Region:      "us-east-1",
 				S3Bucket:    "foo",
@@ -98,6 +99,7 @@ func TestConfig(t *testing.T) {
 
 	e := cfg.Exporters[component.MustNewID("chqs3")].(*Config)
 	expected := &Config{
+		IDSource: "env",
 		S3Uploader: S3UploaderConfig{
 			Region:      "us-east-1",
 			S3Bucket:    "foo",
@@ -136,6 +138,7 @@ func TestConfigForS3CompatibleSystems(t *testing.T) {
 
 	e := cfg.Exporters[component.MustNewID("chqs3")].(*Config)
 	expected := &Config{
+		IDSource: "env",
 		S3Uploader: S3UploaderConfig{
 			Region:           "us-east-1",
 			S3Bucket:         "foo",

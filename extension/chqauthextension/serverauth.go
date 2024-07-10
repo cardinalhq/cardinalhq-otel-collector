@@ -118,9 +118,10 @@ func (chq *chqServerAuth) serverAuthenticate(ctx context.Context, headers map[st
 }
 
 type validateResponse struct {
-	Valid bool   `json:"valid"`
-	ID    string `json:"id"`
-	Name  string `json:"name"`
+	Valid        bool   `json:"valid"`
+	CustomerID   string `json:"customer_id"`
+	CollectorID  string `json:"collector_id"`
+	CustomerName string `json:"customer_name"`
 }
 
 func (chq *chqServerAuth) getcache(apiKey string) *authData {
@@ -200,8 +201,8 @@ func (chq *chqServerAuth) callValidateAPI(ctx context.Context, apiKey string) (*
 
 	return &authData{
 		apiKey:     apiKey,
-		clientID:   validateResp.ID,
-		clientName: validateResp.Name,
+		clientID:   validateResp.CustomerID,
+		clientName: validateResp.CustomerName,
 		valid:      validateResp.Valid,
 	}, nil
 }

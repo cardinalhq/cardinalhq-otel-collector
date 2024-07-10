@@ -234,6 +234,9 @@ data:
       chqauth/cardinalhq:
         client_auth:
           api_key: ${env:CARDINALHQ_API_KEY}
+          environment:
+            collector_id: ${env:CARDINALHQ_COLLECTOR_ID}
+            customer_id: ${env:CARDINALHQ_CUSTOMER_ID}
       chqconfig/cardinalhq:
         source:
           endpoint: {{ .Values.collector.endpoints.cardinalhq.samplerConfig }}

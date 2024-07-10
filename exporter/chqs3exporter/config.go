@@ -53,6 +53,7 @@ type Config struct {
 	S3Uploader S3UploaderConfig `mapstructure:"s3uploader"`
 	Timeboxes  TimeboxesConfig  `mapstructure:"timeboxes"`
 	Buffering  BufferingConfig  `mapstructure:"buffering"`
+	IDSource   string           `mapstructure:"id_source"`
 }
 
 func (c *Config) Validate() error {
@@ -62,6 +63,10 @@ func (c *Config) Validate() error {
 	}
 	if c.S3Uploader.S3Bucket == "" {
 		errs = multierr.Append(errs, errors.New("bucket is required"))
+	}
+
+	if c.IDSource != "auth" && c.IDSource != "env" {
+		errs = multierr.Append(errs, errors.New("id_source must be either 'auth' or 'env'"))
 	}
 
 	errs = multierr.Append(errs, c.Timeboxes.Validate())

@@ -24,9 +24,9 @@ import (
 )
 
 type Translator interface {
-	LogsFromOtel(ol *plog.Logs, environment *translate.Environment) ([]map[string]any, error)
-	MetricsFromOtel(om *pmetric.Metrics, environment *translate.Environment) ([]map[string]any, error)
-	TracesFromOtel(ot *ptrace.Traces, environment *translate.Environment) ([]map[string]any, error)
+	LogsFromOtel(ol *plog.Logs, environment translate.Environment) ([]map[string]any, error)
+	MetricsFromOtel(om *pmetric.Metrics, environment translate.Environment) ([]map[string]any, error)
+	TracesFromOtel(ot *ptrace.Traces, environment translate.Environment) ([]map[string]any, error)
 }
 
 type TableTranslator struct {

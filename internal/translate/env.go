@@ -25,23 +25,31 @@ const (
 	CardinalEnvCollectorID = "CARDINALHQ_COLLECTOR_ID"
 )
 
-type Environment struct {
+type Environment interface {
+	CustomerID() string
+	CollectorID() string
+	Tags() map[string]string
+}
+
+type EnvironmentImpl struct {
 	tags map[string]string
 }
 
 var (
 	environmentSetupOnce sync.Once
-	environment          *Environment
+	environment          *EnvironmentImpl
+
+	_ Environment = (*EnvironmentImpl)(nil)
 )
 
-func EnvironmentFromEnv() *Environment {
+func EnvironmentFromEnv() *EnvironmentImpl {
 	environmentSetupOnce.Do(func() {
 		environment = environmentFromEnv()
 	})
 	return environment
 }
 
-func environmentFromEnv() *Environment {
+func environmentFromEnv() *EnvironmentImpl {
 	customerid := os.Getenv(CardinalEnvCustomerID)
 	collectorid := os.Getenv(CardinalEnvCollectorID)
 
@@ -60,19 +68,19 @@ func environmentFromEnv() *Environment {
 	tags["customer_id"] = customerid
 	tags["collector_id"] = collectorid
 
-	return &Environment{
+	return &EnvironmentImpl{
 		tags: tags,
 	}
 }
 
-func (e *Environment) CustomerID() string {
+func (e *EnvironmentImpl) CustomerID() string {
 	return e.tags["customer_id"]
 }
 
-func (e *Environment) CollectorID() string {
+func (e *EnvironmentImpl) CollectorID() string {
 	return e.tags["collector_id"]
 }
 
-func (e *Environment) Tags() map[string]string {
+func (e *EnvironmentImpl) Tags() map[string]string {
 	return e.tags
 }

@@ -27,6 +27,7 @@ func NewFactory() exporter.Factory {
 
 func createDefaultConfig() component.Config {
 	return &Config{
+		IDSource: "env",
 		S3Uploader: S3UploaderConfig{
 			Region:      "us-east-1",
 			S3Partition: "minute",

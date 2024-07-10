@@ -23,11 +23,18 @@ import (
 )
 
 func (e *s3Exporter) ConsumeTraces(ctx context.Context, traces ptrace.Traces) error {
+	var ee translate.Environment
+	if e.idsFromEnv {
+		ee = translate.EnvironmentFromEnv()
+	} else {
+		ee = EnvironmentFromAuth(ctx)
+	}
+
 	if e.config.Timeboxes.Traces.Interval <= 0 {
 		return nil
 	}
 
-	tbl, err := e.tb.TracesFromOtel(&traces, translate.EnvironmentFromEnv())
+	tbl, err := e.tb.TracesFromOtel(&traces, ee)
 	if err != nil {
 		return err
 	}

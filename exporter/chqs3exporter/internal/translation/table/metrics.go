@@ -28,7 +28,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
-func (l *TableTranslator) MetricsFromOtel(om *pmetric.Metrics, environment *translate.Environment) ([]map[string]any, error) {
+func (l *TableTranslator) MetricsFromOtel(om *pmetric.Metrics, environment translate.Environment) ([]map[string]any, error) {
 	rets := []map[string]any{}
 
 	for i := 0; i < om.ResourceMetrics().Len(); i++ {

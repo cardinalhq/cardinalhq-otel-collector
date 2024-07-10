@@ -23,11 +23,18 @@ import (
 )
 
 func (e *s3Exporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {
+	var ee translate.Environment
+	if e.idsFromEnv {
+		ee = translate.EnvironmentFromEnv()
+	} else {
+		ee = EnvironmentFromAuth(ctx)
+	}
+
 	if e.config.Timeboxes.Logs.Interval <= 0 {
 		return nil
 	}
 
-	tbl, err := e.tb.LogsFromOtel(&logs, translate.EnvironmentFromEnv())
+	tbl, err := e.tb.LogsFromOtel(&logs, ee)
 	if err != nil {
 		return err
 	}

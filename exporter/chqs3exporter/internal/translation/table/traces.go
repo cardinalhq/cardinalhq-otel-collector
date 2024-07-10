@@ -21,7 +21,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
-func (l *TableTranslator) TracesFromOtel(ot *ptrace.Traces, environment *translate.Environment) ([]map[string]any, error) {
+func (l *TableTranslator) TracesFromOtel(ot *ptrace.Traces, environment translate.Environment) ([]map[string]any, error) {
 	rets := []map[string]any{}
 
 	for i := 0; i < ot.ResourceSpans().Len(); i++ {

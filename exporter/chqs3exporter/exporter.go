@@ -48,6 +48,7 @@ type s3Exporter struct {
 	writerClosed    chan struct{}
 	taglock         sync.Mutex
 	tags            map[string]map[int64]map[string]any
+	idsFromEnv      bool
 }
 
 const (
@@ -84,27 +85,6 @@ func newS3Exporter(config *Config, params exporter.Settings, ttype string) (*s3E
 	return s3LogsExporter, nil
 }
 
-func verifyClusterId() error {
-	id, found := os.LookupEnv("CARDINALHQ_CLUSTER_ID")
-	if !found {
-		return nil
-	}
-	// check that the characters in the id are alphanumeric lowercase with dash only,
-	// and starts with a letter.
-	if len(id) == 0 {
-		return fmt.Errorf("invalid CARDINALHQ_CLUSTER_ID: %s, must start with a letter", id)
-	}
-	if id[0] < 'a' || id[0] > 'z' {
-		return fmt.Errorf("invalid CARDINALHQ_CLUSTER_ID: %s, must start with a letter", id)
-	}
-	for _, c := range id {
-		if (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '-' {
-			return fmt.Errorf("invalid cluster id: %s, allowed characters 'a..z, 0..9, -, and must start with a letter", id)
-		}
-	}
-	return nil
-}
-
 func (e *s3Exporter) Start(_ context.Context, _ component.Host) error {
 	var err error
 
@@ -113,9 +93,7 @@ func (e *s3Exporter) Start(_ context.Context, _ component.Host) error {
 		filepath = ""
 	}
 
-	if err := verifyClusterId(); err != nil {
-		return err
-	}
+	e.idsFromEnv = e.config.IDSource == "env"
 
 	opts := []boxer.BoxerOptions{}
 	switch e.telemetryType {

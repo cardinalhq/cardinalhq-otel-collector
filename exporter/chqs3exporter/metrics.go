@@ -22,11 +22,18 @@ import (
 )
 
 func (e *s3Exporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
+	var ee translate.Environment
+	if e.idsFromEnv {
+		ee = translate.EnvironmentFromEnv()
+	} else {
+		ee = EnvironmentFromAuth(ctx)
+	}
+
 	if e.config.Timeboxes.Metrics.Interval <= 0 {
 		return nil
 	}
 
-	tbl, err := e.tb.MetricsFromOtel(&md, translate.EnvironmentFromEnv())
+	tbl, err := e.tb.MetricsFromOtel(&md, ee)
 	if err != nil {
 		return err
 	}

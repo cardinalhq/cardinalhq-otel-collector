@@ -22,7 +22,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
-func (l *TableTranslator) LogsFromOtel(ol *plog.Logs, environment *translate.Environment) ([]map[string]any, error) {
+func (l *TableTranslator) LogsFromOtel(ol *plog.Logs, environment translate.Environment) ([]map[string]any, error) {
 	rets := []map[string]any{}
 
 	for i := 0; i < ol.ResourceLogs().Len(); i++ {

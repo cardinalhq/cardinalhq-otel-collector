@@ -124,6 +124,11 @@ func TestSanitizeKey(t *testing.T) {
 			"",
 		},
 		{
+			"key_with_symbols",
+			"abc_foo",
+			"abc_foo",
+		},
+		{
 			"empty key",
 			"",
 			"",

@@ -48,8 +48,8 @@ var (
 	errNoAuthConfig        = errors.New("one of client_auth.api_key or server_auth.endpoint must be set")
 	errDuplicateAuthConfig = errors.New("only one of client_auth.api_key or server_auth.endpoint can be set")
 	errNoClientAPIKey      = errors.New("client_auth.api_key must be set")
-	errBadEnvironemntKey   = errors.New("environment key contains invalid characters: only lowercase letters are allowed")
-	errBadEnvironmentValue = errors.New("environment value contains invalid characters: only printable ASCII characters are allowed")
+	errBadEnvironemntKey   = errors.New("environment key contains invalid characters: only lowercase letters and _ are allowed")
+	errBadEnvironmentValue = errors.New("environment value contains invalid characters: only alphanumeric characters and _-.@:/, are allowed")
 )
 
 func (cfg *Config) Validate() error {
@@ -100,10 +100,10 @@ func (cfg *ServerAuth) Validate() error {
 	return nil
 }
 
-// allow only alphanumeric characters
+// allow only lowercase letterrs and _
 func sanitizeKey(key string) string {
 	for _, c := range key {
-		if c < 'a' || c > 'z' {
+		if (c < 'a' || c > 'z') && c != '_' {
 			return ""
 		}
 	}

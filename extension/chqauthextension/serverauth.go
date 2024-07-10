@@ -104,10 +104,13 @@ func (chq *chqServerAuth) serverAuthenticate(ctx context.Context, headers map[st
 		return ctx, errNoAuthHeader
 	}
 
+	envkeys := getEnvFromHeaders(headers)
+
 	authData, err := chq.authenticateAPIKey(ctx, auth)
 	if err != nil {
 		return ctx, err
 	}
+	authData.environment = envkeys
 
 	cl := client.FromContext(ctx)
 	cl.Auth = authData
@@ -212,20 +215,44 @@ func getAuthHeader(h map[string][]string, key string) string {
 	return ""
 }
 
-var _ client.AuthData = (*authData)(nil)
+func getEnvFromHeaders(h map[string][]string) map[string]string {
+	for k, v := range h {
+		if strings.EqualFold(k, envKeyHeader) {
+			return parseEnv(v[0])
+		}
+	}
+	return map[string]string{}
+}
+
+func parseEnv(env string) map[string]string {
+	items := strings.Split(env, ";")
+	envMap := make(map[string]string)
+	for _, item := range items {
+		parts := strings.Split(item, "=")
+		if len(parts) == 2 {
+			envMap[parts[0]] = parts[1]
+		}
+	}
+	return envMap
+}
 
 type authData struct {
-	apiKey     string
-	clientID   string
-	clientName string
-	valid      bool
-	expiry     time.Time
+	apiKey      string
+	environment map[string]string
+	clientID    string
+	clientName  string
+	valid       bool
+	expiry      time.Time
 }
+
+var _ client.AuthData = (*authData)(nil)
 
 func (a *authData) GetAttribute(name string) any {
 	switch name {
 	case "api_key":
 		return a.apiKey
+	case "environment":
+		return a.environment
 	case "client_id":
 		return a.clientID
 	case "client_name":
@@ -238,5 +265,5 @@ func (a *authData) GetAttribute(name string) any {
 }
 
 func (a *authData) GetAttributeNames() []string {
-	return []string{"api_key", "client_id", "client_name", "valid"}
+	return []string{"api_key", "environment", "client_id", "client_name", "valid"}
 }

@@ -107,6 +107,8 @@ data:
       forward/chqs3:
       spanmetrics/l2:
         aggregation_temporality: "AGGREGATION_TEMPORALITY_DELTA"
+        metrics_flush_interval: 10s
+        namespace: span.metrics
 {{ end }}
       {{ range $name, $flags := .Values.vendors -}}
       {{ if $flags.enabled -}}

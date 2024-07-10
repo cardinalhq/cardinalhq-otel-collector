@@ -17,6 +17,7 @@ package chqauthextension
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"go.opentelemetry.io/collector/extension"
 	"go.opentelemetry.io/collector/extension/auth"
@@ -26,12 +27,14 @@ import (
 type chqClientAuth struct {
 	config   *ClientAuth
 	insecure bool
+	env      map[string]string
 }
 
 func newClientAuthExtension(cfg *Config, _ extension.Settings) auth.Client {
 	chq := chqClientAuth{
 		config:   cfg.ClientAuth,
 		insecure: cfg.ClientAuth.Insecure,
+		env:      cfg.ClientAuth.Environment,
 	}
 	return auth.NewClient(
 		auth.WithClientRoundTripper(chq.roundTripper),
@@ -42,6 +45,7 @@ func newClientAuthExtension(cfg *Config, _ extension.Settings) auth.Client {
 type chqRoundTripper struct {
 	base   http.RoundTripper
 	apiKey string
+	env    map[string]string
 }
 
 func (chq *chqClientAuth) roundTripper(base http.RoundTripper) (http.RoundTripper, error) {
@@ -51,6 +55,7 @@ func (chq *chqClientAuth) roundTripper(base http.RoundTripper) (http.RoundTrippe
 	return &chqRoundTripper{
 		base:   base,
 		apiKey: chq.config.APIKey,
+		env:    chq.env,
 	}, nil
 }
 
@@ -66,12 +71,24 @@ type chqPerRPCAuth struct {
 }
 
 func (chq *chqClientAuth) perRPCCredentials() (creds.PerRPCCredentials, error) {
+	metadata := map[string]string{
+		apiKeyHeader: chq.config.APIKey,
+	}
+	if len(chq.env) > 0 {
+		metadata[envKeyHeader] = encodeEnv(chq.env)
+	}
 	return &chqPerRPCAuth{
-		metadata: map[string]string{
-			apiKeyHeader: chq.config.APIKey,
-		},
+		metadata: metadata,
 		insecure: chq.config.Insecure,
 	}, nil
+}
+
+func encodeEnv(env map[string]string) string {
+	var items []string
+	for k, v := range env {
+		items = append(items, k+"="+v)
+	}
+	return strings.Join(items, ";")
 }
 
 func (c *chqPerRPCAuth) GetRequestMetadata(_ context.Context, _ ...string) (map[string]string, error) {

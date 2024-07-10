@@ -118,10 +118,10 @@ func (chq *chqServerAuth) serverAuthenticate(ctx context.Context, headers map[st
 }
 
 type validateResponse struct {
-	Valid        bool   `json:"valid"`
 	CustomerID   string `json:"customer_id"`
-	CollectorID  string `json:"collector_id"`
 	CustomerName string `json:"customer_name"`
+	CollectorID  string `json:"collector_id"`
+	Valid        bool   `json:"valid"`
 }
 
 func (chq *chqServerAuth) getcache(apiKey string) *authData {
@@ -200,10 +200,11 @@ func (chq *chqServerAuth) callValidateAPI(ctx context.Context, apiKey string) (*
 	}
 
 	return &authData{
-		apiKey:     apiKey,
-		clientID:   validateResp.CustomerID,
-		clientName: validateResp.CustomerName,
-		valid:      validateResp.Valid,
+		apiKey:      apiKey,
+		clientID:    validateResp.CustomerID,
+		clientName:  validateResp.CustomerName,
+		collectorID: validateResp.CollectorID,
+		valid:       validateResp.Valid,
 	}, nil
 }
 
@@ -242,6 +243,7 @@ type authData struct {
 	environment map[string]string
 	clientID    string
 	clientName  string
+	collectorID string
 	valid       bool
 	expiry      time.Time
 }
@@ -258,6 +260,8 @@ func (a *authData) GetAttribute(name string) any {
 		return a.clientID
 	case "client_name":
 		return a.clientName
+	case "collector_id":
+		return a.collectorID
 	case "valid":
 		return a.valid
 	default:
@@ -266,5 +270,5 @@ func (a *authData) GetAttribute(name string) any {
 }
 
 func (a *authData) GetAttributeNames() []string {
-	return []string{"api_key", "environment", "client_id", "client_name", "valid"}
+	return []string{"api_key", "environment", "client_id", "client_name", "collector_id", "valid"}
 }

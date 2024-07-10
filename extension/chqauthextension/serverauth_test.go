@@ -111,6 +111,7 @@ func TestGetAttribute(t *testing.T) {
 		environment: map[string]string{"env1": "value1"},
 		clientID:    "client1",
 		clientName:  "John Doe",
+		collectorID: "collector1",
 		valid:       true,
 		expiry:      time.Now().Add(time.Hour),
 	}
@@ -136,6 +137,10 @@ func TestGetAttribute(t *testing.T) {
 			"John Doe",
 		},
 		{
+			"collector_id",
+			"collector1",
+		},
+		{
 			"valid",
 			true,
 		},
@@ -154,7 +159,7 @@ func TestGetAttribute(t *testing.T) {
 
 func TestGetAttributeNames(t *testing.T) {
 	ad := &authData{}
-	expected := []string{"api_key", "environment", "client_id", "client_name", "valid"}
+	expected := []string{"api_key", "environment", "client_id", "client_name", "collector_id", "valid"}
 	names := ad.GetAttributeNames()
 	assert.ElementsMatch(t, expected, names)
 }

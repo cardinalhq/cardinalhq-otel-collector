@@ -51,6 +51,9 @@ func EnvironmentFromAuth(ctx context.Context) translate.Environment {
 
 func getAuthString(ctx context.Context, key string) string {
 	cl := client.FromContext(ctx)
+	if cl.Auth == nil {
+		return ""
+	}
 	v := cl.Auth.GetAttribute(key)
 	if v == nil {
 		return ""
@@ -63,6 +66,9 @@ func getAuthString(ctx context.Context, key string) string {
 
 func getAuthEnv(ctx context.Context) map[string]string {
 	cl := client.FromContext(ctx)
+	if cl.Auth == nil {
+		return nil
+	}
 	v := cl.Auth.GetAttribute("environment")
 	if v == nil {
 		return nil

@@ -137,6 +137,9 @@ data:
 
     connectors:
       forward/intakestats:
+{{ if .Values.s3.enabled }}
+      forward/chqs3:
+{{ end }}
       {{ range $name, $flags := .Values.vendors -}}
       {{ if and $flags.enabled $flags.logs -}}
       forward/{{ $name }}:

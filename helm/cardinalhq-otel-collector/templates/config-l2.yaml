@@ -129,7 +129,9 @@ data:
             - chqdecorator/l2
           exporters:
             - forward/intakestats
+{{ if .Values.s3.enabled }}
             - forward/chqs3
+{{ end }}
             {{ range $name, $flags := .Values.vendors -}}
             {{ if and $flags.enabled $flags.metrics -}}
             - forward/{{ $name }}

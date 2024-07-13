@@ -20,6 +20,9 @@ s3uploader:
   s3_bucket: {{ .Values.s3.bucket }}
   s3_prefix: otel-raw
   s3_partition: minute
+{{ if Values.s3.endpoint }}
+  endpoint: {{ .Values.s3.endpoint }}
+{{ end }}
 buffering:
   type: disk
   directory: /app/scratch

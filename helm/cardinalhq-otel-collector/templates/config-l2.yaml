@@ -153,7 +153,11 @@ data:
             - chqenforcer/{{ $name }}
             - batch/{{ $name }}
           exporters:
+          {{ if $flags.dryrun }}
+            - nop
+          {{ else }}
             - {{ $flags.exporter}}/{{ $name }}
+          {{ end }}
         {{ end -}}
         {{- end -}}
 

@@ -28,6 +28,7 @@ s3:
 vendors:
   cardinalhq:
     enabled: false
+    dryrun: false
     exporter: otlp
     logs: true
     metrics: true
@@ -41,7 +42,8 @@ vendors:
       auth:
         authenticator: chqauth/cardinalhq
   datadog:
-    enabled: true
+    enabled: false
+    dryrun: false
     exporter: chqdatadog
     logs: true
     metrics: true

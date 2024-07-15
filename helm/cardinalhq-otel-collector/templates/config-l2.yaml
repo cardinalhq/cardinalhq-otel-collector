@@ -19,7 +19,7 @@ data:
       nop:
 
       {{ range $name, $flags := .Values.vendors }}
-      {{ if and $flags.enabled -}}
+      {{ if and $flags.enabled (not $flags.dryrun) -}}
       {{ if or $flags.metrics $flags.traces }}
       {{ $flags.exporter }}/{{ $name }}:
         {{ toYaml $flags.config | nindent 8 }}
@@ -209,7 +209,11 @@ data:
             - chqenforcer/{{ $name }}
             - batch/{{ $name }}
           exporters:
+          {{ if $flags.dryrun }}
+            - nop
+          {{ else }}
             - {{ $flags.exporter}}/{{ $name }}
+          {{ end }}
         {{ end -}}
         {{- end -}}
 

@@ -19,7 +19,11 @@ secrets:
 
 vendors:
   datadog:
-    enabled: false
+    enabled: true
+    dryrun: true
+  cardinalhq:
+    enabled: true
+    dryrun: false
 
 collector:
   l1:

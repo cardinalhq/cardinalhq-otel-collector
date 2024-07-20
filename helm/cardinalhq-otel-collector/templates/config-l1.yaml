@@ -223,8 +223,9 @@ data:
             - memory_limiter/l1
           exporters:
             - loadbalancing/traces
-
-      {{ toYaml .Values.selfTelemetry | nindent 6 }}
+{{ if .Values.selfTelemetry.enabled }}
+      {{ toYaml .Values.selfTelemetry.config | nindent 6 }}
+{{ end }}
 
       extensions:
         - zpages

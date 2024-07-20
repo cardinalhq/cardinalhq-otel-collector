@@ -185,14 +185,16 @@ annotations:
   pvc: {}
 
 selfTelemetry:
-  telemetry:
-    metrics:
-      readers:
-        - periodic:
-            interval: 10000
-            exporter:
-              otlp:
-                protocol: grpc/protobuf
-                endpoint: https://customerstats-collector-grpc.svc.aws.dev.cardinalhq.net:443
-                headers:
-                  x-cardinalhq-api-key: ${env:CARDINALHQ_API_KEY}
+  enabled: false
+  config:
+    telemetry:
+      metrics:
+        readers:
+          - periodic:
+              interval: 10000
+              exporter:
+                otlp:
+                  protocol: grpc/protobuf
+                  endpoint: https://customerstats-collector-grpc.svc.aws.dev.cardinalhq.net:443
+                  headers:
+                    x-cardinalhq-api-key: ${env:CARDINALHQ_API_KEY}

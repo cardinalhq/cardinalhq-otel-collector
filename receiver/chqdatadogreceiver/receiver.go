@@ -226,7 +226,7 @@ func (ddr *datadogReceiver) handleTraces(w http.ResponseWriter, req *http.Reques
 	ddTraces, err = handlePayload(req)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
-		ddr.traceLogger.Error("Unable to unmarshal reqs")
+		ddr.traceLogger.Error("Unable to unmarshal reqs", zap.Error(err))
 		return
 	}
 	for _, ddTrace := range ddTraces {
@@ -235,7 +235,7 @@ func (ddr *datadogReceiver) handleTraces(w http.ResponseWriter, req *http.Reques
 		err = ddr.nextTraceConsumer.ConsumeTraces(obsCtx, otelTraces)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err)
-			ddr.traceLogger.Error("Trace consumer errored out")
+			ddr.traceLogger.Error("Trace consumer errored out", zap.Error(err))
 			return
 		}
 	}

@@ -60,7 +60,7 @@ data:
               max_interval: 10s
         resolver:
           k8s:
-            service: "{{ include "customerside.name" . }}-l2.${env:POD_NAMESPACE}"
+            service: "{{ include "customerside.fullname" . }}-l2.${env:POD_NAMESPACE}"
             ports:
               - {{ .Values.collector.ports.internal.otlpGRPCPort }}
 

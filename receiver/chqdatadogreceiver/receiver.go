@@ -156,53 +156,21 @@ func hexdump(data []byte) {
 }
 
 func (ddr *datadogReceiver) handleV1Validate(w http.ResponseWriter, req *http.Request) {
-	apikey := getDDAPIKey(req)
-	w.Header().Set("Content-Type", "application/json")
-	if apikey == "" {
-		ddr.gpLogger.Info("/api/v1/validate No API key found in request")
-		w.WriteHeader(http.StatusForbidden)
-		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
-		return
-	}
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(`{"valid":"true"}`))
 }
 
 func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Request) {
-	apikey := getDDAPIKey(req)
-	w.Header().Set("Content-Type", "application/json")
-	if apikey == "" {
-		ddr.gpLogger.Info("/intake No API key found in request")
-		w.WriteHeader(http.StatusForbidden)
-		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
-		return
-	}
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }
 
 func (ddr *datadogReceiver) handleCheckRun(w http.ResponseWriter, req *http.Request) {
-	apikey := getDDAPIKey(req)
-	w.Header().Set("Content-Type", "application/json")
-	if apikey == "" {
-		ddr.gpLogger.Info("/api/v1/check_run No API key found in request")
-		w.WriteHeader(http.StatusForbidden)
-		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
-		return
-	}
 	w.WriteHeader(http.StatusAccepted)
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }
 
 func (ddr *datadogReceiver) handleMetadata(w http.ResponseWriter, req *http.Request) {
-	apikey := getDDAPIKey(req)
-	w.Header().Set("Content-Type", "application/json")
-	if apikey == "" {
-		ddr.gpLogger.Info("/api/v1/metadata No API key found in request")
-		w.WriteHeader(http.StatusForbidden)
-		_, _ = w.Write([]byte(`{"status":"error","code":403,"errors":["Forbidden"]`))
-		return
-	}
 	w.WriteHeader(http.StatusAccepted)
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }

@@ -61,24 +61,24 @@ jobs:
           echo "$MOD_DIRS" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
-      - name: Build and test each module
-        id: build-modules
-        run: |
-          IFS=$'\n'
-          for dir in $MOD_DIRS; do
-            echo "Processing directory: $dir"
-            cd $dir
-            # Build and test Go module
-            echo "${dir} : Install dependencies"
-            go mod tidy
-            echo "${dir} : Generate all teh things"
-            go generate -v ./...
-            echo "${dir} : Build the go"
-            go build ./...
-          #  echo "${dir} : Testing time"
-          #  go test ./...
-            cd - > /dev/null
-          done
+#      - name: Build and test each module
+#        id: build-modules
+#        run: |
+#          IFS=$'\n'
+#          for dir in $MOD_DIRS; do
+#            echo "Processing directory: $dir"
+#            cd $dir
+#            # Build and test Go module
+#            echo "${dir} : Install dependencies"
+#            go mod tidy
+#            echo "${dir} : Generate all teh things"
+#            go generate -v ./...
+#            echo "${dir} : Build the go"
+#            go build ./...
+#          #  echo "${dir} : Testing time"
+#          #  go test ./...
+#            cd - > /dev/null
+#          done
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2

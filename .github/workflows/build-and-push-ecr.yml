@@ -107,6 +107,7 @@ jobs:
           push: true
           build-args: |
             GIT_BRANCH=${{ inputs.tag-to-release }}
+            BUILDER_REPO=${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/${{ inputs.repository }}
           tags: |
             ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/${{ inputs.repository }}:latest
             ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/${{ inputs.repository }}:${{ inputs.tag-to-release }}
@@ -119,5 +120,6 @@ jobs:
           push: true
           build-args: |
             GIT_BRANCH=${{ inputs.tag-to-release }}
+            BUILDER_REPO=${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/${{ inputs.repository }}
           tags: | 
             ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/${{ inputs.repository }}:${{ inputs.tag-to-release }}

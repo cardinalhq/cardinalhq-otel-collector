@@ -12,11 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM --platform=${BUILDPLATFORM} public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:builder-latest AS build
 ARG TARGETOS
 ARG TARGETARCH
 ARG GIT_BRANCH
 ARG OTEL_VERSION=latest
+ARG BUILDER_REPO=public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector
+
+FROM --platform=${BUILDPLATFORM} ${BUILDER_REPO}:builder-latest AS build
+
 
 WORKDIR /build
 COPY . .

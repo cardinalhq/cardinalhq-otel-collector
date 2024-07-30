@@ -57,7 +57,9 @@ jobs:
         run: |
           # Find all directories containing go.mod files
           MOD_DIRS=$(find . -name 'go.mod' -exec dirname {} \;)
-          echo "MOD_DIRS=$MOD_DIRS" >> $GITHUB_ENV
+          echo "MOD_DIRS<<EOF" >> $GITHUB_ENV
+          echo "$MOD_DIRS" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Build and test each module
         id: build-modules

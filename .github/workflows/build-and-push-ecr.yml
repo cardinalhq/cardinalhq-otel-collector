@@ -51,17 +51,28 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
-      - name: Install dependencies
+
+      - name: Find all go.mod files
+        id: find-modules
         run: |
-          go get .
-      - name: Build protobufs
-        run: go generate -v ./...
+          # Find all directories containing go.mod files
+          MOD_DIRS=$(find . -name 'go.mod' -exec dirname {} \;)
+          echo "MOD_DIRS=$MOD_DIRS" >> $GITHUB_ENV
 
-      - name: Build
-        run: go build -v ./...
-
-      - name: Test
-        run: go test -v ./...
+      - name: Build and test each module
+        id: build-modules
+        run: |
+          IFS=$'\n'
+          for dir in $MOD_DIRS; do
+            echo "Processing directory: $dir"
+            cd $dir
+            # Build and test Go module
+            go get .
+            go generate -v ./...
+            go build ./...
+            go test ./...
+            cd - > /dev/null
+          done
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2

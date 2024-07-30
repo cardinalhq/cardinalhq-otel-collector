@@ -1,0 +1,80 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+
+name: Build OTEL builder image (pre-build)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag-to-release:
+        type: string
+        required: true
+        description: cardinalhq-otel-collector tag to release
+      otel-version:
+        type: string
+        required: true
+        default: latest
+        description:  "the docker tag to pull from otel"
+
+
+jobs:
+
+  build-and-push-to-ecr:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for all branches and tags
+          ref: ${{ inputs.tag-to-release }}
+
+      - name: Inspect builder
+        run: |
+            echo "Name:      ${{ steps.buildx.outputs.name }}"
+            echo "Endpoint:  ${{ steps.buildx.outputs.endpoint }}"
+            echo "Status:    ${{ steps.buildx.outputs.status }}"
+            echo "Flags:     ${{ steps.buildx.outputs.flags }}"
+            echo "Platforms: ${{ steps.buildx.outputs.platforms }}"
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          audience: sts.amazonaws.com
+          role-to-assume: arn:aws:iam::${{ secrets.ECR_ACCOUNT_ID }}:role/${{ secrets.ECR_ROLE_NAME }}
+          aws-region: ${{ secrets.ECR_REGISTRY_REGION }}
+          role-session-name: GitHubActions
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        id: buildx
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+
+      - name: Build the builder
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.pre-build
+          push: true
+          build-args: |
+            GIT_BRANCH=${{ inputs.tag-to-release }}
+            OTEL_VERSION=${{ inputs.otel-version }}
+          tags: | 
+            ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/cardinalhq/tmp-cardinalhq-otel-collector:builder-latest

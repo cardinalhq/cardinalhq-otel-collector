@@ -69,9 +69,13 @@ jobs:
             echo "Processing directory: $dir"
             cd $dir
             # Build and test Go module
-            go get .
+            echo "Install dependencies"
+            go mod tidy
+            echo "Generate all teh things"
             go generate -v ./...
+            echo "Build the go"
             go build ./...
+            echo "Testing time"
             go test ./...
             cd - > /dev/null
           done

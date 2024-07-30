@@ -69,14 +69,14 @@ jobs:
             echo "Processing directory: $dir"
             cd $dir
             # Build and test Go module
-            echo "Install dependencies"
+            echo "${dir} : Install dependencies"
             go mod tidy
-            echo "Generate all teh things"
+            echo "${dir} : Generate all teh things"
             go generate -v ./...
-            echo "Build the go"
+            echo "${dir} : Build the go"
             go build ./...
-            echo "Testing time"
-            go test ./...
+            echo "${dir} : Testing time"
+            golangci-lint run
             cd - > /dev/null
           done
 

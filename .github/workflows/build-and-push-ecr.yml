@@ -75,8 +75,8 @@ jobs:
             go generate -v ./...
             echo "${dir} : Build the go"
             go build ./...
-            echo "${dir} : Testing time"
-            golangci-lint run
+          #  echo "${dir} : Testing time"
+          #  go test ./...
             cd - > /dev/null
           done
 

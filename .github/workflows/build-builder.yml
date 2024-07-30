@@ -9,13 +9,13 @@ on:
     inputs:
       tag-to-release:
         type: string
-        required: true
-        description: cardinalhq-otel-collector tag to release
+        required: false
+        description: Git tag to release (empty=head)
       otel-version:
         type: string
         required: true
         default: latest
-        description:  "the docker tag to pull from otel"
+        description:  Docker OTEL tag
 
 
 jobs:

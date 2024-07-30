@@ -1,0 +1,41 @@
+name: Determine target tag
+description: either uses a manually specified tag or determines the most recent versioned tag
+inputs:
+  target-tag:
+    description: The tag to deploy, or latest versioned tag if not specified
+    required: false
+outputs:
+  tag:
+    value: ${{ steps.determine-tag.outputs.tag }}
+  desc:
+    value: ${{ steps.determine-tag.outputs.desc }}
+  hash:
+    value: ${{ steps.determine-tag.outputs.hash }}
+  today-string:
+    value: ${{ steps.determine-tag.outputs.today-string }}
+runs:
+  using: composite
+  steps:
+
+    - name: Determine tag
+
+      id: determine-tag
+      shell: bash
+      run: |
+        if [ "${{ inputs.target-tag }}" == "" ]; then
+          target_tag=$(git describe --tags --match "v*.*.*" --abbrev=0 2>/dev/null || echo "v0.0.0")
+          tag_desc=$(git describe --tags --match $target_tag  2>/dev/null || echo $target_tag)
+          tag_hash=$(git rev-list -n 1 $tag_desc)
+          echo "tag=$target_tag" >> $GITHUB_OUTPUT
+          echo "desc=$tag_desc" >> $GITHUB_OUTPUT
+          echo "hash=$tag_hash" >> $GITHUB_OUTPUT
+          echo "today-string=$(date +%Y%m%d)" >> $GITHUB_OUTPUT
+        else
+          target_tag=$(git tag -l '${{ inputs.target-tag }}')
+          tag_desc=$(git describe --tags --match '${{ inputs.target-tag }}' 2>/dev/null || echo '${{ inputs.target-tag }}')
+          tag_hash=$(git rev-list -n 1 $tag_desc)
+          echo "tag=$target_tag" >> $GITHUB_OUTPUT
+          echo "desc=$tag_desc" >> $GITHUB_OUTPUT
+          echo "hash=$tag_hash" >> $GITHUB_OUTPUT
+          echo "today-string=$(date +%Y%m%d)" >> $GITHUB_OUTPUT
+        fi

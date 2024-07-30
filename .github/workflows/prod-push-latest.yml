@@ -1,0 +1,70 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+
+name: Build and push to the latest tag to prod
+
+on:
+  push:
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+*
+  
+  workflow_dispatch:
+    inputs:
+      tag-to-deploy:
+        description: 'Tag of repo to build and push as latest to ECR'
+        required: false
+      should-tag-latest:
+        description: 'Tags the resulting docker image latest'
+        required: true
+        default: true
+
+
+jobs:
+
+  determine-tag:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      tag: ${{ steps.determine-target-tag.outputs.tag}}
+      desc: ${{ steps.determine-target-tag.outputs.desc}}
+      today-string: ${{ steps.determine-target-tag.outputs.today-string}}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for all branches and tags
+
+      - uses: ./.github/actions/determine-target-tag
+        id: determine-target-tag
+        with:
+          target-tag: ${{ github.event.inputs.tag-to-deploy }}
+
+      - name: Print outputs
+
+        id: print-outputs
+        run: |   
+          echo "Target tag!: ${{ steps.determine-target-tag.outputs.tag}}"
+          echo "Taget tag desc:    ${{ steps.determine-target-tag.outputs.desc}}"
+          echo "Hash:   ${{ steps.determine-target-tag.outputs.hash}}"
+          echo "Today-string:   ${{ steps.determine-target-tag.outputs.today-string}}"
+
+  build-release-artifacts:
+    needs: [ determine-tag ]
+    if: ${{ needs.determine-tag.outputs.tag != '' }}
+    name: Build and release images
+    uses: ./.github/workflows/build-and-push-ecr.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      tag-to-release: ${{ needs.determine-tag.outputs.tag }}
+      repository: cardinalhq/tmp-cardinalhq-otel-collector
+      should-tag-latest: ${{ github.event.inputs.should-tag-latest }}
+    secrets:
+      ECR_ACCOUNT_ID: ${{ secrets.ECR_ACCOUNT_ID }}
+      ECR_ROLE_NAME: ${{ secrets.ECR_ROLE_NAME }}
+      ECR_REGISTRY_REGION: ${{ secrets.ECR_REGISTRY_REGION }}
+

@@ -19,8 +19,6 @@ on:
         required: true
         default: true
 
-permissions:
-  contents: write
 
 jobs:
 
@@ -29,7 +27,7 @@ jobs:
 
     permissions:
       id-token: write
-      contents: read
+      contents: write
     outputs:
       tag: ${{ steps.determine-target-tag.outputs.tag}}
       desc: ${{ steps.determine-target-tag.outputs.desc}}

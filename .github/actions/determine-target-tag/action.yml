@@ -30,7 +30,10 @@ runs:
          
         elif ["${{ inputs.fallback-tag }}" != ""]; then
           echo "Target tag: ${{ inputs.fallback-tag }}"
-          target_tag=$(git tag -l '${{ inputs.fallback-tag }}')
+          TAG_REF=${{ inputs.fallback-tag }}
+          TAG_BARE=${TAG_REF#refs/tags/}
+          echo "Bare tag: $TAG_BARE"
+          target_tag=$(git tag -l $TAG_BARE)
         else
           #increment patch if tag is blank
           git fetch --tags

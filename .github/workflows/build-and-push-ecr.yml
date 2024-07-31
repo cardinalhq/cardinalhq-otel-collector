@@ -64,21 +64,14 @@ jobs:
       - name: Build and test each module
         id: build-modules
         run: |
-          IFS=$'\n'
-          for dir in $MOD_DIRS; do
-            echo "Processing directory: $dir"
-            cd $dir
-            # Build and test Go module
-            #echo "${dir} : Install dependencies"
-            #go mod tidy
-            echo "${dir} : Generate all teh things"
-            go generate -v ./...
-            #echo "${dir} : Build the go"
-            #go build ./...
-            echo "${dir} : Testing time"
-            go test ./...
-            cd - > /dev/null
+          for i in $(MOD_DIRS); do \
+            (echo ============ generating $$i ... ; cd $$i && go generate -v ./...) \
           done
+          
+          for i in $(MOD_DIRS); do \
+            (echo ============ testing $$i ... ; cd $$i && go test ./...) \
+          done
+  
 
 #      - name: Configure AWS credentials
 #        uses: aws-actions/configure-aws-credentials@v2

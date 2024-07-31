@@ -71,59 +71,58 @@ jobs:
           done
   
 
-#      - name: Configure AWS credentials
-#        uses: aws-actions/configure-aws-credentials@v2
-#        with:
-#          audience: sts.amazonaws.com
-#          role-to-assume: arn:aws:iam::${{ secrets.ECR_ACCOUNT_ID }}:role/${{ secrets.ECR_ROLE_NAME }}
-#          aws-region: ${{ secrets.ECR_REGISTRY_REGION }}
-#          role-session-name: GitHubActions
-#
-#      - name: Set up QEMU
-#        uses: docker/setup-qemu-action@v3
-#
-#      - name: Set up Docker Buildx
-#        uses: docker/setup-buildx-action@v3
-#        id: buildx
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          audience: sts.amazonaws.com
+          role-to-assume: arn:aws:iam::${{ secrets.ECR_ACCOUNT_ID }}:role/${{ secrets.ECR_ROLE_NAME }}
+          aws-region: ${{ secrets.ECR_REGISTRY_REGION }}
+          role-session-name: GitHubActions
 
-#
-#      - name: Inspect builder
-#        run: |
-#          echo "Name:      ${{ steps.buildx.outputs.name }}"
-#          echo "Endpoint:  ${{ steps.buildx.outputs.endpoint }}"
-#          echo "Status:    ${{ steps.buildx.outputs.status }}"
-#          echo "Flags:     ${{ steps.buildx.outputs.flags }}"
-#          echo "Platforms: ${{ steps.buildx.outputs.platforms }}"
-#
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        id: buildx
 
 
-#      - name: Login to Amazon ECR
-#        id: login-ecr
-#        uses: aws-actions/amazon-ecr-login@v2
-#
-#      - name: Build and push (latest)
-#        if: ${{ inputs.should-tag-latest == 'true' }}
-#        uses: docker/build-push-action@v6
-#        with:
-#          context: .
-#          push: true
-#          build-args: |
-#            GIT_BRANCH=${{ inputs.tag-to-release }}
-#            BUILDER_REPO=${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/${{ inputs.repository }}
-#          tags: |
-#            ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/${{ inputs.repository }}:latest
-#            ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/${{ inputs.repository }}:${{ inputs.tag-to-release }}
-#
-#      - name: Build and push
-#        if: ${{ inputs.should-tag-latest != 'true' }}
-#        uses: docker/build-push-action@v6
-#        with:
-#          platforms: linux/amd64,linux/arm64
-#          context: .
-#          push: true
-#          build-args: |
-#            GIT_BRANCH=${{ inputs.tag-to-release }}
-#            BUILDER_REPO=${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/${{ inputs.repository }}
-#          tags: |
-#            ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/${{ inputs.repository }}:${{ inputs.tag-to-release }}
-#
+      - name: Inspect builder
+        run: |
+          echo "Name:      ${{ steps.buildx.outputs.name }}"
+          echo "Endpoint:  ${{ steps.buildx.outputs.endpoint }}"
+          echo "Status:    ${{ steps.buildx.outputs.status }}"
+          echo "Flags:     ${{ steps.buildx.outputs.flags }}"
+          echo "Platforms: ${{ steps.buildx.outputs.platforms }}"
+
+
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push (latest)
+        if: ${{ inputs.should-tag-latest == 'true' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          build-args: |
+            GIT_BRANCH=${{ inputs.tag-to-release }}
+            BUILDER_REPO=${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/${{ inputs.repository }}
+          tags: |
+            ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/${{ inputs.repository }}:latest
+            ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/${{ inputs.repository }}:${{ inputs.tag-to-release }}
+
+      - name: Build and push
+        if: ${{ inputs.should-tag-latest != 'true' }}
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64,linux/arm64
+          context: .
+          push: true
+          build-args: |
+            GIT_BRANCH=${{ inputs.tag-to-release }}
+            BUILDER_REPO=${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/${{ inputs.repository }}
+          tags: |
+            ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/${{ inputs.repository }}:${{ inputs.tag-to-release }}

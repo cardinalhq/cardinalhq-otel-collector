@@ -3,7 +3,12 @@
 
 
 name: Build and push to the latest tag to prod
-
+env:
+  #registry: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/
+  #repository: cardinalhq/tmp-cardinalhq-otel-collector
+  registry: public.ecr.aws/cardinalhq.io/
+  repository: tmp-cardinalhq-otel-collector
+  public-registry: true
 on:
   push:
     tags:
@@ -52,9 +57,7 @@ jobs:
         with:
           target-tag: ${{ github.event.inputs.tag-to-deploy }}
 
-
       - name: Print outputs
-
         id: print-outputs
         run: |   
           echo "Target tag!: ${{ steps.determine-release-tag.outputs.tag}}"
@@ -72,11 +75,9 @@ jobs:
       contents: read
     with:
       tag-to-release: ${{ needs.release-tag.outputs.tag }}
-      #registry: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/
-      #repository: cardinalhq/tmp-cardinalhq-otel-collector
-      registry: public.ecr.aws/cardinalhq.io/
-      repository: tmp-cardinalhq-otel-collector
-      public-registry: true
+      registry: ${{ env.registry }}
+      repository: ${{ env.repository }}
+      public-registry: ${{ public-registry }}
       should-tag-latest: ${{ github.event.inputs.should-tag-latest }}
     secrets:
       ECR_ACCOUNT_ID: ${{ secrets.ECR_ACCOUNT_ID }}

@@ -29,10 +29,10 @@ jobs:
       id-token: write
       contents: read
     with:
-      tag-to-build: ${{ inputs.tag-to-deploy || github.ref  }}
+      tag-to-build: ${{ github.event.inputs.tag-to-deploy || github.ref  }}
 
 
-  determine-tag:
+  release-tag:
     needs: [build-go-project]
     runs-on: ubuntu-latest
     permissions:
@@ -57,21 +57,21 @@ jobs:
 
         id: print-outputs
         run: |   
-          echo "Target tag!: ${{ steps.determine-target-tag.outputs.tag}}"
-          echo "Taget tag desc:    ${{ steps.determine-target-tag.outputs.desc}}"
-          echo "Hash:   ${{ steps.determine-target-tag.outputs.hash}}"
-          echo "Today-string:   ${{ steps.determine-target-tag.outputs.today-string}}"
+          echo "Target tag!: ${{ steps.determine-release-tag.outputs.tag}}"
+          echo "Taget tag desc:    ${{ steps.determine-release-tag.outputs.desc}}"
+          echo "Hash:   ${{ steps.determine-release-tag.outputs.hash}}"
+          echo "Today-string:   ${{ steps.determine-release-tag.outputs.today-string}}"
 
   build-release-artifacts:
     needs: [ determine-tag ]
-    if: ${{ needs.determine-tag.outputs.tag != '' }}
+    if: ${{ needs.release-tag.outputs.tag != '' }}
     name: Build and release images
     uses: ./.github/workflows/build-and-push-ecr.yml
     permissions:
       id-token: write
       contents: read
     with:
-      tag-to-release: ${{ needs.determine-tag.outputs.tag }}
+      tag-to-release: ${{ needs.release-tag.outputs.tag }}
       #registry: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/
       #repository: cardinalhq/tmp-cardinalhq-otel-collector
       registry: public.ecr.aws/cardinalhq.io/

@@ -7,13 +7,13 @@ inputs:
 
 outputs:
   tag:
-    value: ${{ steps.determine-tag.outputs.tag }}
+    value: ${{ steps.determine-release-tag.outputs.tag }}
   desc:
-    value: ${{ steps.determine-tag.outputs.desc }}
+    value: ${{ steps.determine-release-tag.outputs.desc }}
   hash:
-    value: ${{ steps.determine-tag.outputs.hash }}
+    value: ${{ steps.determine-release-tag.outputs.hash }}
   today-string:
-    value: ${{ steps.determine-tag.outputs.today-string }}
+    value: ${{ steps.determine-release-tag.outputs.today-string }}
 runs:
   using: composite
   steps:

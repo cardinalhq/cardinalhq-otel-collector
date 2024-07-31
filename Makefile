@@ -15,8 +15,7 @@
 TARGETS=bin/cardinalhq-otel-collector
 PLATFORM=linux/amd64,linux/arm64
 BUILDX=docker buildx build --pull --platform ${PLATFORM}
-#IMAGE_PREFIX=public.ecr.aws/cardinalhq.io/
-IMAGE_PREFIX=033263751764.dkr.ecr.us-east-2.amazonaws.com/cardinalhq/
+IMAGE_PREFIX=public.ecr.aws/cardinalhq.io/
 
 #
 # Build targets.  Adding to these will cause magic to occur.
@@ -28,8 +27,7 @@ BINARIES = cardinalhq-otel-collector
 # These are the targets for Docker images, used both for the multi-arch and
 # single (local) Docker builds.
 # Dockerfiles should have a target that ends in -image, e.g. agent-image.
-#IMAGE_TARGETS = cardinalhq-otel-collector
-IMAGE_TARGETS = tmp-cardinalhq-otel-collector
+IMAGE_TARGETS = cardinalhq-otel-collector
 
 MODULE_SOURCE_PATHS = `ls -1d {receiver,processor,exporter,extension}/*` internal
 

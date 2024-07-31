@@ -26,6 +26,7 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
       run: |
         if [ ! -z '${{ inputs.target-tag }}' ]; then
           echo "Target tag: ${{ inputs.target-tag }}"
@@ -51,7 +52,7 @@ runs:
           NEW_TAG="v${VERSION_PARTS[0]}.${VERSION_PARTS[1]}.$PATCH_VERSION"
           echo "New tag: $NEW_TAG"
           git tag $NEW_TAG
-          git push origin $NEW_TAG
+          git push https://x-access-token:${{ GH_TOKEN }}@github.com/${{ GH_REPO }} $NEW_TAG
           target_tag=$NEW_TAG
         fi
           tag_desc=$(git describe --tags --match "${target_tag}" 2>/dev/null)

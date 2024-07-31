@@ -24,13 +24,13 @@ runs:
       id: determine-tag
       shell: bash
       run: |
-        if [ "${{ inputs.target-tag }}" != "" ]; then
+        if [ ! -z '${{ inputs.target-tag }}' ]; then
           echo "Target tag: ${{ inputs.target-tag }}"
           target_tag=$(git tag -l '${{ inputs.target-tag }}')
          
-        elif ["${{ inputs.fallback-tag }}" != ""]; then
+        elif [ ! -z '${{ inputs.fallback-tag }}' ]; then
           echo "Target tag: ${{ inputs.fallback-tag }}"
-          TAG_REF=${{ inputs.fallback-tag }}
+          TAG_REF='${{ inputs.fallback-tag }}'
           TAG_BARE=${TAG_REF#refs/tags/}
           echo "Bare tag: $TAG_BARE"
           target_tag=$(git tag -l $TAG_BARE)

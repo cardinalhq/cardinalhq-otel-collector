@@ -29,7 +29,7 @@ runs:
           target_tag=$(git tag -l '${{ inputs.target-tag }}')
          
         elif [ ! -z '${{ inputs.fallback-tag }}' ]; then
-          echo "Target tag: ${{ inputs.fallback-tag }}"
+          echo "Fallback tag: ${{ inputs.fallback-tag }}"
           TAG_REF='${{ inputs.fallback-tag }}'
           TAG_BARE=${TAG_REF#refs/tags/}
           echo "Bare tag: $TAG_BARE"

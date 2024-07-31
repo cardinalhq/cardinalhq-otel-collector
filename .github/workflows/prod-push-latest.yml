@@ -52,20 +52,20 @@ jobs:
           echo "Hash:   ${{ steps.determine-target-tag.outputs.hash}}"
           echo "Today-string:   ${{ steps.determine-target-tag.outputs.today-string}}"
 
-  build-release-artifacts:
-    needs: [ determine-tag ]
-    if: ${{ needs.determine-tag.outputs.tag != '' }}
-    name: Build and release images
-    uses: ./.github/workflows/build-and-push-ecr.yml
-    permissions:
-      id-token: write
-      contents: read
-    with:
-      tag-to-release: ${{ needs.determine-tag.outputs.tag }}
-      repository: cardinalhq/tmp-cardinalhq-otel-collector
-      should-tag-latest: ${{ github.event.inputs.should-tag-latest }}
-    secrets:
-      ECR_ACCOUNT_ID: ${{ secrets.ECR_ACCOUNT_ID }}
-      ECR_ROLE_NAME: ${{ secrets.ECR_ROLE_NAME }}
-      ECR_REGISTRY_REGION: ${{ secrets.ECR_REGISTRY_REGION }}
-
+#  build-release-artifacts:
+#    needs: [ determine-tag ]
+#    if: ${{ needs.determine-tag.outputs.tag != '' }}
+#    name: Build and release images
+#    uses: ./.github/workflows/build-and-push-ecr.yml
+#    permissions:
+#      id-token: write
+#      contents: read
+#    with:
+#      tag-to-release: ${{ needs.determine-tag.outputs.tag }}
+#      repository: cardinalhq/tmp-cardinalhq-otel-collector
+#      should-tag-latest: ${{ github.event.inputs.should-tag-latest }}
+#    secrets:
+#      ECR_ACCOUNT_ID: ${{ secrets.ECR_ACCOUNT_ID }}
+#      ECR_ROLE_NAME: ${{ secrets.ECR_ROLE_NAME }}
+#      ECR_REGISTRY_REGION: ${{ secrets.ECR_REGISTRY_REGION }}
+#

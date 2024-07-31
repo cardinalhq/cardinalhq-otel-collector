@@ -7,6 +7,7 @@ inputs:
   fallback-tag:
     description: Tag to use if target-tag not specified
     required: false
+
 outputs:
   tag:
     value: ${{ steps.determine-tag.outputs.tag }}
@@ -24,7 +25,7 @@ runs:
       id: determine-tag
       shell: bash
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         if [ ! -z '${{ inputs.target-tag }}' ]; then
           echo "Target tag: ${{ inputs.target-tag }}"

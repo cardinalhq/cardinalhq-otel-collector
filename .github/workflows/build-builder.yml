@@ -92,5 +92,3 @@ jobs:
             OTEL_VERSION=${{ inputs.otel-version }}
           tags: |         
             ${{ env.IMAGE_REGISTRY }}${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }}
-
-#${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/cardinalhq/tmp-cardinalhq-otel-collector:builder-latest

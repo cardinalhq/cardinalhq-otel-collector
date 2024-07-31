@@ -22,6 +22,16 @@ on:
 
 jobs:
 
+  build-go-project:
+    name: Build Go!
+    uses: ./.github/workflows/build-go.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      tag-to-build: ${{ inputs.tag-to-deploy || github.ref  }}
+
+
   determine-tag:
     runs-on: ubuntu-latest
 
@@ -29,16 +39,16 @@ jobs:
       id-token: write
       contents: write
     outputs:
-      tag: ${{ steps.determine-target-tag.outputs.tag}}
-      desc: ${{ steps.determine-target-tag.outputs.desc}}
-      today-string: ${{ steps.determine-target-tag.outputs.today-string}}
+      tag: ${{ steps.determine-release-tag.outputs.tag}}
+      desc: ${{ steps.determine-release-tag.outputs.desc}}
+      today-string: ${{ steps.determine-release-tag.outputs.today-string}}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Fetch all history for all branches and tags
 
-      - uses: ./.github/actions/determine-target-tag
-        id: determine-target-tag
+      - uses: ./.github/actions/determine-release-tag
+        id: determine-release-tag
         with:
           target-tag: ${{ github.event.inputs.tag-to-deploy }}
 

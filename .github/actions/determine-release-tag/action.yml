@@ -1,5 +1,5 @@
-name: Create or get target tag
-description: either uses a manually specified tag or determines the most recent tag and bumps it
+name: Create or get target release tag
+description: Either validates a manually specified tag or determines the most recent tag and bumps it as a release tag
 inputs:
   target-tag:
     description: The git tag passed by user to validate. if not passed use git ref context
@@ -18,8 +18,8 @@ runs:
   using: composite
   steps:
 
-    - name: Determine tag
-      id: determine-tag
+    - name: Determine release tag
+      id: determine-release-tag
       shell: bash
       run: |
         if [ ! -z '${{ inputs.target-tag }}' ]; then

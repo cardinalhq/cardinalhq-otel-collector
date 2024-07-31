@@ -39,7 +39,7 @@ runs:
           git fetch --tags
           latest_version_tag=$(git describe --tags --match "v*.*.*" --abbrev=0 2>/dev/null || echo "v0.0.0")
           echo "Latest version tag: $latest_version_tag"
-          VERSION=${$latest_version_tag#v}
+          VERSION=${latest_version_tag#v}
           IFS='.' read -r -a VERSION_PARTS <<< "$VERSION"
           # Increment the patch version
           PATCH_VERSION=${VERSION_PARTS[2]}

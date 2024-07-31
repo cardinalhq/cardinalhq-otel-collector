@@ -16,8 +16,6 @@ type Config struct {
 	// ReadTimeout of the http server
 	ReadTimeout           time.Duration `mapstructure:"read_timeout"`
 	MaxMetricDatapointAge time.Duration `mapstructure:"max_metric_datapoint_age"`
-	.breakme
-
 }
 
 var _ component.Config = (*Config)(nil)

@@ -41,7 +41,7 @@ jobs:
         id: determine-target-tag
         with:
           target-tag: ${{ github.event.inputs.tag-to-deploy }}
-          fallback-tag: ${GITHUB_REF##*/}
+          fallback-tag: ${{ github.ref }}
 
       - name: Print outputs
 

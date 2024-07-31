@@ -24,7 +24,7 @@ runs:
       id: determine-tag
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       run: |
         if [ "${{ inputs.target-tag }}" != "" ]; then
           echo "Target tag: ${{ inputs.target-tag }}"

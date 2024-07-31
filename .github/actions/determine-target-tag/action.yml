@@ -23,8 +23,6 @@ runs:
     - name: Determine tag
       id: determine-tag
       shell: bash
-      env:
-
       run: |
         if [ "${{ inputs.target-tag }}" != "" ]; then
           echo "Target tag: ${{ inputs.target-tag }}"

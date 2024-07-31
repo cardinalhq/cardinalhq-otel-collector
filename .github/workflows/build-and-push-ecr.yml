@@ -16,6 +16,10 @@ on:
       repository:
         type: string
         required: true
+      public-registry:
+        type: boolean
+        required: true
+        default: false
       should-tag-latest:
         type: string
         required: true
@@ -59,8 +63,8 @@ jobs:
       - name: Build and test each module
         id: build-modules
         run: |
-          DYN_PATH=$(ls -1d {receiver,processor,exporter,extension}/*)
-          MODULE_SOURCE_PATHS="internal $DYN_PATH"
+          
+          MODULE_SOURCE_PATHS=$MOD_DIRS
           for i in $MODULE_SOURCE_PATHS; do \
             (echo ============ generating $i ... ; cd $i && go generate -v -n -x ./...)
           done
@@ -72,7 +76,7 @@ jobs:
           for i in $MODULE_SOURCE_PATHS; do \
             (echo ============ testing $i ... ; cd $i && go test ./...)
           done
-  
+
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -100,9 +104,20 @@ jobs:
 
 
 
-      - name: Login to Amazon ECR
-        id: login-ecr
+      - name: Login to PUBLIC Amazon ECR
+        if: ${{ inputs.public-registry }}
+        env:
+          AWS_REGION: us-east-1
+        id: login-ecr-public
         uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
+
+      - name: Login to PRIVATE Amazon ECR
+        if: ${{ !inputs.public-registry }}
+        id: login-ecr-private
+        uses: aws-actions/amazon-ecr-login@v2
+
 
       - name: Build and push (latest)
         if: ${{ inputs.should-tag-latest == 'true' }}

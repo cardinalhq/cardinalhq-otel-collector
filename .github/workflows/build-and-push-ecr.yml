@@ -66,9 +66,9 @@ jobs:
         run: |
           DYN_PATH=$(ls -1d {receiver,processor,exporter,extension}/*)
           MODULE_SOURCE_PATHS="internal $DYN_PATH"
-          for i in $MODULE_SOURCE_PATHS; do \
-            (echo ============ generating $i ... ; cd $i && go generate -v ./...) \
-          done
+#          for i in $MODULE_SOURCE_PATHS; do \
+#            (echo ============ generating $i ... ; cd $i && go generate -v ./...) \
+#          done
           
           for i in $MODULE_SOURCE_PATHS; do \
             (echo ============ testing $i ... ; cd $i && go test ./...) \

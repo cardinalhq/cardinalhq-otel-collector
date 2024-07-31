@@ -23,6 +23,8 @@ runs:
     - name: Determine tag
       id: determine-tag
       shell: bash
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         if [ ! -z '${{ inputs.target-tag }}' ]; then
           echo "Target tag: ${{ inputs.target-tag }}"

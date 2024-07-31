@@ -1,11 +1,8 @@
-name: Determine target tag
-description: either uses a manually specified tag or determines the most recent versioned tag
+name: Create or get target tag
+description: either uses a manually specified tag or determines the most recent tag and bumps it
 inputs:
   target-tag:
-    description: The tag to deploy, or latest versioned tag if not specified
-    required: false
-  fallback-tag:
-    description: Tag to use if target-tag not specified
+    description: The git tag passed by user to validate. if not passed use git ref context
     required: false
 
 outputs:
@@ -28,14 +25,14 @@ runs:
         if [ ! -z '${{ inputs.target-tag }}' ]; then
           echo "Target tag: ${{ inputs.target-tag }}"
           target_tag=$(git tag -l '${{ inputs.target-tag }}')
-         
-        elif [ ! -z '${{ inputs.fallback-tag }}' -a '${{ inputs.fallback-tag }}' != 'refs/heads/main' ]; then
-          echo "Fallback tag: ${{ inputs.fallback-tag }}"
-          TAG_REF='${{ inputs.fallback-tag }}'
+        elif [ ! -z '${{ github.ref  }}' -a '${{ github.ref  }}' != 'refs/heads/main' ]; then
+          echo "Github ref: ${{ github.ref  }}"
+          TAG_REF='${{ github.ref  }}'
           TAG_BARE=${TAG_REF#refs/tags/}
           echo "Bare tag: $TAG_BARE"
           target_tag=$(git tag -l $TAG_BARE)
         else
+          echo "Falling back to incrementing and pushing the most recent versioned tag"
           #increment patch if tag is blank
           git fetch --tags
           latest_version_tag=$(git describe --tags --match "v*.*.*" --abbrev=0 2>/dev/null || echo "v0.0.0")

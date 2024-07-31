@@ -64,11 +64,11 @@ jobs:
       - name: Build and test each module
         id: build-modules
         run: |
-          for i in $(MOD_DIRS); do \
+          for i in $MOD_DIRS; do \
             (echo ============ generating $$i ... ; cd $$i && go generate -v ./...) \
           done
           
-          for i in $(MOD_DIRS); do \
+          for i in $MOD_DIRS; do \
             (echo ============ testing $$i ... ; cd $$i && go test ./...) \
           done
   

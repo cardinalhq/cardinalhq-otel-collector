@@ -16,8 +16,10 @@ on:
         required: true
         default: latest
         description:  Docker OTEL tag
-
-
+env:
+  IMAGE_REGISTRY: public.ecr.aws/cardinalhq.io/
+  IMAGE_REPOSITORY: tmp-cardinalhq-otel-collector
+  IMAGE_TAG: builder-latest
 jobs:
 
   build-and-push-to-ecr:
@@ -77,5 +79,7 @@ jobs:
           build-args: |
             GIT_BRANCH=${{ inputs.tag-to-release }}
             OTEL_VERSION=${{ inputs.otel-version }}
-          tags: | 
-            ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/cardinalhq/tmp-cardinalhq-otel-collector:builder-latest
+          tags: |         
+            ${{ env.IMAGE_REGISTRY }}${{ env.IMAGE_REGISTRY }}:${{ env.IMAGE_TAG }}
+
+#${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/cardinalhq/tmp-cardinalhq-otel-collector:builder-latest

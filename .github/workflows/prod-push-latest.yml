@@ -62,7 +62,10 @@ jobs:
       contents: read
     with:
       tag-to-release: ${{ needs.determine-tag.outputs.tag }}
-      repository: cardinalhq/tmp-cardinalhq-otel-collector
+      #registry: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/
+      #repository: cardinalhq/tmp-cardinalhq-otel-collector
+      registry: public.ecr.aws/cardinalhq.io/
+      repository: tmp-cardinalhq-otel-collector
       should-tag-latest: ${{ github.event.inputs.should-tag-latest }}
     secrets:
       ECR_ACCOUNT_ID: ${{ secrets.ECR_ACCOUNT_ID }}

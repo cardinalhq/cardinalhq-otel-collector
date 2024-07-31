@@ -10,6 +10,9 @@ on:
       tag-to-release:
         type: string
         required: true
+      registry:
+        type: string
+        required: true
       repository:
         type: string
         required: true
@@ -109,10 +112,10 @@ jobs:
           push: true
           build-args: |
             GIT_BRANCH=${{ inputs.tag-to-release }}
-            BUILDER_REPO=${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/${{ inputs.repository }}
+            BUILDER_REPO=${{ inputs.registry }}${{ inputs.repository }}
           tags: |
-            ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/${{ inputs.repository }}:latest
-            ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/${{ inputs.repository }}:${{ inputs.tag-to-release }}
+            ${{ inputs.registry }}${{ inputs.repository }}:latest
+            ${{ inputs.registry }}${{ inputs.repository }}:${{ inputs.tag-to-release }}
 
       - name: Build and push
         if: ${{ inputs.should-tag-latest != 'true' }}
@@ -123,6 +126,6 @@ jobs:
           push: true
           build-args: |
             GIT_BRANCH=${{ inputs.tag-to-release }}
-            BUILDER_REPO=${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/${{ inputs.repository }}
+            BUILDER_REPO=${{ inputs.registry }}${{ inputs.repository }}
           tags: |
-            ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/${{ inputs.repository }}:${{ inputs.tag-to-release }}
+            ${{ inputs.registry }}${{ inputs.repository }}:${{ inputs.tag-to-release }}

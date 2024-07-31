@@ -65,7 +65,7 @@ jobs:
         id: buildx
 
       - name: Login to PUBLIC Amazon ECR
-        if: startsWith(env.IMAGE_REGISTRY, 'public.ecr.aws')
+        if: ${{ startsWith(env.IMAGE_REGISTRY, 'public.ecr.aws') }}
         env:
           AWS_REGION: us-east-1
         id: login-ecr-public
@@ -74,7 +74,7 @@ jobs:
           registry-type: public
 
       - name: Login to PRIVATE Amazon ECR
-        if: !startsWith(env.IMAGE_REGISTRY, 'public.ecr.aws')
+        if: ${{ !startsWith(env.IMAGE_REGISTRY, 'public.ecr.aws') }}
         id: login-ecr-private
         uses: aws-actions/amazon-ecr-login@v2
 

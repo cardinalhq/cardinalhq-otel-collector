@@ -20,7 +20,7 @@ on:
         required: true
       should-use-public-ecr:
         description: 'Push to public ECR (false=private)'
-        type: boolean
+        type: string
         default: true
 
     secrets:

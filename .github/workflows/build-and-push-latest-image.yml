@@ -24,7 +24,6 @@ on:
 env:
 
   PUBLIC_IMAGE_REGISTRY: public.ecr.aws/cardinalhq.io/
-  PRIVATE_IMAGE_REGISTRY: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/
   PUBLIC_IMAGE_REPOSITORY: tmp-cardinalhq-otel-collector
   PRIVATE_IMAGE_REPOSITORY: cardinalhq/tmp-cardinalhq-otel-collector
   IMAGE_REGISTRY: ""
@@ -49,8 +48,8 @@ jobs:
       - name: Set private ECR if disabled
         if: ${{ github.event.inputs.should-use-public-ecr == 'false' }}
         run: |
-          echo "IMAGE_REGISTRY=${{ env.PRIVATE_IMAGE_REGISTRY }}" >> $GITHUB_ENV
           echo "IMAGE_REPOSITORY=${{ env.PRIVATE_IMAGE_REPOSITORY }}" >> $GITHUB_ENV
+          # private registry will be set in sub workflow due to the use of secrets
 
       - name: set outputs with default values
         id: set-output-defaults

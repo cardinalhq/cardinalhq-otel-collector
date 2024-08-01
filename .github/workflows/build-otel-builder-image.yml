@@ -22,8 +22,8 @@ on:
 env:
   PUBLIC_IMAGE_REGISTRY: public.ecr.aws/cardinalhq.io/
   PRIVATE_IMAGE_REGISTRY: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/
-  PUBLIC_IMAGE_REPOSITORY: tmp-cardinalhq-otel-collector
-  PRIVATE_IMAGE_REPOSITORY: cardinalhq/tmp-cardinalhq-otel-collector
+  PUBLIC_IMAGE_REPOSITORY: cardinalhq-otel-collector
+  PRIVATE_IMAGE_REPOSITORY: cardinalhq/cardinalhq-otel-collector
   IMAGE_REGISTRY: ""
   IMAGE_REPOSITORY: ""
   IMAGE_TAG: builder-latest

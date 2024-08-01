@@ -3,7 +3,6 @@
 
 
 name: Build OTEL builder image (pre-build)
-
 on:
   workflow_dispatch:
     inputs:

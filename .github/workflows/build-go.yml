@@ -1,7 +1,6 @@
 # This workflow will build a golang project
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
 
-
 name: z_internal Builds a Go project
 
 on:
@@ -12,8 +11,7 @@ on:
         required: true
       go-version:
         type: string
-        required: false
-        default: '1.22'
+        required: true
 
 
 jobs:

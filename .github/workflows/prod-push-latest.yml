@@ -3,12 +3,6 @@
 
 
 name: Build and push to the latest tag to prod
-env:
-  #registry: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/
-  #repository: cardinalhq/tmp-cardinalhq-otel-collector
-  registry: public.ecr.aws/cardinalhq.io/
-  repository: tmp-cardinalhq-otel-collector
-  public-registry: true
 on:
   push:
     tags:
@@ -24,6 +18,12 @@ on:
         required: true
         default: true
 
+env:
+  #registry: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/
+  #repository: cardinalhq/tmp-cardinalhq-otel-collector
+  registry: public.ecr.aws/cardinalhq.io/
+  repository: tmp-cardinalhq-otel-collector
+  public-registry: true
 
 jobs:
 

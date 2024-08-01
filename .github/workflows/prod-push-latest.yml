@@ -14,13 +14,13 @@ on:
         required: true
         default: true
 
+#registry: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/
+#repository: cardinalhq/tmp-cardinalhq-otel-collector
+
 env:
-  #registry: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/
-  #repository: cardinalhq/tmp-cardinalhq-otel-collector
   registry: public.ecr.aws/cardinalhq.io/
   repository: tmp-cardinalhq-otel-collector
   go-version: '1.22'
-
 
 jobs:
 

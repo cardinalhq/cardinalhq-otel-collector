@@ -1,4 +1,4 @@
-name: z-legacy-Docker Image CI
+name: z- legacy-Docker Image CI
 
 on:
   workflow_dispatch:

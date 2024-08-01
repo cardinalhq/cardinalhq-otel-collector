@@ -1,4 +1,4 @@
-name: z- Build and push a Go project to ecr
+name: z- Docker build and push a Go project to ecr
 
 on:
   workflow_call:

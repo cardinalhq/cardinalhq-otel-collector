@@ -1,0 +1,124 @@
+# This workflow will build a specific git tag if passed (either manually invoked or from a pushed version tag,
+# otherwise it will build from main and auto-increment-and-tag based off the most recent version tag.
+# If manually invoking, you can choose NOT to tag the docker image with "latest"
+name: Build, create docker images and push to ECR
+on:
+  push:
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+*
+  
+  workflow_dispatch:
+    inputs:
+      tag-to-deploy:
+        description: 'Git tag to build and push (blank to build and tag main)'
+        required: false
+      should-use-public-ecr:
+        description: 'Push to public ECR (false=private)'
+        required: true
+        default: true
+      should-tag-latest:
+        description: 'Tags the resulting docker image latest'
+        required: true
+        default: true
+
+env:
+
+  PUBLIC_IMAGE_REGISTRY: public.ecr.aws/cardinalhq.io/
+  PUBLIC_IMAGE_REPOSITORY: cardinalhq-otel-collector
+  PRIVATE_IMAGE_REPOSITORY: cardinalhq/cardinalhq-otel-collector
+  IMAGE_REGISTRY: ""
+  IMAGE_REPOSITORY: ""
+  GO_VERSION: '1.22'
+
+jobs:
+
+  env-setup:
+    runs-on: ubuntu-latest
+    outputs:
+      GO_VERSION: ${{ steps.set-output-defaults.outputs.GO_VERSION }}
+      IMAGE_REGISTRY: ${{ steps.set-output-defaults.outputs.IMAGE_REGISTRY }}
+      IMAGE_REPOSITORY: ${{ steps.set-output-defaults.outputs.IMAGE_REPOSITORY }}
+    steps:
+      - name: Set public ECR if enabled
+        if: ${{ github.event.inputs.should-use-public-ecr == 'true' }}
+        run: |
+          echo "IMAGE_REGISTRY=${{ env.PUBLIC_IMAGE_REGISTRY }}" >> $GITHUB_ENV
+          echo "IMAGE_REPOSITORY=${{ env.PUBLIC_IMAGE_REPOSITORY }}" >> $GITHUB_ENV
+
+      - name: Set private ECR if disabled
+        if: ${{ github.event.inputs.should-use-public-ecr == 'false' }}
+        run: |
+          echo "IMAGE_REPOSITORY=${{ env.PRIVATE_IMAGE_REPOSITORY }}" >> $GITHUB_ENV
+          # private registry will be set in sub workflow due to the use of secrets
+
+      - name: set outputs with default values
+        id: set-output-defaults
+        run: |
+          echo "GO_VERSION=${{ env.GO_VERSION }}" >> $GITHUB_OUTPUT
+          echo "IMAGE_REGISTRY=${{ env.IMAGE_REGISTRY }}" >> $GITHUB_OUTPUT
+          echo "IMAGE_REPOSITORY=${{ env.IMAGE_REPOSITORY }}" >> $GITHUB_OUTPUT
+          echo "GO_VERSION=${{ env.GO_VERSION }}"
+          echo "IMAGE_REGISTRY=${{ env.IMAGE_REGISTRY }}"
+          echo "IMAGE_REPOSITORY=${{ env.IMAGE_REPOSITORY }}"
+          
+
+  build-go-project:
+    needs: [env-setup]
+    name: Build Go!
+    uses: ./.github/workflows/z-build-go.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      tag-to-build: ${{ github.event.inputs.tag-to-deploy || github.ref  }}
+      go-version: ${{ needs.env-setup.outputs.GO_VERSION }}
+
+
+  release-tag:
+    needs: [build-go-project]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+    outputs:
+      tag: ${{ steps.determine-release-tag.outputs.tag}}
+      desc: ${{ steps.determine-release-tag.outputs.desc}}
+      today-string: ${{ steps.determine-release-tag.outputs.today-string}}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for all branches and tags
+
+      - uses: ./.github/actions/determine-release-tag
+        id: determine-release-tag
+        with:
+          target-tag: ${{ github.event.inputs.tag-to-deploy }}
+
+      - name: Print outputs
+        id: print-outputs
+        run: |   
+          echo "Target tag!: ${{ steps.determine-release-tag.outputs.tag}}"
+          echo "Taget tag desc:    ${{ steps.determine-release-tag.outputs.desc}}"
+          echo "Hash:   ${{ steps.determine-release-tag.outputs.hash}}"
+          echo "Today-string:   ${{ steps.determine-release-tag.outputs.today-string}}"
+
+  build-release-artifacts:
+    needs: [ release-tag,env-setup ]
+    if: ${{ needs.release-tag.outputs.tag != '' }}
+    name: Build and release images
+    uses: ./.github/workflows/z-docker-build-push-ecr-go.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      tag-to-release: ${{ needs.release-tag.outputs.tag }}
+      registry: ${{ needs.env-setup.outputs.IMAGE_REGISTRY }}
+      repository: ${{ needs.env-setup.outputs.IMAGE_REPOSITORY }}
+      should-tag-latest: ${{ github.event.inputs.should-tag-latest }}
+      go-version: ${{ needs.env-setup.outputs.GO_VERSION }}
+      should-use-public-ecr: ${{ github.event.inputs.should-use-public-ecr }}
+    secrets:
+      ECR_ACCOUNT_ID: ${{ secrets.ECR_ACCOUNT_ID }}
+      ECR_ROLE_NAME: ${{ secrets.ECR_ROLE_NAME }}
+      ECR_REGISTRY_REGION: ${{ secrets.ECR_REGISTRY_REGION }}
+

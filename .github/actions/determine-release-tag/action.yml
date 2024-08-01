@@ -1,0 +1,59 @@
+name: Create or get target release tag
+description: Either validates a manually specified tag or determines the most recent tag and bumps it as a release tag
+inputs:
+  target-tag:
+    description: The git tag passed by user to validate. if not passed use git ref context
+    required: false
+
+outputs:
+  tag:
+    value: ${{ steps.determine-release-tag.outputs.tag }}
+  desc:
+    value: ${{ steps.determine-release-tag.outputs.desc }}
+  hash:
+    value: ${{ steps.determine-release-tag.outputs.hash }}
+  today-string:
+    value: ${{ steps.determine-release-tag.outputs.today-string }}
+runs:
+  using: composite
+  steps:
+
+    - name: Determine release tag
+      id: determine-release-tag
+      shell: bash
+      run: |
+        if [ ! -z '${{ inputs.target-tag }}' ]; then
+          echo "Target tag: ${{ inputs.target-tag }}"
+          target_tag=$(git tag -l '${{ inputs.target-tag }}')
+        elif [ ! -z '${{ github.ref  }}' -a '${{ github.ref  }}' != 'refs/heads/main' ]; then
+          echo "Github ref: ${{ github.ref  }}"
+          TAG_REF='${{ github.ref  }}'
+          TAG_BARE=${TAG_REF#refs/tags/}
+          echo "Bare tag: $TAG_BARE"
+          target_tag=$(git tag -l $TAG_BARE)
+        else
+          echo "Falling back to incrementing and pushing the most recent versioned tag"
+          #increment patch if tag is blank
+          git fetch --tags
+          latest_version_tag=$(git describe --tags --match "v*.*.*" --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest version tag: $latest_version_tag"
+          VERSION=${latest_version_tag#v}
+          IFS='.' read -r -a VERSION_PARTS <<< "$VERSION"
+          # Increment the patch version
+          PATCH_VERSION=${VERSION_PARTS[2]}
+          PATCH_VERSION=$((PATCH_VERSION + 1))
+          # Form the new tag
+          NEW_TAG="v${VERSION_PARTS[0]}.${VERSION_PARTS[1]}.$PATCH_VERSION"
+          echo "New tag: $NEW_TAG"
+          git config user.name "Cardinal Github Bot"
+          git config user.email cardinal.github@cardinalhq.io
+          git tag -a $NEW_TAG -m "Auto-increment from GH release workflow"
+          git push origin $NEW_TAG
+          target_tag=$NEW_TAG
+        fi
+          tag_desc=$(git describe --tags --match "${target_tag}" 2>/dev/null)
+          tag_hash=$(git rev-list -n 1 $tag_desc)
+          echo "tag=$target_tag" >> $GITHUB_OUTPUT
+          echo "desc=$tag_desc" >> $GITHUB_OUTPUT
+          echo "hash=$tag_hash" >> $GITHUB_OUTPUT
+          echo "today-string=$(date +%Y%m%d)" >> $GITHUB_OUTPUT

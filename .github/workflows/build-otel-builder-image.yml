@@ -1,0 +1,115 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+
+name: Build OTEL builder image (pre-build)
+on:
+  workflow_dispatch:
+    inputs:
+      tag-to-release:
+        type: string
+        required: false
+        description: Git tag to release (empty=head)
+      otel-version:
+        type: string
+        required: true
+        default: latest
+        description:  Docker OTEL tag
+      should-use-public-ecr:
+        description: 'Push to public ECR (false=private)'
+        required: true
+        default: true
+env:
+  PUBLIC_IMAGE_REGISTRY: public.ecr.aws/cardinalhq.io/
+  PRIVATE_IMAGE_REGISTRY: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/
+  PUBLIC_IMAGE_REPOSITORY: cardinalhq-otel-collector
+  PRIVATE_IMAGE_REPOSITORY: cardinalhq/cardinalhq-otel-collector
+  IMAGE_REGISTRY: ""
+  IMAGE_REPOSITORY: ""
+  IMAGE_TAG: builder-latest
+  GO_VERSION: '1.22'
+
+jobs:
+
+  build-and-push-to-ecr:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Set public ECR if enabled
+        if: ${{ github.event.inputs.should-use-public-ecr == 'true' }}
+        run: |
+          echo "IMAGE_REGISTRY=${{ env.PUBLIC_IMAGE_REGISTRY }}" >> $GITHUB_ENV
+          echo "IMAGE_REPOSITORY=${{ env.PUBLIC_IMAGE_REPOSITORY }}" >> $GITHUB_ENV
+
+      - name: Set private ECR if disabled
+        if: ${{ github.event.inputs.should-use-public-ecr == 'false' }}
+        run: |
+          echo "IMAGE_REGISTRY=${{ env.PRIVATE_IMAGE_REGISTRY }}" >> $GITHUB_ENV
+          echo "IMAGE_REPOSITORY=${{ env.PRIVATE_IMAGE_REPOSITORY }}" >> $GITHUB_ENV
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for all branches and tags
+          ref: ${{ inputs.tag-to-release }}
+
+      - name: Inspect builder
+        run: |
+            echo "Name:      ${{ steps.buildx.outputs.name }}"
+            echo "Endpoint:  ${{ steps.buildx.outputs.endpoint }}"
+            echo "Status:    ${{ steps.buildx.outputs.status }}"
+            echo "Flags:     ${{ steps.buildx.outputs.flags }}"
+            echo "Platforms: ${{ steps.buildx.outputs.platforms }}"
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          audience: sts.amazonaws.com
+          role-to-assume: arn:aws:iam::${{ secrets.ECR_ACCOUNT_ID }}:role/${{ secrets.ECR_ROLE_NAME }}
+          aws-region: ${{ secrets.ECR_REGISTRY_REGION }}
+          role-session-name: GitHubActions
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        id: buildx
+
+      - name: Login to PUBLIC Amazon ECR
+        if: ${{ startsWith(env.IMAGE_REGISTRY, 'public.ecr.aws') }}
+        env:
+          AWS_REGION: us-east-1
+        id: login-ecr-public
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
+
+      - name: Login to PRIVATE Amazon ECR
+        if: ${{ !startsWith(env.IMAGE_REGISTRY, 'public.ecr.aws') }}
+        id: login-ecr-private
+        uses: aws-actions/amazon-ecr-login@v2
+
+
+
+      - name: Build the builder
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64,linux/arm64
+          context: .
+          file: Dockerfile.pre-build
+          push: true
+          build-args: |
+            GIT_BRANCH=${{ inputs.tag-to-release }}
+            OTEL_VERSION=${{ inputs.otel-version }}
+          tags: |         
+            ${{ env.IMAGE_REGISTRY }}${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }}

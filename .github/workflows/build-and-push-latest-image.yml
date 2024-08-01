@@ -58,6 +58,13 @@ jobs:
           echo "GO_VERSION=${{ env.GO_VERSION }}" >> $GITHUB_OUTPUT
           echo "IMAGE_REGISTRY=${{ env.IMAGE_REGISTRY }}" >> $GITHUB_OUTPUT
           echo "IMAGE_REPOSITORY=${{ env.IMAGE_REPOSITORY }}" >> $GITHUB_OUTPUT
+          echo "GO_VERSION=${{ env.GO_VERSION }}"
+          echo "IMAGE_REGISTRY=${{ env.IMAGE_REGISTRY }}"
+          echo "IMAGE_REPOSITORY=${{ env.IMAGE_REPOSITORY }}"
+          echo "GO_VERSION=${GO_VERSION}"
+          echo "IMAGE_REGISTRY=${IMAGE_REGISTRY}"
+          echo "IMAGE_REPOSITORY=${IMAGE_REPOSITORY}"
+          
 
   build-go-project:
     needs: [env-setup]

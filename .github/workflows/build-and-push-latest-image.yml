@@ -15,6 +15,10 @@ on:
         default: true
 
 env:
+
+  #registry: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/
+  #repository: cardinalhq/tmp-cardinalhq-otel-collector
+
   IMAGE_REGISTRY: public.ecr.aws/cardinalhq.io/
   IMAGE_REPOSITORY: tmp-cardinalhq-otel-collector
   GO_VERSION: '1.22'

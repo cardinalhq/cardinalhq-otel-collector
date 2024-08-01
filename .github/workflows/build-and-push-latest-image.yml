@@ -15,15 +15,14 @@ on:
         default: true
 
 env:
-
-  #registry: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/
-  #repository: cardinalhq/tmp-cardinalhq-otel-collector
-
+  #IMAGE_REGISTRY: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/
   IMAGE_REGISTRY: public.ecr.aws/cardinalhq.io/
   IMAGE_REPOSITORY: tmp-cardinalhq-otel-collector
   GO_VERSION: '1.22'
 
 jobs:
+  # doing this whole env-setup thing because I wanted the env vars at the top of this workflow, but they are not avail
+  # in the places I need them down below without going this weird work-around.  probably not worth it in the end :(
   env-setup:
     runs-on: ubuntu-latest
     outputs:

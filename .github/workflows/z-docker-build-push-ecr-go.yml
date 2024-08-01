@@ -18,6 +18,10 @@ on:
       go-version:
         type: string
         required: true
+      should-use-public-ecr:
+        description: 'Push to public ECR (false=private)'
+        type: boolean
+        default: true
 
     secrets:
       ECR_ACCOUNT_ID:
@@ -26,6 +30,10 @@ on:
         required: true
       ECR_REGISTRY_REGION:
         required: true
+
+env:
+  PRIVATE_IMAGE_REGISTRY: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/
+  IMAGE_REGISTRY: ""
 
 jobs:
 
@@ -37,6 +45,17 @@ jobs:
       contents: read
 
     steps:
+      - name: Set public ECR if enabled
+        if: ${{ inputs.should-use-public-ecr == 'true' }}
+        run: |
+          echo "IMAGE_REGISTRY=${{ inputs.registry }}" >> $GITHUB_ENV
+         
+
+      - name: Set private ECR if disabled
+        if: ${{ inputs.should-use-public-ecr != 'true' }}
+        run: |
+          echo "IMAGE_REGISTRY=${{ env.PRIVATE_IMAGE_REGISTRY }}" >> $GITHUB_ENV
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
@@ -72,7 +91,7 @@ jobs:
           echo "Platforms: ${{ steps.buildx.outputs.platforms }}"
 
       - name: Login to PUBLIC Amazon ECR
-        if: ${{ startsWith(inputs.registry, 'public.ecr.aws') }}
+        if: ${{ inputs.should-use-public-ecr == 'true' }}
         env:
           AWS_REGION: us-east-1
         id: login-ecr-public
@@ -81,7 +100,7 @@ jobs:
           registry-type: public
 
       - name: Login to PRIVATE Amazon ECR
-        if: ${{ !startsWith(inputs.registry, 'public.ecr.aws') }}
+        if: ${{ inputs.should-use-public-ecr != 'true' }}
         id: login-ecr-private
         uses: aws-actions/amazon-ecr-login@v2
 
@@ -94,10 +113,10 @@ jobs:
           push: true
           build-args: |
             GIT_BRANCH=${{ inputs.tag-to-release }}
-            BUILDER_REPO=${{ inputs.registry }}${{ inputs.repository }}
+            BUILDER_REPO=${{ env.IMAGE_REGISTRY }}${{ inputs.repository }}
           tags: |
-            ${{ inputs.registry }}${{ inputs.repository }}:latest
-            ${{ inputs.registry }}${{ inputs.repository }}:${{ inputs.tag-to-release }}
+            ${{ env.IMAGE_REGISTRY }}${{ inputs.repository }}:latest
+            ${{ env.IMAGE_REGISTRY }}${{ inputs.repository }}:${{ inputs.tag-to-release }}
 
       - name: Build and push
         if: ${{ inputs.should-tag-latest != 'true' }}
@@ -108,6 +127,6 @@ jobs:
           push: true
           build-args: |
             GIT_BRANCH=${{ inputs.tag-to-release }}
-            BUILDER_REPO=${{ inputs.registry }}${{ inputs.repository }}
+            BUILDER_REPO=${{ env.IMAGE_REGISTRY }}${{ inputs.repository }}
           tags: |
-            ${{ inputs.registry }}${{ inputs.repository }}:${{ inputs.tag-to-release }}
+            ${{ env.IMAGE_REGISTRY }}${{ inputs.repository }}:${{ inputs.tag-to-release }}

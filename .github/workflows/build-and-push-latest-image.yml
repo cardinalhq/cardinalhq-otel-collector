@@ -61,9 +61,6 @@ jobs:
           echo "GO_VERSION=${{ env.GO_VERSION }}"
           echo "IMAGE_REGISTRY=${{ env.IMAGE_REGISTRY }}"
           echo "IMAGE_REPOSITORY=${{ env.IMAGE_REPOSITORY }}"
-          echo "GO_VERSION=${GO_VERSION}"
-          echo "IMAGE_REGISTRY=${IMAGE_REGISTRY}"
-          echo "IMAGE_REPOSITORY=${IMAGE_REPOSITORY}"
           
 
   build-go-project:
@@ -120,6 +117,7 @@ jobs:
       repository: ${{ needs.env-setup.outputs.IMAGE_REPOSITORY }}
       should-tag-latest: ${{ github.event.inputs.should-tag-latest }}
       go-version: ${{ needs.env-setup.outputs.GO_VERSION }}
+      should-use-public-ecr: ${{ github.event.inputs.should-use-public-ecr }}
     secrets:
       ECR_ACCOUNT_ID: ${{ secrets.ECR_ACCOUNT_ID }}
       ECR_ROLE_NAME: ${{ secrets.ECR_ROLE_NAME }}

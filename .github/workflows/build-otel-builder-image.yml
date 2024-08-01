@@ -19,6 +19,7 @@ env:
   IMAGE_REGISTRY: public.ecr.aws/cardinalhq.io/
   IMAGE_REPOSITORY: tmp-cardinalhq-otel-collector
   IMAGE_TAG: builder-latest
+  GO_VERSION: ${{ env.GO_VERSION }}
 jobs:
 
   build-and-push-to-ecr:

@@ -1,4 +1,4 @@
-name: z_internal Build and push a specific tag to ecr
+name: z- Build and push a Go project to ecr
 
 on:
   workflow_call:

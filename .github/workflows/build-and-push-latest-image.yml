@@ -18,21 +18,21 @@ on:
 #repository: cardinalhq/tmp-cardinalhq-otel-collector
 
 env:
-  registry: public.ecr.aws/cardinalhq.io/
-  repository: tmp-cardinalhq-otel-collector
-  go-version: '1.22'
+  REGISTRY: public.ecr.aws/cardinalhq.io/
+  REPOSITORY: tmp-cardinalhq-otel-collector
+  GO_VERSION: '1.22'
 
 jobs:
 
   build-go-project:
     name: Build Go!
-    uses: ./.github/workflows/build-go.yml
+    uses: ./.github/workflows/z-build-go.yml
     permissions:
       id-token: write
       contents: read
     with:
       tag-to-build: ${{ github.event.inputs.tag-to-deploy || github.ref  }}
-      go-version: ${{ env.go-version }}
+      go-version: ${{ env.GO_VERSION }}
 
 
   release-tag:
@@ -67,14 +67,14 @@ jobs:
     needs: [ release-tag ]
     if: ${{ needs.release-tag.outputs.tag != '' }}
     name: Build and release images
-    uses: ./.github/workflows/docker-build-push-ecr-go.yml
+    uses: ./.github/workflows/z-docker-build-push-ecr-go.yml
     permissions:
       id-token: write
       contents: read
     with:
       tag-to-release: ${{ needs.release-tag.outputs.tag }}
-      registry: ${{ env.registry }}
-      repository: ${{ env.repository }}
+      registry: ${{ env.REGISTRY }}
+      repository: ${{ env.REPOSITORY }}
       should-tag-latest: ${{ github.event.inputs.should-tag-latest }}
     secrets:
       ECR_ACCOUNT_ID: ${{ secrets.ECR_ACCOUNT_ID }}

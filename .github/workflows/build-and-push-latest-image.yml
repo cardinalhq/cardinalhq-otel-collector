@@ -1,4 +1,7 @@
-name: Build and push to the latest tag to prod
+# This workflow will build a specific git tag if passed (either manually invoked or from a pushed version tag,
+# otherwise it will build from main and auto-increment-and-tag based off the most recent version tag.
+# If manually invoking, you can choose NOT to tag the docker image with "latest"
+name: Build, create docker images and push to ECR
 on:
   push:
     tags:
@@ -9,20 +12,27 @@ on:
       tag-to-deploy:
         description: 'Git tag to build and push (blank to build and tag main)'
         required: false
+      should-use-public-ecr:
+        description: 'Push to public ECR (false=private)'
+        required: true
+        default: true
       should-tag-latest:
         description: 'Tags the resulting docker image latest'
         required: true
         default: true
 
 env:
-  #IMAGE_REGISTRY: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/
-  IMAGE_REGISTRY: public.ecr.aws/cardinalhq.io/
-  IMAGE_REPOSITORY: tmp-cardinalhq-otel-collector
+
+  PUBLIC_IMAGE_REGISTRY: public.ecr.aws/cardinalhq.io/
+  PRIVATE_IMAGE_REGISTRY: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/
+  PUBLIC_IMAGE_REPOSITORY: tmp-cardinalhq-otel-collector
+  PRIVATE_IMAGE_REPOSITORY: cardinalhq/tmp-cardinalhq-otel-collector
+  IMAGE_REGISTRY: ""
+  IMAGE_REPOSITORY: ""
   GO_VERSION: '1.22'
 
 jobs:
-  # doing this whole env-setup thing because I wanted the env vars at the top of this workflow, but they are not avail
-  # in the places I need them down below without going this weird work-around.  probably not worth it in the end :(
+
   env-setup:
     runs-on: ubuntu-latest
     outputs:
@@ -30,6 +40,18 @@ jobs:
       IMAGE_REGISTRY: ${{ steps.set-output-defaults.outputs.IMAGE_REGISTRY }}
       IMAGE_REPOSITORY: ${{ steps.set-output-defaults.outputs.IMAGE_REPOSITORY }}
     steps:
+      - name: Set public ECR if enabled
+        if: ${{ github.event.inputs.should-use-public-ecr == 'true' }}
+        run: |
+          echo "IMAGE_REGISTRY=${{ env.PUBLIC_IMAGE_REGISTRY }}" >> $GITHUB_ENV
+          echo "IMAGE_REPOSITORY=${{ env.PUBLIC_IMAGE_REPOSITORY }}" >> $GITHUB_ENV
+
+      - name: Set private ECR if disabled
+        if: ${{ github.event.inputs.should-use-public-ecr == 'false' }}
+        run: |
+          echo "IMAGE_REGISTRY=${{ env.PRIVATE_IMAGE_REGISTRY }}" >> $GITHUB_ENV
+          echo "IMAGE_REPOSITORY=${{ env.PRIVATE_IMAGE_REPOSITORY }}" >> $GITHUB_ENV
+
       - name: set outputs with default values
         id: set-output-defaults
         run: |

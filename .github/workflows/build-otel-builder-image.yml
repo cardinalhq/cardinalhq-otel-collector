@@ -15,9 +15,17 @@ on:
         required: true
         default: latest
         description:  Docker OTEL tag
+      should-use-public-ecr:
+        description: 'Push to public ECR (false=private)'
+        required: true
+        default: true
 env:
-  IMAGE_REGISTRY: public.ecr.aws/cardinalhq.io/
-  IMAGE_REPOSITORY: tmp-cardinalhq-otel-collector
+  PUBLIC_IMAGE_REGISTRY: public.ecr.aws/cardinalhq.io/
+  PRIVATE_IMAGE_REGISTRY: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/
+  PUBLIC_IMAGE_REPOSITORY: tmp-cardinalhq-otel-collector
+  PRIVATE_IMAGE_REPOSITORY: cardinalhq/tmp-cardinalhq-otel-collector
+  IMAGE_REGISTRY: ""
+  IMAGE_REPOSITORY: ""
   IMAGE_TAG: builder-latest
   GO_VERSION: '1.22'
 
@@ -31,6 +39,18 @@ jobs:
       contents: read
 
     steps:
+      - name: Set public ECR if enabled
+        if: ${{ github.event.inputs.should-use-public-ecr == 'true' }}
+        run: |
+          echo "IMAGE_REGISTRY=${{ env.PUBLIC_IMAGE_REGISTRY }}" >> $GITHUB_ENV
+          echo "IMAGE_REPOSITORY=${{ env.PUBLIC_IMAGE_REPOSITORY }}" >> $GITHUB_ENV
+
+      - name: Set private ECR if disabled
+        if: ${{ github.event.inputs.should-use-public-ecr == 'false' }}
+        run: |
+          echo "IMAGE_REGISTRY=${{ env.PRIVATE_IMAGE_REGISTRY }}" >> $GITHUB_ENV
+          echo "IMAGE_REPOSITORY=${{ env.PRIVATE_IMAGE_REPOSITORY }}" >> $GITHUB_ENV
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Fetch all history for all branches and tags

@@ -15,8 +15,8 @@ on:
         default: true
 
 env:
-  REGISTRY: public.ecr.aws/cardinalhq.io/
-  REPOSITORY: tmp-cardinalhq-otel-collector
+  IMAGE_REGISTRY: public.ecr.aws/cardinalhq.io/
+  IMAGE_REPOSITORY: tmp-cardinalhq-otel-collector
   GO_VERSION: '1.22'
 
 jobs:
@@ -70,8 +70,8 @@ jobs:
       contents: read
     with:
       tag-to-release: ${{ needs.release-tag.outputs.tag }}
-      registry: ${{ env.REGISTRY }}
-      repository: ${{ env.REPOSITORY }}
+      registry: ${{ env.IMAGE_REGISTRY }}
+      repository: ${{ env.IMAGE_REPOSITORY }}
       should-tag-latest: ${{ github.event.inputs.should-tag-latest }}
     secrets:
       ECR_ACCOUNT_ID: ${{ secrets.ECR_ACCOUNT_ID }}

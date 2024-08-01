@@ -226,7 +226,7 @@ func (e *chqEnforcer) postMetricStats(ctx context.Context, wrapper *chqpb.Metric
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)

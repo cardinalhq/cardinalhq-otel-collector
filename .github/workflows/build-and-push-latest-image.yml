@@ -23,9 +23,16 @@ jobs:
   env-setup:
     runs-on: ubuntu-latest
     outputs:
-      GO_VERSION: ${{ env.GO_VERSION }}
-      IMAGE_REGISTRY: ${{ env.IMAGE_REGISTRY }}
-      IMAGE_REPOSITORY: ${{ env.IMAGE_REPOSITORY }}
+      GO_VERSION: ${{ steps.set-output-defaults.outputs.GO_VERSION }}
+      IMAGE_REGISTRY: ${{ steps.set-output-defaults.outputs.IMAGE_REGISTRY }}
+      IMAGE_REPOSITORY: ${{ steps.set-output-defaults.outputs.IMAGE_REPOSITORY }}
+    steps:
+      - name: set outputs with default values
+        id: set-output-defaults
+        run: |
+          echo "GO_VERSION=${{ env.GO_VERSION }}" >> $GITHUB_OUTPUT
+          echo "IMAGE_REGISTRY=${{ env.IMAGE_REGISTRY }}" >> $GITHUB_OUTPUT
+          echo "IMAGE_REPOSITORY=${{ env.IMAGE_REPOSITORY }}" >> $GITHUB_OUTPUT
 
   build-go-project:
     needs: [env-setup]

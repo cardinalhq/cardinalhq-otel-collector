@@ -33,6 +33,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go-version }}
+          cache-dependency-path: "**/*.sum"
 
       - name: Find all go.mod files
         id: find-modules

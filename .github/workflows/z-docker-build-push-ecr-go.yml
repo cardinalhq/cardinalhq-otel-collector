@@ -46,6 +46,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ inputs.go-version }}
+          cache-dependency-path: "**/*.sum"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2

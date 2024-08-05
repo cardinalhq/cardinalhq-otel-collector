@@ -83,10 +83,10 @@ func (b *MemoryBuffer) ForEach(interval int64, scope string, fn ForEachFunc) err
 	}
 
 	if _, ok := b.records[interval]; !ok {
-		return nil
+		return NoSuchIntervalError
 	}
 	if _, ok := b.records[interval][scope]; !ok {
-		return nil
+		return NoSuchScopeError
 	}
 	buf := bytes.NewReader(b.records[interval][scope].Bytes())
 	return iterate(buf, fn)

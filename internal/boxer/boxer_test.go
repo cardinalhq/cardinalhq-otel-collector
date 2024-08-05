@@ -201,6 +201,7 @@ func TestBox_ForEach(t *testing.T) {
 		tbox     int64
 		scope    string
 		expected []string
+		err      error
 	}{
 		{
 			"no items",
@@ -208,6 +209,7 @@ func TestBox_ForEach(t *testing.T) {
 			1000,
 			"scope1",
 			[]string{},
+			NoSuchIntervalError,
 		},
 		{
 			"one item different tbox",
@@ -221,6 +223,7 @@ func TestBox_ForEach(t *testing.T) {
 			1000,
 			"scope1",
 			[]string{},
+			NoSuchIntervalError,
 		},
 		{
 			"one item, this tbox",
@@ -234,6 +237,7 @@ func TestBox_ForEach(t *testing.T) {
 			1000,
 			"scope1",
 			[]string{"value1"},
+			nil,
 		},
 		{
 			"two items same scope",
@@ -252,6 +256,7 @@ func TestBox_ForEach(t *testing.T) {
 			1000,
 			"scope1",
 			[]string{"value1", "value2"},
+			nil,
 		},
 		{
 			"multiple scopes and tboxes",
@@ -280,6 +285,7 @@ func TestBox_ForEach(t *testing.T) {
 			1000,
 			"scope1",
 			[]string{"value1"},
+			nil,
 		},
 	}
 
@@ -299,7 +305,7 @@ func TestBox_ForEach(t *testing.T) {
 				result = append(result, string(value))
 				return true, nil
 			})
-			assert.NoError(t, err)
+			assert.Equal(t, tt.err, err)
 			assert.ElementsMatch(t, tt.expected, result)
 		})
 	}

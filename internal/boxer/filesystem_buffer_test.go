@@ -225,7 +225,7 @@ func TestFilesystemBuffer_ForEach(t *testing.T) {
 		results = append(results, record)
 		return true, nil
 	})
-	assert.NoError(t, err)
+	assert.ErrorIs(t, err, NoSuchScopeError)
 	assert.Empty(t, results)
 
 	results = nil
@@ -233,7 +233,7 @@ func TestFilesystemBuffer_ForEach(t *testing.T) {
 		results = append(results, record)
 		return true, nil
 	})
-	assert.NoError(t, err)
+	assert.ErrorIs(t, err, NoSuchIntervalError)
 	assert.Empty(t, results)
 }
 

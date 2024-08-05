@@ -22,6 +22,7 @@ import (
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"github.com/hashicorp/go-multierror"
+	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
 )
 
@@ -154,8 +155,8 @@ func (e *s3Exporter) writeTableForCustomerID(ids string, now time.Time, tbl []ma
 		return err
 	}
 
-	e.telemetry.blocksWrittenTemp.Add(context.Background(), 1)
-	e.telemetry.itemsWrittenTemp.Add(context.Background(), int64(len(tbl)))
+	e.telemetry.blocksWrittenTemp.Add(context.Background(), 1, metric.WithAttributeSet(e.telemetry.aset))
+	e.telemetry.itemsWrittenTemp.Add(context.Background(), int64(len(tbl)), metric.WithAttributeSet(e.telemetry.aset))
 
 	e.logger.Debug("put items to store",
 		zap.String("customerID", customerID),

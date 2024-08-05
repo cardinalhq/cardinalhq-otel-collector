@@ -26,6 +26,7 @@ import (
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/exporter"
+	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
@@ -314,8 +315,8 @@ func (e *s3Exporter) saveAndUploadParquet(ids string, interval int64) error {
 		return nil
 	}
 
-	e.telemetry.blocksReadTemp.Add(context.Background(), blockCount)
-	e.telemetry.itemsReadTemp.Add(context.Background(), itemCount)
+	e.telemetry.blocksReadTemp.Add(context.Background(), blockCount, metric.WithAttributeSet(e.telemetry.aset))
+	e.telemetry.itemsReadTemp.Add(context.Background(), itemCount, metric.WithAttributeSet(e.telemetry.aset))
 
 	return e.upload(f, &s3Writer{}, ids, interval)
 }

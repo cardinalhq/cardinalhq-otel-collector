@@ -106,9 +106,14 @@ func (b *FilesystemBuffer) ForEach(interval int64, scope string, fn ForEachFunc)
 		return ErrShutdown
 	}
 
-	file, ok := b.openFiles[interval][scope]
+	i, ok := b.openFiles[interval]
 	if !ok {
-		return nil
+		return NoSuchIntervalError
+	}
+
+	file, ok := i[scope]
+	if !ok {
+		return NoSuchScopeError
 	}
 
 	_, err := file.Seek(0, io.SeekStart)

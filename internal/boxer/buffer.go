@@ -22,6 +22,11 @@ import (
 	"io"
 )
 
+var (
+	NoSuchIntervalError = errors.New("no such interval")
+	NoSuchScopeError    = errors.New("no such scope")
+)
+
 type BufferRecord struct {
 	Scope    string
 	Interval int64

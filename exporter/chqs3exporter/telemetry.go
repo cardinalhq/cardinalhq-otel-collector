@@ -98,6 +98,6 @@ func newTelemetry(set exporter.Settings, ttype string) (*exporterTelemetry, erro
 	return tel, nil
 }
 
-func recordAge(ctx context.Context, tel *exporterTelemetry, age float64, aset attribute.Set) {
-	tel.datapointAge.Record(ctx, age, metric.WithAttributeSet(aset))
+func recordAge(ctx context.Context, tel *exporterTelemetry, age float64) {
+	tel.datapointAge.Record(ctx, age, metric.WithAttributeSet(tel.aset))
 }

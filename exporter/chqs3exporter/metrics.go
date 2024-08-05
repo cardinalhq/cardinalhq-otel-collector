@@ -20,7 +20,6 @@ import (
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"go.opentelemetry.io/collector/pdata/pmetric"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 func (e *s3Exporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
@@ -47,10 +46,6 @@ func (e *s3Exporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) err
 }
 
 func (e *s3Exporter) calcMetricAge(md pmetric.Metrics, now time.Time) {
-	aset := attribute.NewSet(
-		attribute.String("component.id", e.id.String()),
-		attribute.String("telemetry_type", "metrics"),
-	)
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
 		rm := md.ResourceMetrics().At(i)
 		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
@@ -71,7 +66,7 @@ func (e *s3Exporter) calcMetricAge(md pmetric.Metrics, now time.Time) {
 					ts = metric.ExponentialHistogram().DataPoints().At(0).Timestamp().AsTime()
 				}
 				age := now.Sub(ts)
-				recordAge(context.Background(), e.telemetry, age.Seconds(), aset)
+				recordAge(context.Background(), e.telemetry, age.Seconds())
 			}
 		}
 	}

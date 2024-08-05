@@ -48,10 +48,9 @@ func getTestLogs(tb testing.TB) plog.Logs {
 // nolint: unused
 func dummyTelemetry() *exporterTelemetry {
 	meter := metric.NewMeterProvider()
-	m, _ := meter.Meter("test").Int64Counter("test")
+	hg, _ := meter.Meter("test").Float64Histogram("datapoint_age")
 	return &exporterTelemetry{
-		filesWritten:    m,
-		datapointTooOld: m,
+		datapointAge: hg,
 	}
 }
 

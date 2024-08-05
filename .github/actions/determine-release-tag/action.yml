@@ -8,12 +8,16 @@ inputs:
 outputs:
   tag:
     value: ${{ steps.determine-release-tag.outputs.tag }}
+    description: The tag to be used for the release
   desc:
     value: ${{ steps.determine-release-tag.outputs.desc }}
+    description: The description of the tag
   hash:
     value: ${{ steps.determine-release-tag.outputs.hash }}
+    description: The hash of the tag
   today-string:
     value: ${{ steps.determine-release-tag.outputs.today-string }}
+    description: The current date in YYYYMMDD format
 runs:
   using: composite
   steps:

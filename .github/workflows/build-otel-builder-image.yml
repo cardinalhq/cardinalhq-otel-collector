@@ -18,7 +18,7 @@ on:
       should-use-public-ecr:
         description: 'Push to public ECR (false=private)'
         required: true
-        default: true
+        default: "true"
 env:
   PUBLIC_IMAGE_REGISTRY: public.ecr.aws/cardinalhq.io/
   PRIVATE_IMAGE_REGISTRY: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/

@@ -21,7 +21,7 @@ on:
       should-use-public-ecr:
         description: 'Push to public ECR (false=private)'
         type: string
-        default: true
+        default: "true"
 
     secrets:
       ECR_ACCOUNT_ID:

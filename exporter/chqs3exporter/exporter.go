@@ -67,7 +67,7 @@ func newS3Exporter(config *Config, params exporter.Settings, ttype string) (*s3E
 	}
 	metadata["cardinalhq-exporter"] = params.ID.String()
 
-	exporterTelemetry, err := newTelemetry(params)
+	exporterTelemetry, err := newTelemetry(params, ttype)
 	if err != nil {
 		return nil, err
 	}
@@ -277,7 +277,10 @@ func (e *s3Exporter) saveAndUploadParquet(ids string, interval int64) error {
 		}
 	}()
 
+	blockCount := int64(0)
+	itemCount := int64(0)
 	err = e.boxer.ForEach(interval, ids, func(value []byte) (bool, error) {
+		blockCount++
 		logger.Debug("Processing interval")
 		tableRows := []map[string]any{}
 		if err := gobDecode(value, &tableRows); err != nil {
@@ -292,6 +295,7 @@ func (e *s3Exporter) saveAndUploadParquet(ids string, interval int64) error {
 			logger.Error("Failed to write rows", zap.Error(err))
 			return false, err
 		}
+		itemCount += int64(len(tableRows))
 		return true, nil
 	})
 	if err != nil {
@@ -309,6 +313,9 @@ func (e *s3Exporter) saveAndUploadParquet(ids string, interval int64) error {
 		logger.Info("Skipping empty file")
 		return nil
 	}
+
+	e.telemetry.blocksReadTemp.Add(context.Background(), blockCount)
+	e.telemetry.itemsReadTemp.Add(context.Background(), itemCount)
 
 	return e.upload(f, &s3Writer{}, ids, interval)
 }

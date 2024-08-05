@@ -25,11 +25,25 @@ import (
 )
 
 type exporterTelemetry struct {
-	datapointAge metric.Float64Histogram
+	datapointAge      metric.Float64Histogram
+	itemsWrittenTemp  metric.Int64Counter
+	blocksWrittenTemp metric.Int64Counter
+	itemsReadTemp     metric.Int64Counter
+	blocksReadTemp    metric.Int64Counter
+
+	aset attribute.Set
 }
 
-func newTelemetry(set exporter.Settings) (*exporterTelemetry, error) {
+func newTelemetry(set exporter.Settings, ttype string) (*exporterTelemetry, error) {
 	tel := &exporterTelemetry{}
+
+	aset := attribute.NewSet(
+		attribute.String("exporter", "chqs3exporter"),
+		attribute.String("component.type", "exporter"),
+		attribute.String("component.id", set.ID.String()),
+		attribute.String("telemetry_type", ttype),
+	)
+	tel.aset = aset
 
 	hg, err := metadata.Meter(set.TelemetrySettings).Float64Histogram(
 		"datapoint_age",
@@ -40,6 +54,46 @@ func newTelemetry(set exporter.Settings) (*exporterTelemetry, error) {
 		return nil, err
 	}
 	tel.datapointAge = hg
+
+	ic, err := metadata.Meter(set.TelemetrySettings).Int64Counter(
+		"items_written_temp",
+		metric.WithDescription("The number of items written by the exporter to temporary storage"),
+		metric.WithUnit("1"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	tel.itemsWrittenTemp = ic
+
+	ic, err = metadata.Meter(set.TelemetrySettings).Int64Counter(
+		"blocks_written_temp",
+		metric.WithDescription("The number of blocks written by the exporter to temporary storage"),
+		metric.WithUnit("1"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	tel.blocksWrittenTemp = ic
+
+	ic, err = metadata.Meter(set.TelemetrySettings).Int64Counter(
+		"items_read_temp",
+		metric.WithDescription("The number of items read by the exporter from temporary storage"),
+		metric.WithUnit("1"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	tel.itemsReadTemp = ic
+
+	ic, err = metadata.Meter(set.TelemetrySettings).Int64Counter(
+		"blocks_read_temp",
+		metric.WithDescription("The number of blocks read by the exporter from temporary storage"),
+		metric.WithUnit("1"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	tel.blocksReadTemp = ic
 
 	return tel, nil
 }

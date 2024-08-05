@@ -15,6 +15,7 @@
 package chqs3exporter
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -152,6 +153,10 @@ func (e *s3Exporter) writeTableForCustomerID(ids string, now time.Time, tbl []ma
 		e.logger.Error("failed to put items to KVS", zap.Error(err))
 		return err
 	}
+
+	e.telemetry.blocksWrittenTemp.Add(context.Background(), 1)
+	e.telemetry.itemsWrittenTemp.Add(context.Background(), int64(len(tbl)))
+
 	e.logger.Debug("put items to store",
 		zap.String("customerID", customerID),
 		zap.String("clusterID", clusterID),

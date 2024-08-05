@@ -26,8 +26,10 @@ env:
   PUBLIC_IMAGE_REGISTRY: public.ecr.aws/cardinalhq.io/
   PUBLIC_IMAGE_REPOSITORY: cardinalhq-otel-collector
   PRIVATE_IMAGE_REPOSITORY: cardinalhq/cardinalhq-otel-collector
-  IMAGE_REGISTRY: ""
-  IMAGE_REPOSITORY: ""
+  IMAGE_REGISTRY: ${{ PUBLIC_IMAGE_REGISTRY }}
+  IMAGE_REPOSITORY: ${{ PUBLIC_IMAGE_REPOSITORY }}
+  SHOULD_TAG_LATEST: true
+  SHOULD_USE_PUBLIC_ECR: true
   GO_VERSION: '1.22'
 
 jobs:
@@ -38,17 +40,20 @@ jobs:
       GO_VERSION: ${{ steps.set-output-defaults.outputs.GO_VERSION }}
       IMAGE_REGISTRY: ${{ steps.set-output-defaults.outputs.IMAGE_REGISTRY }}
       IMAGE_REPOSITORY: ${{ steps.set-output-defaults.outputs.IMAGE_REPOSITORY }}
+      SHOULD_TAG_LATEST: ${{ steps.set-output-defaults.outputs.SHOULD_TAG_LATEST }}
+      SHOULD_USE_PUBLIC_ECR: ${{ steps.set-output-defaults.outputs.SHOULD_USE_PUBLIC_ECR }}
     steps:
-      - name: Set public ECR if enabled
-        if: ${{ github.event.inputs.should-use-public-ecr == 'true' }}
+      - name: Set should tag latest value
+        if: ${{ github.event.inputs.should-tag-latest == 'false' }}
         run: |
-          echo "IMAGE_REGISTRY=${{ env.PUBLIC_IMAGE_REGISTRY }}" >> $GITHUB_ENV
-          echo "IMAGE_REPOSITORY=${{ env.PUBLIC_IMAGE_REPOSITORY }}" >> $GITHUB_ENV
+          echo "SHOULD_TAG_LATEST=false" >> $GITHUB_ENV
 
       - name: Set private ECR if disabled
         if: ${{ github.event.inputs.should-use-public-ecr == 'false' }}
         run: |
           echo "IMAGE_REPOSITORY=${{ env.PRIVATE_IMAGE_REPOSITORY }}" >> $GITHUB_ENV
+          echo "SHOULD_USE_PUBLIC_ECR=false" >> $GITHUB_ENV
+          echo "IMAGE_REGISTRY=" >> $GITHUB_ENV
           # private registry will be set in sub workflow due to the use of secrets
 
       - name: set outputs with default values
@@ -57,9 +62,13 @@ jobs:
           echo "GO_VERSION=${{ env.GO_VERSION }}" >> $GITHUB_OUTPUT
           echo "IMAGE_REGISTRY=${{ env.IMAGE_REGISTRY }}" >> $GITHUB_OUTPUT
           echo "IMAGE_REPOSITORY=${{ env.IMAGE_REPOSITORY }}" >> $GITHUB_OUTPUT
+          echo "SHOULD_TAG_LATEST=${{ env.SHOULD_TAG_LATEST }}" >> $GITHUB_OUTPUT
+          echo "SHOULD_USE_PUBLIC_ECR=${{ env.SHOULD_USE_PUBLIC_ECR }}" >> $GITHUB_OUTPUT
           echo "GO_VERSION=${{ env.GO_VERSION }}"
           echo "IMAGE_REGISTRY=${{ env.IMAGE_REGISTRY }}"
           echo "IMAGE_REPOSITORY=${{ env.IMAGE_REPOSITORY }}"
+          echo "SHOULD_TAG_LATEST=${{ env.SHOULD_TAG_LATEST }}"
+          echo "SHOULD_USE_PUBLIC_ECR=${{ env.SHOULD_USE_PUBLIC_ECR }}"
           
 
   build-go-project:
@@ -114,9 +123,9 @@ jobs:
       tag-to-release: ${{ needs.release-tag.outputs.tag }}
       registry: ${{ needs.env-setup.outputs.IMAGE_REGISTRY }}
       repository: ${{ needs.env-setup.outputs.IMAGE_REPOSITORY }}
-      should-tag-latest: ${{ github.event.inputs.should-tag-latest }}
+      should-tag-latest: ${{  needs.env-setup.outputs.SHOULD_TAG_LATEST }}
       go-version: ${{ needs.env-setup.outputs.GO_VERSION }}
-      should-use-public-ecr: ${{ github.event.inputs.should-use-public-ecr }}
+      should-use-public-ecr: ${{ needs.env-setup.outputs.SHOULD_USE_PUBLIC_ECR }}
     secrets:
       ECR_ACCOUNT_ID: ${{ secrets.ECR_ACCOUNT_ID }}
       ECR_ROLE_NAME: ${{ secrets.ECR_ROLE_NAME }}

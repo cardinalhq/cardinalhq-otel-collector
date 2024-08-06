@@ -22,10 +22,15 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
+type FileItem struct {
+	file     *os.File
+	expected int
+}
+
 type FilesystemBuffer struct {
 	sync.Mutex
 	directory string
-	openFiles map[int64]map[string]*os.File
+	openFiles map[int64]map[string]*FileItem
 	shutdown  bool
 }
 
@@ -36,7 +41,7 @@ var (
 func NewFilesystemBuffer(directory string) *FilesystemBuffer {
 	return &FilesystemBuffer{
 		directory: directory,
-		openFiles: make(map[int64]map[string]*os.File),
+		openFiles: make(map[int64]map[string]*FileItem),
 	}
 }
 
@@ -48,7 +53,7 @@ func (b *FilesystemBuffer) Write(data *BufferRecord) error {
 	}
 
 	if _, ok := b.openFiles[data.Interval]; !ok {
-		b.openFiles[data.Interval] = make(map[string]*os.File)
+		b.openFiles[data.Interval] = make(map[string]*FileItem)
 	}
 
 	if _, ok := b.openFiles[data.Interval][data.Scope]; !ok {
@@ -56,15 +61,19 @@ func (b *FilesystemBuffer) Write(data *BufferRecord) error {
 		if err != nil {
 			return err
 		}
-		b.openFiles[data.Interval][data.Scope] = file
+		b.openFiles[data.Interval][data.Scope] = &FileItem{
+			file:     file,
+			expected: 0,
+		}
 	}
 
-	file := b.openFiles[data.Interval][data.Scope]
-	_, err := file.Seek(0, io.SeekEnd)
+	item := b.openFiles[data.Interval][data.Scope]
+	_, err := item.file.Seek(0, io.SeekEnd)
 	if err != nil {
 		return err
 	}
-	return encodeToFile(file, data)
+	item.expected++
+	return encodeToFile(item.file, data)
 }
 
 func (b *FilesystemBuffer) GetScopes(interval int64) (scopes []string, err error) {
@@ -111,17 +120,17 @@ func (b *FilesystemBuffer) ForEach(interval int64, scope string, fn ForEachFunc)
 		return NoSuchIntervalError
 	}
 
-	file, ok := i[scope]
+	item, ok := i[scope]
 	if !ok {
 		return NoSuchScopeError
 	}
 
-	_, err := file.Seek(0, io.SeekStart)
+	_, err := item.file.Seek(0, io.SeekStart)
 	if err != nil {
 		return err
 	}
 
-	return iterate(file, fn)
+	return iterate(item.file, item.expected, fn)
 }
 
 func (b *FilesystemBuffer) CloseIntervalScope(interval int64, scope string) error {
@@ -141,7 +150,7 @@ func unlockedCloseIntervalScope(b *FilesystemBuffer, interval int64, scope strin
 	if _, ok := b.openFiles[interval][scope]; !ok {
 		return nil
 	}
-	file := b.openFiles[interval][scope]
+	item := b.openFiles[interval][scope]
 
 	delete(b.openFiles[interval], scope)
 	if len(b.openFiles[interval]) == 0 {
@@ -149,8 +158,8 @@ func unlockedCloseIntervalScope(b *FilesystemBuffer, interval int64, scope strin
 	}
 
 	var errs *multierror.Error
-	errs = multierror.Append(errs, file.Close())
-	errs = multierror.Append(errs, os.Remove(file.Name()))
+	errs = multierror.Append(errs, item.file.Close())
+	errs = multierror.Append(errs, os.Remove(item.file.Name()))
 
 	return errs.ErrorOrNil()
 }
@@ -168,8 +177,8 @@ func (b *FilesystemBuffer) CloseInterval(interval int64) error {
 	}
 
 	var errs *multierror.Error
-	for _, file := range scopes {
-		errs = multierror.Append(errs, unlockedCloseIntervalScope(b, interval, file.Name()))
+	for _, item := range scopes {
+		errs = multierror.Append(errs, unlockedCloseIntervalScope(b, interval, item.file.Name()))
 	}
 	delete(b.openFiles, interval)
 
@@ -186,9 +195,9 @@ func (b *FilesystemBuffer) Shutdown() error {
 
 	var errs *multierror.Error
 
-	for _, files := range b.openFiles {
-		for _, file := range files {
-			errs = multierror.Append(errs, file.Close())
+	for _, intervals := range b.openFiles {
+		for _, item := range intervals {
+			errs = multierror.Append(errs, item.file.Close())
 		}
 	}
 	b.openFiles = nil

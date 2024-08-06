@@ -30,6 +30,7 @@ type exporterTelemetry struct {
 	blocksWrittenTemp metric.Int64Counter
 	itemsReadTemp     metric.Int64Counter
 	blocksReadTemp    metric.Int64Counter
+	deltaBlocksRead   metric.Int64Counter
 
 	aset attribute.Set
 }
@@ -94,6 +95,16 @@ func newTelemetry(set exporter.Settings, ttype string) (*exporterTelemetry, erro
 		return nil, err
 	}
 	tel.blocksReadTemp = ic
+
+	ic, err = metadata.Meter(set.TelemetrySettings).Int64Counter(
+		"delta_blocks_read",
+		metric.WithDescription("The number of blocks read by the exporter from temporary storage vs the expected value"),
+		metric.WithUnit("1"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	tel.deltaBlocksRead = ic
 
 	return tel, nil
 }

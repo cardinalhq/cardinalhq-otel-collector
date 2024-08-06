@@ -15,7 +15,7 @@
 package boxer
 
 import (
-	"bytes"
+	"io"
 	"os"
 	"testing"
 
@@ -24,30 +24,130 @@ import (
 )
 
 func TestEncodeToFile(t *testing.T) {
-	// Create a temporary file for testing
 	tempFile, err := os.CreateTemp("", "encode-test")
 	require.NoError(t, err)
 	defer os.Remove(tempFile.Name())
 
-	// Create a sample BufferRecord
 	record := &BufferRecord{
 		Scope:    "test",
 		Interval: 123,
 		Contents: []byte("test-123"),
 	}
 
-	// Encode the record to the file
-	err = encodeToFile(tempFile, record)
+	for i := 0; i < 100; i++ {
+		err = encodeToFile(tempFile, record)
+		assert.NoError(t, err)
+	}
+
+	_, err = tempFile.Seek(0, 0)
 	assert.NoError(t, err)
 
-	// Read the encoded data from the file
-	fileData, err := os.ReadFile(tempFile.Name())
+	for i := 0; i < 100; i++ {
+		decodedRecord, err := decodeFromFile(tempFile)
+		assert.NoError(t, err)
+		assert.Equal(t, record, decodedRecord)
+	}
+
+	// Try to read one more record, which should fail with io.EOF
+	_, err = decodeFromFile(tempFile)
+	assert.ErrorIs(t, err, io.EOF)
+}
+
+func TestIterate(t *testing.T) {
+	tempFile, err := os.CreateTemp("", "iterate-test")
+	require.NoError(t, err)
+	defer os.Remove(tempFile.Name())
+
+	record := &BufferRecord{
+		Scope:    "test",
+		Interval: 123,
+		Contents: []byte("test-123"),
+	}
+
+	for i := 0; i < 100; i++ {
+		err = encodeToFile(tempFile, record)
+		assert.NoError(t, err)
+	}
+
+	_, err = tempFile.Seek(0, 0)
 	assert.NoError(t, err)
 
-	// Decode the data from the file
-	decodedRecord, err := decodeFromFile(bytes.NewReader(fileData))
+	count := 0
+	err = iterate(tempFile, 100, func(index, expected int, record *BufferRecord) (bool, error) {
+		assert.Equal(t, record, record)
+		assert.Equal(t, index, count)
+		assert.Equal(t, expected, 100)
+		count++
+		return true, nil
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 100, count)
+}
+
+func TestIterate_returnFalse(t *testing.T) {
+	tempFile, err := os.CreateTemp("", "iterate-test")
+	require.NoError(t, err)
+	defer os.Remove(tempFile.Name())
+
+	record := &BufferRecord{
+		Scope:    "test",
+		Interval: 123,
+		Contents: []byte("test-123"),
+	}
+
+	for i := 0; i < 100; i++ {
+		err = encodeToFile(tempFile, record)
+		assert.NoError(t, err)
+	}
+
+	_, err = tempFile.Seek(0, 0)
 	assert.NoError(t, err)
 
-	// Verify that the decoded record matches the original record
-	assert.Equal(t, record, decodedRecord)
+	count := 0
+	err = iterate(tempFile, 100, func(index, expected int, record *BufferRecord) (bool, error) {
+		assert.Equal(t, record, record)
+		assert.Equal(t, index, count)
+		assert.Equal(t, expected, 100)
+		count++
+		if count > 3 {
+			return false, nil
+		}
+		return true, nil
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 4, count)
+}
+
+func TestIterate_error(t *testing.T) {
+	tempFile, err := os.CreateTemp("", "iterate-test")
+	require.NoError(t, err)
+	defer os.Remove(tempFile.Name())
+
+	record := &BufferRecord{
+		Scope:    "test",
+		Interval: 123,
+		Contents: []byte("test-123"),
+	}
+
+	for i := 0; i < 100; i++ {
+		err = encodeToFile(tempFile, record)
+		assert.NoError(t, err)
+	}
+
+	_, err = tempFile.Seek(0, 0)
+	assert.NoError(t, err)
+
+	count := 0
+	err = iterate(tempFile, 100, func(index, expected int, record *BufferRecord) (bool, error) {
+		assert.Equal(t, record, record)
+		assert.Equal(t, index, count)
+		assert.Equal(t, expected, 100)
+		count++
+		if count > 3 {
+			return false, assert.AnError
+		}
+		return true, nil
+	})
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.Equal(t, 4, count)
 }

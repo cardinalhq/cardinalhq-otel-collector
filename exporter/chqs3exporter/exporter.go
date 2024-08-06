@@ -280,7 +280,12 @@ func (e *s3Exporter) saveAndUploadParquet(ids string, interval int64) error {
 
 	blockCount := int64(0)
 	itemCount := int64(0)
-	err = e.boxer.ForEach(interval, ids, func(value []byte) (bool, error) {
+	expectedCount := 0
+	err = e.boxer.ForEach(interval, ids, func(index, expected int, value []byte) (bool, error) {
+		if index != int(blockCount) {
+			logger.Warn("Block index mismatch", zap.Int("index", index), zap.Int64("expected", blockCount))
+		}
+		expectedCount = expected
 		blockCount++
 		logger.Debug("Processing interval")
 		tableRows := []map[string]any{}
@@ -317,6 +322,7 @@ func (e *s3Exporter) saveAndUploadParquet(ids string, interval int64) error {
 
 	e.telemetry.blocksReadTemp.Add(context.Background(), blockCount, metric.WithAttributeSet(e.telemetry.aset))
 	e.telemetry.itemsReadTemp.Add(context.Background(), itemCount, metric.WithAttributeSet(e.telemetry.aset))
+	e.telemetry.deltaBlocksRead.Add(context.Background(), int64(expectedCount)-blockCount, metric.WithAttributeSet(e.telemetry.aset))
 
 	return e.upload(f, &s3Writer{}, ids, interval)
 }
@@ -327,12 +333,15 @@ func (e *s3Exporter) writeInterval(interval int64) error {
 		return err
 	}
 
-	for _, id := range ids {
-		defer func(id string) {
+	defer func(ids []string) {
+		for _, id := range ids {
 			if err := e.boxer.CloseIntervalScope(interval, id); err != nil {
 				e.logger.Error("Failed to close interval scope", zap.Error(err))
 			}
-		}(id)
+		}
+	}(ids)
+
+	for _, id := range ids {
 		if err := e.saveAndUploadParquet(id, interval); err != nil {
 			e.logger.Error("Failed to save and upload parquet", zap.Error(err))
 			return err

@@ -183,8 +183,10 @@ func TestFilesystemBuffer_ForEach(t *testing.T) {
 	}
 
 	var results []*BufferRecord
-	err = buffer.ForEach(123, "test", func(record *BufferRecord) (bool, error) {
+	err = buffer.ForEach(123, "test", func(index, expected int, record *BufferRecord) (bool, error) {
+		assert.Equal(t, len(results), index)
 		results = append(results, record)
+		assert.Equal(t, 2, expected)
 		return true, nil
 	})
 	assert.NoError(t, err)
@@ -194,8 +196,10 @@ func TestFilesystemBuffer_ForEach(t *testing.T) {
 
 	// test for early exit
 	results = nil
-	err = buffer.ForEach(123, "test", func(record *BufferRecord) (bool, error) {
+	err = buffer.ForEach(123, "test", func(index, expected int, record *BufferRecord) (bool, error) {
+		assert.Equal(t, len(results), index)
 		results = append(results, record)
+		assert.Equal(t, 2, expected)
 		return false, nil
 	})
 	assert.NoError(t, err)
@@ -203,8 +207,10 @@ func TestFilesystemBuffer_ForEach(t *testing.T) {
 	assert.Equal(t, records[0], results[0])
 
 	results = nil
-	err = buffer.ForEach(123, "test2", func(record *BufferRecord) (bool, error) {
+	err = buffer.ForEach(123, "test2", func(index, expected int, record *BufferRecord) (bool, error) {
+		assert.Equal(t, len(results), index)
 		results = append(results, record)
+		assert.Equal(t, 1, expected)
 		return true, nil
 	})
 	assert.NoError(t, err)
@@ -212,7 +218,7 @@ func TestFilesystemBuffer_ForEach(t *testing.T) {
 	assert.Equal(t, records[2], results[0])
 
 	results = nil
-	err = buffer.ForEach(124, "test", func(record *BufferRecord) (bool, error) {
+	err = buffer.ForEach(124, "test", func(index, expected int, record *BufferRecord) (bool, error) {
 		results = append(results, record)
 		return true, nil
 	})
@@ -221,7 +227,7 @@ func TestFilesystemBuffer_ForEach(t *testing.T) {
 	assert.Equal(t, records[3], results[0])
 
 	results = nil
-	err = buffer.ForEach(125, "testnotthere", func(record *BufferRecord) (bool, error) {
+	err = buffer.ForEach(125, "testnotthere", func(index, expected int, record *BufferRecord) (bool, error) {
 		results = append(results, record)
 		return true, nil
 	})
@@ -229,7 +235,7 @@ func TestFilesystemBuffer_ForEach(t *testing.T) {
 	assert.Empty(t, results)
 
 	results = nil
-	err = buffer.ForEach(999, "test", func(record *BufferRecord) (bool, error) {
+	err = buffer.ForEach(999, "test", func(index, expected int, record *BufferRecord) (bool, error) {
 		results = append(results, record)
 		return true, nil
 	})

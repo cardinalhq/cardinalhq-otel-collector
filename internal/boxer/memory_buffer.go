@@ -22,9 +22,14 @@ import (
 	"golang.org/x/exp/maps"
 )
 
+type MemoryItem struct {
+	buffer   *bytes.Buffer
+	expected int
+}
+
 type MemoryBuffer struct {
 	sync.Mutex
-	records  map[int64]map[string]*bytes.Buffer
+	records  map[int64]map[string]*MemoryItem
 	shutdown bool
 }
 
@@ -34,7 +39,7 @@ var (
 
 func NewMemoryBuffer() *MemoryBuffer {
 	return &MemoryBuffer{
-		records: make(map[int64]map[string]*bytes.Buffer),
+		records: make(map[int64]map[string]*MemoryItem),
 	}
 }
 
@@ -46,13 +51,16 @@ func (b *MemoryBuffer) Write(data *BufferRecord) error {
 	}
 
 	if _, ok := b.records[data.Interval]; !ok {
-		b.records[data.Interval] = make(map[string]*bytes.Buffer)
+		b.records[data.Interval] = make(map[string]*MemoryItem)
 	}
 	if _, ok := b.records[data.Interval][data.Scope]; !ok {
-		b.records[data.Interval][data.Scope] = &bytes.Buffer{}
+		b.records[data.Interval][data.Scope] = &MemoryItem{
+			buffer: &bytes.Buffer{},
+		}
 	}
-	appendBuf := b.records[data.Interval][data.Scope]
-	return encodeToFile(appendBuf, data)
+	item := b.records[data.Interval][data.Scope]
+	item.expected++
+	return encodeToFile(item.buffer, data)
 }
 
 func (b *MemoryBuffer) GetScopes(interval int64) (scopes []string, err error) {
@@ -88,8 +96,8 @@ func (b *MemoryBuffer) ForEach(interval int64, scope string, fn ForEachFunc) err
 	if _, ok := b.records[interval][scope]; !ok {
 		return NoSuchScopeError
 	}
-	buf := bytes.NewReader(b.records[interval][scope].Bytes())
-	return iterate(buf, fn)
+	item := b.records[interval][scope]
+	return iterate(bytes.NewReader(item.buffer.Bytes()), item.expected, fn)
 }
 
 func (b *MemoryBuffer) CloseIntervalScope(interval int64, scope string) error {
@@ -149,6 +157,6 @@ func (b *MemoryBuffer) Wipe() error {
 			errs = multierror.Append(errs, b.unlockedCloseIntervalScope(interval, scope))
 		}
 	}
-	b.records = make(map[int64]map[string]*bytes.Buffer)
+	b.records = make(map[int64]map[string]*MemoryItem)
 	return errs.ErrorOrNil()
 }

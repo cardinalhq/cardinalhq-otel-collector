@@ -31,7 +31,7 @@ type Boxer struct {
 
 type TimeFunc func() time.Time
 
-type BoxerForEachFunc func(value []byte) (bool, error)
+type BoxerForEachFunc func(index, expected int, value []byte) (bool, error)
 
 var (
 	MaintainNotNeeded = errors.New("maintain not needed")
@@ -84,8 +84,8 @@ func (b *Boxer) intervalTooOld(now time.Time, interval int64) bool {
 }
 
 func (b *Boxer) ForEach(interval int64, scope string, fn BoxerForEachFunc) error {
-	return b.buffer.ForEach(interval, scope, func(record *BufferRecord) (bool, error) {
-		ok, err := fn(record.Contents)
+	return b.buffer.ForEach(interval, scope, func(index, expected int, record *BufferRecord) (bool, error) {
+		ok, err := fn(index, expected, record.Contents)
 		return ok, err
 	})
 }

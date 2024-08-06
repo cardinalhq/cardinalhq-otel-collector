@@ -301,7 +301,9 @@ func TestBox_ForEach(t *testing.T) {
 			}
 
 			result := []string{}
-			err = box.ForEach(tt.tbox, tt.scope, func(value []byte) (bool, error) {
+			err = box.ForEach(tt.tbox, tt.scope, func(index, expected int, value []byte) (bool, error) {
+				assert.Equal(t, len(result), index)
+				assert.Equal(t, len(tt.expected), expected)
 				result = append(result, string(value))
 				return true, nil
 			})

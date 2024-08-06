@@ -33,7 +33,7 @@ type BufferRecord struct {
 	Contents []byte
 }
 
-type ForEachFunc func(record *BufferRecord) (keepGoing bool, err error)
+type ForEachFunc func(index, expected int, record *BufferRecord) (keepGoing bool, err error)
 
 type Buffer interface {
 	Write(data *BufferRecord) error
@@ -70,8 +70,12 @@ func decodeFromFile(f io.Reader) (*BufferRecord, error) {
 		return nil, err
 	}
 	buff := make([]byte, size)
-	if _, err := f.Read(buff); err != nil {
+	readlen, err := f.Read(buff)
+	if err != nil {
 		return nil, err
+	}
+	if int64(readlen) != size {
+		return nil, io.ErrUnexpectedEOF
 	}
 	dec := gob.NewDecoder(bytes.NewReader(buff))
 	var data BufferRecord
@@ -81,7 +85,8 @@ func decodeFromFile(f io.Reader) (*BufferRecord, error) {
 	return &data, nil
 }
 
-func iterate(f io.Reader, fn ForEachFunc) error {
+func iterate(f io.Reader, expected int, fn ForEachFunc) error {
+	index := 0
 	for {
 		record, err := decodeFromFile(f)
 		if errors.Is(err, io.EOF) {
@@ -90,12 +95,13 @@ func iterate(f io.Reader, fn ForEachFunc) error {
 		if err != nil {
 			return err
 		}
-		keepGoing, err := fn(record)
+		keepGoing, err := fn(index, expected, record)
 		if err != nil {
 			return err
 		}
 		if !keepGoing {
 			return nil
 		}
+		index++
 	}
 }

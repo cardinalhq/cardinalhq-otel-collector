@@ -57,6 +57,7 @@ func dummyTelemetry() *exporterTelemetry {
 		itemsReadTemp:     ic,
 		blocksWrittenTemp: ic,
 		blocksReadTemp:    ic,
+		deltaBlocksRead:   ic,
 		aset:              attribute.NewSet(),
 	}
 }
@@ -162,4 +163,26 @@ func TestUpload(t *testing.T) {
 	assert.Equal(t, metadata, capturedMetadata)
 	assert.Equal(t, customerID, capturedCustomerID)
 	assert.Equal(t, testdata, capturedData)
+}
+
+func TestFilesize(t *testing.T) {
+	file, err := os.CreateTemp("", "testfile")
+	assert.NoError(t, err)
+	defer os.Remove(file.Name())
+	defer file.Close()
+
+	data := []byte("Hello, World!")
+	_, err = file.Write(data)
+	assert.NoError(t, err)
+
+	size, err := filesize(file)
+	assert.NoError(t, err)
+
+	expectedSize := int64(len(data))
+	assert.Equal(t, expectedSize, size)
+}
+
+func TestFilesizeError(t *testing.T) {
+	_, err := filesize(nil)
+	assert.Error(t, err)
 }

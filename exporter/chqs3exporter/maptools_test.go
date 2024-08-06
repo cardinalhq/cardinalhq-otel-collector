@@ -277,7 +277,7 @@ func TestPartitionTableByCustomerIDAndInterval(t *testing.T) {
 				boxer: box,
 				tags:  make(map[string]map[int64]map[string]any),
 			}
-			result := e.partitionTableByCustomerIDAndInterval(tt.input)
+			result := e.partitionTableByCustomerIDAndInterval(tt.input, false)
 			assert.Equal(t, tt.expected, result)
 			assert.Equal(t, tt.expectedTagmap, e.tags)
 		})

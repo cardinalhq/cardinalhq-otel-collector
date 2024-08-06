@@ -50,10 +50,11 @@ const (
 
 // Config contains the main configuration options for the s3 exporter
 type Config struct {
-	S3Uploader S3UploaderConfig `mapstructure:"s3uploader"`
-	Timeboxes  TimeboxesConfig  `mapstructure:"timeboxes"`
-	Buffering  BufferingConfig  `mapstructure:"buffering"`
-	IDSource   string           `mapstructure:"id_source"`
+	S3Uploader       S3UploaderConfig `mapstructure:"s3uploader"`
+	Timeboxes        TimeboxesConfig  `mapstructure:"timeboxes"`
+	UseNowForMetrics bool             `mapstructure:"use_now_for_metrics"`
+	Buffering        BufferingConfig  `mapstructure:"buffering"`
+	IDSource         string           `mapstructure:"id_source"`
 }
 
 func (c *Config) Validate() error {

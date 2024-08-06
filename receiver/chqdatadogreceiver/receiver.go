@@ -71,6 +71,7 @@ func newDataDogReceiver(config *Config, params receiver.Settings) (component.Com
 		attribute.String("receiver", "chqdatadogreceiver"),
 		attribute.String("component.type", "receiver"),
 		attribute.String("component.id", params.ID.String()),
+		attribute.String("pod_name", podName),
 	)
 
 	m, err := metadata.Meter(ddr.telemetrySettings).Int64Counter(params.ID.Type().String()+".receiver.datapoints.agechecked",

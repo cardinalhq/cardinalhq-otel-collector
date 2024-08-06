@@ -16,6 +16,7 @@ package chqs3exporter
 
 import (
 	"context"
+	"os"
 
 	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/otel/attribute"
@@ -38,11 +39,17 @@ type exporterTelemetry struct {
 func newTelemetry(set exporter.Settings, ttype string) (*exporterTelemetry, error) {
 	tel := &exporterTelemetry{}
 
+	pod_name := os.Getenv("POD_NAME")
+	if pod_name == "" {
+		pod_name = "unknown"
+	}
+
 	aset := attribute.NewSet(
 		attribute.String("exporter", "chqs3exporter"),
 		attribute.String("component.type", "exporter"),
 		attribute.String("component.id", set.ID.String()),
 		attribute.String("telemetry_type", ttype),
+		attribute.String("pod_name", pod_name),
 	)
 	tel.aset = aset
 

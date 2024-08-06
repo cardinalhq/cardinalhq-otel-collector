@@ -96,6 +96,7 @@ func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, ddMetrics []*d
 		}
 		count++
 		if count > 100 {
+			ddr.recordAgeForMetrics(ctx, &m, now, "v2")
 			kept, removed := ddr.filterOlderThan(&m, tooOld)
 			keptDatapoints += kept
 			removedDatapoints += removed
@@ -110,6 +111,7 @@ func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, ddMetrics []*d
 	}
 
 	if count > 0 && m.DataPointCount() > 0 {
+		ddr.recordAgeForMetrics(ctx, &m, now, "v2")
 		kept, removed := ddr.filterOlderThan(&m, tooOld)
 		keptDatapoints += kept
 		removedDatapoints += removed
@@ -121,6 +123,37 @@ func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, ddMetrics []*d
 	}
 
 	return nil
+}
+
+func (ddr *datadogReceiver) recordAgeForMetrics(ctx context.Context, m *pmetric.Metrics, now time.Time, apiversion string) {
+	for i := 0; i < m.ResourceMetrics().Len(); i++ {
+		rm := m.ResourceMetrics().At(i)
+		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
+			imm := rm.ScopeMetrics().At(j)
+			for k := 0; k < imm.Metrics().Len(); k++ {
+				m := imm.Metrics().At(k)
+				var ts time.Time
+				switch m.Type() {
+				case pmetric.MetricTypeGauge:
+					ts = m.Gauge().DataPoints().At(0).Timestamp().AsTime()
+				case pmetric.MetricTypeSum:
+					ts = m.Sum().DataPoints().At(0).Timestamp().AsTime()
+				case pmetric.MetricTypeHistogram:
+					ts = m.Histogram().DataPoints().At(0).Timestamp().AsTime()
+				case pmetric.MetricTypeSummary:
+					ts = m.Summary().DataPoints().At(0).Timestamp().AsTime()
+				case pmetric.MetricTypeExponentialHistogram:
+					ts = m.ExponentialHistogram().DataPoints().At(0).Timestamp().AsTime()
+				}
+				age := now.Sub(ts)
+				attrs := metric.WithAttributes(
+					attribute.String("telemetry_type", "metric"),
+					attribute.String("datadog_api_version", apiversion),
+				)
+				ddr.datapointAge.Record(ctx, age.Seconds(), metric.WithAttributeSet(ddr.aset), attrs)
+			}
+		}
+	}
 }
 
 func (ddr *datadogReceiver) logDrop(rm pmetric.ResourceMetrics, name string, dp pmetric.NumberDataPoint) {

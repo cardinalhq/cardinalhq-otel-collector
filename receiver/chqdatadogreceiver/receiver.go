@@ -16,6 +16,7 @@ import (
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/receiver"
 	"go.opentelemetry.io/collector/receiver/receiverhelper"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
 )
@@ -34,6 +35,8 @@ type datadogReceiver struct {
 	server              *http.Server
 	obsrecv             *receiverhelper.ObsReport
 	metricFilterCounter metric.Int64Counter
+	datapointAge        metric.Float64Histogram
+	aset                attribute.Set
 	podName             string
 	id                  string
 }
@@ -64,12 +67,28 @@ func newDataDogReceiver(config *Config, params receiver.Settings) (component.Com
 		ddr.gpLogger = params.Logger.With(zap.String("data_type", "internal"))
 	}
 
+	ddr.aset = attribute.NewSet(
+		attribute.String("receiver", "chqdatadogreceiver"),
+		attribute.String("component.type", "receiver"),
+		attribute.String("component.id", params.ID.String()),
+	)
+
 	m, err := metadata.Meter(ddr.telemetrySettings).Int64Counter(params.ID.Type().String()+".receiver.datapoints.agechecked",
 		metric.WithDescription("The number of metrics filtered out by the Datadog receiver"))
 	if err != nil {
 		return nil, err
 	}
 	ddr.metricFilterCounter = m
+
+	hg, err := metadata.Meter(ddr.telemetrySettings).Float64Histogram(
+		"datapoint_age",
+		metric.WithDescription("The age of datapoints that are being written by the exporter"),
+		metric.WithUnit("s"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	ddr.datapointAge = hg
 
 	return ddr, nil
 }

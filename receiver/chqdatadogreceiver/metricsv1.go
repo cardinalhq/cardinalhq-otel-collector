@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/barweiss/go-tuple"
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -54,11 +55,14 @@ func handleMetricsV1Payload(req *http.Request) (ret []SeriesV1, httpCode int, er
 }
 
 func (ddr *datadogReceiver) processMetricsV1(ctx context.Context, ddMetrics []SeriesV1) error {
+	now := time.Now()
 	for _, metric := range ddMetrics {
 		otelMetric, err := ddr.convertMetricV1(metric)
 		if err != nil {
 			return err
 		}
+		ddr.recordAgeForMetrics(ctx, &otelMetric, now, "v1")
+
 		if err := ddr.nextMetricConsumer.ConsumeMetrics(ctx, otelMetric); err != nil {
 			return err
 		}

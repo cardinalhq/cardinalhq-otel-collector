@@ -67,28 +67,8 @@ func (ddr *datadogReceiver) handleMetricsV2Payload(req *http.Request) (ret []*dd
 
 func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, ddMetrics []*ddpb.MetricPayload_MetricSeries) error {
 	count := 0
-	keptDatapoints := 0
-	removedDatapoints := 0
 	m := pmetric.NewMetrics()
 	now := time.Now()
-	tooOld := now.Add(-ddr.config.MaxMetricDatapointAge)
-
-	defer func() {
-		asetRemoved := attribute.NewSet(
-			attribute.String("apiversion", "v2"),
-			attribute.String("disposition", "removed"),
-			attribute.String("max_age", ddr.config.MaxMetricDatapointAge.String()),
-			attribute.String("received_by_pod", ddr.podName),
-			attribute.String("receiver", ddr.id))
-		asetKept := attribute.NewSet(
-			attribute.String("apiversion", "v2"),
-			attribute.String("disposition", "kept"),
-			attribute.String("max_age", ddr.config.MaxMetricDatapointAge.String()),
-			attribute.String("received_by_pod", ddr.podName),
-			attribute.String("receiver", ddr.id))
-		ddr.metricFilterCounter.Add(ctx, int64(removedDatapoints), metric.WithAttributeSet(asetRemoved))
-		ddr.metricFilterCounter.Add(ctx, int64(keptDatapoints), metric.WithAttributeSet(asetKept))
-	}()
 
 	for _, ddMetric := range ddMetrics {
 		if err := ddr.convertMetricV2(m, ddMetric); err != nil {
@@ -97,13 +77,8 @@ func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, ddMetrics []*d
 		count++
 		if count > 100 {
 			ddr.recordAgeForMetrics(ctx, &m, now, "v2")
-			kept, removed := ddr.filterOlderThan(&m, tooOld)
-			keptDatapoints += kept
-			removedDatapoints += removed
-			if kept > 0 {
-				if err := ddr.nextMetricConsumer.ConsumeMetrics(ctx, m); err != nil {
-					return err
-				}
+			if err := ddr.nextMetricConsumer.ConsumeMetrics(ctx, m); err != nil {
+				return err
 			}
 			m = pmetric.NewMetrics()
 			count = 0
@@ -112,13 +87,8 @@ func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, ddMetrics []*d
 
 	if count > 0 && m.DataPointCount() > 0 {
 		ddr.recordAgeForMetrics(ctx, &m, now, "v2")
-		kept, removed := ddr.filterOlderThan(&m, tooOld)
-		keptDatapoints += kept
-		removedDatapoints += removed
-		if kept > 0 {
-			if err := ddr.nextMetricConsumer.ConsumeMetrics(ctx, m); err != nil {
-				return err
-			}
+		if err := ddr.nextMetricConsumer.ConsumeMetrics(ctx, m); err != nil {
+			return err
 		}
 	}
 
@@ -154,65 +124,6 @@ func (ddr *datadogReceiver) recordAgeForMetrics(ctx context.Context, m *pmetric.
 			}
 		}
 	}
-}
-
-func (ddr *datadogReceiver) logDrop(rm pmetric.ResourceMetrics, name string, dp pmetric.NumberDataPoint) {
-	serviceName := "unknown"
-	if v, found := rm.Resource().Attributes().Get("service.name"); found {
-		serviceName = v.AsString()
-	}
-	ddr.metricLogger.Info("dropping data point",
-		zap.String("name", name),
-		zap.String("service", serviceName),
-		zap.Int64("timestamp", dp.Timestamp().AsTime().UnixMilli()))
-}
-
-// filterOlderThan removes data points older than the given timestamp.  As this receiver only processes
-// gauges and counters, it only removes data points from those types.  All other types will be kept.
-func (ddr *datadogReceiver) filterOlderThan(m *pmetric.Metrics, ts time.Time) (keptDatapoints, removedDatapoints int) {
-	firstDrop := true
-	targetTime := pcommon.NewTimestampFromTime(ts)
-	m.ResourceMetrics().RemoveIf(func(rm pmetric.ResourceMetrics) bool {
-		rm.ScopeMetrics().RemoveIf(func(ilm pmetric.ScopeMetrics) bool {
-			ilm.Metrics().RemoveIf(func(metric pmetric.Metric) bool {
-				switch metric.Type() {
-				case pmetric.MetricTypeGauge:
-					metric.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
-						if dp.Timestamp() < targetTime {
-							if firstDrop {
-								ddr.logDrop(rm, metric.Name(), dp)
-								firstDrop = false
-							}
-							removedDatapoints++
-							return true
-						}
-						keptDatapoints++
-						return false
-					})
-					return metric.Gauge().DataPoints().Len() == 0
-				case pmetric.MetricTypeSum:
-					metric.Sum().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
-						if dp.Timestamp() < targetTime {
-							if firstDrop {
-								ddr.logDrop(rm, metric.Name(), dp)
-								firstDrop = false
-							}
-							removedDatapoints++
-							return true
-						}
-						keptDatapoints++
-						return false
-					})
-					return metric.Sum().DataPoints().Len() == 0
-				default:
-					return false
-				}
-			})
-			return ilm.Metrics().Len() == 0
-		})
-		return rm.ScopeMetrics().Len() == 0
-	})
-	return
 }
 
 func ensureServiceName(rAttr pcommon.Map, kv map[string]string) {

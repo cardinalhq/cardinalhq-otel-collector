@@ -22,23 +22,22 @@ import (
 )
 
 type datadogReceiver struct {
-	address             string
-	config              *Config
-	nextTraceConsumer   consumer.Traces
-	nextLogConsumer     consumer.Logs
-	nextMetricConsumer  consumer.Metrics
-	traceLogger         *zap.Logger
-	logLogger           *zap.Logger
-	metricLogger        *zap.Logger
-	gpLogger            *zap.Logger
-	telemetrySettings   component.TelemetrySettings
-	server              *http.Server
-	obsrecv             *receiverhelper.ObsReport
-	metricFilterCounter metric.Int64Counter
-	datapointAge        metric.Float64Histogram
-	aset                attribute.Set
-	podName             string
-	id                  string
+	address            string
+	config             *Config
+	nextTraceConsumer  consumer.Traces
+	nextLogConsumer    consumer.Logs
+	nextMetricConsumer consumer.Metrics
+	traceLogger        *zap.Logger
+	logLogger          *zap.Logger
+	metricLogger       *zap.Logger
+	gpLogger           *zap.Logger
+	telemetrySettings  component.TelemetrySettings
+	server             *http.Server
+	obsrecv            *receiverhelper.ObsReport
+	datapointAge       metric.Float64Histogram
+	aset               attribute.Set
+	podName            string
+	id                 string
 }
 
 func newDataDogReceiver(config *Config, params receiver.Settings) (component.Component, error) {
@@ -73,13 +72,6 @@ func newDataDogReceiver(config *Config, params receiver.Settings) (component.Com
 		attribute.String("component.id", params.ID.String()),
 		attribute.String("pod_name", podName),
 	)
-
-	m, err := metadata.Meter(ddr.telemetrySettings).Int64Counter(params.ID.Type().String()+".receiver.datapoints.agechecked",
-		metric.WithDescription("The number of metrics filtered out by the Datadog receiver"))
-	if err != nil {
-		return nil, err
-	}
-	ddr.metricFilterCounter = m
 
 	hg, err := metadata.Meter(ddr.telemetrySettings).Float64Histogram(
 		"datapoint_age",

@@ -84,14 +84,10 @@ func (e *s3Exporter) partitionTableByCustomerIDAndInterval(tbl []map[string]any,
 	now := time.Now()
 	for _, m := range tbl {
 		key := keyFromMap(m)
-		var ts time.Time
-		if useNow {
-			ts = now
-		} else {
-			var found bool
-			ts, found = timestampFromMap(m)
-			if !found {
-				ts = now
+		ts := now
+		if !useNow {
+			if dsts, found := timestampFromMap(m); found {
+				ts = dsts
 			}
 		}
 		interval := e.boxer.IntervalForTime(ts)

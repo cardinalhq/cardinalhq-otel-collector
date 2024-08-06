@@ -41,7 +41,7 @@ func (e *s3Exporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) err
 		return err
 	}
 
-	custmap := e.partitionTableByCustomerIDAndInterval(tbl)
+	custmap := e.partitionTableByCustomerIDAndInterval(tbl, e.config.UseNowForMetrics)
 	return e.writeTableByCustomerIDAndInterval(custmap)
 }
 

@@ -79,13 +79,20 @@ func (e *s3Exporter) partitionTableByCustomerID(interval int64, tbl []map[string
 	return custmap
 }
 
-func (e *s3Exporter) partitionTableByCustomerIDAndInterval(tbl []map[string]any) map[string]map[int64][]map[string]any {
+func (e *s3Exporter) partitionTableByCustomerIDAndInterval(tbl []map[string]any, useNow bool) map[string]map[int64][]map[string]any {
 	custmap := make(map[string]map[int64][]map[string]any)
+	now := time.Now()
 	for _, m := range tbl {
 		key := keyFromMap(m)
-		ts, found := timestampFromMap(m)
-		if !found {
-			ts = time.Now()
+		var ts time.Time
+		if useNow {
+			ts = now
+		} else {
+			var found bool
+			ts, found = timestampFromMap(m)
+			if !found {
+				ts = now
+			}
 		}
 		interval := e.boxer.IntervalForTime(ts)
 		if _, ok := custmap[key]; !ok {

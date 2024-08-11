@@ -19,6 +19,7 @@ import (
 	"net/http"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension/internal/metadata"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/wtcache"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/extension"
@@ -26,16 +27,17 @@ import (
 	"go.uber.org/zap"
 )
 
-type CHQConfigExtension struct {
+type CHQTagcacheExtension struct {
 	config             *Config
 	httpClient         *http.Client
 	httpClientSettings confighttp.ClientConfig
 	telemetrySettings  component.TelemetrySettings
 	fetches            metric.Int64Counter
 	logger             *zap.Logger
+	cache              wtcache.Cache
 }
 
-func (chq *CHQConfigExtension) setupTelemetry(params extension.Settings) error {
+func (chq *CHQTagcacheExtension) setupTelemetry(params extension.Settings) error {
 	m, err := metadata.Meter(params.TelemetrySettings).Int64Counter("fetches")
 	if err != nil {
 		return err
@@ -45,8 +47,8 @@ func (chq *CHQConfigExtension) setupTelemetry(params extension.Settings) error {
 	return nil
 }
 
-func newConfigExtension(cfg *Config, params extension.Settings) (*CHQConfigExtension, error) {
-	chq := CHQConfigExtension{
+func newConfigExtension(cfg *Config, params extension.Settings) (*CHQTagcacheExtension, error) {
+	chq := CHQTagcacheExtension{
 		config:             cfg,
 		httpClientSettings: cfg.ClientConfig,
 		telemetrySettings:  params.TelemetrySettings,
@@ -58,16 +60,23 @@ func newConfigExtension(cfg *Config, params extension.Settings) (*CHQConfigExten
 	return &chq, nil
 }
 
-func (chq *CHQConfigExtension) Start(_ context.Context, host component.Host) error {
+func (chq *CHQTagcacheExtension) Start(_ context.Context, host component.Host) error {
 	httpClient, err := chq.httpClientSettings.ToClient(context.Background(), host, chq.telemetrySettings)
 	if err != nil {
 		return err
 	}
 	chq.httpClient = httpClient
 
+	chq.cache = wtcache.NewCache(wtcache.WithErrorTTL(
+		chq.config.ErrorTTL),
+		wtcache.WithTTL(chq.config.TTL),
+		wtcache.WithFetcher(chq.FetchTags),
+		wtcache.WithPutter(chq.PutTags),
+	)
+
 	return nil
 }
 
-func (chq *CHQConfigExtension) Shutdown(context.Context) error {
+func (chq *CHQTagcacheExtension) Shutdown(context.Context) error {
 	return nil
 }

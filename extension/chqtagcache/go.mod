@@ -5,6 +5,7 @@ go 1.22.3
 toolchain go1.22.4
 
 require (
+	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
 	github.com/stretchr/testify v1.9.0
 	go.opentelemetry.io/collector/component v0.104.0
 	go.opentelemetry.io/collector/config/confighttp v0.104.0

@@ -80,3 +80,18 @@ func (chq *CHQTagcacheExtension) Start(_ context.Context, host component.Host) e
 func (chq *CHQTagcacheExtension) Shutdown(context.Context) error {
 	return nil
 }
+
+func (chq *CHQTagcacheExtension) PutCache(key string, tags []Tag) error {
+	return chq.cache.Put(key, tags)
+}
+
+func (chq *CHQTagcacheExtension) FetchCache(key string) ([]Tag, error) {
+	tags, err := chq.cache.Get(key)
+	if err != nil {
+		return nil, err
+	}
+	if tags == nil {
+		return nil, nil
+	}
+	return tags.([]Tag), nil
+}

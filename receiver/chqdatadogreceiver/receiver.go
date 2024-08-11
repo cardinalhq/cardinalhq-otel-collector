@@ -201,21 +201,6 @@ func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Reques
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }
 
-func (ddr *datadogReceiver) processIntake(data []byte) {
-	// XXXMLG TODO: Submit all tags to the cache for this hostname
-
-	ddr.gpLogger.Info("Processing intake", zap.String("data", string(data)))
-	tags := chqtagcacheextension.TagsMessage{
-		Tags: []chqtagcacheextension.Tag{
-			{
-				Name:  "foo",
-				Value: "bar",
-			},
-		},
-	}
-	ddr.tagcacheExtension.PutTags("foo", tags)
-}
-
 func (ddr *datadogReceiver) handleCheckRun(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 	_, _ = w.Write([]byte(`{"status":"ok"}`))

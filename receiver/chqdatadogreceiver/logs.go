@@ -54,6 +54,7 @@ type groupedLogs struct {
 }
 
 func splitLogs(logs []DDLog) []groupedLogs {
+	// XXXMLG TODO: fetch additional tags from the cache
 	logkeys := make(map[int64]groupedLogs)
 	for _, log := range logs {
 		tags := splitTags(log.DDTags)

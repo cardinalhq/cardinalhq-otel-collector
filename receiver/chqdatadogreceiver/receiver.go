@@ -7,10 +7,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 
 	ddpbtrace "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
+	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension"
 	"github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver/internal/metadata"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
@@ -38,6 +40,7 @@ type datadogReceiver struct {
 	aset               attribute.Set
 	podName            string
 	id                 string
+	tagcacheExtension  *chqtagcacheextension.CHQTagcacheExtension
 }
 
 func newDataDogReceiver(config *Config, params receiver.Settings) (component.Component, error) {
@@ -87,6 +90,18 @@ func newDataDogReceiver(config *Config, params receiver.Settings) (component.Com
 }
 
 func (ddr *datadogReceiver) Start(ctx context.Context, host component.Host) error {
+	if ddr.config.TagcacheExtension != nil {
+		ext, found := host.GetExtensions()[*ddr.config.TagcacheExtension]
+		if !found {
+			return errors.New("tagcache extension " + ddr.config.TagcacheExtension.String() + " not found")
+		}
+		cext, ok := ext.(*chqtagcacheextension.CHQTagcacheExtension)
+		if !ok {
+			return errors.New("tagcache extension " + ddr.config.TagcacheExtension.String() + " is not a chqtagcache extension")
+		}
+		ddr.tagcacheExtension = cext
+	}
+
 	ddmux := http.NewServeMux()
 
 	if ddr.nextTraceConsumer != nil {
@@ -173,8 +188,32 @@ func (ddr *datadogReceiver) handleV1Validate(w http.ResponseWriter, req *http.Re
 }
 
 func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Request) {
+	if ddr.tagcacheExtension != nil {
+		data, err := io.ReadAll(req.Body)
+		if err != nil {
+			ddr.gpLogger.Error("Unable to read body", zap.Error(err))
+			return
+		}
+		ddr.processIntake(data)
+	}
+
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
+}
+
+func (ddr *datadogReceiver) processIntake(data []byte) {
+	// XXXMLG TODO: Submit all tags to the cache for this hostname
+
+	ddr.gpLogger.Info("Processing intake", zap.String("data", string(data)))
+	tags := chqtagcacheextension.TagsMessage{
+		Tags: []chqtagcacheextension.Tag{
+			{
+				Name:  "foo",
+				Value: "bar",
+			},
+		},
+	}
+	ddr.tagcacheExtension.PutTags("foo", tags)
 }
 
 func (ddr *datadogReceiver) handleCheckRun(w http.ResponseWriter, req *http.Request) {
@@ -203,6 +242,7 @@ func (ddr *datadogReceiver) handleTraces(w http.ResponseWriter, req *http.Reques
 
 	var ddTraces []*ddpbtrace.TracerPayload
 
+	// XXXMLG TODO: fetch additional tags from the cache
 	ddTraces, err = handlePayload(req)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)

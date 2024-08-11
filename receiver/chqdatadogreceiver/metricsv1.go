@@ -55,6 +55,7 @@ func handleMetricsV1Payload(req *http.Request) (ret []SeriesV1, httpCode int, er
 }
 
 func (ddr *datadogReceiver) processMetricsV1(ctx context.Context, ddMetrics []SeriesV1) error {
+	// XXXMLG TODO: fetch additional tags from the cache
 	now := time.Now()
 	for _, metric := range ddMetrics {
 		otelMetric, err := ddr.convertMetricV1(metric)

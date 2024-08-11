@@ -66,6 +66,7 @@ func (ddr *datadogReceiver) handleMetricsV2Payload(req *http.Request) (ret []*dd
 }
 
 func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, ddMetrics []*ddpb.MetricPayload_MetricSeries) error {
+	// XXXMLG TODO: fetch additional tags from the cache
 	count := 0
 	m := pmetric.NewMetrics()
 	now := time.Now()

@@ -78,7 +78,7 @@ func toTraces(payload *pb.TracerPayload, req *http.Request, ext *chqtagcacheexte
 	}
 
 	if tagcache != nil {
-		for _, v := range tagcache.FetchCache(ext, payload.Hostname) {
+		for _, v := range tagcache.FetchCache(ext, getDDAPIKey(req), payload.Hostname) {
 			sharedAttributes.PutStr(v.Name, v.Value)
 		}
 	}

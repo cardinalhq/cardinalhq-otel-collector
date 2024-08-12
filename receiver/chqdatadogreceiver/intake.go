@@ -33,7 +33,11 @@ type DatadogIntakeMeta struct {
 	Hostname string `json:"hostname"`
 }
 
-func (ddr *datadogReceiver) processIntake(data []byte) {
+func (ddr *datadogReceiver) processIntake(apikey string, data []byte) {
+	if apikey == "" {
+		return // no api key, nothing to do
+	}
+
 	var intake datadogIntake
 	err := json.Unmarshal(data, &intake)
 	if err != nil {
@@ -48,6 +52,8 @@ func (ddr *datadogReceiver) processIntake(data []byte) {
 	if hostname == "" {
 		return // probably not something we want
 	}
+
+	key := apikey + "/" + hostname
 
 	tags := make([]chqtagcacheextension.Tag, 0, len(intake.HostTags))
 	for _, v := range intake.HostTags {
@@ -67,8 +73,7 @@ func (ddr *datadogReceiver) processIntake(data []byte) {
 		return // no host tags to update
 	}
 
-	ddr.gpLogger.Info("Putting tags in cache", zap.String("key", intake.InternalHostname), zap.Any("tags", tags))
-	if err := ddr.tagcacheExtension.PutCache(hostname, tags); err != nil {
+	if err := ddr.tagcacheExtension.PutCache(key, tags); err != nil {
 		ddr.gpLogger.Error("Failed to put tags in cache", zap.Error(err))
 	}
 }

@@ -189,12 +189,13 @@ func (ddr *datadogReceiver) handleV1Validate(w http.ResponseWriter, req *http.Re
 
 func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Request) {
 	if ddr.tagcacheExtension != nil {
+		apikey := getDDAPIKey(req)
 		data, err := io.ReadAll(req.Body)
 		if err != nil {
 			ddr.gpLogger.Error("Unable to read body", zap.Error(err))
 			return
 		}
-		ddr.processIntake(data)
+		ddr.processIntake(apikey, data)
 	}
 
 	w.WriteHeader(http.StatusOK)

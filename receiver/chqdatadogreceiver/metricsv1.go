@@ -54,10 +54,10 @@ func handleMetricsV1Payload(req *http.Request) (ret []SeriesV1, httpCode int, er
 	return wrapper.Series, http.StatusAccepted, nil
 }
 
-func (ddr *datadogReceiver) processMetricsV1(ctx context.Context, ddMetrics []SeriesV1) error {
+func (ddr *datadogReceiver) processMetricsV1(ctx context.Context, apikey string, ddMetrics []SeriesV1) error {
 	now := time.Now()
 	for _, metric := range ddMetrics {
-		otelMetric, err := ddr.convertMetricV1(metric)
+		otelMetric, err := ddr.convertMetricV1(apikey, metric)
 		if err != nil {
 			return err
 		}
@@ -82,7 +82,7 @@ func getMetricType(mt *string) string {
 	}
 }
 
-func (ddr *datadogReceiver) convertMetricV1(v1 SeriesV1) (pmetric.Metrics, error) {
+func (ddr *datadogReceiver) convertMetricV1(apikey string, v1 SeriesV1) (pmetric.Metrics, error) {
 	tagCache := newLocalTagCache()
 
 	m := pmetric.NewMetrics()
@@ -110,7 +110,7 @@ func (ddr *datadogReceiver) convertMetricV1(v1 SeriesV1) (pmetric.Metrics, error
 			decorateItem(k, v, rAttr, sAttr, lAttr)
 		}
 	}
-	for _, v := range tagCache.FetchCache(ddr.tagcacheExtension, hostname) {
+	for _, v := range tagCache.FetchCache(ddr.tagcacheExtension, apikey, hostname) {
 		lAttr.PutStr(v.Name, v.Value)
 	}
 

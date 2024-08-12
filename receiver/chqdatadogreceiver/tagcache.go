@@ -14,7 +14,8 @@ func newLocalTagCache() *localTagCache {
 	}
 }
 
-func (ltc *localTagCache) FetchCache(ext *chqtagcacheextension.CHQTagcacheExtension, key string) []chqtagcacheextension.Tag {
+func (ltc *localTagCache) FetchCache(ext *chqtagcacheextension.CHQTagcacheExtension, apikey string, hostname string) []chqtagcacheextension.Tag {
+	key := apikey + "/" + hostname
 	if tags, ok := ltc.cache[key]; ok {
 		return tags
 	}
@@ -26,7 +27,8 @@ func (ltc *localTagCache) FetchCache(ext *chqtagcacheextension.CHQTagcacheExtens
 	return tags
 }
 
-func (ltc *localTagCache) PutCache(ext *chqtagcacheextension.CHQTagcacheExtension, key string, tags []chqtagcacheextension.Tag) error {
+func (ltc *localTagCache) PutCache(ext *chqtagcacheextension.CHQTagcacheExtension, apikey string, hostname string, tags []chqtagcacheextension.Tag) error {
+	key := apikey + "/" + hostname
 	ltc.cache[key] = tags
 	return ext.PutCache(key, tags)
 }

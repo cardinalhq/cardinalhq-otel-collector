@@ -23,6 +23,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/config/confighttp"
+	"go.opentelemetry.io/otel/sdk/metric"
 )
 
 type MockRoundTripper struct {
@@ -32,6 +33,15 @@ type MockRoundTripper struct {
 
 func (m *MockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	return m.response, m.returnError
+}
+
+func mockTelemetry(chq *CHQTagcacheExtension) {
+	meter := metric.NewMeterProvider()
+	ic, _ := meter.Meter("test").Int64Counter("items_written_temp")
+
+	chq.cacheGets = ic
+	chq.cacheMisses = ic
+	chq.cachePuts = ic
 }
 
 func TestCHQTagcacheExtension_FetchTags(t *testing.T) {
@@ -102,6 +112,7 @@ func TestCHQTagcacheExtension_FetchTags(t *testing.T) {
 				},
 				httpClient: mockClient,
 			}
+			mockTelemetry(chq)
 
 			tags, err := chq.tagFetcher("example-key")
 
@@ -146,13 +157,13 @@ func TestCHQTagcacheExtension_PutTags(t *testing.T) {
 					Status:     "404 Not Found",
 				},
 			},
-			tags:          nil,
+			tags:          []Tag{},
 			expectedError: "Failed to put tags, error code: 404",
 		},
 		{
 			name:          "error",
 			tripper:       &MockRoundTripper{returnError: errors.New("Post")},
-			tags:          nil,
+			tags:          []Tag{},
 			expectedError: "Post",
 		},
 		{
@@ -164,7 +175,7 @@ func TestCHQTagcacheExtension_PutTags(t *testing.T) {
 				},
 			},
 			tags:          make(chan int),
-			expectedError: "json: unsupported type",
+			expectedError: "invalid type",
 		},
 	}
 
@@ -182,6 +193,7 @@ func TestCHQTagcacheExtension_PutTags(t *testing.T) {
 				},
 				httpClient: mockClient,
 			}
+			mockTelemetry(chq)
 
 			err := chq.tagPutter("example-key", tt.tags)
 

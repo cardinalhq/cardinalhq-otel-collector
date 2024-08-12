@@ -48,7 +48,8 @@ func (ddr *datadogReceiver) handleV1Series(w http.ResponseWriter, req *http.Requ
 		return
 	}
 	metricCount = len(ddMetrics)
-	err = ddr.processMetricsV1(ctx, ddMetrics)
+	apikey := getDDAPIKey(req)
+	err = ddr.processMetricsV1(ctx, apikey, ddMetrics)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		ddr.metricLogger.Error("processMetrics", zap.Error(err))
@@ -84,7 +85,7 @@ func (ddr *datadogReceiver) handleV2Series(w http.ResponseWriter, req *http.Requ
 		return
 	}
 	metricCount = len(ddMetrics)
-	err = ddr.processMetricsV2(ctx, ddMetrics)
+	err = ddr.processMetricsV2(ctx, getDDAPIKey(req), ddMetrics)
 	if err != nil {
 		ddr.metricLogger.Error("processMetrics", zap.Error(err))
 		writeError(w, http.StatusInternalServerError, err)

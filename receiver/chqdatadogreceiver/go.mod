@@ -21,6 +21,7 @@ require (
 )
 
 require (
+	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.0.0
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
 	golang.org/x/exp v0.0.0-20240613232115-7f521ea00fb8
 )
@@ -85,7 +86,10 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 => ../../internal
+replace (
+	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.0.0 => ../../extension/chqtagcacheextension
+	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 => ../../internal
+)
 
 retract (
 	v0.76.2

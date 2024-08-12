@@ -49,6 +49,8 @@ extensions:
     path: ./extension/chqauthextension
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.1.5
     path: ./extension/chqconfigextension
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.1.5
+    path: ./extension/chqtagcacheextension
 
 processors:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/attributesprocessor v0.106.0

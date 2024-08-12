@@ -54,7 +54,8 @@ func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request)
 	}
 	logCount = len(ddLogs)
 	t := pcommon.NewTimestampFromTime(time.Now())
-	err = ddr.processLogs(ctx, t, ddLogs)
+	apikey := getDDAPIKey(req)
+	err = ddr.processLogs(ctx, apikey, t, ddLogs)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		ddr.logLogger.Error("processLogs", zap.Error(err))

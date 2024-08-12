@@ -14,7 +14,8 @@ import (
 type Config struct {
 	confighttp.ServerConfig `mapstructure:",squash"`
 	// ReadTimeout of the http server
-	ReadTimeout time.Duration `mapstructure:"read_timeout"`
+	ReadTimeout       time.Duration `mapstructure:"read_timeout"`
+	TagcacheExtension *component.ID `mapstructure:"tagcache_extension"`
 }
 
 var _ component.Config = (*Config)(nil)

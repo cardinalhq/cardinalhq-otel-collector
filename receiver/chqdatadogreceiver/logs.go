@@ -53,10 +53,15 @@ type groupedLogs struct {
 	DDSource string
 }
 
-func splitLogs(logs []DDLog) []groupedLogs {
+func (ddr *datadogReceiver) splitLogs(apikey string, logs []DDLog) []groupedLogs {
+	cachedTags := newLocalTagCache()
+
 	logkeys := make(map[int64]groupedLogs)
 	for _, log := range logs {
 		tags := splitTags(log.DDTags)
+		for _, tag := range cachedTags.FetchCache(ddr.tagcacheExtension, apikey, log.Hostname) {
+			tags[tag.Name] = tag.Value
+		}
 		key := tagKey(tags, []string{log.Service, log.Hostname, log.DDSource})
 		if lk, ok := logkeys[key]; !ok {
 			logkeys[key] = groupedLogs{
@@ -74,8 +79,8 @@ func splitLogs(logs []DDLog) []groupedLogs {
 	return maps.Values(logkeys)
 }
 
-func (ddr *datadogReceiver) processLogs(ctx context.Context, t pcommon.Timestamp, logs []DDLog) error {
-	logparts := splitLogs(logs)
+func (ddr *datadogReceiver) processLogs(ctx context.Context, apikey string, t pcommon.Timestamp, logs []DDLog) error {
+	logparts := ddr.splitLogs(apikey, logs)
 	for _, group := range logparts {
 		otelLog, err := ddr.convertLogs(t, group)
 		if err != nil {

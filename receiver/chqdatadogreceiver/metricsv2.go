@@ -65,13 +65,13 @@ func (ddr *datadogReceiver) handleMetricsV2Payload(req *http.Request) (ret []*dd
 	return message.Series, http.StatusAccepted, nil
 }
 
-func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, ddMetrics []*ddpb.MetricPayload_MetricSeries) error {
+func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, apikey string, ddMetrics []*ddpb.MetricPayload_MetricSeries) error {
 	count := 0
 	m := pmetric.NewMetrics()
 	now := time.Now()
 
 	for _, ddMetric := range ddMetrics {
-		if err := ddr.convertMetricV2(m, ddMetric); err != nil {
+		if err := ddr.convertMetricV2(apikey, m, ddMetric); err != nil {
 			return err
 		}
 		count++
@@ -140,7 +140,7 @@ func ensureServiceName(rAttr pcommon.Map, kv map[string]string) {
 	rAttr.PutStr("service.name", "unknown")
 }
 
-func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPayload_MetricSeries) error {
+func (ddr *datadogReceiver) convertMetricV2(apikey string, m pmetric.Metrics, v2 *ddpb.MetricPayload_MetricSeries) error {
 	rm := m.ResourceMetrics().AppendEmpty()
 	rm.SetSchemaUrl(semconv.SchemaURL)
 	rAttr := rm.Resource().Attributes()
@@ -166,6 +166,12 @@ func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPa
 			kvTags[k] = v
 		}
 	}
+	hostname := "unknown"
+	if kvTags["host"] != "" {
+		hostname = kvTags["host"]
+	}
+	tagCache := newLocalTagCache()
+
 	for k, v := range kvTags {
 		decorateItem(k, v, rAttr, sAttr, lAttr)
 	}
@@ -173,6 +179,9 @@ func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPa
 		for _, resource := range v2.Resources {
 			decorate(resource.Type, resource.Name, rAttr, sAttr)
 		}
+	}
+	for _, v := range tagCache.FetchCache(ddr.tagcacheExtension, apikey, hostname) {
+		lAttr.PutStr(v.Name, v.Value)
 	}
 	ensureServiceName(rAttr, kvTags)
 

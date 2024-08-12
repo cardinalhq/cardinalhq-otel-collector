@@ -34,16 +34,20 @@ type DatadogIntakeMeta struct {
 }
 
 func (ddr *datadogReceiver) processIntake(apikey string, data []byte) {
-	if apikey == "" {
-		ddr.gpLogger.Info("No API key in intake, cannot cache tags")
-		return // no api key, nothing to do
-	}
-
 	var intake datadogIntake
 	err := json.Unmarshal(data, &intake)
 	if err != nil {
 		ddr.gpLogger.Error("Failed to unmarshal intake data", zap.Error(err))
 		return
+	}
+
+	if len(intake.HostTags) == 0 {
+		return // no host tags to update
+	}
+
+	if apikey == "" {
+		ddr.gpLogger.Info("No API key in intake, cannot cache tags")
+		return // no api key, nothing to do
 	}
 
 	hostname := intake.InternalHostname

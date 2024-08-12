@@ -59,8 +59,14 @@ func (ddr *datadogReceiver) splitLogs(apikey string, logs []DDLog) []groupedLogs
 	logkeys := make(map[int64]groupedLogs)
 	for _, log := range logs {
 		tags := splitTags(log.DDTags)
-		for _, tag := range cachedTags.FetchCache(ddr.tagcacheExtension, apikey, log.Hostname) {
-			tags[tag.Name] = tag.Value
+		hostname := log.Hostname
+		if hostname == "" {
+			hostname = tags["host"]
+		}
+		if hostname != "" {
+			for _, tag := range cachedTags.FetchCache(ddr.tagcacheExtension, apikey, log.Hostname) {
+				tags[tag.Name] = tag.Value
+			}
 		}
 		key := tagKey(tags, []string{log.Service, log.Hostname, log.DDSource})
 		if lk, ok := logkeys[key]; !ok {

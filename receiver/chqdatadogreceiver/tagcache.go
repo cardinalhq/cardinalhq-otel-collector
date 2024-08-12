@@ -2,6 +2,7 @@ package datadogreceiver
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension"
 	"go.uber.org/zap"
@@ -35,11 +36,15 @@ func (ddr *datadogReceiver) processIntake(data []byte) {
 	}
 
 	tags := make([]chqtagcacheextension.Tag, 0, len(intake.HostTags))
-	for k, v := range intake.HostTags {
+	for _, v := range intake.HostTags {
 		for _, tag := range v {
+			items := strings.SplitN(tag, ":", 2)
+			if len(items) != 2 {
+				continue
+			}
 			tags = append(tags, chqtagcacheextension.Tag{
-				Name:  k,
-				Value: tag,
+				Name:  items[0],
+				Value: items[1],
 			})
 		}
 	}
@@ -49,7 +54,6 @@ func (ddr *datadogReceiver) processIntake(data []byte) {
 	}
 
 	ddr.gpLogger.Info("Putting tags in cache", zap.String("key", intake.InternalHostname), zap.Any("tags", tags))
-
 	if err := ddr.tagcacheExtension.PutCache(hostname, tags); err != nil {
 		ddr.gpLogger.Error("Failed to put tags in cache", zap.Error(err))
 	}

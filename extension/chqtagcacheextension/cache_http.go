@@ -50,7 +50,16 @@ func (chq *CHQTagcacheExtension) FetchTags(key string) (any, error) {
 }
 
 func (chq *CHQTagcacheExtension) PutTags(key string, value any) error {
-	body, err := json.Marshal(value)
+	tags, ok := value.([]Tag)
+	if !ok {
+		return errors.New("Failed to put tags, invalid type")
+	}
+
+	wrapper := TagsMessage{
+		Tags: tags,
+	}
+
+	body, err := json.Marshal(wrapper)
 	if err != nil {
 		return err
 	}

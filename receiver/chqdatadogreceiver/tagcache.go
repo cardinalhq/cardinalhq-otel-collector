@@ -15,6 +15,9 @@ func newLocalTagCache() *localTagCache {
 }
 
 func (ltc *localTagCache) FetchCache(ext *chqtagcacheextension.CHQTagcacheExtension, apikey string, hostname string) []chqtagcacheextension.Tag {
+	if ext == nil {
+		return []chqtagcacheextension.Tag{}
+	}
 	key := apikey + "/" + hostname
 	if tags, ok := ltc.cache[key]; ok {
 		return tags
@@ -28,6 +31,9 @@ func (ltc *localTagCache) FetchCache(ext *chqtagcacheextension.CHQTagcacheExtens
 }
 
 func (ltc *localTagCache) PutCache(ext *chqtagcacheextension.CHQTagcacheExtension, apikey string, hostname string, tags []chqtagcacheextension.Tag) error {
+	if ext == nil {
+		return nil
+	}
 	key := apikey + "/" + hostname
 	ltc.cache[key] = tags
 	return ext.PutCache(key, tags)

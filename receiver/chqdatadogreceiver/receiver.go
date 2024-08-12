@@ -234,8 +234,11 @@ func (ddr *datadogReceiver) handleTraces(w http.ResponseWriter, req *http.Reques
 		ddr.traceLogger.Error("Unable to unmarshal reqs", zap.Error(err))
 		return
 	}
+
+	tagCache := newLocalTagCache()
+
 	for _, ddTrace := range ddTraces {
-		otelTraces := toTraces(ddTrace, req)
+		otelTraces := toTraces(ddTrace, req, ddr.tagcacheExtension, tagCache)
 		spanCount = otelTraces.SpanCount()
 		err = ddr.nextTraceConsumer.ConsumeTraces(obsCtx, otelTraces)
 		if err != nil {

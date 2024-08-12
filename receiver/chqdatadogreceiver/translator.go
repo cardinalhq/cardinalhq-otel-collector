@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	pb "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
+	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	semconv "go.opentelemetry.io/collector/semconv/v1.16.0"
@@ -49,7 +50,7 @@ func upsertHeadersAttributes(req *http.Request, attrs pcommon.Map) {
 	}
 }
 
-func toTraces(payload *pb.TracerPayload, req *http.Request) ptrace.Traces {
+func toTraces(payload *pb.TracerPayload, req *http.Request, ext *chqtagcacheextension.CHQTagcacheExtension, tagcache *localTagCache) ptrace.Traces {
 	var traces pb.Traces
 	for _, p := range payload.GetChunks() {
 		traces = append(traces, p.GetSpans())
@@ -73,6 +74,12 @@ func toTraces(payload *pb.TracerPayload, req *http.Request) ptrace.Traces {
 	for k, v := range payload.Tags {
 		if k = translateDataDogKeyToOtel(k); v != "" {
 			sharedAttributes.PutStr(k, v)
+		}
+	}
+
+	if tagcache != nil {
+		for _, v := range tagcache.FetchCache(ext, payload.Hostname) {
+			sharedAttributes.PutStr(v.Name, v.Value)
 		}
 	}
 

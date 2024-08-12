@@ -88,7 +88,7 @@ func TestTracePayloadV05Unmarshalling(t *testing.T) {
 		LanguageVersion: req.Header.Get("Datadog-Meta-Lang-Version"),
 		TracerVersion:   req.Header.Get("Datadog-Meta-Tracer-Version"),
 		Chunks:          traceChunksFromTraces(traces),
-	}, req)
+	}, req, nil, nil)
 	assert.Equal(t, 1, translated.SpanCount(), "Span Count wrong")
 	span := translated.ResourceSpans().At(0).ScopeSpans().At(0).Spans().At(0)
 	assert.NotNil(t, span)

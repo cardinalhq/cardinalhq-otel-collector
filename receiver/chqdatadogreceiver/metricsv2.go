@@ -66,7 +66,6 @@ func (ddr *datadogReceiver) handleMetricsV2Payload(req *http.Request) (ret []*dd
 }
 
 func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, ddMetrics []*ddpb.MetricPayload_MetricSeries) error {
-	// XXXMLG TODO: fetch additional tags from the cache
 	count := 0
 	m := pmetric.NewMetrics()
 	now := time.Now()
@@ -167,6 +166,12 @@ func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPa
 			kvTags[k] = v
 		}
 	}
+	hostname := "unknown"
+	if kvTags["host"] != "" {
+		hostname = kvTags["host"]
+	}
+	tagCache := newLocalTagCache()
+
 	for k, v := range kvTags {
 		decorateItem(k, v, rAttr, sAttr, lAttr)
 	}
@@ -174,6 +179,9 @@ func (ddr *datadogReceiver) convertMetricV2(m pmetric.Metrics, v2 *ddpb.MetricPa
 		for _, resource := range v2.Resources {
 			decorate(resource.Type, resource.Name, rAttr, sAttr)
 		}
+	}
+	for _, v := range tagCache.FetchCache(ddr.tagcacheExtension, hostname) {
+		lAttr.PutStr(v.Name, v.Value)
 	}
 	ensureServiceName(rAttr, kvTags)
 

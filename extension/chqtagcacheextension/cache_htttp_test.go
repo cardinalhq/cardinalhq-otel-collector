@@ -89,7 +89,7 @@ func TestCHQTagcacheExtension_FetchTags(t *testing.T) {
 				httpClient: mockClient,
 			}
 
-			tags, err := chq.FetchTags("example-key")
+			tags, err := chq.tagFetcher("example-key")
 
 			require.Equal(t, tt.expectedTags, tags)
 			if tt.expectedError == "" {
@@ -169,7 +169,7 @@ func TestCHQTagcacheExtension_PutTags(t *testing.T) {
 				httpClient: mockClient,
 			}
 
-			err := chq.PutTags("example-key", tt.tags)
+			err := chq.tagPutter("example-key", tt.tags)
 
 			if tt.expectedError == "" {
 				require.NoError(t, err)

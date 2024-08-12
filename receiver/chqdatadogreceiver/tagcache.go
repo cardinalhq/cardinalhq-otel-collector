@@ -1,60 +1,32 @@
 package datadogreceiver
 
 import (
-	"encoding/json"
-	"strings"
-
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension"
-	"go.uber.org/zap"
 )
 
-type datadogIntake struct {
-	APIKey           string              `json:"apiKey"`
-	InternalHostname string              `json:"internalHostname"`
-	Meta             DatadogIntakeMeta   `json:"meta"`
-	HostTags         map[string][]string `json:"host-tags"`
+type localTagCache struct {
+	cache map[string][]chqtagcacheextension.Tag
 }
 
-type DatadogIntakeMeta struct {
-	Hostname string `json:"hostname"`
+func newLocalTagCache() *localTagCache {
+	return &localTagCache{
+		cache: make(map[string][]chqtagcacheextension.Tag),
+	}
 }
 
-func (ddr *datadogReceiver) processIntake(data []byte) {
-	var intake datadogIntake
-	err := json.Unmarshal(data, &intake)
+func (ltc *localTagCache) FetchCache(ext *chqtagcacheextension.CHQTagcacheExtension, key string) []chqtagcacheextension.Tag {
+	if tags, ok := ltc.cache[key]; ok {
+		return tags
+	}
+	tags, err := ext.FetchCache(key)
 	if err != nil {
-		ddr.gpLogger.Error("Failed to unmarshal intake data", zap.Error(err))
-		return
+		tags = []chqtagcacheextension.Tag{}
 	}
+	ltc.cache[key] = tags
+	return tags
+}
 
-	hostname := intake.InternalHostname
-	if hostname == "" {
-		hostname = intake.Meta.Hostname
-	}
-	if hostname == "" {
-		return // probably not something we want
-	}
-
-	tags := make([]chqtagcacheextension.Tag, 0, len(intake.HostTags))
-	for _, v := range intake.HostTags {
-		for _, tag := range v {
-			items := strings.SplitN(tag, ":", 2)
-			if len(items) != 2 {
-				continue
-			}
-			tags = append(tags, chqtagcacheextension.Tag{
-				Name:  items[0],
-				Value: items[1],
-			})
-		}
-	}
-
-	if len(tags) == 0 {
-		return // no host tags to update
-	}
-
-	ddr.gpLogger.Info("Putting tags in cache", zap.String("key", intake.InternalHostname), zap.Any("tags", tags))
-	if err := ddr.tagcacheExtension.PutCache(hostname, tags); err != nil {
-		ddr.gpLogger.Error("Failed to put tags in cache", zap.Error(err))
-	}
+func (ltc *localTagCache) PutCache(ext *chqtagcacheextension.CHQTagcacheExtension, key string, tags []chqtagcacheextension.Tag) error {
+	ltc.cache[key] = tags
+	return ext.PutCache(key, tags)
 }

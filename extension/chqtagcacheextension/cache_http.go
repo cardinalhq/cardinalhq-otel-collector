@@ -16,6 +16,7 @@ package chqtagcacheextension
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -30,7 +31,8 @@ type TagsMessage struct {
 	Tags []Tag `json:"tags"`
 }
 
-func (chq *CHQTagcacheExtension) FetchTags(key string) (any, error) {
+func (chq *CHQTagcacheExtension) tagFetcher(key string) (any, error) {
+	chq.cacheMisses.Add(context.Background(), 1)
 	resp, err := chq.httpClient.Get(chq.config.Endpoint + "/api/v1/tags?hostname=" + key)
 	if err != nil {
 		return nil, err
@@ -49,7 +51,7 @@ func (chq *CHQTagcacheExtension) FetchTags(key string) (any, error) {
 	return tags.Tags, nil
 }
 
-func (chq *CHQTagcacheExtension) PutTags(key string, value any) error {
+func (chq *CHQTagcacheExtension) tagPutter(key string, value any) error {
 	tags, ok := value.([]Tag)
 	if !ok {
 		return errors.New("Failed to put tags, invalid type")

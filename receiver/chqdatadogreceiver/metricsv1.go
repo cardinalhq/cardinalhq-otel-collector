@@ -55,7 +55,6 @@ func handleMetricsV1Payload(req *http.Request) (ret []SeriesV1, httpCode int, er
 }
 
 func (ddr *datadogReceiver) processMetricsV1(ctx context.Context, ddMetrics []SeriesV1) error {
-	// XXXMLG TODO: fetch additional tags from the cache
 	now := time.Now()
 	for _, metric := range ddMetrics {
 		otelMetric, err := ddr.convertMetricV1(metric)
@@ -84,6 +83,8 @@ func getMetricType(mt *string) string {
 }
 
 func (ddr *datadogReceiver) convertMetricV1(v1 SeriesV1) (pmetric.Metrics, error) {
+	tagCache := newLocalTagCache()
+
 	m := pmetric.NewMetrics()
 	rm := m.ResourceMetrics().AppendEmpty()
 	rm.SetSchemaUrl(semconv.SchemaURL)
@@ -92,6 +93,11 @@ func (ddr *datadogReceiver) convertMetricV1(v1 SeriesV1) (pmetric.Metrics, error
 	scope := rm.ScopeMetrics().AppendEmpty()
 	sAttr := scope.Scope().Attributes()
 	sAttr.PutStr(string(semconv.AttributeTelemetrySDKName), "Datadog")
+
+	hostname := "unknown"
+	if v1.Host != nil {
+		hostname = *v1.Host
+	}
 
 	metric := scope.Metrics().AppendEmpty()
 	metric.SetName(v1.Metric)
@@ -103,6 +109,9 @@ func (ddr *datadogReceiver) convertMetricV1(v1 SeriesV1) (pmetric.Metrics, error
 		for k, v := range kv {
 			decorateItem(k, v, rAttr, sAttr, lAttr)
 		}
+	}
+	for _, v := range tagCache.FetchCache(ddr.tagcacheExtension, hostname) {
+		lAttr.PutStr(v.Name, v.Value)
 	}
 
 	mtype := getMetricType(v1.Type)

@@ -35,6 +35,7 @@ type DatadogIntakeMeta struct {
 
 func (ddr *datadogReceiver) processIntake(apikey string, data []byte) {
 	if apikey == "" {
+		ddr.gpLogger.Info("No API key in intake, cannot cache tags")
 		return // no api key, nothing to do
 	}
 
@@ -50,6 +51,7 @@ func (ddr *datadogReceiver) processIntake(apikey string, data []byte) {
 		hostname = intake.Meta.Hostname
 	}
 	if hostname == "" {
+		ddr.gpLogger.Info("No hostname in intake, cannot cache tags")
 		return // probably not something we want
 	}
 

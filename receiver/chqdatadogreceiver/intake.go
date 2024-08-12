@@ -34,6 +34,10 @@ type DatadogIntakeMeta struct {
 }
 
 func (ddr *datadogReceiver) processIntake(apikey string, data []byte) {
+	if ddr.tagcacheExtension == nil {
+		return
+	}
+
 	var intake datadogIntake
 	err := json.Unmarshal(data, &intake)
 	if err != nil {

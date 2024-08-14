@@ -36,9 +36,9 @@ COPY --from=build /build/bin/cardinalhq-otel-collector /app/bin/cardinalhq-otel-
 
 # 4317 - default OTLP receiver
 # 4318 - default gRPC receiver
+# 4433 - default aws firehose receiver
 # 8126 - datadog receiver
-# 55678 - opencensus (tracing) receiver
 # 55679 - zpages
-EXPOSE 4317/tcp 4318/tcp 8126/tcp 55678/tcp 55679/tcp
+EXPOSE 4317/tcp 4318/tcp 4433/tcp 8126/tcp 55679/tcp
 USER 2000:2000
 CMD ["/app/bin/cardinalhq-otel-collector"]

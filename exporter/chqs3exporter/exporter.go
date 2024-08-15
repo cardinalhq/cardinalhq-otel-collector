@@ -263,6 +263,7 @@ func (e *s3Exporter) saveAndUploadParquet(ids string, interval int64) error {
 	}
 	customerID, clusterID := splitCustomerID(ids)
 	logger := e.logger.With(zap.String("customerID", customerID), zap.String("clusterID", clusterID), zap.Int64("interval", interval), zap.String("tempFilename", f.Name()))
+	logger.Debug("Writing interval")
 	defer func() {
 		if writer != nil {
 			if err := writer.Close(); err != nil {

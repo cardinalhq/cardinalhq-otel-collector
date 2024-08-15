@@ -25,29 +25,37 @@ import (
 )
 
 func (e *summarysplit) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
-	if !hasSummaryDataPoints(md) {
-		e.conversions.Add(ctx, 1, metric.WithAttributes(attribute.Bool("is_summary", false)))
+	inCount := countDatapointTypes(md)
+	for k, v := range inCount {
+		e.input.Add(ctx, v, metric.WithAttributes(attribute.String("metricType", k.String())))
+	}
+	if inCount[pmetric.MetricTypeSummary] == 0 {
+		for k, v := range inCount {
+			e.output.Add(ctx, v, metric.WithAttributes(attribute.String("metricType", k.String())))
+		}
 		return md, nil
 	}
-
-	e.conversions.Add(ctx, 1, metric.WithAttributes(attribute.Bool("is_summary", true)))
-	return splitSummaryDataPoints(md), nil
+	result := splitSummaryDataPoints(md)
+	outCount := countDatapointTypes(result)
+	for k, v := range outCount {
+		e.output.Add(ctx, v, metric.WithAttributes(attribute.String("metricType", k.String())))
+	}
+	return result, nil
 }
 
-func hasSummaryDataPoints(md pmetric.Metrics) bool {
+func countDatapointTypes(md pmetric.Metrics) map[pmetric.MetricType]int64 {
+	counts := map[pmetric.MetricType]int64{}
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
 		rm := md.ResourceMetrics().At(i)
 		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
 			ilm := rm.ScopeMetrics().At(j)
 			for k := 0; k < ilm.Metrics().Len(); k++ {
 				metric := ilm.Metrics().At(k)
-				if metric.Type() == pmetric.MetricTypeSummary {
-					return true
-				}
+				counts[metric.Type()]++
 			}
 		}
 	}
-	return false
+	return counts
 }
 
 func splitSummaryDataPoints(md pmetric.Metrics) pmetric.Metrics {

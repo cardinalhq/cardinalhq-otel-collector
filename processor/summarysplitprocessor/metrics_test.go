@@ -229,28 +229,14 @@ func TestCreateQuantileMetrics(t *testing.T) {
 	assert.Equal(t, "value2", v.AsString())
 }
 
-func TestHasSummaryDataPoints(t *testing.T) {
-	md := pmetric.NewMetrics()
-
-	// Test case with no summary data points
-	rm := md.ResourceMetrics().AppendEmpty()
-	ilm := rm.ScopeMetrics().AppendEmpty()
-	metric := ilm.Metrics().AppendEmpty()
-	metric.SetEmptyGauge()
-	assert.False(t, hasSummaryDataPoints(md))
-
-	// Test case with summary data points
-	metric.SetEmptySummary()
-	assert.True(t, hasSummaryDataPoints(md))
-}
-
 func TestConsumeMetrics_empty_input(t *testing.T) {
 	meter := metric.NewMeterProvider()
 	ic, _ := meter.Meter("test").Int64Counter("dummy")
 
 	e := &summarysplit{
-		logger:      zap.NewNop(),
-		conversions: ic,
+		logger: zap.NewNop(),
+		input:  ic,
+		output: ic,
 	}
 
 	ctx := context.Background()
@@ -270,8 +256,9 @@ func TestConsumeMetrics_no_summary_data_points(t *testing.T) {
 	ic, _ := meter.Meter("test").Int64Counter("dummy")
 
 	e := &summarysplit{
-		logger:      zap.NewNop(),
-		conversions: ic,
+		logger: zap.NewNop(),
+		input:  ic,
+		output: ic,
 	}
 
 	ctx := context.Background()
@@ -297,8 +284,9 @@ func TestConsumeMetrics_with_summary_data_points(t *testing.T) {
 	ic, _ := meter.Meter("test").Int64Counter("dummy")
 
 	e := &summarysplit{
-		logger:      zap.NewNop(),
-		conversions: ic,
+		logger: zap.NewNop(),
+		input:  ic,
+		output: ic,
 	}
 
 	ctx := context.Background()

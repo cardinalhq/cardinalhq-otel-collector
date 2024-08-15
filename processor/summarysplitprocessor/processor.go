@@ -28,7 +28,8 @@ type summarysplit struct {
 	id                 component.ID
 	nextMetricReceiver consumer.Metrics
 
-	conversions metric.Int64Counter
+	input  metric.Int64Counter
+	output metric.Int64Counter
 }
 
 func newSummarySplitter(_ *Config, set processor.Settings, nextConsumer consumer.Metrics) (*summarysplit, error) {
@@ -52,7 +53,10 @@ func (e *summarysplit) Capabilities() consumer.Capabilities {
 
 func (e *summarysplit) setupTelemetry(ts component.TelemetrySettings) error {
 	var err error
-	if e.conversions, err = metadata.Meter(ts).Int64Counter("conversions"); err != nil {
+	if e.input, err = metadata.Meter(ts).Int64Counter("input"); err != nil {
+		return err
+	}
+	if e.output, err = metadata.Meter(ts).Int64Counter("output"); err != nil {
 		return err
 	}
 	return nil

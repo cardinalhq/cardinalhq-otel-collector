@@ -37,14 +37,14 @@ func (e *s3Exporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) err
 
 	e.calcMetricAge(md, time.Now())
 
-	e.logger.Info("ConsumeMetrics", zap.String("customerID", ee.CustomerID()), zap.Int("datapoints-in", md.DataPointCount()))
+	e.logger.Debug("ConsumeMetrics", zap.String("customerID", ee.CustomerID()), zap.Int("datapoints-in", md.DataPointCount()))
 
 	tbl, err := e.tb.MetricsFromOtel(&md, ee)
 	if err != nil {
 		return err
 	}
 
-	e.logger.Info("ConsumeMetrics", zap.String("customerID", ee.CustomerID()), zap.Int("table-size", len(tbl)))
+	e.logger.Debug("ConsumeMetrics", zap.String("customerID", ee.CustomerID()), zap.Int("table-size", len(tbl)))
 
 	custmap := e.partitionTableByCustomerIDAndInterval(tbl, e.config.UseNowForMetrics)
 	return e.writeTableByCustomerIDAndInterval(custmap)

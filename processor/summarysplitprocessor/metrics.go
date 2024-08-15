@@ -31,14 +31,14 @@ func (e *summarysplit) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (
 	}
 	if inCount[pmetric.MetricTypeSummary] == 0 {
 		for k, v := range inCount {
-			e.output.Add(ctx, v, metric.WithAttributes(attribute.String("metricType", k.String())))
+			e.output.Add(ctx, v, metric.WithAttributes(attribute.String("metricType", k.String()), attribute.Bool("passthrough", true)))
 		}
 		return md, nil
 	}
 	result := splitSummaryDataPoints(md)
 	outCount := countDatapointTypes(result)
 	for k, v := range outCount {
-		e.output.Add(ctx, v, metric.WithAttributes(attribute.String("metricType", k.String())))
+		e.output.Add(ctx, v, metric.WithAttributes(attribute.String("metricType", k.String()), attribute.Bool("passthrough", false)))
 	}
 	return result, nil
 }

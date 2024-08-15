@@ -107,7 +107,11 @@ func createCountMetric(metric pmetric.Metric, ilm pmetric.ScopeMetrics) {
 		sdp := summary.DataPoints().At(i)
 		dp := count.DataPoints().AppendEmpty()
 		sdp.Attributes().CopyTo(dp.Attributes())
-		dp.SetStartTimestamp(sdp.StartTimestamp())
+		sts := sdp.StartTimestamp()
+		if sts == 0 {
+			sts = sdp.Timestamp()
+		}
+		dp.SetStartTimestamp(sts)
 		dp.SetTimestamp(sdp.Timestamp())
 		dp.SetIntValue(int64(sdp.Count()))
 	}
@@ -124,7 +128,11 @@ func createSumMetric(metric pmetric.Metric, ilm pmetric.ScopeMetrics) {
 		sdp := summary.DataPoints().At(i)
 		dp := g.DataPoints().AppendEmpty()
 		sdp.Attributes().CopyTo(dp.Attributes())
-		dp.SetStartTimestamp(sdp.StartTimestamp())
+		sts := sdp.StartTimestamp()
+		if sts == 0 {
+			sts = sdp.Timestamp()
+		}
+		dp.SetStartTimestamp(sts)
 		dp.SetTimestamp(sdp.Timestamp())
 		dp.SetDoubleValue(sdp.Sum())
 	}
@@ -149,7 +157,11 @@ func createQuantileMetrics(metric pmetric.Metric, ilm pmetric.ScopeMetrics) {
 			}
 			dp := m.Gauge().DataPoints().AppendEmpty()
 			sdp.Attributes().CopyTo(dp.Attributes())
-			dp.SetStartTimestamp(sdp.StartTimestamp())
+			sts := sdp.StartTimestamp()
+			if sts == 0 {
+				sts = sdp.Timestamp()
+			}
+			dp.SetStartTimestamp(sts)
 			dp.SetTimestamp(sdp.Timestamp())
 			dp.SetDoubleValue(quantile.Value())
 		}

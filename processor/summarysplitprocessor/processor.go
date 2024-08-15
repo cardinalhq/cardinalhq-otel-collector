@@ -15,28 +15,39 @@
 package summarysplitprocessor
 
 import (
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor/internal/metadata"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/processor"
+	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
 )
 
 type summarysplit struct {
 	logger             *zap.Logger
 	id                 component.ID
-	telemetrySettings  component.TelemetrySettings
 	nextMetricReceiver consumer.Metrics
+
+	conversions metric.Int64Counter
 }
 
 func newSummarySplitter(_ *Config, set processor.Settings, nextConsumer consumer.Metrics) (*summarysplit, error) {
-	return &summarysplit{
+	ss := &summarysplit{
 		id:                 set.ID,
-		telemetrySettings:  set.TelemetrySettings,
 		logger:             set.Logger,
 		nextMetricReceiver: nextConsumer,
-	}, nil
+	}
+	return ss, ss.setupTelemetry(set.TelemetrySettings)
 }
 
 func (e *summarysplit) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: true}
+}
+
+func (e *summarysplit) setupTelemetry(ts component.TelemetrySettings) error {
+	var err error
+	if e.conversions, err = metadata.Meter(ts).Int64Counter("conversions"); err != nil {
+		return err
+	}
+	return nil
 }

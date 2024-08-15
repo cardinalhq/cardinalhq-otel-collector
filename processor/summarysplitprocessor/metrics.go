@@ -20,13 +20,17 @@ import (
 	"strings"
 
 	"go.opentelemetry.io/collector/pdata/pmetric"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 func (e *summarysplit) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
 	if !hasSummaryDataPoints(md) {
+		e.conversions.Add(ctx, 1, metric.WithAttributes(attribute.Bool("is_summary", false)))
 		return md, nil
 	}
 
+	e.conversions.Add(ctx, 1, metric.WithAttributes(attribute.Bool("is_summary", true)))
 	return splitSummaryDataPoints(md), nil
 }
 

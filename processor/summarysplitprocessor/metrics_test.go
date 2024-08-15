@@ -15,11 +15,15 @@
 package summarysplitprocessor
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
+	"go.opentelemetry.io/otel/sdk/metric"
+	"go.uber.org/zap"
 )
 
 func TestQuantileToName(t *testing.T) {
@@ -223,4 +227,114 @@ func TestCreateQuantileMetrics(t *testing.T) {
 	v, found = ilm.Metrics().At(5).Gauge().DataPoints().At(1).Attributes().Get("key2")
 	assert.True(t, found)
 	assert.Equal(t, "value2", v.AsString())
+}
+
+func TestHasSummaryDataPoints(t *testing.T) {
+	md := pmetric.NewMetrics()
+
+	// Test case with no summary data points
+	rm := md.ResourceMetrics().AppendEmpty()
+	ilm := rm.ScopeMetrics().AppendEmpty()
+	metric := ilm.Metrics().AppendEmpty()
+	metric.SetEmptyGauge()
+	assert.False(t, hasSummaryDataPoints(md))
+
+	// Test case with summary data points
+	metric.SetEmptySummary()
+	assert.True(t, hasSummaryDataPoints(md))
+}
+
+func TestConsumeMetrics_empty_input(t *testing.T) {
+	meter := metric.NewMeterProvider()
+	ic, _ := meter.Meter("test").Int64Counter("dummy")
+
+	e := &summarysplit{
+		logger:      zap.NewNop(),
+		conversions: ic,
+	}
+
+	ctx := context.Background()
+
+	md := pmetric.NewMetrics()
+	md.ResourceMetrics().AppendEmpty()
+	md.ResourceMetrics().At(0).ScopeMetrics().AppendEmpty()
+	md.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().AppendEmpty().SetEmptyGauge()
+
+	newMD, err := e.ConsumeMetrics(ctx, pmetric.NewMetrics())
+	assert.NoError(t, err)
+	assert.Equal(t, 0, newMD.ResourceMetrics().Len())
+}
+
+func TestConsumeMetrics_no_summary_data_points(t *testing.T) {
+	meter := metric.NewMeterProvider()
+	ic, _ := meter.Meter("test").Int64Counter("dummy")
+
+	e := &summarysplit{
+		logger:      zap.NewNop(),
+		conversions: ic,
+	}
+
+	ctx := context.Background()
+
+	md := pmetric.NewMetrics()
+	rm := md.ResourceMetrics().AppendEmpty()
+	ilm := rm.ScopeMetrics().AppendEmpty()
+	metric := ilm.Metrics().AppendEmpty()
+	metric.SetEmptyGauge()
+	metric.SetName("dummy")
+
+	newMD, err := e.ConsumeMetrics(ctx, md)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, newMD.ResourceMetrics().Len())
+	assert.Equal(t, 1, newMD.ResourceMetrics().At(0).ScopeMetrics().Len())
+	assert.Equal(t, 1, newMD.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().Len())
+	assert.Equal(t, "dummy", newMD.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Name())
+	assert.Equal(t, pmetric.MetricTypeGauge, newMD.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Type())
+}
+
+func TestConsumeMetrics_with_summary_data_points(t *testing.T) {
+	meter := metric.NewMeterProvider()
+	ic, _ := meter.Meter("test").Int64Counter("dummy")
+
+	e := &summarysplit{
+		logger:      zap.NewNop(),
+		conversions: ic,
+	}
+
+	ctx := context.Background()
+
+	md := pmetric.NewMetrics()
+	rm := md.ResourceMetrics().AppendEmpty()
+	ilm := rm.ScopeMetrics().AppendEmpty()
+	metric := ilm.Metrics().AppendEmpty()
+	metric.SetName("test.metric")
+	summary := metric.SetEmptySummary()
+	summaryDataPoints := summary.DataPoints()
+	dp := summaryDataPoints.AppendEmpty()
+	dp.SetCount(10)
+	dp.SetSum(100)
+	q := dp.QuantileValues().AppendEmpty()
+	q.SetQuantile(0.5)
+	q.SetValue(50)
+	q = dp.QuantileValues().AppendEmpty()
+	q.SetQuantile(0.999)
+	q.SetValue(99.9)
+	q = dp.QuantileValues().AppendEmpty()
+	q.SetQuantile(0)
+	q.SetValue(1)
+	q = dp.QuantileValues().AppendEmpty()
+	q.SetQuantile(1)
+	q.SetValue(100)
+
+	newMD, err := e.ConsumeMetrics(ctx, md)
+	require.NoError(t, err)
+	require.Equal(t, 1, newMD.ResourceMetrics().Len())
+	require.Equal(t, 1, newMD.ResourceMetrics().At(0).ScopeMetrics().Len())
+	require.Equal(t, 6, newMD.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().Len())
+	assert.Equal(t, "test.metric.count", newMD.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Name())
+	assert.Equal(t, "test.metric.sum", newMD.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(1).Name())
+	assert.Equal(t, "test.metric.quantile.50", newMD.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(2).Name())
+	assert.Equal(t, "test.metric.quantile.99_9", newMD.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(3).Name())
+	assert.Equal(t, "test.metric.min", newMD.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(4).Name())
+	assert.Equal(t, "test.metric.max", newMD.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(5).Name())
 }

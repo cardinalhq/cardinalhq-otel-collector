@@ -55,11 +55,13 @@ func splitSummaryDataPoints(md pmetric.Metrics) pmetric.Metrics {
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
 		rm := md.ResourceMetrics().At(i)
 		newRM := newMetrics.ResourceMetrics().AppendEmpty()
-		rm.CopyTo(newRM)
+		rm.Resource().CopyTo(newRM.Resource())
+		newRM.SetSchemaUrl(rm.SchemaUrl())
 		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
 			ilm := rm.ScopeMetrics().At(j)
 			newILM := newRM.ScopeMetrics().AppendEmpty()
-			ilm.CopyTo(newILM)
+			ilm.Scope().CopyTo(newILM.Scope())
+			newILM.SetSchemaUrl(ilm.SchemaUrl())
 			for k := 0; k < ilm.Metrics().Len(); k++ {
 				metric := ilm.Metrics().At(k)
 				if metric.Type() == pmetric.MetricTypeSummary {

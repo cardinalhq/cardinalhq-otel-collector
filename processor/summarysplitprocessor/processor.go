@@ -37,7 +37,13 @@ func newSummarySplitter(_ *Config, set processor.Settings, nextConsumer consumer
 		logger:             set.Logger,
 		nextMetricReceiver: nextConsumer,
 	}
-	return ss, ss.setupTelemetry(set.TelemetrySettings)
+	if err := ss.setupTelemetry(set.TelemetrySettings); err != nil {
+		return nil, err
+	}
+
+	ss.logger.Info("SummarySplit processor is enabled. Converting summary metrics to quantile metrics.")
+
+	return ss, nil
 }
 
 func (e *summarysplit) Capabilities() consumer.Capabilities {

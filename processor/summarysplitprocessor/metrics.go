@@ -97,7 +97,8 @@ func splitSummaryDataPoint(metric pmetric.Metric, ilm pmetric.ScopeMetrics) {
 func createCountMetric(metric pmetric.Metric, ilm pmetric.ScopeMetrics) {
 	summary := metric.Summary()
 	mcount := ilm.Metrics().AppendEmpty()
-	metric.CopyTo(mcount)
+	mcount.SetDescription(metric.Description())
+	mcount.SetUnit(metric.Unit())
 	mcount.SetName(metric.Name() + ".count")
 	count := mcount.SetEmptySum()
 	count.SetIsMonotonic(false)
@@ -115,7 +116,8 @@ func createCountMetric(metric pmetric.Metric, ilm pmetric.ScopeMetrics) {
 func createSumMetric(metric pmetric.Metric, ilm pmetric.ScopeMetrics) {
 	summary := metric.Summary()
 	msum := ilm.Metrics().AppendEmpty()
-	metric.CopyTo(msum)
+	msum.SetDescription(metric.Description())
+	msum.SetUnit(metric.Unit())
 	msum.SetName(metric.Name() + ".sum")
 	g := msum.SetEmptyGauge()
 	for i := 0; i < summary.DataPoints().Len(); i++ {
@@ -141,6 +143,8 @@ func createQuantileMetrics(metric pmetric.Metric, ilm pmetric.ScopeMetrics) {
 				m = ilm.Metrics().AppendEmpty()
 				m.SetName(name)
 				m.SetEmptyGauge()
+				m.SetDescription(metric.Description())
+				m.SetUnit(metric.Unit())
 				metricRefs[name] = m
 			}
 			dp := m.Gauge().DataPoints().AppendEmpty()

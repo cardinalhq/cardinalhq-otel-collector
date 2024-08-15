@@ -68,20 +68,30 @@ func TestCreateCountMetric(t *testing.T) {
 
 	metric := pmetric.NewMetric()
 	metric.SetName("test.metric")
+	metric.SetDescription("test description")
+	metric.SetUnit("1")
 	summary := metric.SetEmptySummary()
 	summaryDataPoints := summary.DataPoints()
 	summaryDataPoints.AppendEmpty().SetCount(10)
+	summaryDataPoints.At(0).SetTimestamp(100)
+	summaryDataPoints.At(0).SetStartTimestamp(0)
 	summaryDataPoints.AppendEmpty().SetCount(20)
+	summaryDataPoints.At(1).SetTimestamp(1000)
+	summaryDataPoints.At(1).SetStartTimestamp(900)
 
 	createCountMetric(metric, ilm)
 
 	assert.Equal(t, 1, ilm.Metrics().Len())
 	assert.Equal(t, "test.metric.count", ilm.Metrics().At(0).Name())
+	assert.Equal(t, "test description", ilm.Metrics().At(0).Description())
+	assert.Equal(t, "1", ilm.Metrics().At(0).Unit())
 	assert.Equal(t, 2, ilm.Metrics().At(0).Sum().DataPoints().Len())
 	assert.Equal(t, int64(10), ilm.Metrics().At(0).Sum().DataPoints().At(0).IntValue())
 	assert.Equal(t, int64(20), ilm.Metrics().At(0).Sum().DataPoints().At(1).IntValue())
 	assert.Equal(t, pmetric.AggregationTemporalityDelta, ilm.Metrics().At(0).Sum().AggregationTemporality())
 	assert.Equal(t, false, ilm.Metrics().At(0).Sum().IsMonotonic())
+	assert.Equal(t, pcommon.Timestamp(0), ilm.Metrics().At(0).Sum().DataPoints().At(0).StartTimestamp())
+	assert.Equal(t, pcommon.Timestamp(100), ilm.Metrics().At(0).Sum().DataPoints().At(0).Timestamp())
 }
 
 func TestCreateSumMetric(t *testing.T) {

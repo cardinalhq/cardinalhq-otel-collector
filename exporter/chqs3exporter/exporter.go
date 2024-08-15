@@ -26,6 +26,7 @@ import (
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/exporter"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
@@ -262,6 +263,7 @@ func (e *s3Exporter) saveAndUploadParquet(ids string, interval int64) error {
 	}
 	customerID, clusterID := splitCustomerID(ids)
 	logger := e.logger.With(zap.String("customerID", customerID), zap.String("clusterID", clusterID), zap.Int64("interval", interval), zap.String("tempFilename", f.Name()))
+	logger.Debug("Writing interval")
 	defer func() {
 		if writer != nil {
 			if err := writer.Close(); err != nil {
@@ -294,6 +296,7 @@ func (e *s3Exporter) saveAndUploadParquet(ids string, interval int64) error {
 			return false, err
 		}
 		if !ensureCustomerID(tableRows, customerID, logger) {
+			logger.Error("Customer ID mismatch", zap.String("expectedCustomerID", customerID))
 			return false, fmt.Errorf("customer ID mismatch")
 		}
 		logger.Debug("Writing rows", zap.Int("count", len(tableRows)))
@@ -320,9 +323,9 @@ func (e *s3Exporter) saveAndUploadParquet(ids string, interval int64) error {
 		return nil
 	}
 
-	e.telemetry.blocksReadTemp.Add(context.Background(), blockCount, metric.WithAttributeSet(e.telemetry.aset))
-	e.telemetry.itemsReadTemp.Add(context.Background(), itemCount, metric.WithAttributeSet(e.telemetry.aset))
-	e.telemetry.deltaBlocksRead.Add(context.Background(), int64(expectedCount)-blockCount, metric.WithAttributeSet(e.telemetry.aset))
+	e.telemetry.blocksReadTemp.Add(context.Background(), blockCount, metric.WithAttributeSet(e.telemetry.aset), metric.WithAttributes(attribute.String("customerID", customerID), attribute.String("clusterID", clusterID)))
+	e.telemetry.itemsReadTemp.Add(context.Background(), itemCount, metric.WithAttributeSet(e.telemetry.aset), metric.WithAttributes(attribute.String("customerID", customerID), attribute.String("clusterID", clusterID)))
+	e.telemetry.deltaBlocksRead.Add(context.Background(), int64(expectedCount)-blockCount, metric.WithAttributeSet(e.telemetry.aset), metric.WithAttributes(attribute.String("customerID", customerID), attribute.String("clusterID", clusterID)))
 
 	return e.upload(f, &s3Writer{}, ids, interval)
 }

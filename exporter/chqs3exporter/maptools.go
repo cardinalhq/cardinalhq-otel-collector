@@ -145,6 +145,7 @@ func (e *s3Exporter) writeTableForCustomerID(ids string, now time.Time, tbl []ma
 	for _, item := range tbl {
 		cid := customerIDFromMap(item)
 		if customerID != cid {
+			e.logger.Error("customer ID mismatch", zap.String("customerID", customerID), zap.String("itemCustomerID", cid))
 			return fmt.Errorf("customer ID mismatch: %s != %s", customerID, cid)
 		}
 	}
@@ -159,9 +160,13 @@ func (e *s3Exporter) writeTableForCustomerID(ids string, now time.Time, tbl []ma
 		return err
 	}
 
-	tooOldAttr := attribute.Bool("tooOld", tooOld)
-	e.telemetry.blocksWrittenTemp.Add(context.Background(), 1, metric.WithAttributeSet(e.telemetry.aset), metric.WithAttributes(tooOldAttr))
-	e.telemetry.itemsWrittenTemp.Add(context.Background(), int64(len(tbl)), metric.WithAttributeSet(e.telemetry.aset), metric.WithAttributes(tooOldAttr))
+	attrs := attribute.NewSet(
+		attribute.String("customerID", customerID),
+		attribute.String("clusterID", clusterID),
+		attribute.Bool("tooOld", tooOld),
+	)
+	e.telemetry.blocksWrittenTemp.Add(context.Background(), 1, metric.WithAttributeSet(e.telemetry.aset), metric.WithAttributeSet(attrs))
+	e.telemetry.itemsWrittenTemp.Add(context.Background(), int64(len(tbl)), metric.WithAttributeSet(e.telemetry.aset), metric.WithAttributeSet(attrs))
 
 	e.logger.Debug("put items to store",
 		zap.String("customerID", customerID),

@@ -1,0 +1,18 @@
+receivers:
+  nop:
+
+processors:
+  summarysplit:
+
+exporters:
+  nop:
+
+service:
+  pipelines:
+    metrics:
+      receivers: [nop]
+      processors: [summarysplit]
+      exporters: [nop]
+
+extensions:
+  nop:

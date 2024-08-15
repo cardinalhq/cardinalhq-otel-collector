@@ -72,6 +72,8 @@ processors:
     path: ./processor/chqdecoratorprocessor
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/chqenforcerprocessor v0.1.5
     path: ./processor/chqenforcerprocessor
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.1.5
+    path: ./processor/summarysplitprocessor
 
 connectors:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/connector/datadogconnector v0.107.0

@@ -117,7 +117,7 @@ func (ddr *datadogReceiver) recordAgeForMetrics(ctx context.Context, m *pmetric.
 				}
 				age := now.Sub(ts)
 				attrs := metric.WithAttributes(
-					attribute.String("telemetry_type", "metric"),
+					attribute.String("telemetry_type", "metrics"),
 					attribute.String("datadog_api_version", apiversion),
 				)
 				ddr.datapointAge.Record(ctx, age.Seconds(), metric.WithAttributeSet(ddr.aset), attrs)

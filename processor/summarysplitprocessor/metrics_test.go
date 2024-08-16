@@ -90,7 +90,7 @@ func TestCreateCountMetric(t *testing.T) {
 	assert.Equal(t, int64(20), ilm.Metrics().At(0).Sum().DataPoints().At(1).IntValue())
 	assert.Equal(t, pmetric.AggregationTemporalityDelta, ilm.Metrics().At(0).Sum().AggregationTemporality())
 	assert.Equal(t, false, ilm.Metrics().At(0).Sum().IsMonotonic())
-	assert.Equal(t, pcommon.Timestamp(0), ilm.Metrics().At(0).Sum().DataPoints().At(0).StartTimestamp())
+	assert.Equal(t, pcommon.Timestamp(100), ilm.Metrics().At(0).Sum().DataPoints().At(0).StartTimestamp())
 	assert.Equal(t, pcommon.Timestamp(100), ilm.Metrics().At(0).Sum().DataPoints().At(0).Timestamp())
 }
 
@@ -185,7 +185,7 @@ func TestCreateQuantileMetrics(t *testing.T) {
 	v, found = ilm.Metrics().At(0).Gauge().DataPoints().At(1).Attributes().Get("key2")
 	assert.True(t, found)
 	assert.Equal(t, "value2", v.AsString())
-	assert.Equal(t, pcommon.Timestamp(0), ilm.Metrics().At(0).Gauge().DataPoints().At(0).StartTimestamp())
+	assert.Equal(t, pcommon.Timestamp(100), ilm.Metrics().At(0).Gauge().DataPoints().At(0).StartTimestamp())
 	assert.Equal(t, pcommon.Timestamp(100), ilm.Metrics().At(0).Gauge().DataPoints().At(0).Timestamp())
 
 	assert.Equal(t, 2, ilm.Metrics().At(1).Gauge().DataPoints().Len())

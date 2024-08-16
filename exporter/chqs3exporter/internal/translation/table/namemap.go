@@ -63,3 +63,34 @@ func findHostname(attrs map[string]any) string {
 	}
 	return ""
 }
+
+func sanitizeAttribute(s string) string {
+	// replace all non-alphanumeric characters with underscores, except for hyphens
+	for i := 0; i < len(s); i++ {
+		if !isAlphanumeric(s[i]) && s[i] != '-' {
+			s = s[:i] + "_" + s[i+1:]
+		}
+	}
+
+	// remove leading and trailing underscores
+	for len(s) > 0 && s[0] == '_' {
+		s = s[1:]
+	}
+	for len(s) > 0 && s[len(s)-1] == '_' {
+		s = s[:len(s)-1]
+	}
+
+	// replace runs of _ with a single _
+	for i := 0; i < len(s)-1; i++ {
+		if s[i] == '_' && s[i+1] == '_' {
+			s = s[:i] + s[i+1:]
+			i--
+		}
+	}
+
+	return s
+}
+
+func isAlphanumeric(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+}

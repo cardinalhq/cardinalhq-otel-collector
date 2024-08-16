@@ -39,7 +39,7 @@ func (l *TableTranslator) MetricsFromOtel(om *pmetric.Metrics, environment trans
 				baseret := map[string]any{translate.CardinalFieldTelemetryType: translate.CardinalTelemetryTypeMetrics}
 				if environment != nil {
 					for k, v := range environment.Tags() {
-						baseret["env."+k] = v
+						baseret["env."+sanitizeAttribute(k)] = v
 					}
 				}
 				addAttributes(baseret, rm.Resource().Attributes(), "resource")

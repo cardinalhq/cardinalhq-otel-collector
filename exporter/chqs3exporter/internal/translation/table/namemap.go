@@ -17,6 +17,7 @@ package table
 import (
 	"fmt"
 	"strings"
+	"unicode"
 )
 
 var OtelToDatadogResource = map[string]string{
@@ -91,9 +92,57 @@ func sanitizeAttribute(s string) string {
 		}
 	}
 
-	return strings.ToLower(s)
+	return snakecaseLabels(s)
 }
 
 func isAlphanumeric(c byte) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+}
+
+func snakecaseLabels(s string) string {
+	items := strings.Split(s, ".")
+	for i, item := range items {
+		items[i] = toSnakeCase(item)
+	}
+	return strings.Join(items, ".")
+}
+
+func toSnakeCase(str string) string {
+	if is_uppercase(str) {
+		return strings.ToLower(str)
+	}
+	var result []rune
+	runes := []rune(str)
+	length := len(runes)
+
+	for i := 0; i < length; i++ {
+		r := runes[i]
+		if unicode.IsUpper(r) {
+			// If not the first character and the previous character is not an underscore, add an underscore
+			if i > 0 && runes[i-1] != '_' {
+				// Check if the next character is also uppercase
+				if i+1 < length && unicode.IsUpper(runes[i+1]) {
+					// If it's a sequence of uppercase letters, keep them together
+					result = append(result, unicode.ToLower(r))
+				} else {
+					result = append(result, '_', unicode.ToLower(r))
+				}
+			} else {
+				result = append(result, unicode.ToLower(r))
+			}
+		} else {
+			result = append(result, r)
+		}
+	}
+
+	return string(result)
+}
+
+func is_uppercase(s string) bool {
+	for _, r := range s {
+		if unicode.IsLetter(r) && !unicode.IsUpper(r) {
+			return false
+		}
+	}
+	return true
 }

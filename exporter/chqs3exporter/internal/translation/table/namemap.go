@@ -70,7 +70,7 @@ func findHostname(attrs map[string]any) string {
 func sanitizeAttribute(s string) string {
 	// replace all non-alphanumeric characters with underscores, except for hyphens
 	for i := 0; i < len(s); i++ {
-		if !isAlphanumeric(s[i]) && s[i] != '-' {
+		if !isAlphanumeric(s[i]) && s[i] != '-' && s[i] != '.' {
 			s = s[:i] + "_" + s[i+1:]
 		}
 	}

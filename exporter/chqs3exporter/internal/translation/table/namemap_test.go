@@ -20,6 +20,10 @@ func TestSanitizeAttribute(t *testing.T) {
 			"attribute-name",
 		},
 		{
+			"attribute.name",
+			"attribute.name",
+		},
+		{
 			"attribute name",
 			"attribute_name",
 		},

@@ -39,7 +39,7 @@ func (l *TableTranslator) MetricsFromOtel(om *pmetric.Metrics, environment trans
 				baseret := map[string]any{translate.CardinalFieldTelemetryType: translate.CardinalTelemetryTypeMetrics}
 				if environment != nil {
 					for k, v := range environment.Tags() {
-						baseret["env."+k] = v
+						baseret["env."+sanitizeAttribute(k)] = v
 					}
 				}
 				addAttributes(baseret, rm.Resource().Attributes(), "resource")
@@ -91,7 +91,7 @@ func (l *TableTranslator) toddGauge(metric pmetric.Metric, baseattrs map[string]
 		default:
 			continue
 		}
-		ret[translate.CardinalFieldName] = metric.Name()
+		ret[translate.CardinalFieldName] = sanitizeAttribute(metric.Name())
 		ret[translate.CardinalFieldID] = l.idg.Make(time.Now())
 		ok := ensureExpectedKeysMetrics(ret)
 		if !ok {
@@ -130,7 +130,7 @@ func (l *TableTranslator) toddSum(metric pmetric.Metric, baseattrs map[string]an
 		default:
 			continue
 		}
-		ret[translate.CardinalFieldName] = metric.Name()
+		ret[translate.CardinalFieldName] = sanitizeAttribute(metric.Name())
 		ret[translate.CardinalFieldID] = l.idg.Make(time.Now())
 		ok := ensureExpectedKeysMetrics(ret)
 		if !ok {
@@ -161,7 +161,7 @@ func (l *TableTranslator) toddHistogram(metric pmetric.Metric, baseattrs map[str
 		ret[translate.CardinalFieldTimestamp] = dp.Timestamp().AsTime().UnixMilli()
 		ret[translate.CardinalFieldCounts] = asJson(dp.BucketCounts().AsRaw())
 		ret[translate.CardinalFieldBucketBounds] = asJson(dp.ExplicitBounds().AsRaw())
-		ret[translate.CardinalFieldName] = metric.Name()
+		ret[translate.CardinalFieldName] = sanitizeAttribute(metric.Name())
 		ret[translate.CardinalFieldID] = l.idg.Make(time.Now())
 		ret[translate.CardinalFieldValue] = float64(-1)
 		ok := ensureExpectedKeysMetrics(ret)
@@ -188,7 +188,7 @@ func (l *TableTranslator) toddExponentialHistogram(metric pmetric.Metric, baseat
 		ret[translate.CardinalFieldNegativeCounts] = asJson(dp.Negative().BucketCounts().AsRaw())
 		ret[translate.CardinalFieldPositiveCounts] = asJson(dp.Positive().BucketCounts().AsRaw())
 		ret[translate.CardinalFieldZeroCount] = dp.ZeroCount()
-		ret[translate.CardinalFieldName] = metric.Name()
+		ret[translate.CardinalFieldName] = sanitizeAttribute(metric.Name())
 		ret[translate.CardinalFieldID] = l.idg.Make(time.Now())
 		ret[translate.CardinalFieldValue] = float64(-1)
 		ok := ensureExpectedKeysMetrics(ret)

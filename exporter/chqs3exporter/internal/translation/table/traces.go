@@ -52,7 +52,7 @@ func (l *TableTranslator) TracesFromOtel(ot *ptrace.Traces, environment translat
 				ret[translate.CardinalFieldResourceSchemaURL] = rs.SchemaUrl()
 				if environment != nil {
 					for k, v := range environment.Tags() {
-						ret["env."+k] = v
+						ret["env."+sanitizeAttribute(k)] = v
 					}
 				}
 				ensureExpectedKeysTraces(ret)

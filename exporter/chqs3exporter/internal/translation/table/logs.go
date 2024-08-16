@@ -44,7 +44,7 @@ func (l *TableTranslator) LogsFromOtel(ol *plog.Logs, environment translate.Envi
 				ret[translate.CardinalFieldID] = l.idg.Make(time.Now())
 				if environment != nil {
 					for k, v := range environment.Tags() {
-						ret["env."+k] = v
+						ret["env."+sanitizeAttribute(k)] = v
 					}
 				}
 				ensureExpectedKeysLogs(ret)

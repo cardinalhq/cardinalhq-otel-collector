@@ -27,7 +27,7 @@ func addAttributes(m map[string]any, attrs pcommon.Map, prefix string) {
 		if strings.HasPrefix(name, translate.CardinalFieldPrefixDot) {
 			m[name] = v.AsRaw()
 		} else {
-			m[prefix+"."+name] = v.AsString()
+			m[prefix+"."+sanitizeAttribute(name)] = v.AsString()
 		}
 
 		return true

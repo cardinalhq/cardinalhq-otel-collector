@@ -14,7 +14,10 @@
 
 package table
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 var OtelToDatadogResource = map[string]string{
 	"aws.ecs.cluster.arn":     "ecs_cluster_name",
@@ -88,7 +91,7 @@ func sanitizeAttribute(s string) string {
 		}
 	}
 
-	return s
+	return strings.ToLower(s)
 }
 
 func isAlphanumeric(c byte) bool {

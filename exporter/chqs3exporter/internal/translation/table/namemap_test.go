@@ -43,6 +43,10 @@ func TestSanitizeAttribute(t *testing.T) {
 			"attribute  name",
 			"attribute_name",
 		},
+		{
+			"Downcases",
+			"downcases",
+		},
 	}
 
 	for _, test := range tests {

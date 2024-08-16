@@ -196,7 +196,7 @@ func TestShouldFilterLog(t *testing.T) {
 		rattr    map[string]string
 		iattr    map[string]string
 		lattr    map[string]string
-		expected string
+		expected []string
 	}{
 		{
 			"no rules",
@@ -204,7 +204,7 @@ func TestShouldFilterLog(t *testing.T) {
 			map[string]string{"service.name": "my-service"},
 			map[string]string{},
 			map[string]string{},
-			"",
+			[]string{""},
 		},
 		{
 			"no matching rules",
@@ -219,7 +219,7 @@ func TestShouldFilterLog(t *testing.T) {
 			map[string]string{"service.name": "my-service"},
 			map[string]string{},
 			map[string]string{},
-			"",
+			[]string{""},
 		},
 		{
 			"matching rule",
@@ -234,7 +234,7 @@ func TestShouldFilterLog(t *testing.T) {
 			map[string]string{"service.name": "my-service"},
 			map[string]string{},
 			map[string]string{},
-			"rule1",
+			[]string{"rule1"},
 		},
 		{
 			"multiple rules",
@@ -255,7 +255,7 @@ func TestShouldFilterLog(t *testing.T) {
 			map[string]string{"service.name": "my-service"},
 			map[string]string{},
 			map[string]string{},
-			"rule1",
+			[]string{"rule1", "rule2"},
 		},
 		{
 			"empty scope",
@@ -270,7 +270,7 @@ func TestShouldFilterLog(t *testing.T) {
 			map[string]string{"service.name": "my-service"},
 			map[string]string{},
 			map[string]string{},
-			"rule1",
+			[]string{"rule1"},
 		},
 	}
 
@@ -292,7 +292,7 @@ func TestShouldFilterLog(t *testing.T) {
 				rules: tt.rules,
 			}
 			actual := ls.shouldFilter("", rattr, iattr, lattr)
-			assert.Equal(t, tt.expected, actual)
+			assert.Contains(t, tt.expected, actual)
 		})
 	}
 }

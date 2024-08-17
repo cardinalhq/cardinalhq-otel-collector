@@ -84,4 +84,4 @@ connectors:
 replaces:
   - github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
   - go.opentelemetry.io/collector/exporter v0.107.0 => github.com/cardinalhq/opentelemetry-collector/exporter head_dropping_queue
-  - github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awsfirehosereceiver v0.107.0 => github.com/skandragon/opentelemetry-collector-contrib/receiver/awsfirehosereceiver allow-empty-key
+  - github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awsfirehosereceiver v0.107.0 => github.com/skandragon/opentelemetry-collector-contrib/receiver/awsfirehosereceiver key-and-names

@@ -16,6 +16,7 @@ TARGETS=bin/cardinalhq-otel-collector
 PLATFORM=linux/amd64,linux/arm64
 BUILDX=docker buildx build --pull --platform ${PLATFORM}
 IMAGE_PREFIX=public.ecr.aws/cardinalhq.io/
+ODEL_VERSION=v0.107.0
 
 #
 # Build targets.  Adding to these will cause magic to occur.
@@ -78,7 +79,7 @@ tidy:
 # requires otel builder to be installed.
 # go install go.opentelemetry.io/collector/cmd/builder@latest
 bin/cardinalhq-otel-collector: cardinalhq-otel-collector.yaml
-	CGO_ENABLED=0 go run go.opentelemetry.io/collector/cmd/builder@latest --config cardinalhq-otel-collector.yaml 
+	CGO_ENABLED=0 go run go.opentelemetry.io/collector/cmd/builder@${ODEL_VERSION} --config cardinalhq-otel-collector.yaml 
 #
 # make a buildtime directory to hold the build timestamp files
 buildtime:

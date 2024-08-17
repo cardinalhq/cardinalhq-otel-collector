@@ -47,10 +47,6 @@ periodically transmitted to your upstream provider.
 
 ## Getting Started
 
-### Sign Up
-
-...
-
 ### Install and Configure CardinalHQ Collector
 
 ...

@@ -91,7 +91,6 @@ func (ddr *datadogReceiver) convertMetricV1(apikey string, v1 SeriesV1) (pmetric
 	rm := m.ResourceMetrics().AppendEmpty()
 	rm.SetSchemaUrl(semconv.SchemaURL)
 	rAttr := rm.Resource().Attributes()
-	rAttr.PutStr(semconv.AttributeHostName, *v1.Host)
 	scope := rm.ScopeMetrics().AppendEmpty()
 	sAttr := scope.Scope().Attributes()
 	sAttr.PutStr(string(semconv.AttributeTelemetrySDKName), "Datadog")
@@ -109,9 +108,14 @@ func (ddr *datadogReceiver) convertMetricV1(apikey string, v1 SeriesV1) (pmetric
 	for _, tag := range v1.Tags {
 		kv := splitTags(tag)
 		for k, v := range kv {
+			if k == "host" && hostname == "unknown" {
+				hostname = v
+			}
 			decorateItem(k, v, rAttr, sAttr, lAttr)
 		}
 	}
+	rAttr.PutStr(semconv.AttributeHostName, hostname)
+
 	ddr.hostnameTags.Add(context.Background(), 1, metric.WithAttributes(
 		attribute.String("hostname", hostname),
 		attribute.String("telemetry_type", "metrics"),
@@ -119,7 +123,7 @@ func (ddr *datadogReceiver) convertMetricV1(apikey string, v1 SeriesV1) (pmetric
 	))
 
 	for _, v := range tagCache.FetchCache(ddr.tagcacheExtension, apikey, hostname) {
-		lAttr.PutStr(v.Name, v.Value)
+		rAttr.PutStr(v.Name, v.Value)
 	}
 
 	mtype := getMetricType(v1.Type)

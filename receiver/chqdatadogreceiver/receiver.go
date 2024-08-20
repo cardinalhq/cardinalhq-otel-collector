@@ -37,6 +37,7 @@ type datadogReceiver struct {
 	server             *http.Server
 	obsrecv            *receiverhelper.ObsReport
 	datapointAge       metric.Float64Histogram
+	hostnameTags       metric.Int64Counter
 	aset               attribute.Set
 	podName            string
 	id                 string
@@ -85,6 +86,16 @@ func newDataDogReceiver(config *Config, params receiver.Settings) (component.Com
 		return nil, err
 	}
 	ddr.datapointAge = hg
+
+	ht, err := metadata.Meter(ddr.telemetrySettings).Int64Counter(
+		"hostname_tag_lookups",
+		metric.WithDescription("The number of times a hostname tag was looked up"),
+		metric.WithUnit("1"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	ddr.hostnameTags = ht
 
 	return ddr, nil
 }

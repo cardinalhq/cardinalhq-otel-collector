@@ -159,7 +159,6 @@ func (ddr *datadogReceiver) convertMetricV2(apikey string, m pmetric.Metrics, v2
 	// }
 
 	kvTags := map[string]string{}
-	lAttr := pcommon.NewMap()
 	for _, tag := range v2.Tags {
 		item := splitTags(tag)
 		for k, v := range item {
@@ -167,11 +166,15 @@ func (ddr *datadogReceiver) convertMetricV2(apikey string, m pmetric.Metrics, v2
 		}
 	}
 	hostname := "unknown"
-	if kvTags["host"] != "" {
-		hostname = kvTags["host"]
+	targets := []string{"host.name", "hostname", "host"}
+	for _, target := range targets {
+		if v, ok := kvTags[target]; ok && v != "" {
+			hostname = v // no break, allow better values to match
+		}
 	}
 	tagCache := newLocalTagCache()
 
+	lAttr := pcommon.NewMap()
 	for k, v := range kvTags {
 		decorateItem(k, v, rAttr, sAttr, lAttr)
 	}
@@ -186,7 +189,7 @@ func (ddr *datadogReceiver) convertMetricV2(apikey string, m pmetric.Metrics, v2
 		attribute.String("datadog_api_version", "v2"),
 	))
 	for _, v := range tagCache.FetchCache(ddr.tagcacheExtension, apikey, hostname) {
-		lAttr.PutStr(v.Name, v.Value)
+		rAttr.PutStr(v.Name, v.Value)
 	}
 	ensureServiceName(rAttr, kvTags)
 

@@ -24,6 +24,8 @@ import (
 	"github.com/cespare/xxhash/v2"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	semconv "go.opentelemetry.io/otel/semconv/v1.25.0"
 	"golang.org/x/exp/maps"
 )
@@ -63,6 +65,8 @@ func (ddr *datadogReceiver) splitLogs(apikey string, logs []DDLog) []groupedLogs
 		if hostname == "" {
 			hostname = tags["host"]
 		}
+		ddr.hostnameTags.Add(context.Background(), 1,
+			metric.WithAttributes(attribute.String("hostname", hostname), attribute.String("telemetry_type", "logs")))
 		if hostname != "" {
 			for _, tag := range cachedTags.FetchCache(ddr.tagcacheExtension, apikey, log.Hostname) {
 				tags[tag.Name] = tag.Value

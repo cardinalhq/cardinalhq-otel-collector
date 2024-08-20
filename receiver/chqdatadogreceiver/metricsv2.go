@@ -180,6 +180,11 @@ func (ddr *datadogReceiver) convertMetricV2(apikey string, m pmetric.Metrics, v2
 			decorate(resource.Type, resource.Name, rAttr, sAttr)
 		}
 	}
+	ddr.hostnameTags.Add(context.Background(), 1, metric.WithAttributes(
+		attribute.String("hostname", hostname),
+		attribute.String("telemetry_type", "metrics"),
+		attribute.String("datadog_api_version", "v2"),
+	))
 	for _, v := range tagCache.FetchCache(ddr.tagcacheExtension, apikey, hostname) {
 		lAttr.PutStr(v.Name, v.Value)
 	}

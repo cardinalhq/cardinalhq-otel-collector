@@ -24,6 +24,8 @@ import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	semconv "go.opentelemetry.io/collector/semconv/v1.25.0"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 // MetricsPayloadV1 is for the /api/v1/series endpoint.
@@ -99,9 +101,9 @@ func (ddr *datadogReceiver) convertMetricV1(apikey string, v1 SeriesV1) (pmetric
 		hostname = *v1.Host
 	}
 
-	metric := scope.Metrics().AppendEmpty()
-	metric.SetName(v1.Metric)
-	metric.SetUnit("1")
+	mm := scope.Metrics().AppendEmpty()
+	mm.SetName(v1.Metric)
+	mm.SetUnit("1")
 
 	lAttr := pcommon.NewMap()
 	for _, tag := range v1.Tags {
@@ -110,6 +112,12 @@ func (ddr *datadogReceiver) convertMetricV1(apikey string, v1 SeriesV1) (pmetric
 			decorateItem(k, v, rAttr, sAttr, lAttr)
 		}
 	}
+	ddr.hostnameTags.Add(context.Background(), 1, metric.WithAttributes(
+		attribute.String("hostname", hostname),
+		attribute.String("telemetry_type", "metrics"),
+		attribute.String("datadog_api_version", "v1"),
+	))
+
 	for _, v := range tagCache.FetchCache(ddr.tagcacheExtension, apikey, hostname) {
 		lAttr.PutStr(v.Name, v.Value)
 	}
@@ -117,14 +125,14 @@ func (ddr *datadogReceiver) convertMetricV1(apikey string, v1 SeriesV1) (pmetric
 	mtype := getMetricType(v1.Type)
 	switch mtype {
 	case "gauge":
-		g := metric.SetEmptyGauge()
+		g := mm.SetEmptyGauge()
 		for _, point := range v1.Points {
 			dp := g.DataPoints().AppendEmpty()
 			lAttr.CopyTo(dp.Attributes())
 			populateDatapoint(&dp, point.V1*1000, point.V2)
 		}
 	case "count":
-		c := metric.SetEmptySum()
+		c := mm.SetEmptySum()
 		c.SetIsMonotonic(false)
 		c.SetAggregationTemporality(pmetric.AggregationTemporalityDelta)
 		for _, point := range v1.Points {
@@ -133,7 +141,7 @@ func (ddr *datadogReceiver) convertMetricV1(apikey string, v1 SeriesV1) (pmetric
 			populateDatapoint(&dp, point.V1*1000, point.V2)
 		}
 	case "rate":
-		c := metric.SetEmptySum()
+		c := mm.SetEmptySum()
 		c.SetIsMonotonic(false)
 		c.SetAggregationTemporality(pmetric.AggregationTemporalityDelta)
 		interval := int64(1)

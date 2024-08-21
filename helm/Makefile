@@ -22,7 +22,4 @@ clean:
 	rm -f cardinalhq-otel-collector-*.tgz
 
 template:
-	helm template cardinalhq-otel-collector
-
-template-values:
 	helm template cardinalhq-otel-collector --values test-values.yaml

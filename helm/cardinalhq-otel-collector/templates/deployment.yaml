@@ -3,17 +3,17 @@ kind: Deployment
 metadata:
   labels:
     {{- include "customerside.labels" . | nindent 4 }}
-    app.kubernetes.io/component: collector-l1
+    app.kubernetes.io/component: collector
   {{- include "customerside.deployment.annotations" . | nindent 2 }}
-  name: {{ include "customerside.fullname" . }}-l1
+  name: {{ include "customerside.fullname" . }}
   {{- include "customerside.namespace" . | nindent 2 }}
 spec:
-  replicas: {{ .Values.collector.l1.replicas | default 2 }}
+  replicas: {{ .Values.collector.deployment.replicas | default 2 }}
   revisionHistoryLimit: 3
   selector:
     matchLabels:
       {{- include "customerside.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: collector-l1
+      app.kubernetes.io/component: collector
   strategy:
     rollingUpdate:
       maxSurge: 1
@@ -23,9 +23,9 @@ spec:
     metadata:
       labels:
         {{- include "customerside.labels" . | nindent 8 }}
-        app.kubernetes.io/component: collector-l1
+        app.kubernetes.io/component: collector
     spec:
-      serviceAccountName: {{ include "customerside.fullname" . }}-loadbalancer
+      serviceAccountName: {{ include "customerside.fullname" . }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 2000
@@ -33,15 +33,15 @@ spec:
         fsGroup: 2000
       containers:
         - name: collector
-          image: "{{ .Values.collector.l1.image.repository }}:{{ .Values.collector.l1.image.tag }}"
+          image: "{{ .Values.collector.deployment.image.repository }}:{{ .Values.collector.deployment.image.tag }}"
           command:
             - "/app/bin/cardinalhq-otel-collector"
             - "--config=/app/config/config.yaml"
             - "--feature-gates=component.UseLocalHostAsDefaultHost"
           env:
-{{- if .Values.collector.l1.env.gomemlimit }}
+{{- if .Values.collector.deployment.env.gomemlimit }}
             - name: GOMEMLIMIT
-              value: "{{ .Values.collector.l1.env.gomemlimit }}"
+              value: "{{ .Values.collector.deployment.env.gomemlimit }}"
 {{- end }}
             - name: POD_NAMESPACE
               valueFrom:
@@ -110,9 +110,9 @@ spec:
               drop: ["ALL"]
             seccompProfile:
               type: RuntimeDefault
-{{- if .Values.collector.l1.resources }}
+{{- if .Values.collector.deployment.resources }}
           resources:
-{{ toYaml .Values.collector.l1.resources | indent 12 }}
+{{ toYaml .Values.collector.deployment.resources | indent 12 }}
 {{- end }}
           volumeMounts:
             - name: config
@@ -123,20 +123,20 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: {{ include "customerside.fullname" . }}-l1
+            name: {{ include "customerside.fullname" . }}
         - name: buffer-scratch
           ephemeral:
             volumeClaimTemplate:
               metadata:
                 labels:
                   {{- include "customerside.labels" . | nindent 18 }}
-                  app.kubernetes.io/component: collector-l1
+                  app.kubernetes.io/component: collector
                 {{- include "customerside.pvc.annotations" . | nindent 16 }}
               spec:
                 accessModes: [ "ReadWriteOnce" ]
-                {{ if .Values.collector.l1.pvc.storageClassName }}
-                storageClassName: {{ .Values.collector.l1.pvc.storageClassName }}
+                {{ if .Values.collector.deployment.pvc.storageClassName }}
+                storageClassName: {{ .Values.collector.deployment.pvc.storageClassName }}
                 {{ end }}
                 resources:
                   requests:
-                    storage: {{ .Values.collector.l1.pvc.size }}
+                    storage: {{ .Values.collector.deployment.pvc.size }}

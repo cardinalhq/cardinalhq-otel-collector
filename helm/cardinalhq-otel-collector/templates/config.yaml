@@ -3,41 +3,48 @@ kind: ConfigMap
 metadata:
   labels:
     {{- include "customerside.labels" . | nindent 4 }}
-    app.kubernetes.io/component: collector-l2
+    app.kubernetes.io/component: collector
   {{- include "customerside.configMap.annotations" . | nindent 2 }}
-  name: {{ include "customerside.fullname" . }}-l2
+  name: {{ include "customerside.fullname" . }}
   {{- include "customerside.namespace" . | nindent 2 }}
 data:
   config.yaml: |-
     receivers:
-      otlp/l2:
-        protocols:
-          grpc:
-            endpoint: 0.0.0.0:{{ .Values.collector.ports.internal.otlpGRPCPort}}
+      # Default receivers for the collector.
+      {{- range $index, $config := .Values.collector.defaultReceivers }}
+      {{- if $config.enabled }}
+      {{ $config.name }}:
+      {{- toYaml $config.config | nindent 8 }}
+      {{- end }}
+      {{- end }}
 
+      # customer-added receivers
+      {{- range $index, $config := .Values.collector.additionalReceivers }}
+      {{- if $config.enabled }}
+      {{ $config.name }}:
+      {{- toYaml $config.config | nindent 8 }}
+      {{- end }}
+      {{- end }}
     exporters:
       nop:
-
       {{ range $name, $flags := .Values.vendors }}
-      {{ if and $flags.enabled (not $flags.dryrun) -}}
-      {{ if or $flags.metrics $flags.traces }}
+      {{ if and $flags.enabled $flags.logs (not $flags.dryrun) -}}
       {{ $flags.exporter }}/{{ $name }}:
         {{ toYaml $flags.config | nindent 8 }}
       {{ end -}}
-      {{ end -}}
       {{ end }}
-
+    
 {{ if .Values.s3.enabled }}
-      chqs3/l2:
+      chqs3/lx:
       {{ include "customerside.chqs3.config" . | nindent 8 }}
 {{ end }}
 
     processors:
       # Limit collector process memory usage.  This should be the first processor
       # in the processor list.
-      memory_limiter/l2:
-        limit_mib: {{ .Values.collector.l2.memory_limiter.limit_mib }}
-        spike_limit_mib: {{ .Values.collector.l2.memory_limiter.spike_limit_mib }}
+      memory_limiter/lx:
+        limit_mib: {{ .Values.collector.memory_limiter.limit_mib }}
+        spike_limit_mib: {{ .Values.collector.memory_limiter.spike_limit_mib }}
         check_interval: 5s
 
       batch/intakestats:
@@ -46,22 +53,20 @@ data:
         send_batch_max_size: 1000
 
       {{ range $name, $flags := .Values.vendors -}}
-      {{ if $flags.enabled -}}
-      {{ if or $flags.metrics $flags.traces }}
+      {{ if and $flags.enabled $flags.logs -}}
       batch/{{ $name }}:
         timeout: 1s
         send_batch_size: 100
         send_batch_max_size: 1000
       {{ end -}}
       {{ end -}}
-      {{ end -}}
 
-      groupbytrace/l2:
+      groupbytrace/lx:
         wait_duration: 60s
 
-      cumulativetodelta/l2:
+      cumulativetodelta/lx:
 
-      chqdecorator/l2:
+      chqdecorator/lx:
 
       chqenforcer/intakestats:
         configuration_extension: chqconfig/cardinalhq
@@ -79,8 +84,7 @@ data:
           has_error_rate: 4
 
       {{ range $name, $flags := .Values.vendors -}}
-      {{ if $flags.enabled -}}
-      {{ if or $flags.metrics $flags.traces }}
+      {{ if and $flags.enabled $flags.logs -}}
       chqenforcer/{{ $name }}:
         configuration_extension: chqconfig/cardinalhq
         {{ if $flags.keepTags }}
@@ -98,35 +102,79 @@ data:
           uninteresting_rate: 1000
           has_error_rate: 4
       {{ end -}}
-      {{ end -}}
       {{ end }}
 
     connectors:
       forward/intakestats:
 {{ if .Values.s3.enabled }}
       forward/chqs3:
-      spanmetrics/l2:
+      spanmetrics/lx:
         aggregation_temporality: "AGGREGATION_TEMPORALITY_DELTA"
         metrics_flush_interval: 10s
         namespace: span.metrics
 {{ end }}
       {{ range $name, $flags := .Values.vendors -}}
-      {{ if $flags.enabled -}}
-      {{ if or $flags.metrics $flags.traces }}
+      {{ if and $flags.enabled $flags.logs -}}
       forward/{{ $name }}:
       {{ end -}}
-      {{ end -}}
       {{ end }}
-
+        
     service:
       pipelines:
-        metrics/l2:
+        # log handling.  No need to partition here.
+        logs/lx:
           receivers:
-            - otlp/l2
+            - otlp/lx
+            - chqdatadog/lx
+            {{- range $key, $config := .Values.collector.additionalReceivers }}
+            {{- if and $config.enabled $config.logs }}
+            - {{ $config.name }}
+            {{- end }}
+            {{- end }}
           processors:
-            - memory_limiter/l2
-            - cumulativetodelta/l2
-            - chqdecorator/l2
+            - memory_limiter/lx
+            - chqdecorator/lx
+          exporters:
+            - forward/intakestats
+{{ if .Values.s3.enabled }}
+            - chqs3/lx
+{{ end }}
+            {{ range $name, $flags := .Values.vendors -}}
+            {{ if and $flags.enabled $flags.logs -}}
+            - forward/{{ $name }}
+            {{ end -}}
+            {{ end }}
+        logs/intakestats:
+          receivers:
+            - forward/intakestats
+          processors:
+            - chqenforcer/intakestats
+          exporters:
+            - nop
+        {{ range $name, $flags := .Values.vendors }}
+        {{ if and $flags.enabled $flags.logs -}}
+        logs/{{ $name }}:
+          receivers:
+            - forward/{{ $name }}
+          processors:
+            - chqenforcer/{{ $name }}
+            - batch/{{ $name }}
+          exporters:
+          {{ if $flags.dryrun }}
+            - nop
+          {{ else }}
+            - {{ $flags.exporter}}/{{ $name }}
+          {{ end }}
+        {{ end -}}
+        {{- end -}}
+
+        metrics/lx:
+          receivers:
+            - otlp/lx
+          processors:
+            - memory_limiter/lx
+            - cumulativetodelta/lx
+            - chqdecorator/lx
           exporters:
             - forward/intakestats
 {{ if .Values.s3.enabled }}
@@ -162,34 +210,33 @@ data:
         {{- end -}}
 
 {{ if .Values.s3.enabled }}
-        metrics/l2s3:
+        metrics/lxs3:
           receivers:
             - forward/chqs3
           exporters:
-            - chqs3/l2
+            - chqs3/lx
 
         metrics/spanmetrics:
           receivers:
-            - spanmetrics/l2
+            - spanmetrics/lx
           processors:
-            - chqdecorator/l2
+            - chqdecorator/lx
           exporters:
             - forward/chqs3
 {{ end }}
 
-
-        traces/l2:
+        traces/lx:
           receivers:
-            - otlp/l2
+            - otlp/lx
           processors:
-            - memory_limiter/l2
-            - groupbytrace/l2
-            - chqdecorator/l2
+            - memory_limiter/lx
+            - groupbytrace/lx
+            - chqdecorator/lx
           exporters:
             - forward/intakestats
 {{ if .Values.s3.enabled }}
-            - spanmetrics/l2
-            - chqs3/l2
+            - spanmetrics/lx
+            - chqs3/lx
 {{ end }}
             {{ range $name, $flags := .Values.vendors -}}
             {{ if and $flags.enabled $flags.traces -}}

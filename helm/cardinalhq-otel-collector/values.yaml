@@ -38,7 +38,7 @@ vendors:
       sending_queue:
         storage: file_storage/scratch
         queue_size: 2000
-      endpoint: https://chq-collector-grpc.svc.aws.dev.cardinalhq.net:443
+      endpoint: https://customer-intake-otelgrpc.us-east-2.aws.prod.cardinalhq.net:443
       auth:
         authenticator: chqauth/cardinalhq
   datadog:
@@ -54,23 +54,20 @@ vendors:
         queue_size: 2000
       api_key: ${env:DATADOG_API_KEY}
       metrics:
-        endpoint: https://intake.cardinalhq.io
+        endpoint: https://intake.us-east-2.aws.prod.cardinalhq.io
         compression: gzip
       logs:
-        endpoint: https://intake.cardinalhq.io
+        endpoint: https://intake.us-east-2.aws.prod.cardinalhq.io
         compression: gzip
       traces:
-        endpoint: https://intake.cardinalhq.io
+        endpoint: https://intake.us-east-2.aws.prod.cardinalhq.io
         compression: gzip
 
 collector:
   aggregation:
     interval: 2s
-  ports:
-    internal:
-      otlpGRPCPort: 14317
   defaultReceivers:
-    - name: otlp/l1
+    - name: otlp/lx
       enabled: true
       config:
         protocols:
@@ -78,7 +75,7 @@ collector:
             endpoint: 0.0.0.0:4317
           http:
             endpoint: 0.0.0.0:4318
-    - name: chqdatadog/l1
+    - name: chqdatadog/lx
       enabled: true
       config:
         endpoint: 0.0.0.0:8126
@@ -96,10 +93,10 @@ collector:
     spike_limit_mib: 100
   endpoints:
     cardinalhq:
-      otlpGRPC: https://chq-collector-grpc.svc.aws.dev.cardinalhq.net:443
-      stats: https://stats-receiver.svc.aws.dev.cardinalhq.net
+      otlpGRPC: https://customer-intake-otelgrpc.us-east-2.aws.prod.cardinalhq.net:443
+      stats: https://stats-receiver.global.aws.prod.cardinalhq.net
       statsInterval: 5m
-      samplerConfig: https://api.svc.aws.dev.cardinalhq.net/api/v1/samplerConfig
+      samplerConfig: https://api.global.aws.prod.cardinalhq.net/api/v1/samplerConfig
     zpages:
       port: 55679
     healthz:

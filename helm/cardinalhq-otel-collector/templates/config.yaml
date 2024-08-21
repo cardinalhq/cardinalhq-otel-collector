@@ -61,6 +61,11 @@ data:
       {{ end -}}
       {{ end -}}
 
+      groupbytrace/lx:
+        wait_duration: 60s
+
+      cumulativetodelta/lx:
+
       chqdecorator/lx:
 
       chqenforcer/intakestats:

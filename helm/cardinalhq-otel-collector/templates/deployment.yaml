@@ -25,7 +25,7 @@ spec:
         {{- include "customerside.labels" . | nindent 8 }}
         app.kubernetes.io/component: collector
     spec:
-      serviceAccountName: {{ include "customerside.fullname" . }}-loadbalancer
+      serviceAccountName: {{ include "customerside.fullname" . }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 2000

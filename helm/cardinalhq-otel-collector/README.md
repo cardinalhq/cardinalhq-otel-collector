@@ -43,7 +43,7 @@ these and other settings.
 ### Helm Install
 
 ```sh
-% helm install --namespace cardinal foo oci://public.ecr.aws/b1d7g2f3/cardinalhq-otel-collector
+% helm install --namespace cardinal foo oci://public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector
 ```
 
 In addition to the  collector deployment, a `ClusterIP` service

@@ -3,14 +3,14 @@ kind: Service
 metadata:
   labels:
     {{- include "customerside.labels" . | nindent 4 }}
-    app.kubernetes.io/component: collector-l1
+    app.kubernetes.io/component: collector
   {{- include "customerside.service.annotations" . | nindent 2 }}
-  name: {{ include "customerside.fullname" . }}-l1
+  name: {{ include "customerside.fullname" . }}
   {{- include "customerside.namespace" . | nindent 2 }}
 spec:
   selector:
     {{- include "customerside.selectorLabels" . | nindent 4}}
-    app.kubernetes.io/component: collector-l1
+    app.kubernetes.io/component: collector
   ports:
     - name: otlp
       port: 4317

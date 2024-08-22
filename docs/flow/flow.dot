@@ -13,7 +13,7 @@
 # limitations under the License.
 
 digraph G {
-    rankdir=TB;
+    rankdir=LR;
     fontname="Arial";
     node [
         shape=box
@@ -26,7 +26,7 @@ digraph G {
 		style=filled;
 		color="#ffddff";
 		node [style=filled,color=white];
-        label="Logs L1 Intake";
+        label="Logs Intake";
 
         c1_receiver_otlp [label="otlp/l1" color="#ddddff"];
         c1_receiver_datadog [label="chqdatadog/l1" color="#ddddff"];
@@ -50,7 +50,7 @@ digraph G {
 		style=filled;
 		color="#ffddff";
 		node [style=filled,color=white];
-        label="Logs L1 CardinalHQ";
+        label="Logs CardinalHQ";
         labelloc="b";
 
         c1_forwarder_cardinalhq -> c2_forwarder_cardinalhq [style=dashed];
@@ -69,7 +69,7 @@ digraph G {
 		style=filled;
 		color="#ffddff";
 		node [style=filled,color=white];
-        label="Logs L1 Datadog";
+        label="Logs Datadog";
         labelloc="b";
 
         c1_forwarder_datadog -> c3_forwarder_datadog [style=dashed];
@@ -88,7 +88,7 @@ digraph G {
         style=filled;
         color="#ffddff";
         node [style=filled,color=white];
-        label="Logs L1 Intake Stats";
+        label="Logs Intake Stats";
         labelloc="b";
 
         c1_forwarder_stats -> c100_forwarder_stats [style=dashed];
@@ -98,34 +98,17 @@ digraph G {
 
         c100_forwarder_stats -> c100_chqenforcer_stats [color=red];
     }
-    
-    subgraph cluster_100 {
-		style=filled;
-		color="#ffffbb";
-		node [style=filled,color=white];
-        label="Metrics L1 Intake";
         
-        c100_receiver_otlp [label="otlp/l1" color="#ddddff"];
-        c100_receiver_datadog [label="chqdatadog/l1" color="#ddddff"];
-        c100_memory_limiter [label="memory_limiter" color="#ddffdd"];
-        c100_exporter_loadbalance [label="loadbalancing/l2" color="#ffdddd"];
-        
-        c100_receiver_datadog -> c100_memory_limiter;
-        c100_receiver_otlp -> c100_memory_limiter;
-        c100_memory_limiter -> c100_exporter_loadbalance;
-    }
-    
     subgraph cluster_200 { 
 		style=filled;
 		color="#ffffbb";
 		node [style=filled,color=white];
-        label="Metrics L2 Intake";
+        label="Metrics Intake";
         labelloc="b";
         
-        c100_exporter_loadbalance -> c200_receiver_otlp [style=dotted color=blue]
-        
-        c200_receiver_otlp [label="otlp/l2" color="#ddddff"];
-        c200_memory_limiter [label="memory_limiter" color="#ddffdd"];
+        c100_receiver_otlp [label="otlp/l1" color="#ddddff"];
+        c100_receiver_datadog [label="chqdatadog/l1" color="#ddddff"];
+        c100_memory_limiter [label="memory_limiter" color="#ddffdd"];
         c200_cumulativetodelta [label="cumulativetodelta" color="#ddffdd"];
         c200_chqdecorator [label="chqdecorator" color="#ddffdd"];
         c200_forwarder_cardinalhq [label="forward/cardinalhq" color="#ffdddd"];
@@ -133,8 +116,9 @@ digraph G {
         c200_forwarder_stats [label="forward/intakestats" color="#ffdddd"];
         c200_forwarder_chqs3 [label="forward/chqs3" color="#ffdddd"];
 
-        c200_receiver_otlp -> c200_memory_limiter;
-        c200_memory_limiter -> c200_cumulativetodelta [color=red];
+        c100_receiver_datadog -> c100_memory_limiter;
+        c100_receiver_otlp -> c100_memory_limiter;
+        c100_memory_limiter -> c200_cumulativetodelta [color=red];
         c200_cumulativetodelta -> c200_chqdecorator [color=red];
         c200_chqdecorator -> c200_forwarder_cardinalhq;
         c200_chqdecorator -> c200_forwarder_datadog;
@@ -146,7 +130,7 @@ digraph G {
         style=filled;
         color="#ffffbb";
         node [style=filled,color=white];
-        label="Metrics L2 CardinalHQ";
+        label="Metrics CardinalHQ";
         labelloc="b";
 
         c200_forwarder_cardinalhq -> c201_forwarder_cardinalhq [style=dashed];
@@ -165,7 +149,7 @@ digraph G {
         style=filled;
         color="#ffffbb";
         node [style=filled,color=white];
-        label="Metrics L2 Datadog";
+        label="Metrics Datadog";
         labelloc="b";
 
         c200_forwarder_datadog -> c202_forwarder_datadog [style=dashed];
@@ -184,7 +168,7 @@ digraph G {
         style=filled;
         color="#ffffbb";
         node [style=filled,color=white];
-        label="Metrics L2 Intake Stats";
+        label="Metrics Intake Stats";
         labelloc="b";
 
         c200_forwarder_stats -> c203_forwarder_stats [style=dashed];
@@ -199,7 +183,7 @@ digraph G {
         style=filled;
         color="#ffffbb";
         node [style=filled,color=white];
-        label="Metrics L2 S3 Writer";
+        label="Metrics S3 Writer";
         labelloc="b";
 
         c200_forwarder_chqs3 -> c204_forwarder_chqs3 [style=dashed];
@@ -210,33 +194,16 @@ digraph G {
         c204_forwarder_chqs3 -> c204_chqs3 [color=red];
     }
 
-    subgraph cluster_300 {
-        style=filled;
-        color="#ddffff";
-        node [style=filled,color=white];
-        label="Spans L1 Intake";
-        
-        c203_receiver_otlp [label="otlp/l1" color="#ddddff"];
-        c203_receiver_datadog [label="chqdatadog/l1" color="#ddddff"];
-        c203_memory_limiter [label="memory_limiter" color="#ddffdd"];
-        c203_exporter_loadbalance [label="loadbalancing/l2" color="#ffdddd"];
-        
-        c203_receiver_datadog -> c203_memory_limiter;
-        c203_receiver_otlp -> c203_memory_limiter;
-        c203_memory_limiter -> c203_exporter_loadbalance;
-    }
-
     subgraph cluster_400 {
         style=filled;
         color="#ddffff";
         node [style=filled,color=white];
-        label="Spans L2 Intake";
+        label="Spans Intake";
         labelloc="b";
-        
-        c203_exporter_loadbalance -> c400_receiver_otlp [style=dotted color=blue]
-        
-        c400_receiver_otlp [label="otlp/l2" color="#ddddff"];
-        c400_memory_limiter [label="memory_limiter" color="#ddffdd"];
+
+        c203_receiver_otlp [label="otlp/l1" color="#ddddff"];
+        c203_receiver_datadog [label="chqdatadog/l1" color="#ddddff"];
+        c203_memory_limiter [label="memory_limiter" color="#ddffdd"];
         c400_groupbytrace [label="groupbytrace" color="#ddffdd"];
         c400_chqdecorator [label="chqdecorator" color="#ddffdd"];
         c400_forwarder_cardinalhq [label="forward/cardinalhq" color="#ffdddd"];
@@ -245,8 +212,10 @@ digraph G {
         c400_chqs3 [label="chqs3" color="#ffdddd"];
         c400_spanstats [label="spanstats" color="#ffdddd"];
 
-        c400_receiver_otlp -> c400_memory_limiter;
-        c400_memory_limiter -> c400_groupbytrace [color=red];
+        c203_receiver_datadog -> c203_memory_limiter;
+        c203_receiver_otlp -> c203_memory_limiter;
+
+        c203_memory_limiter -> c400_groupbytrace [color=red];
         c400_groupbytrace -> c400_chqdecorator [color=red];
         c400_chqdecorator -> c400_forwarder_cardinalhq;
         c400_chqdecorator -> c400_forwarder_datadog;
@@ -259,7 +228,7 @@ digraph G {
         style=filled;
         color="#ddffff";
         node [style=filled,color=white];
-        label="Spans L2 CardinalHQ";
+        label="Spans CardinalHQ";
         labelloc="b";
 
         c400_forwarder_cardinalhq -> c401_forwarder_cardinalhq [style=dashed];
@@ -278,7 +247,7 @@ digraph G {
         style=filled;
         color="#ddffff";
         node [style=filled,color=white];
-        label="Spans L2 Datadog";
+        label="Spans Datadog";
         labelloc="b";
 
         c400_forwarder_datadog -> c402_forwarder_datadog [style=dashed];
@@ -297,7 +266,7 @@ digraph G {
         style=filled;
         color="#ddffff";
         node [style=filled,color=white];
-        label="Spans L2 Intake Stats";
+        label="Spans Intake Stats";
         labelloc="b";
 
         c400_forwarder_stats -> c403_forwarder_stats [style=dashed];
@@ -312,7 +281,7 @@ digraph G {
         style=filled;
         color="#ddffff";
         node [style=filled,color=white];
-        label="Spans L2 Span Stats";
+        label="Spans Span Stats";
         labelloc="b";
 
         c400_spanstats -> c404_spanstats [style=dashed];

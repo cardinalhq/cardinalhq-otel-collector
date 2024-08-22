@@ -26,6 +26,7 @@ s3uploader:
 buffering:
   type: disk
   directory: /app/scratch
+use_now_for_metrics: true
 timeboxes:
   {{ toYaml .Values.s3.timeboxes | nindent 2 }}
 {{ end }}

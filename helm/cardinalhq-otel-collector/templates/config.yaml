@@ -278,6 +278,7 @@ data:
         - chqauth/cardinalhq
         - chqconfig/cardinalhq
         - file_storage/scratch
+        - chqtagcache/lx
 
     extensions:
       zpages:
@@ -298,3 +299,7 @@ data:
             authenticator: chqauth/cardinalhq
       file_storage/scratch:
         directory: /app/scratch
+      chqtagcache/lx:
+        endpoint: {{ .Values.collector.endpoints.cardinalhq.tagcache }}
+        auth:
+          authenticator: chqauth/cardinalhq

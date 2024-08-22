@@ -18,8 +18,8 @@ s3:
       grace_period: 1s
     metrics:
       interval: 10s
-      open_interval_count: 4
-      grace_period: 2s
+      open_interval_count: 1
+      grace_period: 1s
     traces:
       interval: 10s
       open_interval_count: 1
@@ -79,6 +79,7 @@ collector:
       enabled: true
       config:
         endpoint: 0.0.0.0:8126
+        tagcache_extension: chqtagcache/lx
   additionalReceivers: []
   exporters:
     logs:
@@ -97,6 +98,7 @@ collector:
       stats: https://stats-receiver.global.aws.prod.cardinalhq.net
       statsInterval: 5m
       samplerConfig: https://api.global.aws.prod.cardinalhq.net/api/v1/samplerConfig
+      tagcache: https://api.us-east-2.aws.test.cardinalhq.net
     zpages:
       port: 55679
     healthz:

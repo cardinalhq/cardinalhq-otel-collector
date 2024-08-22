@@ -172,7 +172,6 @@ func (ddr *datadogReceiver) convertMetricV2(apikey string, m pmetric.Metrics, v2
 			hostname = v // no break, allow better values to match
 		}
 	}
-	tagCache := newLocalTagCache()
 
 	lAttr := pcommon.NewMap()
 	for k, v := range kvTags {
@@ -181,6 +180,9 @@ func (ddr *datadogReceiver) convertMetricV2(apikey string, m pmetric.Metrics, v2
 	if v2.Resources != nil {
 		for _, resource := range v2.Resources {
 			decorate(resource.Type, resource.Name, rAttr, sAttr)
+			if resource.Type == "host" {
+				hostname = resource.Name
+			}
 		}
 	}
 	ddr.hostnameTags.Add(context.Background(), 1, metric.WithAttributes(
@@ -188,6 +190,7 @@ func (ddr *datadogReceiver) convertMetricV2(apikey string, m pmetric.Metrics, v2
 		attribute.String("telemetry_type", "metrics"),
 		attribute.String("datadog_api_version", "v2"),
 	))
+	tagCache := newLocalTagCache()
 	for _, v := range tagCache.FetchCache(ddr.tagcacheExtension, apikey, hostname) {
 		rAttr.PutStr(v.Name, v.Value)
 	}

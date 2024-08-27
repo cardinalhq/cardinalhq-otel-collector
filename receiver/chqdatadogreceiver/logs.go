@@ -117,6 +117,17 @@ func splitTags(tags string) map[string]string {
 	return tagMap
 }
 
+func splitTagSlice(tags []string) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		kv := strings.SplitN(tag, ":", 2)
+		if len(kv) == 2 && kv[1] != "" && kv[0] != "" {
+			tagMap[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+		}
+	}
+	return tagMap
+}
+
 func tagKey(tags map[string]string, extra []string) int64 {
 	keys := maps.Keys(tags)
 	slices.Sort(keys)

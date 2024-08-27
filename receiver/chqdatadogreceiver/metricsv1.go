@@ -105,14 +105,12 @@ func (ddr *datadogReceiver) convertMetricV1(apikey string, v1 SeriesV1) (pmetric
 	mm.SetUnit("1")
 
 	lAttr := pcommon.NewMap()
-	for _, tag := range v1.Tags {
-		kv := splitTags(tag)
-		for k, v := range kv {
-			if k == "host" && hostname == "unknown" {
-				hostname = v
-			}
-			decorateItem(k, v, rAttr, sAttr, lAttr)
+	kv := splitTagSlice(v1.Tags)
+	for k, v := range kv {
+		if k == "host" && hostname == "unknown" {
+			hostname = v
 		}
+		decorateItem(k, v, rAttr, sAttr, lAttr)
 	}
 	rAttr.PutStr(semconv.AttributeHostName, hostname)
 

@@ -158,13 +158,8 @@ func (ddr *datadogReceiver) convertMetricV2(apikey string, m pmetric.Metrics, v2
 	// 	rAttr.PutInt("dd.origin.service", int64(v2.Metadata.Origin.OriginService))
 	// }
 
-	kvTags := map[string]string{}
-	for _, tag := range v2.Tags {
-		item := splitTags(tag)
-		for k, v := range item {
-			kvTags[k] = v
-		}
-	}
+	kvTags := splitTagSlice(v2.Tags)
+
 	hostname := "unknown"
 	targets := []string{"host.name", "hostname", "host"}
 	for _, target := range targets {

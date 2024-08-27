@@ -138,3 +138,73 @@ func TestToSeverity(t *testing.T) {
 		})
 	}
 }
+
+func TestSplitTagSlice(t *testing.T) {
+	tests := []struct {
+		name     string
+		tags     []string
+		expected map[string]string
+	}{
+		{
+			"no tags",
+			[]string{},
+			map[string]string{},
+		},
+		{
+			"one tag",
+			[]string{"tag1:value1"},
+			map[string]string{
+				"tag1": "value1",
+			},
+		},
+		{
+			"multiple tags",
+			[]string{"tag1:value1", "tag2:value2", "tag3:value3"},
+			map[string]string{
+				"tag1": "value1",
+				"tag2": "value2",
+				"tag3": "value3",
+			},
+		},
+		{
+			"tags with empty values",
+			[]string{"tag1:", "tag2:value2", "tag3"},
+			map[string]string{
+				"tag2": "value2",
+			},
+		},
+		{
+			"tags with spaces",
+			[]string{"tag1:value1", "tag2:value 2", "tag3:value3", "tag4:value4", "tag5:value5"},
+			map[string]string{
+				"tag1": "value1",
+				"tag2": "value 2",
+				"tag3": "value3",
+				"tag4": "value4",
+				"tag5": "value5",
+			},
+		},
+		{
+			"tags with commas",
+			[]string{"tag1:value1", "tag2:value,2"},
+			map[string]string{
+				"tag1": "value1",
+				"tag2": "value,2",
+			},
+		},
+		{
+			"tags with colons",
+			[]string{"tag1:value1", "tag2:value:2"},
+			map[string]string{
+				"tag1": "value1",
+				"tag2": "value:2",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, splitTagSlice(tt.tags))
+		})
+	}
+}

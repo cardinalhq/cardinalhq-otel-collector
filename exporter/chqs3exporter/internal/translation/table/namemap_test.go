@@ -34,6 +34,7 @@ func TestSanitizeAttribute(t *testing.T) {
 		{"_____attribute_name", "attribute_name"},
 		{"attribute_name___", "attribute_name"},
 		{"attribute  name", "attribute_name"},
+		{"attribute__name", "attribute_name"},
 		{"Downcases", "downcases"},
 		{"UPPERCASE", "uppercase"},
 		{"AWSCloudWatch.max", "aws_cloud_watch.max"},

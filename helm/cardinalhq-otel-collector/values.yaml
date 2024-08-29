@@ -106,7 +106,7 @@ collector:
       path: /healthz
   deployment:
     image:
-      repository: public.ecr.aws/b1d7g2f3/cardinalhq-otel-collector
+      repository: public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector
       tag: latest
     replicas: 2
     env:

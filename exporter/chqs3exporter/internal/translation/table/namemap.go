@@ -68,81 +68,77 @@ func findHostname(attrs map[string]any) string {
 	return ""
 }
 
-func sanitizeAttribute(s string) string {
-	// replace all non-alphanumeric characters with underscores, except for hyphens
-	for i := 0; i < len(s); i++ {
-		if !isAlphanumeric(s[i]) && s[i] != '-' && s[i] != '.' {
-			s = s[:i] + "_" + s[i+1:]
-		}
+func sanitizeAttribute(input string) string {
+	// Split by periods
+	parts := strings.Split(input, ".")
+
+	for i, part := range parts {
+		// replace all non-alphanumeric characters, dashes, or underscores with underscores
+		part = strings.Map(func(r rune) rune {
+			if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_' {
+				return r
+			}
+			return '_'
+		}, part)
+
+		// Group substrings based on whether the character is uppercase or not
+		groups := groupByCase(part)
+
+		// Process the groups to handle transitions between uppercase and lowercase
+		groups = processGroups(groups)
+
+		// Convert to lowercase and join with underscores
+		parts[i] = strings.Join(groups, "_")
 	}
+
+	// Join the parts back together with periods
+	ret := strings.Join(parts, ".")
+
+	// replace multiple underscores with a single underscore
+	ret = strings.ReplaceAll(ret, "__", "_")
 
 	// remove leading and trailing underscores
-	for len(s) > 0 && s[0] == '_' {
-		s = s[1:]
-	}
-	for len(s) > 0 && s[len(s)-1] == '_' {
-		s = s[:len(s)-1]
+	ret = strings.Trim(ret, "_")
+
+	return strings.ToLower(ret)
+}
+
+func groupByCase(input string) []string {
+	var groups []string
+	currentGroup := strings.Builder{}
+
+	for i, r := range input {
+		if i > 0 && unicode.IsUpper(r) != unicode.IsUpper(rune(input[i-1])) {
+			// Start a new group when the case changes
+			groups = append(groups, currentGroup.String())
+			currentGroup.Reset()
+		}
+		currentGroup.WriteRune(r)
 	}
 
-	// replace runs of _ with a single _
-	for i := 0; i < len(s)-1; i++ {
-		if s[i] == '_' && s[i+1] == '_' {
-			s = s[:i] + s[i+1:]
-			i--
+	// Append the last group
+	groups = append(groups, currentGroup.String())
+
+	return groups
+}
+
+func processGroups(groups []string) []string {
+	for i := len(groups) - 1; i > 0; i-- {
+		// Check if the last character in the current group is uppercase
+		if len(groups[i-1]) > 0 && unicode.IsUpper(rune(groups[i-1][len(groups[i-1])-1])) {
+			// Move the last character of the previous group to the start of the current group
+			groups[i] = string(groups[i-1][len(groups[i-1])-1]) + groups[i]
+			groups[i-1] = groups[i-1][:len(groups[i-1])-1]
 		}
 	}
 
-	return snakecaseLabels(s)
-}
-
-func isAlphanumeric(c byte) bool {
-	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
-}
-
-func snakecaseLabels(s string) string {
-	items := strings.Split(s, ".")
-	for i, item := range items {
-		items[i] = toSnakeCase(item)
-	}
-	return strings.Join(items, ".")
-}
-
-func toSnakeCase(str string) string {
-	if is_uppercase(str) {
-		return strings.ToLower(str)
-	}
-	var result []rune
-	runes := []rune(str)
-	length := len(runes)
-
-	for i := 0; i < length; i++ {
-		r := runes[i]
-		if unicode.IsUpper(r) {
-			// If not the first character and the previous character is not an underscore, add an underscore
-			if i > 0 && runes[i-1] != '_' {
-				// Check if the next character is also uppercase
-				if i+1 < length && unicode.IsUpper(runes[i+1]) {
-					// If it's a sequence of uppercase letters, keep them together
-					result = append(result, unicode.ToLower(r))
-				} else {
-					result = append(result, '_', unicode.ToLower(r))
-				}
-			} else {
-				result = append(result, unicode.ToLower(r))
-			}
-		} else {
-			result = append(result, r)
+	// Remove any empty groups
+	var result []string
+	for _, group := range groups {
+		if len(group) > 0 {
+			result = append(result, strings.ToLower(group))
 		}
 	}
 
-	return string(result)
-}
-
-func is_uppercase(s string) bool {
-	for _, r := range s {
-		if unicode.IsLetter(r) && !unicode.IsUpper(r) {
-			return false
-		}
-	}
-	return true
+	return result
 }

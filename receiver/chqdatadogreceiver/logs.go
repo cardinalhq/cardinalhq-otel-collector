@@ -50,6 +50,10 @@ func handleLogsPayload(req *http.Request) (ddLogs []DDLog, err error) {
 
 	err = json.Unmarshal(body, &ddLogs)
 	if err != nil {
+		// hack: special case '{}' which is not an array, but we get a lot of them...
+		if len(body) == 2 && body[0] == 0x7b && body[1] == 0x7d {
+			return ddLogs, nil
+		}
 		if len(body) > 10 {
 			body = body[:10]
 		}

@@ -15,8 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/pdata/plog"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/sdk/metric"
 	"go.uber.org/zap"
 )
 
@@ -47,21 +45,6 @@ func getTestLogs(tb testing.TB) plog.Logs {
 }
 
 // nolint: unused
-func dummyTelemetry() *exporterTelemetry {
-	meter := metric.NewMeterProvider()
-	hg, _ := meter.Meter("test").Float64Histogram("datapoint_age")
-	ic, _ := meter.Meter("test").Int64Counter("items_written_temp")
-	return &exporterTelemetry{
-		datapointAge:      hg,
-		itemsWrittenTemp:  ic,
-		itemsReadTemp:     ic,
-		blocksWrittenTemp: ic,
-		blocksReadTemp:    ic,
-		deltaBlocksRead:   ic,
-		aset:              attribute.NewSet(),
-	}
-}
-
 type mockFileWriter struct {
 	writeBufferFunc func(ctx context.Context, now time.Time, buf io.Reader, config *Config, prefix string, format string, metadata map[string]string, customerID string) error
 }

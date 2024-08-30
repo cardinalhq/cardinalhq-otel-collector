@@ -26,8 +26,6 @@ import (
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/exporter"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
@@ -45,7 +43,6 @@ type s3Exporter struct {
 	boxer           *boxer.Boxer
 	telemetryType   string
 	metadata        map[string]string
-	telemetry       *exporterTelemetry
 	writerCloseFunc context.CancelFunc
 	writerClosed    chan struct{}
 	taglock         sync.Mutex
@@ -69,18 +66,12 @@ func newS3Exporter(config *Config, params exporter.Settings, ttype string) (*s3E
 	}
 	metadata["cardinalhq-exporter"] = params.ID.String()
 
-	exporterTelemetry, err := newTelemetry(params, ttype)
-	if err != nil {
-		return nil, err
-	}
-
 	s3LogsExporter := &s3Exporter{
 		id:            params.ID,
 		config:        config,
 		logger:        params.Logger,
 		tb:            table.NewTableTranslator(),
 		metadata:      metadata,
-		telemetry:     exporterTelemetry,
 		telemetryType: ttype,
 		tags:          map[string]map[int64]map[string]any{},
 	}
@@ -282,12 +273,10 @@ func (e *s3Exporter) saveAndUploadParquet(ids string, interval int64) error {
 
 	blockCount := int64(0)
 	itemCount := int64(0)
-	expectedCount := 0
 	err = e.boxer.ForEach(interval, ids, func(index, expected int, value []byte) (bool, error) {
 		if index != int(blockCount) {
 			logger.Warn("Block index mismatch", zap.Int("index", index), zap.Int64("expected", blockCount))
 		}
-		expectedCount = expected
 		blockCount++
 		logger.Debug("Processing interval")
 		tableRows := []map[string]any{}
@@ -322,10 +311,6 @@ func (e *s3Exporter) saveAndUploadParquet(ids string, interval int64) error {
 		logger.Info("Skipping empty file")
 		return nil
 	}
-
-	e.telemetry.blocksReadTemp.Add(context.Background(), blockCount, metric.WithAttributeSet(e.telemetry.aset), metric.WithAttributes(attribute.String("customerID", customerID), attribute.String("clusterID", clusterID)))
-	e.telemetry.itemsReadTemp.Add(context.Background(), itemCount, metric.WithAttributeSet(e.telemetry.aset), metric.WithAttributes(attribute.String("customerID", customerID), attribute.String("clusterID", clusterID)))
-	e.telemetry.deltaBlocksRead.Add(context.Background(), int64(expectedCount)-blockCount, metric.WithAttributeSet(e.telemetry.aset), metric.WithAttributes(attribute.String("customerID", customerID), attribute.String("clusterID", clusterID)))
 
 	return e.upload(f, &s3Writer{}, ids, interval)
 }

@@ -16,7 +16,6 @@ package chqs3exporter
 
 import (
 	"context"
-	"time"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"go.opentelemetry.io/collector/pdata/pmetric"
@@ -35,8 +34,6 @@ func (e *s3Exporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) err
 		return nil
 	}
 
-	e.calcMetricAge(md, time.Now())
-
 	e.logger.Debug("ConsumeMetrics", zap.String("customerID", ee.CustomerID()), zap.Int("datapoints-in", md.DataPointCount()))
 
 	tbl, err := e.tb.MetricsFromOtel(&md, ee)
@@ -48,31 +45,4 @@ func (e *s3Exporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) err
 
 	custmap := e.partitionTableByCustomerIDAndInterval(tbl, e.config.UseNowForMetrics)
 	return e.writeTableByCustomerIDAndInterval(custmap)
-}
-
-func (e *s3Exporter) calcMetricAge(md pmetric.Metrics, now time.Time) {
-	for i := 0; i < md.ResourceMetrics().Len(); i++ {
-		rm := md.ResourceMetrics().At(i)
-		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
-			imm := rm.ScopeMetrics().At(j)
-			for k := 0; k < imm.Metrics().Len(); k++ {
-				metric := imm.Metrics().At(k)
-				var ts time.Time
-				switch metric.Type() {
-				case pmetric.MetricTypeGauge:
-					ts = metric.Gauge().DataPoints().At(0).Timestamp().AsTime()
-				case pmetric.MetricTypeSum:
-					ts = metric.Sum().DataPoints().At(0).Timestamp().AsTime()
-				case pmetric.MetricTypeHistogram:
-					ts = metric.Histogram().DataPoints().At(0).Timestamp().AsTime()
-				case pmetric.MetricTypeSummary:
-					ts = metric.Summary().DataPoints().At(0).Timestamp().AsTime()
-				case pmetric.MetricTypeExponentialHistogram:
-					ts = metric.ExponentialHistogram().DataPoints().At(0).Timestamp().AsTime()
-				}
-				age := now.Sub(ts)
-				recordAge(context.Background(), e.telemetry, age.Seconds())
-			}
-		}
-	}
 }

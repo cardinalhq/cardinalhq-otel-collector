@@ -73,18 +73,18 @@ func sanitizeAttribute(input string) string {
 	parts := strings.Split(input, ".")
 
 	for i, part := range parts {
-		// replace all non-alphanumeric characters, dashes, or underscores with underscores
+		// Replace all non-alphanumeric characters, dashes, or underscores with underscores
 		part = strings.Map(func(r rune) rune {
-			if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_' {
+			if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' {
 				return r
 			}
 			return '_'
 		}, part)
 
-		// Group substrings based on whether the character is uppercase or not
-		groups := groupByCase(part)
+		// Group substrings based on current case and numbers
+		groups := groupByCaseAndNumber(part)
 
-		// Process the groups to handle transitions between uppercase and lowercase
+		// Process the groups to handle transitions between uppercase, lowercase, and numbers
 		groups = processGroups(groups)
 
 		// Convert to lowercase and join with underscores
@@ -94,26 +94,35 @@ func sanitizeAttribute(input string) string {
 	// Join the parts back together with periods
 	ret := strings.Join(parts, ".")
 
-	// replace multiple underscores with a single underscore
+	// Replace multiple underscores with a single underscore
 	ret = strings.ReplaceAll(ret, "__", "_")
 
-	// remove leading and trailing underscores
+	// Remove leading and trailing underscores
 	ret = strings.Trim(ret, "_")
 
 	return strings.ToLower(ret)
 }
 
-func groupByCase(input string) []string {
+func groupByCaseAndNumber(input string) []string {
 	var groups []string
 	currentGroup := strings.Builder{}
+	lastType := -1 // 0 for lowercase, 1 for uppercase, 2 for digit
 
-	for i, r := range input {
-		if i > 0 && unicode.IsUpper(r) != unicode.IsUpper(rune(input[i-1])) {
-			// Start a new group when the case changes
+	for _, r := range input {
+		currentType := getCharType(r)
+
+		if lastType == -1 {
+			lastType = currentType
+		}
+
+		if currentType != lastType && !(currentType == 2 && lastType != -1) {
+			// When case changes or non-number to number transition happens, start a new group
 			groups = append(groups, currentGroup.String())
 			currentGroup.Reset()
 		}
+
 		currentGroup.WriteRune(r)
+		lastType = currentType
 	}
 
 	// Append the last group
@@ -122,17 +131,35 @@ func groupByCase(input string) []string {
 	return groups
 }
 
+func getCharType(r rune) int {
+	if unicode.IsUpper(r) {
+		return 1
+	}
+	if unicode.IsLower(r) {
+		return 0
+	}
+	if unicode.IsDigit(r) {
+		return 2
+	}
+	return -1
+}
+
 func processGroups(groups []string) []string {
+	for i, part := range groups {
+		part = strings.ReplaceAll(part, "__", "_")
+		part = strings.Trim(part, "_")
+		groups[i] = part
+	}
+
 	for i := len(groups) - 1; i > 0; i-- {
-		// Check if the last character in the current group is uppercase
+		// If the last character of the previous group is an uppercase letter, move it to the next group
 		if len(groups[i-1]) > 0 && unicode.IsUpper(rune(groups[i-1][len(groups[i-1])-1])) {
-			// Move the last character of the previous group to the start of the current group
 			groups[i] = string(groups[i-1][len(groups[i-1])-1]) + groups[i]
 			groups[i-1] = groups[i-1][:len(groups[i-1])-1]
 		}
 	}
 
-	// Remove any empty groups
+	// Remove any empty groups and convert to lowercase
 	var result []string
 	for _, group := range groups {
 		if len(group) > 0 {

@@ -26,7 +26,7 @@ func TestSanitizeAttribute(t *testing.T) {
 		expected string
 	}{
 		{"attribute_name", "attribute_name"},
-		{"attribute-name", "attribute-name"},
+		{"attribute-name", "attribute_name"},
 		{"attribute.name", "attribute.name"},
 		{"attribute name", "attribute_name"},
 		{"attribute@name", "attribute_name"},
@@ -39,6 +39,8 @@ func TestSanitizeAttribute(t *testing.T) {
 		{"UPPERCASE", "uppercase"},
 		{"AWSCloudWatch.max", "aws_cloud_watch.max"},
 		{"aws.ApplicationELB.UnhealthyStatus", "aws.application_elb.unhealthy_status"},
+		{"AWS.EC2.CPUUtilization", "aws.ec2.cpu_utilization"},
+		{"EC2CPUUtilization", "ec2_cpu_utilization"},
 	}
 
 	for _, test := range tests {

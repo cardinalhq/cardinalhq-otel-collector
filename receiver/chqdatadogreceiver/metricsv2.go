@@ -54,7 +54,6 @@ func (ddr *datadogReceiver) handleMetricsV2Payload(req *http.Request) (ret []*dd
 		}
 	case "application/x-protobuf":
 		if err := proto.Unmarshal(buf.Bytes(), &message); err != nil {
-			hexdump(buf.Bytes())
 			return nil, http.StatusUnprocessableEntity, err
 		}
 	default:

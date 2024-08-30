@@ -84,3 +84,4 @@ connectors:
 replaces:
   - github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
   - github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awsfirehosereceiver v0.108.0 => github.com/skandragon/opentelemetry-collector-contrib/receiver/awsfirehosereceiver firehose-logs
+  - go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.53.0 => go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.54.0

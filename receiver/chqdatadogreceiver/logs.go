@@ -17,6 +17,8 @@ package datadogreceiver
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"slices"
 	"strings"
@@ -40,8 +42,18 @@ type DDLog struct {
 
 func handleLogsPayload(req *http.Request) (ddLogs []DDLog, err error) {
 	ddLogs = make([]DDLog, 0)
-	err = json.NewDecoder(req.Body).Decode(&ddLogs)
+	body, err := io.ReadAll(req.Body)
 	if err != nil {
+		err = fmt.Errorf("failed to read request body: %w", err)
+		return nil, err
+	}
+
+	err = json.Unmarshal(body, &ddLogs)
+	if err != nil {
+		if len(body) > 10 {
+			body = body[:10]
+		}
+		err = fmt.Errorf("failed to decode request body: %w (body=%x)", err, body)
 		return nil, err
 	}
 	return ddLogs, nil

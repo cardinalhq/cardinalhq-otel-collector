@@ -15,11 +15,9 @@
 package summarysplitprocessor
 
 import (
-	"github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor/internal/metadata"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/processor"
-	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
 )
 
@@ -27,9 +25,6 @@ type summarysplit struct {
 	logger             *zap.Logger
 	id                 component.ID
 	nextMetricReceiver consumer.Metrics
-
-	input  metric.Int64Counter
-	output metric.Int64Counter
 }
 
 func newSummarySplitter(_ *Config, set processor.Settings, nextConsumer consumer.Metrics) (*summarysplit, error) {
@@ -37,9 +32,6 @@ func newSummarySplitter(_ *Config, set processor.Settings, nextConsumer consumer
 		id:                 set.ID,
 		logger:             set.Logger,
 		nextMetricReceiver: nextConsumer,
-	}
-	if err := ss.setupTelemetry(set.TelemetrySettings); err != nil {
-		return nil, err
 	}
 
 	ss.logger.Info("SummarySplit processor is enabled. Converting summary metrics to quantile metrics.")
@@ -49,15 +41,4 @@ func newSummarySplitter(_ *Config, set processor.Settings, nextConsumer consumer
 
 func (e *summarysplit) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: true}
-}
-
-func (e *summarysplit) setupTelemetry(ts component.TelemetrySettings) error {
-	var err error
-	if e.input, err = metadata.Meter(ts).Int64Counter("summarysplit.input"); err != nil {
-		return err
-	}
-	if e.output, err = metadata.Meter(ts).Int64Counter("summarysplit.output"); err != nil {
-		return err
-	}
-	return nil
 }

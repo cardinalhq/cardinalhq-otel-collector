@@ -22,7 +22,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
-	"go.opentelemetry.io/otel/sdk/metric"
 	"go.uber.org/zap"
 )
 
@@ -240,13 +239,8 @@ func TestCreateQuantileMetrics(t *testing.T) {
 }
 
 func TestConsumeMetrics_empty_input(t *testing.T) {
-	meter := metric.NewMeterProvider()
-	ic, _ := meter.Meter("test").Int64Counter("dummy")
-
 	e := &summarysplit{
 		logger: zap.NewNop(),
-		input:  ic,
-		output: ic,
 	}
 
 	ctx := context.Background()
@@ -262,13 +256,8 @@ func TestConsumeMetrics_empty_input(t *testing.T) {
 }
 
 func TestConsumeMetrics_no_summary_data_points(t *testing.T) {
-	meter := metric.NewMeterProvider()
-	ic, _ := meter.Meter("test").Int64Counter("dummy")
-
 	e := &summarysplit{
 		logger: zap.NewNop(),
-		input:  ic,
-		output: ic,
 	}
 
 	ctx := context.Background()
@@ -290,13 +279,8 @@ func TestConsumeMetrics_no_summary_data_points(t *testing.T) {
 }
 
 func TestConsumeMetrics_with_summary_data_points(t *testing.T) {
-	meter := metric.NewMeterProvider()
-	ic, _ := meter.Meter("test").Int64Counter("dummy")
-
 	e := &summarysplit{
 		logger: zap.NewNop(),
-		input:  ic,
-		output: ic,
 	}
 
 	ctx := context.Background()

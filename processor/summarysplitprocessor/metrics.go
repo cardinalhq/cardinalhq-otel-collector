@@ -20,26 +20,14 @@ import (
 	"strings"
 
 	"go.opentelemetry.io/collector/pdata/pmetric"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 )
 
 func (e *summarysplit) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
 	inCount := countDatapointTypes(md)
-	for k, v := range inCount {
-		e.input.Add(ctx, v, metric.WithAttributes(attribute.String("metricType", k.String())))
-	}
 	if inCount[pmetric.MetricTypeSummary] == 0 {
-		for k, v := range inCount {
-			e.output.Add(ctx, v, metric.WithAttributes(attribute.String("metricType", k.String()), attribute.Bool("passthrough", true)))
-		}
 		return md, nil
 	}
 	result := splitSummaryDataPoints(md)
-	outCount := countDatapointTypes(result)
-	for k, v := range outCount {
-		e.output.Add(ctx, v, metric.WithAttributes(attribute.String("metricType", k.String()), attribute.Bool("passthrough", false)))
-	}
 	return result, nil
 }
 

@@ -40,7 +40,7 @@ func TestSanitizeAttribute(t *testing.T) {
 		{"AWSCloudWatch.max", "aws_cloud_watch.max"},
 		{"aws.ApplicationELB.UnhealthyStatus", "aws.application_elb.unhealthy_status"},
 		{"AWS.EC2.CPUUtilization", "aws.ec2.cpu_utilization"},
-		{"EC2CPUUtilization", "ec2_cpu_utilization"},
+		{"aws.k8s.cluster.cpuUtilization", "aws.k8s.cluster.cpu_utilization"},
 	}
 
 	for _, test := range tests {

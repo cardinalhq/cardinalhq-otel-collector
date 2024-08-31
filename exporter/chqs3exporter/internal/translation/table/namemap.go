@@ -106,42 +106,49 @@ func sanitizeAttribute(input string) string {
 func groupByCaseAndNumber(input string) []string {
 	var groups []string
 	currentGroup := strings.Builder{}
-	lastType := -1 // 0 for lowercase, 1 for uppercase, 2 for digit
+
+	lastType := findFirstType(input)
+	if lastType == -1 {
+		return []string{input}
+	}
 
 	for _, r := range input {
-		currentType := getCharType(r)
+		currentType := getCharType(r, lastType)
 
-		if lastType == -1 {
-			lastType = currentType
+		if currentType == lastType {
+			currentGroup.WriteRune(r)
+			continue
 		}
 
-		if currentType != lastType && !(currentType == 2 && lastType != -1) {
-			// When case changes or non-number to number transition happens, start a new group
-			groups = append(groups, currentGroup.String())
-			currentGroup.Reset()
-		}
-
+		groups = append(groups, currentGroup.String())
+		currentGroup.Reset()
 		currentGroup.WriteRune(r)
 		lastType = currentType
 	}
 
-	// Append the last group
 	groups = append(groups, currentGroup.String())
 
 	return groups
 }
 
-func getCharType(r rune) int {
+func findFirstType(input string) int {
+	for _, r := range input {
+		t := getCharType(r, -1)
+		if t != -1 {
+			return t
+		}
+	}
+	return -1
+}
+
+func getCharType(r rune, current int) int {
 	if unicode.IsUpper(r) {
 		return 1
 	}
 	if unicode.IsLower(r) {
 		return 0
 	}
-	if unicode.IsDigit(r) {
-		return 2
-	}
-	return -1
+	return current
 }
 
 func processGroups(groups []string) []string {

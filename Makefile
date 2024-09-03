@@ -100,13 +100,13 @@ images: buildtime clean-image-names set-git-info $(addsuffix .tstamp, $(addprefi
 
 buildtime/%.tstamp:: ${all_deps} Dockerfile
 	${BUILDX} \
-		--tag ${IMAGE_PREFIX}$(patsubst %.tstamp,%,$(@F)):latest \
+		--tag ${IMAGE_PREFIX}$(patsubst %.tstamp,%,$(@F)):latest-dev \
 		--tag ${IMAGE_PREFIX}$(patsubst %.tstamp,%,$(@F)):${GIT_BRANCH} \
 		--target $(patsubst %.tstamp,%,$(@F))-image \
 		--build-arg GIT_BRANCH=${GIT_BRANCH} \
 		-f Dockerfile \
 		--push .
-	echo >> buildtime/image-names.txt ${IMAGE_PREFIX}$(patsubst %.tstamp,%,$(@F)):latest
+	echo >> buildtime/image-names.txt ${IMAGE_PREFIX}$(patsubst %.tstamp,%,$(@F)):latest-dev
 	echo >> buildtime/image-names.txt ${IMAGE_PREFIX}$(patsubst %.tstamp,%,$(@F)):${GIT_BRANCH}
 	@touch $@
 

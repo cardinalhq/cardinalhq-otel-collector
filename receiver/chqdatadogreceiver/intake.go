@@ -15,35 +15,86 @@
 package datadogreceiver
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension"
+	"go.opentelemetry.io/collector/pdata/pcommon"
+	"go.opentelemetry.io/collector/pdata/plog"
+	semconv "go.opentelemetry.io/otel/semconv/v1.25.0"
 	"go.uber.org/zap"
 )
 
 type datadogIntake struct {
 	APIKey           string              `json:"apiKey"`
 	InternalHostname string              `json:"internalHostname"`
-	Meta             DatadogIntakeMeta   `json:"meta"`
+	Meta             datadogIntakeMeta   `json:"meta"`
 	HostTags         map[string][]string `json:"host-tags"`
+	IntakeEvents     map[string][]event  `json:"events"`
 }
 
-type DatadogIntakeMeta struct {
+type datadogIntakeMeta struct {
 	Hostname string `json:"hostname"`
 }
 
-func (ddr *datadogReceiver) processIntake(apikey string, data []byte) {
-	if ddr.tagcacheExtension == nil {
-		return
+// Event holds an event (w/ serialization to DD agent 5 intake format)
+type event struct {
+	Title          string   `json:"msg_title"`
+	Text           string   `json:"msg_text"`
+	Ts             int64    `json:"timestamp"`
+	Priority       string   `json:"priority,omitempty"`
+	Host           string   `json:"host"`
+	Tags           []string `json:"tags,omitempty"`
+	AlertType      string   `json:"alert_type,omitempty"`
+	AggregationKey string   `json:"aggregation_key,omitempty"`
+	SourceTypeName string   `json:"source_type_name,omitempty"`
+	EventType      string   `json:"event_type,omitempty"`
+}
+
+func handleIntakePayload(req *http.Request) (ddIntake datadogIntake, err error) {
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		err = fmt.Errorf("failed to read request body: %w", err)
+		return datadogIntake{}, err
 	}
 
-	var intake datadogIntake
-	err := json.Unmarshal(data, &intake)
+	err = json.Unmarshal(body, &ddIntake)
 	if err != nil {
-		ddr.gpLogger.Error("Failed to unmarshal intake data", zap.Error(err))
-		return
+		return datadogIntake{}, fmt.Errorf("failed to unmarshal intake body %v", err)
 	}
+
+	return
+}
+
+func (ddr *datadogReceiver) processIntake(ctx context.Context, apikey string, intake datadogIntake) error {
+	if ddr.tagcacheExtension != nil {
+		ddr.processHostTags(intake, apikey)
+	}
+
+	overallTags := ddr.makeTags(apikey, intake)
+	ddr.logLogger.Sugar().Infof("+++++++++++++++++++++++++++++++++++")
+	ddr.logLogger.Sugar().Infof("%+v", overallTags)
+
+	ddr.logLogger.Sugar().Infof("====================================")
+	ddr.logLogger.Sugar().Infof("%+v", intake)
+
+	logs, err := ddr.convertIntakeToLogs(intake, overallTags)
+	if err != nil {
+		return err
+	}
+	if err := ddr.nextLogConsumer.ConsumeLogs(ctx, logs); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (ddr *datadogReceiver) processHostTags(intake datadogIntake, apikey string) {
 
 	if len(intake.HostTags) == 0 {
 		return // no host tags to update
@@ -86,4 +137,94 @@ func (ddr *datadogReceiver) processIntake(apikey string, data []byte) {
 	if err := ddr.tagcacheExtension.PutCache(key, tags); err != nil {
 		ddr.gpLogger.Error("Failed to put tags in cache", zap.Error(err))
 	}
+
+}
+
+func (ddr *datadogReceiver) makeTags(apikey string, intake datadogIntake) (tags map[string]string) {
+
+	cachedTags := newLocalTagCache()
+
+	tags = make(map[string]string, 0)
+
+	for _, v := range intake.HostTags {
+		for _, tag := range v {
+			for key, val := range splitTags(tag) {
+				tags[key] = val
+			}
+		}
+	}
+
+	for _, events := range intake.IntakeEvents {
+		for _, event := range events {
+			for _, tag := range event.Tags {
+				for key, val := range splitTags(tag) {
+					tags[key] = val
+				}
+			}
+		}
+	}
+
+	hostname := getHostname(tags, intake)
+
+	if hostname != "" {
+		for _, tag := range cachedTags.FetchCache(ddr.tagcacheExtension, apikey, hostname) {
+			tags[tag.Name] = tag.Value
+		}
+	}
+
+	return
+
+}
+
+func getHostname(tags map[string]string, intake datadogIntake) (hostname string) {
+	hostname = intake.InternalHostname
+	if hostname == "" {
+		hostname = intake.Meta.Hostname
+	}
+
+	if hostname == "" {
+		hostname = tags["host"]
+	}
+	return
+}
+
+func (ddr *datadogReceiver) convertIntakeToLogs(intake datadogIntake, tags map[string]string) (plog.Logs, error) {
+
+	t := pcommon.NewTimestampFromTime(time.Now())
+
+	lm := plog.NewLogs()
+	rl := lm.ResourceLogs().AppendEmpty()
+	rAttr := rl.Resource().Attributes()
+	rl.SetSchemaUrl(semconv.SchemaURL)
+
+	rAttr.PutStr(string(semconv.HostNameKey), getHostname(tags, intake))
+	scope := rl.ScopeLogs().AppendEmpty()
+	sAttr := scope.Scope().Attributes()
+	sAttr.PutStr(string(semconv.TelemetrySDKNameKey), "Datadog")
+
+	lAttr := pcommon.NewMap()
+	for k, v := range tags {
+		decorateItem(k, v, rAttr, sAttr, lAttr)
+	}
+
+	for _, events := range intake.IntakeEvents {
+		for _, event := range events {
+
+			logRecord := scope.LogRecords().AppendEmpty()
+
+			lAttr.CopyTo(logRecord.Attributes())
+
+			//TODO: get this from the host payload
+			logRecord.SetObservedTimestamp(t)
+			logRecord.Attributes().PutStr("priority", event.Priority)
+			logRecord.Attributes().PutStr("alert.type", event.AlertType)
+			logRecord.Attributes().PutStr("aggregation.key", event.AggregationKey)
+			logRecord.Attributes().PutStr("source.type.name", event.SourceTypeName)
+			logRecord.Attributes().PutStr("event.type", event.EventType)
+
+			logRecord.Body().SetStr(event.Text)
+		}
+	}
+
+	return lm, nil
 }

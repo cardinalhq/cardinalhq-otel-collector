@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 
@@ -192,14 +191,42 @@ func (ddr *datadogReceiver) handleV1Validate(w http.ResponseWriter, req *http.Re
 }
 
 func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Request) {
-	if ddr.tagcacheExtension != nil {
-		apikey := getDDAPIKey(req)
-		data, err := io.ReadAll(req.Body)
-		if err != nil {
-			ddr.gpLogger.Error("Unable to read body", zap.Error(err))
-			return
-		}
-		ddr.processIntake(apikey, data)
+	if ddr.nextLogConsumer == nil {
+		http.Error(w, "Consumer not initialized", http.StatusServiceUnavailable)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	ctx := ddr.obsrecv.StartLogsOp(req.Context())
+	var err error
+	var logCount int
+	defer func(logCount *int) {
+		ddr.obsrecv.EndLogsOp(ctx, "datadog", *logCount, err)
+	}(&logCount)
+
+	if req.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, nil)
+		return
+	}
+	if req.Header.Get("Content-Type") != "application/json" {
+		writeError(w, http.StatusUnsupportedMediaType, nil)
+		return
+	}
+
+	ddIntake, err := handleIntakePayload(req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		ddr.logLogger.Warn("Unable to unmarshal reqs", zap.Error(err), zap.Any("httpHeaders", req.Header))
+		return
+	}
+
+	apikey := getDDAPIKey(req)
+	if err := ddr.processIntake(ctx, apikey, ddIntake); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		ddr.logLogger.Warn("Error in process intake", zap.Error(err), zap.Any("httpHeaders", req.Header))
+		return
+
 	}
 
 	w.WriteHeader(http.StatusOK)

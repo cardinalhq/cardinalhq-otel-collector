@@ -1,3 +1,17 @@
+// Copyright 2024 CardinalHQ, Inc
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package githubeventsreceiver
 
 import (
@@ -14,7 +28,6 @@ const (
 )
 
 func createLogs(eventType interface{}, payload []byte) plog.Logs {
-
 	switch event := eventType.(type) {
 	case *github.WorkflowJobEvent:
 		return createLogsWorkflowJobEvent(event, payload)
@@ -25,7 +38,6 @@ func createLogs(eventType interface{}, payload []byte) plog.Logs {
 	default:
 		return plog.Logs{}
 	}
-
 }
 
 func createLogsWorkflowJobEvent(event *github.WorkflowJobEvent, payload []byte) plog.Logs {
@@ -95,5 +107,4 @@ func createLogsWorkflowRunEvent(event *github.WorkflowRunEvent, payload []byte) 
 	logRecord.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
 
 	return log
-
 }

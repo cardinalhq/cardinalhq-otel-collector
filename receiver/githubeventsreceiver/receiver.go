@@ -1,3 +1,17 @@
+// Copyright 2024 CardinalHQ, Inc
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package githubeventsreceiver
 
 import (
@@ -92,19 +106,15 @@ func (g *githubEventsReceiver) Start(ctx context.Context, host component.Host) e
 	}()
 
 	return nil
-
 }
 
 func (g *githubEventsReceiver) Shutdown(ctx context.Context) error {
-	// server must exist to be closed.
 	if g.server == nil {
 		return nil
 	}
-
 	err := g.server.Close()
 	g.shutdownWG.Wait()
 	return err
-
 }
 
 func (g *githubEventsReceiver) handleGHEvents(w http.ResponseWriter, r *http.Request) {
@@ -142,13 +152,10 @@ func (g *githubEventsReceiver) handleGHEvents(w http.ResponseWriter, r *http.Req
 	}
 
 	w.WriteHeader(http.StatusAccepted)
-
 }
 
 func (g *githubEventsReceiver) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-
 	_, _ = w.Write([]byte("OK"))
-
 }

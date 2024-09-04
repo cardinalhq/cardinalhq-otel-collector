@@ -186,14 +186,6 @@ func getDDAPIKey(req *http.Request) string {
 	return ""
 }
 
-func hexdump(data []byte) {
-	var line string
-	for _, b := range data {
-		line += fmt.Sprintf("%02x", b)
-	}
-	fmt.Println(line)
-}
-
 func (ddr *datadogReceiver) handleV1Validate(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(`{"valid":"true"}`))

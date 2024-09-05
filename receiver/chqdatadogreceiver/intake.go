@@ -127,11 +127,9 @@ func (ddr *datadogReceiver) processHostTags(intake datadogIntake, apikey string)
 	if err := ddr.tagcacheExtension.PutCache(key, tags); err != nil {
 		ddr.gpLogger.Error("Failed to put tags in cache", zap.Error(err))
 	}
-
 }
 
 func (ddr *datadogReceiver) makeTags(apikey string, intake datadogIntake) (tags map[string]string) {
-
 	cachedTags := newLocalTagCache()
 
 	tags = make(map[string]string, 0)
@@ -163,7 +161,6 @@ func (ddr *datadogReceiver) makeTags(apikey string, intake datadogIntake) (tags 
 	}
 
 	return
-
 }
 
 func getHostname(tags map[string]string, intake datadogIntake) (hostname string) {

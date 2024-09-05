@@ -216,6 +216,8 @@ func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
+	ddr.gpLogger.Info("Received intake", zap.Any("intake", ddIntake))
+
 	apikey := getDDAPIKey(req)
 	if ddr.tagcacheExtension != nil {
 		ddr.processHostTags(ddIntake, apikey)

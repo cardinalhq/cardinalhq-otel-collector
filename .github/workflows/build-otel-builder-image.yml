@@ -83,7 +83,6 @@ jobs:
 
   build-release-artifacts:
     needs: [ env-setup ]
-    if: ${{ needs.release-tag.outputs.tag != '' }}
 
     name: Build and release images
     uses: ./.github/workflows/z-docker-build-push-ecr-go.yml

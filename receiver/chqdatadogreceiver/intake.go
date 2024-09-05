@@ -77,11 +77,6 @@ func (ddr *datadogReceiver) processIntake(ctx context.Context, apikey string, in
 	}
 
 	overallTags := ddr.makeTags(apikey, intake)
-	ddr.logLogger.Sugar().Infof("+++++++++++++++++++++++++++++++++++")
-	ddr.logLogger.Sugar().Infof("%+v", overallTags)
-
-	ddr.logLogger.Sugar().Infof("====================================")
-	ddr.logLogger.Sugar().Infof("%+v", intake)
 
 	logs, err := ddr.convertIntakeToLogs(intake, overallTags)
 	if err != nil {

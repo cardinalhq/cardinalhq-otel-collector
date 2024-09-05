@@ -28,6 +28,7 @@ jobs:
           GO_VERSION: ${{ vars.GO_VERSION }}
           SHOULD_USE_PUBLIC_ECR: true
           RELEASE_TYPE: RELEASE_CANDIDATE
+          REPOSITORY_NAME: ${{ vars.REPOSITORY_NAME }}
 
         id: set-output-defaults
         run: |
@@ -53,7 +54,7 @@ jobs:
         id: set-matrix
         run: |
           # array_docker_context elements are <relativePathToDockerFile>|<imageRepositoryName>
-          array_docker_context='${{ vars.ARRAY_DOCKER_CONTEXT }}'
+          array_docker_context='[".|${{ env.REPOSITORY_NAME }}"]
           echo "array-docker-context=$array_docker_context" >> $GITHUB_OUTPUT
           # image_registry elements are <image_registry_id>|<imageRegistryURl(blank for private ecr)|boolShouldUsePublicECR>
           image_registry='aws|${{ steps.set-output-defaults.outputs.IMAGE_REGISTRY }}|${{ steps.set-output-defaults.outputs.SHOULD_USE_PUBLIC_ECR }}'

@@ -5,111 +5,103 @@
 name: Build OTEL builder image (pre-build)
 on:
   workflow_dispatch:
-    inputs:
-      tag-to-release:
-        type: string
-        required: false
-        description: Git tag to release (empty=head)
-      otel-version:
-        type: string
-        required: true
-        default: latest
-        description:  Docker OTEL tag
-      should-use-public-ecr:
-        description: 'Push to public ECR (false=private)'
-        required: true
-        default: "true"
-env:
-  PUBLIC_IMAGE_REGISTRY: public.ecr.aws/cardinalhq.io/
-  PRIVATE_IMAGE_REGISTRY: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.ECR_REGISTRY_REGION }}.amazonaws.com/
-  PUBLIC_IMAGE_REPOSITORY: cardinalhq-otel-collector
-  PRIVATE_IMAGE_REPOSITORY: cardinalhq/cardinalhq-otel-collector
-  IMAGE_REGISTRY: ""
-  IMAGE_REPOSITORY: ""
-  IMAGE_TAG: builder-latest
-  GO_VERSION: '1.22'
 
 jobs:
 
-  build-and-push-to-ecr:
+  env-setup:
     runs-on: ubuntu-latest
-    
+    # *** these need to match ***
+    environment: dev
+
+    outputs:
+      GO_VERSION: ${{ steps.set-output-defaults.outputs.GO_VERSION }}
+      IMAGE_REGISTRY: ${{ steps.set-output-defaults.outputs.IMAGE_REGISTRY }}
+      LATEST_TAG: ${{ steps.set-output-defaults.outputs.LATEST_TAG }}
+      TODAY_TAG:  ${{ steps.set-output-defaults.outputs.TODAY_TAG }}
+      SHOULD_USE_PUBLIC_ECR: ${{ steps.set-output-defaults.outputs.SHOULD_USE_PUBLIC_ECR }}
+      CURRENT_ENVIRONMENT: ${{ steps.set-output-defaults.outputs.CURRENT_ENVIRONMENT }}
+      RELEASE_TYPE: ${{ steps.set-output-defaults.outputs.RELEASE_TYPE }}
+      array-docker-context: ${{ steps.set-matrix.outputs.array-docker-context}}
+      array-image-config: ${{ steps.set-matrix.outputs.array-image-config}}
+    steps:
+      - name: set outputs with default values
+        env:
+          # *** these need to match ***
+          ENVIRONMENT: dev
+          GO_VERSION: ${{ vars.GO_VERSION }}
+          SHOULD_USE_PUBLIC_ECR: true
+          RELEASE_TYPE: RELEASE_CANDIDATE
+          REPOSITORY_NAME: ${{ vars.REPOSITORY_NAME }}
+
+        id: set-output-defaults
+        run: |
+          echo "GO_VERSION=${{ env.GO_VERSION }}" >> $GITHUB_OUTPUT
+          echo "IMAGE_REGISTRY=public.ecr.aws/cardinalhq.io/" >> $GITHUB_OUTPUT
+
+          if [ "${{ env.ENVIRONMENT }}" = "prod" ]; then
+            echo "LATEST_TAG=builder-latest" >> $GITHUB_OUTPUT
+          elif [ "${{ env.ENVIRONMENT }}" = "test" ]; then
+            echo "LATEST_TAG=builder-latest" >> $GITHUB_OUTPUT
+          elif [ "${{ env.ENVIRONMENT }}" = "dev" ]; then
+            echo "LATEST_TAG=builder-latest" >> $GITHUB_OUTPUT
+          else
+            echo "LATEST_TAG=$(date +%Y%m%d%H%M)" >> $GITHUB_OUTPUT  # Default to timestamp if no latest tag
+          fi          
+          echo "TODAY_TAG=$(date +%Y%m%d%H%M)" >> $GITHUB_OUTPUT  
+
+          echo "SHOULD_USE_PUBLIC_ECR=${{ env.SHOULD_USE_PUBLIC_ECR }}" >> $GITHUB_OUTPUT
+          echo "CURRENT_ENVIRONMENT=${{ env.ENVIRONMENT }}" >>  $GITHUB_OUTPUT
+          echo "RELEASE_TYPE=${{ env.RELEASE_TYPE }}" >>  $GITHUB_OUTPUT
+
+      - name: Generate matrix
+        id: set-matrix
+        run: |
+          # array_docker_context elements are <relativePathToDockerFile>|<imageRepositoryName>
+          array_docker_context='.|${{ env.REPOSITORY_NAME }}'
+          echo "array-docker-context=$array_docker_context" >> $GITHUB_OUTPUT
+          # image_registry elements are <image_registry_id>|<imageRegistryURl(blank for private ecr)|boolShouldUsePublicECR>
+          image_registry='aws|${{ steps.set-output-defaults.outputs.IMAGE_REGISTRY }}|${{ steps.set-output-defaults.outputs.SHOULD_USE_PUBLIC_ECR }}'
+
+          array_image_config='["'"$image_registry"'"]'
+          echo "array-image-config=$array_image_config" >> $GITHUB_OUTPUT
+
+
+
+      - name: print outputs
+        id: print-outputs
+        run: |
+          echo 'GO_VERSION=${{ steps.set-output-defaults.outputs.GO_VERSION }}'
+          echo 'LATEST_TAG=${{ steps.set-output-defaults.outputs.LATEST_TAG }}'
+          echo 'SHOULD_USE_PUBLIC_ECR=${{ steps.set-output-defaults.outputs.SHOULD_USE_PUBLIC_ECR }}'
+          echo 'CURRENT_ENVIRONMENT=${{ steps.set-output-defaults.outputs.CURRENT_ENVIRONMENT }}'
+          echo 'RELEASE_TYPE=${{ steps.set-output-defaults.outputs.RELEASE_TYPE }}'
+          echo 'array-docker-context=${{ steps.set-matrix.outputs.array-docker-context }}'
+          echo 'array_image_config=${{ steps.set-matrix.outputs.array_image_config }}'
+
+
+
+
+  build-release-artifacts:
+    needs: [ env-setup ]
+    if: ${{ needs.release-tag.outputs.tag != '' }}
+
+    name: Build and release images
+    uses: ./.github/workflows/z-docker-build-push-ecr-go.yml
     permissions:
       id-token: write
       contents: read
-
-    steps:
-      - name: Set public ECR if enabled
-        if: ${{ github.event.inputs.should-use-public-ecr == 'true' }}
-        run: |
-          echo "IMAGE_REGISTRY=${{ env.PUBLIC_IMAGE_REGISTRY }}" >> $GITHUB_ENV
-          echo "IMAGE_REPOSITORY=${{ env.PUBLIC_IMAGE_REPOSITORY }}" >> $GITHUB_ENV
-
-      - name: Set private ECR if disabled
-        if: ${{ github.event.inputs.should-use-public-ecr == 'false' }}
-        run: |
-          echo "IMAGE_REGISTRY=${{ env.PRIVATE_IMAGE_REGISTRY }}" >> $GITHUB_ENV
-          echo "IMAGE_REPOSITORY=${{ env.PRIVATE_IMAGE_REPOSITORY }}" >> $GITHUB_ENV
-
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Fetch all history for all branches and tags
-          ref: ${{ inputs.tag-to-release }}
-
-      - name: Inspect builder
-        run: |
-            echo "Name:      ${{ steps.buildx.outputs.name }}"
-            echo "Endpoint:  ${{ steps.buildx.outputs.endpoint }}"
-            echo "Status:    ${{ steps.buildx.outputs.status }}"
-            echo "Flags:     ${{ steps.buildx.outputs.flags }}"
-            echo "Platforms: ${{ steps.buildx.outputs.platforms }}"
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          audience: sts.amazonaws.com
-          role-to-assume: arn:aws:iam::${{ secrets.ECR_ACCOUNT_ID }}:role/${{ secrets.ECR_ROLE_NAME }}
-          aws-region: ${{ secrets.ECR_REGISTRY_REGION }}
-          role-session-name: GitHubActions
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        id: buildx
-
-      - name: Login to PUBLIC Amazon ECR
-        if: ${{ startsWith(env.IMAGE_REGISTRY, 'public.ecr.aws') }}
-        env:
-          AWS_REGION: us-east-1
-        id: login-ecr-public
-        uses: aws-actions/amazon-ecr-login@v2
-        with:
-          registry-type: public
-
-      - name: Login to PRIVATE Amazon ECR
-        if: ${{ !startsWith(env.IMAGE_REGISTRY, 'public.ecr.aws') }}
-        id: login-ecr-private
-        uses: aws-actions/amazon-ecr-login@v2
+    with:
+      tag-to-release: ${{ needs.release-tag.outputs.TODAY_TAG }}
+      latest-tag: ${{  needs.env-setup.outputs.LATEST_TAG }}
+      array-docker-context: ${{ needs.env-setup.outputs.array-docker-context }}
+      array-image-config: ${{ needs.env-setup.outputs.array-image-config }}
+    secrets:
+      ECR_ACCOUNT_ID: ${{ secrets.ECR_ACCOUNT_ID }}
+      ECR_ROLE_NAME: ${{ secrets.ECR_ROLE_NAME }}
+      ECR_REGISTRY_REGION: ${{ secrets.ECR_REGISTRY_REGION }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
 
 
-      - name: Build the builder
-        uses: docker/build-push-action@v6
-        with:
-          platforms: linux/amd64,linux/arm64
-          context: .
-          file: Dockerfile.pre-build
-          push: true
-          build-args: |
-            GIT_BRANCH=${{ inputs.tag-to-release }}
-            OTEL_VERSION=${{ inputs.otel-version }}
-          tags: |         
-            ${{ env.IMAGE_REGISTRY }}${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }}

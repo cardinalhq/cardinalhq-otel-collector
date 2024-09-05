@@ -72,10 +72,6 @@ func handleIntakePayload(req *http.Request) (ddIntake datadogIntake, err error) 
 }
 
 func (ddr *datadogReceiver) processIntake(ctx context.Context, apikey string, intake datadogIntake) error {
-	if ddr.tagcacheExtension != nil {
-		ddr.processHostTags(intake, apikey)
-	}
-
 	overallTags := ddr.makeTags(apikey, intake)
 
 	logs, err := ddr.convertIntakeToLogs(intake, overallTags)
@@ -90,7 +86,6 @@ func (ddr *datadogReceiver) processIntake(ctx context.Context, apikey string, in
 }
 
 func (ddr *datadogReceiver) processHostTags(intake datadogIntake, apikey string) {
-
 	if len(intake.HostTags) == 0 {
 		return // no host tags to update
 	}

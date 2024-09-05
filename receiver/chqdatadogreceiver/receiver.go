@@ -191,11 +191,6 @@ func (ddr *datadogReceiver) handleV1Validate(w http.ResponseWriter, req *http.Re
 }
 
 func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Request) {
-	if ddr.nextLogConsumer == nil {
-		http.Error(w, "Consumer not initialized", http.StatusServiceUnavailable)
-		return
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 
 	ctx := ddr.obsrecv.StartLogsOp(req.Context())
@@ -222,11 +217,21 @@ func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Reques
 	}
 
 	apikey := getDDAPIKey(req)
-	if err := ddr.processIntake(ctx, apikey, ddIntake); err != nil {
-		writeError(w, http.StatusInternalServerError, err)
-		ddr.logLogger.Warn("Error in process intake", zap.Error(err), zap.Any("httpHeaders", req.Header))
-		return
+	if ddr.tagcacheExtension != nil {
+		ddr.processHostTags(ddIntake, apikey)
+	}
 
+	// If we have a log consumer, process the event and generate log/events from it.  If not,
+	// log a warning.
+
+	if ddr.nextLogConsumer == nil {
+		ddr.logLogger.Warn("No log consumer configured, dropping logs")
+	} else {
+		if err := ddr.processIntake(ctx, apikey, ddIntake); err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			ddr.logLogger.Warn("Error in process intake", zap.Error(err), zap.Any("httpHeaders", req.Header))
+			return
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)

@@ -216,8 +216,6 @@ func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	ddr.gpLogger.Info("Received intake", zap.Any("intake", ddIntake))
-
 	apikey := getDDAPIKey(req)
 	if ddr.tagcacheExtension != nil {
 		ddr.processHostTags(ddIntake, apikey)
@@ -225,13 +223,12 @@ func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Reques
 
 	// If we have a log consumer, process the event and generate log/events from it.  If not,
 	// log a warning.
-
 	if ddr.nextLogConsumer == nil {
 		ddr.logLogger.Warn("No log consumer configured, dropping logs")
 	} else {
 		if err := ddr.processIntake(ctx, apikey, ddIntake); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
-			ddr.logLogger.Warn("Error in process intake", zap.Error(err), zap.Any("httpHeaders", req.Header))
+			ddr.logLogger.Warn("Error in process intake", zap.Error(err))
 			return
 		}
 	}

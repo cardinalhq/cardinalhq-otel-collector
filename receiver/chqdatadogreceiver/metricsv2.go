@@ -186,7 +186,7 @@ func ensureServiceName(rAttr pcommon.Map, kv map[string]string) {
 	if _, ok := rAttr.Get("service.name"); ok {
 		return
 	}
-	searchPath := []string{"kube_deployment", "kube_stateful_set", "kube_daemon_set", "container_name", "short_image"}
+	searchPath := []string{"service", "kube_deployment", "kube_stateful_set", "kube_daemon_set", "short_image", "container_name"}
 	for _, path := range searchPath {
 		if v, ok := kv[path]; ok {
 			rAttr.PutStr("service.name", v)

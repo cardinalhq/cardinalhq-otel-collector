@@ -34,7 +34,7 @@ jobs:
         id: set-output-defaults
         run: |
           echo "GO_VERSION=${{ env.GO_VERSION }}" >> $GITHUB_OUTPUT
-          echo "IMAGE_REGISTRY=" >> $GITHUB_OUTPUT
+          echo "IMAGE_REGISTRY=public.ecr.aws/cardinalhq.io/" >> $GITHUB_OUTPUT
           echo "IMAGE_REPOSITORY=${{ env.IMAGE_REPOSITORY }}" >> $GITHUB_OUTPUT
           
           if [ "${{ env.ENVIRONMENT }}" = "prod" ]; then

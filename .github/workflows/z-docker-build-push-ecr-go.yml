@@ -6,6 +6,9 @@ on:
       tag-to-release:
         type: string
         required: true
+      docker-release-tag:
+        type: string
+        required: true
       latest-tag:
         type: string
         required: true
@@ -82,7 +85,7 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
           ref: ${{ inputs.tag-to-release }}
 
       - name: Set up Go
@@ -157,5 +160,5 @@ jobs:
             APP_VERSION=${{ inputs.tag-to-release }}
             BUILDER_REPO=${{ env.IMAGE_REGISTRY }}${{ env.IMAGE_REPOSITORY }}
           tags: |
-            ${{ env.IMAGE_REGISTRY }}${{ env.IMAGE_REPOSITORY }}:${{ inputs.tag-to-release }}
+            ${{ env.IMAGE_REGISTRY }}${{ env.IMAGE_REPOSITORY }}:${{ inputs.docker-release-tag }}
             ${{ env.IMAGE_REGISTRY }}${{ env.IMAGE_REPOSITORY }}:${{ inputs.latest-tag  }}

@@ -136,6 +136,7 @@ jobs:
       contents: read
     with:
       tag-to-release: ${{ needs.release-tag.outputs.tag }}
+      docker-release-tag: ${{ needs.release-tag.outputs.tag }}
       latest-tag: ${{  needs.env-setup.outputs.LATEST_TAG }}
       array-docker-context: ${{ needs.env-setup.outputs.array-docker-context }}
       array-image-config: ${{ needs.env-setup.outputs.array-image-config }}

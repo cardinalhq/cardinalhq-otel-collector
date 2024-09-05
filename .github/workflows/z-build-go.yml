@@ -12,7 +12,9 @@ on:
       go-version:
         type: string
         required: true
-
+      release-type:
+        type: string
+        required: true
 
 jobs:
 

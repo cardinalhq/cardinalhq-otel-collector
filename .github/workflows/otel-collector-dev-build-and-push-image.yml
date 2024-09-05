@@ -1,0 +1,168 @@
+
+name: Collector - DEV - Build and release images
+on:
+
+  workflow_dispatch:
+
+jobs:
+
+  env-setup:
+    runs-on: ubuntu-latest
+    # *** these need to match ***
+    environment: dev
+
+    outputs:
+      GO_VERSION: ${{ steps.set-output-defaults.outputs.GO_VERSION }}
+      IMAGE_REGISTRY : ${{ steps.set-output-defaults.outputs.IMAGE_REGISTRY }}
+      LATEST_TAG: ${{ steps.set-output-defaults.outputs.LATEST_TAG }}
+      SHOULD_USE_PUBLIC_ECR: ${{ steps.set-output-defaults.outputs.SHOULD_USE_PUBLIC_ECR }}
+      CURRENT_ENVIRONMENT: ${{ steps.set-output-defaults.outputs.CURRENT_ENVIRONMENT }}
+      RELEASE_TYPE:  ${{ steps.set-output-defaults.outputs.RELEASE_TYPE }}
+      array-docker-context: ${{ steps.set-matrix.outputs.array-docker-context}}
+      array-image-config: ${{ steps.set-matrix.outputs.array-image-config}}
+    steps:
+      - name: set outputs with default values
+        env:
+          # *** these need to match ***
+          ENVIRONMENT: dev
+          GO_VERSION: ${{ vars.GO_VERSION }}
+          SHOULD_USE_PUBLIC_ECR: true
+          RELEASE_TYPE: RELEASE_CANDIDATE
+
+        id: set-output-defaults
+        run: |
+          echo "GO_VERSION=${{ env.GO_VERSION }}" >> $GITHUB_OUTPUT
+          echo "IMAGE_REGISTRY=" >> $GITHUB_OUTPUT
+          
+          if [ "${{ env.ENVIRONMENT }}" = "prod" ]; then
+            echo "LATEST_TAG=latest" >> $GITHUB_OUTPUT
+          elif [ "${{ env.ENVIRONMENT }}" = "test" ]; then
+            echo "LATEST_TAG=latest-test" >> $GITHUB_OUTPUT
+          elif [ "${{ env.ENVIRONMENT }}" = "dev" ]; then
+            echo "LATEST_TAG=latest-dev" >> $GITHUB_OUTPUT
+          else
+            echo "LATEST_TAG=$(date +%Y%m%d%H%M)" >> $GITHUB_OUTPUT  # Default to timestamp if no latest tag
+          fi          
+            
+          
+          echo "SHOULD_USE_PUBLIC_ECR=${{ env.SHOULD_USE_PUBLIC_ECR }}" >> $GITHUB_OUTPUT
+          echo "CURRENT_ENVIRONMENT=${{ env.ENVIRONMENT }}" >>  $GITHUB_OUTPUT
+          echo "RELEASE_TYPE=${{ env.RELEASE_TYPE }}" >>  $GITHUB_OUTPUT
+
+      - name: Generate matrix
+        id: set-matrix
+        run: |
+          # array_docker_context elements are <relativePathToDockerFile>|<imageRepositoryName>
+          array_docker_context='${{ vars.ARRAY_DOCKER_CONTEXT }}'
+          echo "array-docker-context=$array_docker_context" >> $GITHUB_OUTPUT
+          # image_registry elements are <image_registry_id>|<imageRegistryURl(blank for private ecr)|boolShouldUsePublicECR>
+          image_registry='aws|${{ steps.set-output-defaults.outputs.IMAGE_REGISTRY }}|${{ steps.set-output-defaults.outputs.SHOULD_USE_PUBLIC_ECR }}'
+          
+          array_image_config='["'"$image_registry"'"]'
+          echo "array-image-config=$array_image_config" >> $GITHUB_OUTPUT
+
+
+
+      - name: print outputs
+        id: print-outputs
+        run: |
+          echo 'GO_VERSION=${{ steps.set-output-defaults.outputs.GO_VERSION }}'
+          echo 'LATEST_TAG=${{ steps.set-output-defaults.outputs.LATEST_TAG }}'
+          echo 'SHOULD_USE_PUBLIC_ECR=${{ steps.set-output-defaults.outputs.SHOULD_USE_PUBLIC_ECR }}'
+          echo 'CURRENT_ENVIRONMENT=${{ steps.set-output-defaults.outputs.CURRENT_ENVIRONMENT }}'
+          echo 'RELEASE_TYPE=${{ steps.set-output-defaults.outputs.RELEASE_TYPE }}'
+          echo 'array-docker-context=${{ steps.set-matrix.outputs.array-docker-context }}'
+          echo 'array_image_config=${{ steps.set-matrix.outputs.array_image_config }}'
+
+
+
+
+  build-go-project:
+    needs: [env-setup]
+    name: Build Go!
+    uses: ./.github/workflows/z-build-go.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      tag-to-build: ${{  github.ref  }}
+      go-version: ${{ needs.env-setup.outputs.GO_VERSION }}
+      release-type: ${{ needs.env-setup.outputs.RELEASE_TYPE }}
+
+
+  release-tag:
+    needs: [build-go-project, env-setup]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+    outputs:
+      tag: ${{ steps.determine-release-tag.outputs.tag}}
+      desc: ${{ steps.determine-release-tag.outputs.desc}}
+      today-string: ${{ steps.determine-release-tag.outputs.today-string}}
+
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for all branches and tags
+          fetch-tags: true
+
+      - uses: ./.github/actions/determine-release-tag
+        id: determine-release-tag
+        with:
+          release-type: ${{ needs.env-setup.outputs.RELEASE_TYPE }}
+
+      - name: Print outputs
+        id: print-outputs
+        run: |   
+          echo "Target tag!: ${{ steps.determine-release-tag.outputs.tag}}"
+          echo "Taget tag desc:    ${{ steps.determine-release-tag.outputs.desc}}"
+          echo "Hash:   ${{ steps.determine-release-tag.outputs.hash}}"
+          echo "Today-string:   ${{ steps.determine-release-tag.outputs.today-string}}"
+
+
+          
+  
+
+  build-release-artifacts:
+    needs: [ release-tag,env-setup ]
+    if: ${{ needs.release-tag.outputs.tag != '' }}
+
+    name: Build and release images
+    uses: ./.github/workflows/z-docker-build-push-ecr-go.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      tag-to-release: ${{ needs.release-tag.outputs.tag }}
+      latest-tag: ${{  needs.env-setup.outputs.LATEST_TAG }}
+      array-docker-context: ${{ needs.env-setup.outputs.array-docker-context }}
+      array-image-config: ${{ needs.env-setup.outputs.array-image-config }}
+    secrets:
+      ECR_ACCOUNT_ID: ${{ secrets.ECR_ACCOUNT_ID }}
+      ECR_ROLE_NAME: ${{ secrets.ECR_ROLE_NAME }}
+      ECR_REGISTRY_REGION: ${{ secrets.ECR_REGISTRY_REGION }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+  release-deploy:
+    needs: [build-release-artifacts,release-tag ]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for all branches and tags
+          fetch-tags: true
+          ref: ${{ needs.release-tag.outputs.tag }}
+
+      - uses: ./.github/actions/tag-git-deploy
+        id: tag-git-deploy
+        with:
+          deploy-tag: latest-dev
+

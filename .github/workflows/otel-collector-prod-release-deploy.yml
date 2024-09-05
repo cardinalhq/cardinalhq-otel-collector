@@ -1,0 +1,138 @@
+
+name: Collector - PROD - release deploy
+on:
+
+  workflow_dispatch:
+
+jobs:
+
+  env-setup:
+    runs-on: ubuntu-latest
+    # *** these need to match ***
+    environment: prod
+
+    outputs:
+      GO_VERSION: ${{ steps.set-output-defaults.outputs.GO_VERSION }}
+      IMAGE_REGISTRY : ${{ steps.set-output-defaults.outputs.IMAGE_REGISTRY }}
+      IMAGE_REPOSITORY: ${{ steps.set-output-defaults.outputs.IMAGE_REPOSITORY }}
+      LATEST_TAG: ${{ steps.set-output-defaults.outputs.LATEST_TAG }}
+      SHOULD_USE_PUBLIC_ECR: ${{ steps.set-output-defaults.outputs.SHOULD_USE_PUBLIC_ECR }}
+      CURRENT_ENVIRONMENT: ${{ steps.set-output-defaults.outputs.CURRENT_ENVIRONMENT }}
+      RELEASE_TYPE:  ${{ steps.set-output-defaults.outputs.RELEASE_TYPE }}
+      array-docker-context: ${{ steps.set-matrix.outputs.array-docker-context}}
+      array-image-config: ${{ steps.set-matrix.outputs.array-image-config}}
+    steps:
+      - name: set outputs with default values
+        env:
+          # *** these need to match ***
+          ENVIRONMENT: prod
+          GO_VERSION: ${{ vars.GO_VERSION }}
+          IMAGE_REPOSITORY: ${{ vars.IMAGE_REPOSITORY }}
+          SHOULD_USE_PUBLIC_ECR: true
+          RELEASE_TYPE: FINAL
+
+        id: set-output-defaults
+        run: |
+          echo "GO_VERSION=${{ env.GO_VERSION }}" >> $GITHUB_OUTPUT
+          echo "IMAGE_REGISTRY=" >> $GITHUB_OUTPUT
+          echo "IMAGE_REPOSITORY=${{ env.IMAGE_REPOSITORY }}" >> $GITHUB_OUTPUT
+          
+          if [ "${{ env.ENVIRONMENT }}" = "prod" ]; then
+            echo "LATEST_TAG=latest" >> $GITHUB_OUTPUT
+          elif [ "${{ env.ENVIRONMENT }}" = "test" ]; then
+            echo "LATEST_TAG=latest-test" >> $GITHUB_OUTPUT
+          elif [ "${{ env.ENVIRONMENT }}" = "dev" ]; then
+            echo "LATEST_TAG=latest-dev" >> $GITHUB_OUTPUT
+          else
+            echo "LATEST_TAG=$(date +%Y%m%d%H%M)" >> $GITHUB_OUTPUT  # Default to timestamp if no latest tag
+          fi          
+            
+          
+          echo "SHOULD_USE_PUBLIC_ECR=${{ env.SHOULD_USE_PUBLIC_ECR }}" >> $GITHUB_OUTPUT
+          echo "CURRENT_ENVIRONMENT=${{ env.ENVIRONMENT }}" >>  $GITHUB_OUTPUT
+          echo "RELEASE_TYPE=${{ env.RELEASE_TYPE }}" >>  $GITHUB_OUTPUT
+
+      - name: Generate matrix
+        id: set-matrix
+        run: |
+          # array_docker_context elements are <relativePathToDockerFile>|<imageRepositoryName>
+          array_docker_context='${{ vars.ARRAY_DOCKER_CONTEXT }}'
+          echo "array-docker-context=$array_docker_context" >> $GITHUB_OUTPUT
+          # image_registry elements are <image_registry_id>|<imageRegistryURl(blank for private ecr)|boolShouldUsePublicECR>
+          image_registry='aws|${{ steps.set-output-defaults.outputs.IMAGE_REGISTRY }}|${{ steps.set-output-defaults.outputs.SHOULD_USE_PUBLIC_ECR }}'  
+          array_image_config='["'"$image_registry"'"]'
+          echo "array-image-config=$array_image_config" >> $GITHUB_OUTPUT
+      
+      
+
+      - name: print outputs
+        id: print-outputs
+        run: |
+          echo 'GO_VERSION=${{ steps.set-output-defaults.outputs.GO_VERSION }}'
+          echo 'LATEST_TAG=${{ steps.set-output-defaults.outputs.LATEST_TAG }}'
+          echo 'SHOULD_USE_PUBLIC_ECR=${{ steps.set-output-defaults.outputs.SHOULD_USE_PUBLIC_ECR }}'
+          echo 'CURRENT_ENVIRONMENT=${{ steps.set-output-defaults.outputs.CURRENT_ENVIRONMENT }}'
+          echo 'RELEASE_TYPE=${{ steps.set-output-defaults.outputs.RELEASE_TYPE }}'
+          echo 'array-docker-context=${{ steps.set-matrix.outputs.array-docker-context }}'
+          echo 'array_image_config=${{ steps.set-matrix.outputs.array_image_config }}'
+
+  release-tag:
+    needs: [ env-setup]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+    outputs:
+      prod-tag: ${{ steps.determine-release-tag.outputs.prod-version}}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for all branches and tags
+          fetch-tags: true
+          ref: latest-test
+
+      - name: Determine Latest Test to release
+        id: determine-release-tag
+        run: |
+          echo "Looking at the TAG latest-test and determining version"
+          latest_version_tag=$(git describe --tags --match "v*.*.*" --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest version tag: $latest_version_tag"
+          VERSION=${latest_version_tag#v}
+          IFS='.' read -r -a VERSION_PARTS <<< "$VERSION"
+          # Handle -rc.n suffix
+          PATCH_VERSION=${VERSION_PARTS[2]}
+          echo "Current patch version tag: $PATCH_VERSION"
+          if [[ "$PATCH_VERSION" =~ ^([0-9]+)-rc$ ]]; then
+            # If PATCH_VERSION contains "-rc.n", increment n
+            echo "Unexpected tag on latest-test version found. not expecting RC in patch version $PATCH_VERSION "
+          fi
+          echo "prod-version=$latest_version_tag" >> $GITHUB_OUTPUT
+
+
+      - name: Print outputs
+        id: print-outputs
+        run: |   
+          echo "Prod version!: ${{ steps.determine-release-tag.outputs.prod-version}}"
+
+  build-release-artifacts:
+    needs: [ release-tag,env-setup ]
+    if: ${{ needs.release-tag.outputs.prod-tag != '' }}
+
+    name: Build and release images
+    uses: ./.github/workflows/z-re-tag-docker-image.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      source-tag: ${{ needs.release-tag.outputs.prod-tag }}
+      new-tag: ${{  needs.env-setup.outputs.LATEST_TAG }}
+      array-docker-context: ${{ needs.env-setup.outputs.array-docker-context }}
+      array-image-config: ${{ needs.env-setup.outputs.array-image-config }}
+    secrets:
+      ECR_ACCOUNT_ID: ${{ secrets.ECR_ACCOUNT_ID }}
+      ECR_ROLE_NAME: ${{ secrets.ECR_ROLE_NAME }}
+      ECR_REGISTRY_REGION: ${{ secrets.ECR_REGISTRY_REGION }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+

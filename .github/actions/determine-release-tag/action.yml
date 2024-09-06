@@ -1,63 +1,153 @@
+#toaster
 name: Create or get target release tag
 description: Either validates a manually specified tag or determines the most recent tag and bumps it as a release tag
 inputs:
-  target-tag:
-    description: The git tag passed by user to validate. if not passed use git ref context
-    required: false
+
+  release-type:
+    default: RELEASE_CANDIDATE
+    description: Release type candidate or final
+    required: true
+  should-create-tag:
+    default: true
+    description: Whether or not this action should tag the repo with the calculated version tag.  if not, hash will not be avail on output
+    required: true
 
 outputs:
   tag:
-    value: ${{ steps.determine-release-tag.outputs.tag }}
+    value: ${{ steps.determine-release-tag-rc.outputs.tag || steps.determine-release-tag-final.outputs.tag }}
     description: The tag to be used for the release
   desc:
-    value: ${{ steps.determine-release-tag.outputs.desc }}
-    description: The description of the tag
+    value: ${{ steps.tag-release.outputs.desc  }}
+    description: The description of the tag if created
   hash:
-    value: ${{ steps.determine-release-tag.outputs.hash }}
-    description: The hash of the tag
-  today-string:
-    value: ${{ steps.determine-release-tag.outputs.today-string }}
-    description: The current date in YYYYMMDD format
+    value: ${{ steps.tag-release.outputs.hash  }}
+    description: The hash of the tag if created
+
 runs:
   using: composite
   steps:
 
-    - name: Determine release tag
-      id: determine-release-tag
+    - name: Determine release tag - Release Candidate
+      if: ${{ inputs.release-type == 'RELEASE_CANDIDATE' }}
+      id: determine-release-tag-rc
       shell: bash
+      env:
+        GITHUB_REF_ENV: ${{ github.ref }}
       run: |
-        if [ ! -z '${{ inputs.target-tag }}' ]; then
-          echo "Target tag: ${{ inputs.target-tag }}"
-          target_tag=$(git tag -l '${{ inputs.target-tag }}')
-        elif [ ! -z '${{ github.ref  }}' -a '${{ github.ref  }}' != 'refs/heads/main' ]; then
-          echo "Github ref: ${{ github.ref  }}"
-          TAG_REF='${{ github.ref  }}'
-          TAG_BARE=${TAG_REF#refs/tags/}
-          echo "Bare tag: $TAG_BARE"
-          target_tag=$(git tag -l $TAG_BARE)
+        # we are doing a dev build.  if we are not on the main branch, then tag feature branch style, otherwise RC tag
+        if [[ "$GITHUB_REF_ENV" != "refs/heads/main" && "$GITHUB_REF_ENV" != refs/heads/releases/* ]]; then
+          echo "We are not on the main or release branch. Ref: $GITHUB_REF_ENV"
+        
+          # Determine if it's a branch or a tag
+          if [[ "$GITHUB_REF_ENV" == refs/heads/* ]]; then
+            # It's a branch
+            BRANCH_NAME="${GITHUB_REF_ENV#refs/heads/}"
+            SHORT_NAME="${BRANCH_NAME//\//-}"  # Replace slashes with dashes
+          elif [[ "$GITHUB_REF_ENV" == refs/tags/* ]]; then
+            # It's a tag
+            TAG_NAME="${GITHUB_REF_ENV#refs/tags/}"
+            SHORT_NAME="$TAG_NAME"
+          else
+            echo "Unknown ref type: $GITHUB_REF_ENV"
+            exit 1
+          fi
+        
+          # Generate the base tag with incrementing logic
+          git fetch --tags
+          BASE_TAG="$SHORT_NAME.0"
+          EXISTING_TAGS=$(git tag -l "$SHORT_NAME.*")
+        
+          # Find the latest tag with the pattern and increment
+          if [[ -n "$EXISTING_TAGS" ]]; then
+            LATEST_TAG=$(echo "$EXISTING_TAGS" | sort -V | tail -n 1)
+            INCREMENT_NUMBER="${LATEST_TAG##*.}"
+            NEW_INCREMENT=$((INCREMENT_NUMBER + 1))
+            NEW_TAG="$SHORT_NAME.$NEW_INCREMENT"
+          else
+            NEW_TAG="$BASE_TAG"
+          fi
+        
+          target_tag=$NEW_TAG
         else
-          echo "Falling back to incrementing and pushing the most recent versioned tag"
-          #increment patch if tag is blank
+          echo "We are on the main or release branch, incrementing the most recent versioned tag"
+          # increment patch if tag is blank
           git fetch --tags
           latest_version_tag=$(git describe --tags --match "v*.*.*" --abbrev=0 2>/dev/null || echo "v0.0.0")
           echo "Latest version tag: $latest_version_tag"
           VERSION=${latest_version_tag#v}
           IFS='.' read -r -a VERSION_PARTS <<< "$VERSION"
-          # Increment the patch version
+        
+          # Handle -rc.n suffix
           PATCH_VERSION=${VERSION_PARTS[2]}
-          PATCH_VERSION=$((PATCH_VERSION + 1))
-          # Form the new tag
-          NEW_TAG="v${VERSION_PARTS[0]}.${VERSION_PARTS[1]}.$PATCH_VERSION"
+          echo "Current patch version tag: $PATCH_VERSION"
+          if [[ "$PATCH_VERSION" =~ ^([0-9]+)-rc$ ]]; then
+            # If PATCH_VERSION contains "-rc.n", increment n
+            PATCH_NUMBER=${BASH_REMATCH[1]}
+            RC_NUMBER=${VERSION_PARTS[3]}
+            RC_NUMBER=$((RC_NUMBER + 1))
+            NEW_TAG="v${VERSION_PARTS[0]}.${VERSION_PARTS[1]}.$PATCH_NUMBER-rc.$RC_NUMBER"
+          else
+            # Otherwise increment the minor number, set patch to 0, and start -rc.1
+            MINOR_VERSION=${VERSION_PARTS[1]}
+            MINOR_VERSION=$((MINOR_VERSION + 1))
+            NEW_TAG="v${VERSION_PARTS[0]}.$MINOR_VERSION.0-rc.1"
+          fi
+        
           echo "New tag: $NEW_TAG"
-          git config user.name "Cardinal Github Bot"
-          git config user.email cardinal.github@cardinalhq.io
-          git tag -a $NEW_TAG -m "Auto-increment from GH release workflow"
-          git push origin $NEW_TAG
           target_tag=$NEW_TAG
         fi
-          tag_desc=$(git describe --tags --match "${target_tag}" 2>/dev/null)
-          tag_hash=$(git rev-list -n 1 $tag_desc)
-          echo "tag=$target_tag" >> $GITHUB_OUTPUT
+        
+        echo "tag=$target_tag" >> $GITHUB_OUTPUT
+  
+
+    - name: Determine release tag - Final
+      if: ${{ inputs.release-type == 'FINAL' }}
+      id: determine-release-tag-final
+      shell: bash
+      env:
+        GITHUB_REF_ENV: ${{ github.ref }}
+      run: |
+        # Check if the current ref is either 'main' or a release branch
+        if [[ "$GITHUB_REF_ENV" != "refs/heads/main" && "$GITHUB_REF_ENV" != refs/heads/releases/* ]]; then
+          echo "Final releases must only be executed on the main branch or release branches. Ref: $GITHUB_REF_ENV"
+          exit 1
+        else
+          echo "Incrementing and pushing the most recent final versioned tag"
+          git fetch --tags
+          latest_version_tag=$(git describe --tags --match "v*.*.*" --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest version tag: $latest_version_tag"
+          VERSION=${latest_version_tag#v}
+          IFS='.' read -r -a VERSION_PARTS <<< "$VERSION"      
+          # Handle -rc.n suffix
+          PATCH_VERSION=${VERSION_PARTS[2]}
+          echo "Current patch version tag: $PATCH_VERSION"
+          if [[ "$PATCH_VERSION" =~ ^([0-9]+)-rc$ ]]; then
+            # since we have a RC as most recent, truncate down to final
+            PATCH_NUMBER=${BASH_REMATCH[1]}
+            NEW_TAG="v${VERSION_PARTS[0]}.${VERSION_PARTS[1]}.$PATCH_NUMBER"
+          else
+            # Otherwise increment the patch number
+            MINOR_VERSION=${VERSION_PARTS[1]}
+            PATCH_VERSION=${VERSION_PARTS[2]}
+            PATCH_VERSION=$((PATCH_VERSION + 1))
+            NEW_TAG="v${VERSION_PARTS[0]}.$MINOR_VERSION.$PATCH_VERSION"
+          fi
+          echo "New final tag: $NEW_TAG"
+          target_tag=$NEW_TAG
+        fi
+        echo "tag=$target_tag" >> $GITHUB_OUTPUT
+
+    - name: TAG release
+      if: ${{ inputs.should-create-tag == 'true' }}
+      id: tag-release
+      shell: bash
+      env:
+        TARGET_TAG: ${{ steps.determine-release-tag-rc.outputs.tag || steps.determine-release-tag-final.outputs.tag }}
+      run: |
+          echo "Tagging release with final tag: $TARGET_TAG"
+          git config user.name "Cardinal Github Bot"
+          git config user.email cardinal.github@cardinalhq.io
+          git tag -a $TARGET_TAG -m "Auto-increment from GH release workflow"
+          git push origin $TARGET_TAG
           echo "desc=$tag_desc" >> $GITHUB_OUTPUT
           echo "hash=$tag_hash" >> $GITHUB_OUTPUT
-          echo "today-string=$(date +%Y%m%d)" >> $GITHUB_OUTPUT

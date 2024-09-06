@@ -1,18 +1,14 @@
-name: z- Docker build and push a Go project to ecr
+name: z- retag docker image
 
 on:
   workflow_call:
     inputs:
-      tag-to-release:
+      source-tag:
         type: string
         required: true
-      docker-release-tag:
+      new-tag:
         type: string
         required: true
-      latest-tag:
-        type: string
-        required: true
-
 
       array-docker-context:
         type: string
@@ -43,8 +39,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        docker-context:  ${{ fromJSON(inputs.array-docker-context) }}
-        image-config:  ${{ fromJSON(inputs.array-image-config) }}
+        docker-context: ${{ fromJSON(inputs.array-docker-context) }}
+        image-config: ${{ fromJSON(inputs.array-image-config) }}
     permissions:
       id-token: write
       contents: read
@@ -55,7 +51,6 @@ jobs:
         run: |
           IFS='|' read -ra DOCKER_CONTEXT_PAIR <<< "${{ matrix.docker-context }}"
           echo "D_CONTEXT=${DOCKER_CONTEXT_PAIR[1]}" >> $GITHUB_ENV
-          echo "D_FILE=${DOCKER_CONTEXT_PAIR[2]}" >> $GITHUB_ENV
           echo "IMAGE_REPOSITORY=${DOCKER_CONTEXT_PAIR[0]}" >> $GITHUB_ENV
 
       - name: Unpack array-image-config
@@ -69,11 +64,11 @@ jobs:
       - name: Print unpacked environment variables (Optional for debugging)
         run: |
           echo "D_CONTEXT=$D_CONTEXT"
-          echo "D_FILE=$D_FILE"
           echo "IMAGE_REPOSITORY=$IMAGE_REPOSITORY"
           echo "REGISTRY_PROVIDER=$REGISTRY_PROVIDER"
           echo "IMAGE_REGISTRY=$IMAGE_REGISTRY"
           echo "SHOULD_USE_PUBLIC_ECR=$SHOULD_USE_PUBLIC_ECR"
+      
 
       - name: Set private ECR if disabled
         if: ${{ env.REGISTRY_PROVIDER == 'aws' && env.SHOULD_USE_PUBLIC_ECR != 'true' }}
@@ -84,17 +79,12 @@ jobs:
         if: ${{ env.REGISTRY_PROVIDER == 'gcp' }}
         run: |
           echo "IMAGE_REGISTRY=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/" >> $GITHUB_ENV
+      
 
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ inputs.tag-to-release }}
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ inputs.go-version }}
-          cache-dependency-path: "**/*.sum"
+      - name: Set source and new image names
+        run: |
+          echo "SOURCE_IMAGE=${{ env.IMAGE_REGISTRY }}${{ env.IMAGE_REPOSITORY }}:${{ inputs.source-tag }}" >> $GITHUB_ENV
+          echo "TARGET_IMAGE=${{ env.IMAGE_REGISTRY }}${{ env.IMAGE_REPOSITORY }}:${{ inputs.new-tag }}" >> $GITHUB_ENV
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -103,22 +93,6 @@ jobs:
           role-to-assume: arn:aws:iam::${{ secrets.ECR_ACCOUNT_ID }}:role/${{ secrets.ECR_ROLE_NAME }}
           aws-region: ${{ secrets.ECR_REGISTRY_REGION }}
           role-session-name: GitHubActions
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        id: buildx
-
-      - name: Inspect builder
-        run: |
-          echo "Name:      ${{ steps.buildx.outputs.name }}"
-          echo "Endpoint:  ${{ steps.buildx.outputs.endpoint }}"
-          echo "Status:    ${{ steps.buildx.outputs.status }}"
-          echo "Flags:     ${{ steps.buildx.outputs.flags }}"
-          echo "Platforms: ${{ steps.buildx.outputs.platforms }}"
-
 
       - name: Login to PUBLIC Amazon ECR
         if: ${{  env.REGISTRY_PROVIDER == 'aws' &&  env.SHOULD_USE_PUBLIC_ECR == 'true' }}
@@ -152,16 +126,11 @@ jobs:
           password: ${{ steps.google-auth.outputs.access_token }}
 
 
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          platforms: linux/amd64,linux/arm64
-          context: ${{ env.D_CONTEXT }}
-          file: ${{ env.D_FILE }}
-          push: true
-          build-args: |
-            GIT_BRANCH=${{ inputs.tag-to-release }}
-            BUILDER_REPO=${{ env.IMAGE_REGISTRY }}${{ env.IMAGE_REPOSITORY }}
-          tags: |
-            ${{ env.IMAGE_REGISTRY }}${{ env.IMAGE_REPOSITORY }}:${{ inputs.docker-release-tag }}
-            ${{ env.IMAGE_REGISTRY }}${{ env.IMAGE_REPOSITORY }}:${{ inputs.latest-tag  }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        id: buildx
+
+      - name: Re-tag Docker image
+        run: |
+          docker buildx imagetools create -t ${{ env.TARGET_IMAGE }} -t ${{ env.SOURCE_IMAGE }} ${{ env.SOURCE_IMAGE }}
+         

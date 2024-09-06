@@ -57,7 +57,7 @@ jobs:
         id: set-matrix
         run: |
           # array_docker_context elements are <relativePathToDockerFile>|<imageRepositoryName>
-          array_docker_context='[".|${{ vars.REPOSITORY_NAME }}"]'
+          array_docker_context='[".|Dockerfile.pre-build|${{ vars.REPOSITORY_NAME }}"]'
           echo "array-docker-context=$array_docker_context" >> $GITHUB_OUTPUT
           # image_registry elements are <image_registry_id>|<imageRegistryURl(blank for private ecr)|boolShouldUsePublicECR>
           image_registry='aws|${{ steps.set-output-defaults.outputs.IMAGE_REGISTRY }}|${{ steps.set-output-defaults.outputs.SHOULD_USE_PUBLIC_ECR }}'
@@ -90,7 +90,7 @@ jobs:
       id-token: write
       contents: read
     with:
-      tag-to-release: ${{  github.ref  }}
+      tag-to-release: ${{ needs.env-setup.outputs.TODAY_TAG }}
       docker-release-tag: ${{ needs.env-setup.outputs.TODAY_TAG }}
       latest-tag: ${{  needs.env-setup.outputs.LATEST_TAG }}
       array-docker-context: ${{ needs.env-setup.outputs.array-docker-context }}

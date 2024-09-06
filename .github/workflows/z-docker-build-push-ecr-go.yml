@@ -55,7 +55,8 @@ jobs:
         run: |
           IFS='|' read -ra DOCKER_CONTEXT_PAIR <<< "${{ matrix.docker-context }}"
           echo "D_CONTEXT=${DOCKER_CONTEXT_PAIR[0]}" >> $GITHUB_ENV
-          echo "IMAGE_REPOSITORY=${DOCKER_CONTEXT_PAIR[1]}" >> $GITHUB_ENV
+          echo "D_FILE=${DOCKER_CONTEXT_PAIR[1]}" >> $GITHUB_ENV
+          echo "IMAGE_REPOSITORY=${DOCKER_CONTEXT_PAIR[2]}" >> $GITHUB_ENV
 
       - name: Unpack array-image-config
         id: unpack-image-config
@@ -68,6 +69,7 @@ jobs:
       - name: Print unpacked environment variables (Optional for debugging)
         run: |
           echo "D_CONTEXT=$D_CONTEXT"
+          echo "D_FILE=$D_FILE"
           echo "IMAGE_REPOSITORY=$IMAGE_REPOSITORY"
           echo "REGISTRY_PROVIDER=$REGISTRY_PROVIDER"
           echo "IMAGE_REGISTRY=$IMAGE_REGISTRY"
@@ -155,6 +157,7 @@ jobs:
         with:
           platforms: linux/amd64,linux/arm64
           context: ${{ env.D_CONTEXT }}
+          file: ${{ env.D_FILE }}
           push: true
           build-args: |
             GIT_BRANCH=${{ inputs.tag-to-release }}

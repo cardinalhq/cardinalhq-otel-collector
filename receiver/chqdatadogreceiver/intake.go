@@ -206,7 +206,7 @@ func (ddr *datadogReceiver) convertIntakeToLogs(intake datadogIntake, tags map[s
 			logRecord.Attributes().PutStr("aggregation.key", event.AggregationKey)
 			logRecord.Attributes().PutStr("source.type.name", event.SourceTypeName)
 			logRecord.Attributes().PutStr("event.type", event.EventType)
-			logRecord.Attributes().PutStr("event.name", "datadog."+event.EventType)
+			logRecord.Attributes().PutStr(string(semconv.EventNameKey), "datadog."+event.EventType)
 
 			logRecord.Body().SetStr(event.Text)
 		}

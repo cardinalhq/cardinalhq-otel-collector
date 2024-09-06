@@ -56,25 +56,25 @@ type event struct {
 	EventType      string   `json:"event_type,omitempty"`
 }
 
-func handleIntakePayload(req *http.Request) (ddIntake datadogIntake, err error) {
-	body, err := io.ReadAll(req.Body)
+func handleIntakePayload(req *http.Request) (ddIntake datadogIntake, body []byte, err error) {
+	body, err = io.ReadAll(req.Body)
 	if err != nil {
 		err = fmt.Errorf("failed to read request body: %w", err)
-		return datadogIntake{}, err
+		return datadogIntake{}, nil, err
 	}
 
 	err = json.Unmarshal(body, &ddIntake)
 	if err != nil {
-		return datadogIntake{}, fmt.Errorf("failed to unmarshal intake body %v", err)
+		return datadogIntake{}, nil, fmt.Errorf("failed to unmarshal intake body %v", err)
 	}
 
 	return
 }
 
-func (ddr *datadogReceiver) processIntake(ctx context.Context, apikey string, intake datadogIntake) error {
+func (ddr *datadogReceiver) processIntake(ctx context.Context, apikey string, jstr []byte, intake datadogIntake) error {
 	overallTags := ddr.makeTags(apikey, intake)
 
-	logs, err := ddr.convertIntakeToLogs(intake, overallTags)
+	logs, err := ddr.convertIntakeToLogs(jstr, intake, overallTags)
 	if err != nil {
 		return err
 	}
@@ -175,7 +175,7 @@ func getHostname(tags map[string]string, intake datadogIntake) (hostname string)
 	return
 }
 
-func (ddr *datadogReceiver) convertIntakeToLogs(intake datadogIntake, tags map[string]string) (plog.Logs, error) {
+func (ddr *datadogReceiver) convertIntakeToLogs(jstr []byte, intake datadogIntake, tags map[string]string) (plog.Logs, error) {
 	t := pcommon.NewTimestampFromTime(time.Now())
 
 	lm := plog.NewLogs()
@@ -208,7 +208,7 @@ func (ddr *datadogReceiver) convertIntakeToLogs(intake datadogIntake, tags map[s
 			logRecord.Attributes().PutStr("event.type", event.EventType)
 			logRecord.Attributes().PutStr(string(semconv.EventNameKey), "datadog."+event.EventType)
 
-			logRecord.Body().SetStr(event.Text)
+			logRecord.Body().SetStr(string(jstr))
 		}
 	}
 

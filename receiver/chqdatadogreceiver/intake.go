@@ -72,10 +72,6 @@ func handleIntakePayload(req *http.Request) (ddIntake datadogIntake, err error) 
 }
 
 func (ddr *datadogReceiver) processIntake(ctx context.Context, apikey string, intake datadogIntake) error {
-	if ddr.tagcacheExtension != nil {
-		ddr.processHostTags(intake, apikey)
-	}
-
 	overallTags := ddr.makeTags(apikey, intake)
 
 	logs, err := ddr.convertIntakeToLogs(intake, overallTags)
@@ -90,7 +86,6 @@ func (ddr *datadogReceiver) processIntake(ctx context.Context, apikey string, in
 }
 
 func (ddr *datadogReceiver) processHostTags(intake datadogIntake, apikey string) {
-
 	if len(intake.HostTags) == 0 {
 		return // no host tags to update
 	}
@@ -132,11 +127,9 @@ func (ddr *datadogReceiver) processHostTags(intake datadogIntake, apikey string)
 	if err := ddr.tagcacheExtension.PutCache(key, tags); err != nil {
 		ddr.gpLogger.Error("Failed to put tags in cache", zap.Error(err))
 	}
-
 }
 
 func (ddr *datadogReceiver) makeTags(apikey string, intake datadogIntake) (tags map[string]string) {
-
 	cachedTags := newLocalTagCache()
 
 	tags = make(map[string]string, 0)
@@ -168,7 +161,6 @@ func (ddr *datadogReceiver) makeTags(apikey string, intake datadogIntake) (tags 
 	}
 
 	return
-
 }
 
 func getHostname(tags map[string]string, intake datadogIntake) (hostname string) {
@@ -184,7 +176,6 @@ func getHostname(tags map[string]string, intake datadogIntake) (hostname string)
 }
 
 func (ddr *datadogReceiver) convertIntakeToLogs(intake datadogIntake, tags map[string]string) (plog.Logs, error) {
-
 	t := pcommon.NewTimestampFromTime(time.Now())
 
 	lm := plog.NewLogs()
@@ -204,7 +195,6 @@ func (ddr *datadogReceiver) convertIntakeToLogs(intake datadogIntake, tags map[s
 
 	for _, events := range intake.IntakeEvents {
 		for _, event := range events {
-
 			logRecord := scope.LogRecords().AppendEmpty()
 
 			lAttr.CopyTo(logRecord.Attributes())
@@ -216,6 +206,7 @@ func (ddr *datadogReceiver) convertIntakeToLogs(intake datadogIntake, tags map[s
 			logRecord.Attributes().PutStr("aggregation.key", event.AggregationKey)
 			logRecord.Attributes().PutStr("source.type.name", event.SourceTypeName)
 			logRecord.Attributes().PutStr("event.type", event.EventType)
+			logRecord.Attributes().PutStr(string(semconv.EventNameKey), "datadog."+event.EventType)
 
 			logRecord.Body().SetStr(event.Text)
 		}

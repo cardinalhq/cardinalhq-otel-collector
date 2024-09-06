@@ -54,9 +54,9 @@ jobs:
         id: unpack-docker-context
         run: |
           IFS='|' read -ra DOCKER_CONTEXT_PAIR <<< "${{ matrix.docker-context }}"
-          echo "D_CONTEXT=${DOCKER_CONTEXT_PAIR[0]}" >> $GITHUB_ENV
-          echo "D_FILE=${DOCKER_CONTEXT_PAIR[1]}" >> $GITHUB_ENV
-          echo "IMAGE_REPOSITORY=${DOCKER_CONTEXT_PAIR[2]}" >> $GITHUB_ENV
+          echo "D_CONTEXT=${DOCKER_CONTEXT_PAIR[1]}" >> $GITHUB_ENV
+          echo "D_FILE=${DOCKER_CONTEXT_PAIR[2]}" >> $GITHUB_ENV
+          echo "IMAGE_REPOSITORY=${DOCKER_CONTEXT_PAIR[0]}" >> $GITHUB_ENV
 
       - name: Unpack array-image-config
         id: unpack-image-config

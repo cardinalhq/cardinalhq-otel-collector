@@ -209,7 +209,7 @@ func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	ddIntake, err := handleIntakePayload(req)
+	ddIntake, jstr, err := handleIntakePayload(req)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		ddr.logLogger.Warn("Unable to unmarshal reqs", zap.Error(err), zap.Any("httpHeaders", req.Header))
@@ -226,7 +226,7 @@ func (ddr *datadogReceiver) handleIntake(w http.ResponseWriter, req *http.Reques
 	if ddr.nextLogConsumer == nil {
 		ddr.logLogger.Warn("No log consumer configured, dropping logs")
 	} else {
-		if err := ddr.processIntake(ctx, apikey, ddIntake); err != nil {
+		if err := ddr.processIntake(ctx, apikey, jstr, ddIntake); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			ddr.logLogger.Warn("Error in process intake", zap.Error(err))
 			return

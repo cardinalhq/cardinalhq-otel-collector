@@ -139,6 +139,8 @@ jobs:
   create-release:
     needs: [ build-release-artifacts, release-tag ]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

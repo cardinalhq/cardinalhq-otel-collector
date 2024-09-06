@@ -157,7 +157,7 @@ jobs:
           context: ${{ env.D_CONTEXT }}
           push: true
           build-args: |
-            APP_VERSION=${{ inputs.tag-to-release }}
+            GIT_BRANCH=${{ inputs.tag-to-release }}
             BUILDER_REPO=${{ env.IMAGE_REGISTRY }}${{ env.IMAGE_REPOSITORY }}
           tags: |
             ${{ env.IMAGE_REGISTRY }}${{ env.IMAGE_REPOSITORY }}:${{ inputs.docker-release-tag }}

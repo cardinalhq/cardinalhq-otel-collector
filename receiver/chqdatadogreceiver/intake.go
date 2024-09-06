@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension"
+	"github.com/mitchellh/mapstructure"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	semconv "go.opentelemetry.io/otel/semconv/v1.25.0"
@@ -31,19 +32,19 @@ import (
 )
 
 type datadogIntake struct {
-	APIKey           string              `json:"apiKey"`
-	InternalHostname string              `json:"internalHostname"`
-	Meta             datadogIntakeMeta   `json:"meta"`
-	HostTags         map[string][]string `json:"host-tags"`
-	IntakeEvents     map[string][]event  `json:"events"`
+	APIKey           string                      `json:"apiKey"`
+	InternalHostname string                      `json:"internalHostname"`
+	Meta             datadogIntakeMeta           `json:"meta"`
+	HostTags         map[string][]string         `json:"host-tags"`
+	IntakeEvents     map[string][]map[string]any `json:"events"`
 }
 
 type datadogIntakeMeta struct {
 	Hostname string `json:"hostname"`
 }
 
-// Event holds an event (w/ serialization to DD agent 5 intake format)
-type event struct {
+// Event holds an intakeEvent (w/ serialization to DD agent 5 intake format)
+type intakeEvent struct {
 	Title          string   `json:"msg_title"`
 	Text           string   `json:"msg_text"`
 	Ts             int64    `json:"timestamp"`
@@ -56,25 +57,23 @@ type event struct {
 	EventType      string   `json:"event_type,omitempty"`
 }
 
-func handleIntakePayload(req *http.Request) (ddIntake datadogIntake, body []byte, err error) {
-	body, err = io.ReadAll(req.Body)
+func handleIntakePayload(req *http.Request) (ddIntake datadogIntake, err error) {
+	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		err = fmt.Errorf("failed to read request body: %w", err)
-		return datadogIntake{}, nil, err
+		return datadogIntake{}, err
 	}
 
 	err = json.Unmarshal(body, &ddIntake)
 	if err != nil {
-		return datadogIntake{}, nil, fmt.Errorf("failed to unmarshal intake body %v", err)
+		return datadogIntake{}, fmt.Errorf("failed to unmarshal intake body %v", err)
 	}
 
 	return
 }
 
-func (ddr *datadogReceiver) processIntake(ctx context.Context, apikey string, jstr []byte, intake datadogIntake) error {
-	overallTags := ddr.makeTags(apikey, intake)
-
-	logs, err := ddr.convertIntakeToLogs(jstr, intake, overallTags)
+func (ddr *datadogReceiver) processIntake(ctx context.Context, apikey string, intake datadogIntake) error {
+	logs, err := ddr.convertIntakeToLogs(apikey, intake)
 	if err != nil {
 		return err
 	}
@@ -129,38 +128,20 @@ func (ddr *datadogReceiver) processHostTags(intake datadogIntake, apikey string)
 	}
 }
 
-func (ddr *datadogReceiver) makeTags(apikey string, intake datadogIntake) (tags map[string]string) {
+func (ddr *datadogReceiver) makeTags(apikey string, hostname string) (tags map[string]string) {
+	tags = map[string]string{}
+
+	if hostname == "" {
+		return tags
+	}
+
 	cachedTags := newLocalTagCache()
 
-	tags = make(map[string]string, 0)
-
-	for _, v := range intake.HostTags {
-		for _, tag := range v {
-			for key, val := range splitTags(tag) {
-				tags[key] = val
-			}
-		}
+	for _, tag := range cachedTags.FetchCache(ddr.tagcacheExtension, apikey, hostname) {
+		tags[tag.Name] = tag.Value
 	}
 
-	for _, events := range intake.IntakeEvents {
-		for _, event := range events {
-			for _, tag := range event.Tags {
-				for key, val := range splitTags(tag) {
-					tags[key] = val
-				}
-			}
-		}
-	}
-
-	hostname := getHostname(tags, intake)
-
-	if hostname != "" {
-		for _, tag := range cachedTags.FetchCache(ddr.tagcacheExtension, apikey, hostname) {
-			tags[tag.Name] = tag.Value
-		}
-	}
-
-	return
+	return tags
 }
 
 func getHostname(tags map[string]string, intake datadogIntake) (hostname string) {
@@ -169,35 +150,60 @@ func getHostname(tags map[string]string, intake datadogIntake) (hostname string)
 		hostname = intake.Meta.Hostname
 	}
 
-	if hostname == "" {
+	if hostname == "" && tags != nil {
 		hostname = tags["host"]
 	}
 	return
 }
 
-func (ddr *datadogReceiver) convertIntakeToLogs(jstr []byte, intake datadogIntake, tags map[string]string) (plog.Logs, error) {
+func (ddr *datadogReceiver) convertIntakeToLogs(apikey string, intake datadogIntake) (plog.Logs, error) {
 	t := pcommon.NewTimestampFromTime(time.Now())
 
 	lm := plog.NewLogs()
-	rl := lm.ResourceLogs().AppendEmpty()
-	rAttr := rl.Resource().Attributes()
-	rl.SetSchemaUrl(semconv.SchemaURL)
 
-	rAttr.PutStr(string(semconv.HostNameKey), getHostname(tags, intake))
-	scope := rl.ScopeLogs().AppendEmpty()
-	sAttr := scope.Scope().Attributes()
-	sAttr.PutStr(string(semconv.TelemetrySDKNameKey), "Datadog")
+	for eventType, events := range intake.IntakeEvents {
+		for _, ej := range events {
+			var event intakeEvent
+			err := mapstructure.Decode(ej, &event)
+			if err != nil {
+				continue
+			}
 
-	lAttr := pcommon.NewMap()
-	for k, v := range tags {
-		decorateItem(k, v, rAttr, sAttr, lAttr)
-	}
+			kvm := splitTagSlice(event.Tags)
 
-	for _, events := range intake.IntakeEvents {
-		for _, event := range events {
+			hostname := event.Host
+			if hostname == "" {
+				hostname = getHostname(kvm, intake)
+			}
+
+			// create a new resource for every single item for now.
+			// this can later be merged based on the keys, if we wish.
+			rl := lm.ResourceLogs().AppendEmpty()
+			rAttr := rl.Resource().Attributes()
+			rl.SetSchemaUrl(semconv.SchemaURL)
+
+			rAttr.PutStr(string(semconv.HostNameKey), hostname)
+
+			scope := rl.ScopeLogs().AppendEmpty()
+			sAttr := scope.Scope().Attributes()
+			sAttr.PutStr(string(semconv.TelemetrySDKNameKey), "Datadog")
+
 			logRecord := scope.LogRecords().AppendEmpty()
+			lAttr := logRecord.Attributes()
 
-			lAttr.CopyTo(logRecord.Attributes())
+			for k, v := range kvm {
+				decorateItem(k, v, rAttr, sAttr, lAttr)
+			}
+			hosttags := ddr.makeTags(apikey, hostname)
+			for k, v := range hosttags {
+				decorateItem(k, v, rAttr, sAttr, lAttr)
+			}
+
+			jb, err := json.Marshal(ej)
+			if err != nil {
+				continue
+			}
+			logRecord.Body().SetStr(string(jb))
 
 			//TODO: get this from the host payload
 			logRecord.SetObservedTimestamp(t)
@@ -206,9 +212,7 @@ func (ddr *datadogReceiver) convertIntakeToLogs(jstr []byte, intake datadogIntak
 			logRecord.Attributes().PutStr("aggregation.key", event.AggregationKey)
 			logRecord.Attributes().PutStr("source.type.name", event.SourceTypeName)
 			logRecord.Attributes().PutStr("event.type", event.EventType)
-			logRecord.Attributes().PutStr(string(semconv.EventNameKey), "datadog."+event.EventType)
-
-			logRecord.Body().SetStr(string(jstr))
+			logRecord.Attributes().PutStr(string(semconv.EventNameKey), "datadog."+eventType+"."+event.EventType)
 		}
 	}
 

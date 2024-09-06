@@ -45,16 +45,16 @@ type datadogIntakeMeta struct {
 
 // Event holds an intakeEvent (w/ serialization to DD agent 5 intake format)
 type intakeEvent struct {
-	Title          string   `json:"msg_title"`
-	Text           string   `json:"msg_text"`
-	Ts             int64    `json:"timestamp"`
-	Priority       string   `json:"priority,omitempty"`
-	Host           string   `json:"host"`
-	Tags           []string `json:"tags,omitempty"`
-	AlertType      string   `json:"alert_type,omitempty"`
-	AggregationKey string   `json:"aggregation_key,omitempty"`
-	SourceTypeName string   `json:"source_type_name,omitempty"`
-	EventType      string   `json:"event_type,omitempty"`
+	Title          string   `mapstructure:"msg_title"`
+	Text           string   `mapstructure:"msg_text"`
+	Ts             int64    `mapstructure:"timestamp"`
+	Priority       string   `mapstructure:"priority,omitempty"`
+	Host           string   `mapstructure:"host"`
+	Tags           []string `mapstructure:"tags,omitempty"`
+	AlertType      string   `mapstructure:"alert_type,omitempty"`
+	AggregationKey string   `mapstructure:"aggregation_key,omitempty"`
+	SourceTypeName string   `mapstructure:"source_type_name,omitempty"`
+	EventType      string   `mapstructure:"event_type,omitempty"`
 }
 
 func handleIntakePayload(req *http.Request) (ddIntake datadogIntake, err error) {

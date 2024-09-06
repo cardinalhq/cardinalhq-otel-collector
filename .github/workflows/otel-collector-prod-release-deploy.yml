@@ -137,7 +137,7 @@ jobs:
       GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
   create-release:
-    needs: [ build-release-artifacts, env-setup ]
+    needs: [ build-release-artifacts, release-tag ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

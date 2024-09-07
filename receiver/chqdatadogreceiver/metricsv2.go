@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"time"
 
+	"go.opentelemetry.io/collector/client"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	semconv "go.opentelemetry.io/collector/semconv/v1.25.0"
@@ -115,14 +116,44 @@ func (ddr *datadogReceiver) recordAgeForMetrics(ctx context.Context, m *pmetric.
 					ts = m.ExponentialHistogram().DataPoints().At(0).Timestamp().AsTime()
 				}
 				age := now.Sub(ts)
+				incomingClientID, incomingCollectorID := getClientIDs(ctx)
 				attrs := metric.WithAttributes(
 					attribute.String("telemetry_type", "metrics"),
 					attribute.String("datadog_api_version", apiversion),
+					attribute.String("chq_incoming_client_id", incomingClientID),
+					attribute.String("chq_incoming_collector_id", incomingCollectorID),
 				)
 				ddr.datapointAge.Record(ctx, age.Seconds(), metric.WithAttributeSet(ddr.aset), attrs)
 			}
 		}
 	}
+}
+
+func getClientIDs(ctx context.Context) (string, string) {
+	clientID := getAuthString(ctx, "client_id")
+	if clientID == "" {
+		clientID = "not-set"
+	}
+	collectorID := getAuthString(ctx, "collector_id")
+	if collectorID == "" {
+		collectorID = "not-set"
+	}
+	return clientID, collectorID
+}
+
+func getAuthString(ctx context.Context, key string) string {
+	cl := client.FromContext(ctx)
+	if cl.Auth == nil {
+		return ""
+	}
+	v := cl.Auth.GetAttribute(key)
+	if v == nil {
+		return ""
+	}
+	if s, ok := v.(string); ok {
+		return s
+	}
+	return ""
 }
 
 func ensureServiceName(rAttr pcommon.Map, kv map[string]string) {

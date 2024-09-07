@@ -24,6 +24,7 @@ require (
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.0.0
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
 	github.com/mitchellh/mapstructure v1.5.0
+	go.opentelemetry.io/collector/client v1.14.1
 	go.opentelemetry.io/collector/component/componentstatus v0.108.1
 	go.opentelemetry.io/collector/consumer/consumertest v0.108.1
 	golang.org/x/exp v0.0.0-20240823005443-9b4947da3948
@@ -31,7 +32,6 @@ require (
 
 require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	go.opentelemetry.io/collector/client v1.14.1 // indirect
 	go.opentelemetry.io/collector/consumer/consumerprofiles v0.108.1 // indirect
 	go.opentelemetry.io/collector/pdata/pprofile v0.108.1 // indirect
 )

@@ -150,11 +150,12 @@ jobs:
 
       - name: Create GitHub Release
         id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # GitHub automatically provides this token
+        uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: ${{ needs.release-tag.outputs.prod-tag }} # Tag from previous steps
-          release_name: "${{ needs.release-tag.outputs.prod-tag }}"
+          name: "${{ needs.release-tag.outputs.prod-tag }}"
           draft: false
           prerelease: false
+          generate_release_notes: true
+

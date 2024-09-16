@@ -85,6 +85,6 @@ connectors:
 # note: these are releative to the build directory, which is "./bin"
 replaces:
   - github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
-  - github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awsfirehosereceiver v0.108.0 => github.com/cardinalhq/opentelemetry-collector-contrib/receiver/awsfirehosereceiver 34c8444989fa5c022a7c94f13a85ba118a406050
+  - github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awsfirehosereceiver v0.108.0 => github.com/cardinalhq/opentelemetry-collector-contrib/receiver/awsfirehosereceiver 354bfd14ac75d04acbb803d2bbdc6f10f318acfd
   - go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.53.0 => go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp main
   - go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.54.0 => go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp main

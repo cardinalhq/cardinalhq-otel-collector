@@ -17,7 +17,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
-	semconv "go.opentelemetry.io/collector/semconv/v1.16.0"
+	semconv "go.opentelemetry.io/collector/semconv/v1.27.0"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -57,14 +57,14 @@ func toTraces(payload *pb.TracerPayload, req *http.Request, ext *chqtagcacheexte
 	}
 	sharedAttributes := pcommon.NewMap()
 	for k, v := range map[string]string{
-		semconv.AttributeContainerID:           payload.ContainerID,
-		semconv.AttributeTelemetrySDKLanguage:  payload.LanguageName,
-		semconv.AttributeProcessRuntimeVersion: payload.LanguageVersion,
-		semconv.AttributeDeploymentEnvironment: payload.Env,
-		semconv.AttributeHostName:              payload.Hostname,
-		semconv.AttributeServiceVersion:        payload.AppVersion,
-		semconv.AttributeTelemetrySDKName:      "Datadog",
-		semconv.AttributeTelemetrySDKVersion:   payload.TracerVersion,
+		semconv.AttributeContainerID:               payload.ContainerID,
+		semconv.AttributeTelemetrySDKLanguage:      payload.LanguageName,
+		semconv.AttributeProcessRuntimeVersion:     payload.LanguageVersion,
+		semconv.AttributeDeploymentEnvironmentName: payload.Env,
+		semconv.AttributeHostName:                  payload.Hostname,
+		semconv.AttributeServiceVersion:            payload.AppVersion,
+		semconv.AttributeTelemetrySDKName:          "Datadog",
+		semconv.AttributeTelemetrySDKVersion:       payload.TracerVersion,
 	} {
 		if v != "" {
 			sharedAttributes.PutStr(k, v)
@@ -163,7 +163,7 @@ func toTraces(payload *pb.TracerPayload, req *http.Request, ext *chqtagcacheexte
 func translateDataDogKeyToOtel(k string) string {
 	switch strings.ToLower(k) {
 	case "env":
-		return semconv.AttributeDeploymentEnvironment
+		return semconv.AttributeDeploymentEnvironmentName
 	case "version":
 		return semconv.AttributeServiceVersion
 	case "container_id":
@@ -173,7 +173,7 @@ func translateDataDogKeyToOtel(k string) string {
 	case "image_name":
 		return semconv.AttributeContainerImageName
 	case "image_tag":
-		return semconv.AttributeContainerImageTag
+		return semconv.AttributeContainerImageTags
 	case "process_id":
 		return semconv.AttributeProcessPID
 	case "error.stacktrace":

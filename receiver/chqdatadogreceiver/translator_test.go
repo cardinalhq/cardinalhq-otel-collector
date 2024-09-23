@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	vmsgp "github.com/vmihailenco/msgpack/v4"
 	"go.opentelemetry.io/collector/pdata/pcommon"
-	semconv "go.opentelemetry.io/collector/semconv/v1.16.0"
+	semconv "go.opentelemetry.io/collector/semconv/v1.27.0"
 	"google.golang.org/protobuf/proto"
 )
 

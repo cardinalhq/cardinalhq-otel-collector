@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -122,7 +123,10 @@ func (e *datadogExporter) send(ctx context.Context, ddlogs []DDLog) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_, _ = io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+	}()
 	e.messagesSubmitted.Add(ctx, int64(len(ddlogs)), metric.WithAttributeSet(e.commonAttributes), metric.WithAttributes(attribute.Int("http.code", resp.StatusCode)))
 	if resp.StatusCode != 200 && resp.StatusCode != 202 {
 		return fmt.Errorf("failed to send logs, status code: %d", resp.StatusCode)

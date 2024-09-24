@@ -171,7 +171,10 @@ func (e *datadogExporter) sendMetrics(ctx context.Context, msg *ddpb.MetricPaylo
 			zap.Bool("temporary", urlerr.Temporary()))
 		return nil
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_, _ = io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+	}()
 	e.messagesSubmitted.Add(ctx, int64(len(msg.Series)), metric.WithAttributeSet(e.commonAttributes), metric.WithAttributes(attribute.Int("http.code", resp.StatusCode)))
 	if resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to send metrics, status code: %d", resp.StatusCode)

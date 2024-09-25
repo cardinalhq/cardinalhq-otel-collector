@@ -86,7 +86,7 @@ var (
 func tagStrings(resourceAttrs pcommon.Map, scopeAttrs pcommon.Map, logAttrs pcommon.Map) (tags []string, resources []string) {
 	resourceAttrs.Range(func(k string, v pcommon.Value) bool {
 		if tag, ok := rAttrMap[k]; ok {
-			tags = append(tags, tag+":"+v.AsString())
+			resources = append(resources, tag+":"+v.AsString())
 		}
 		return true
 	})

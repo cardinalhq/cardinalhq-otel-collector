@@ -202,7 +202,7 @@ func (e *datadogExporter) sendMetrics(ctx context.Context, msg *ddpb.MetricPaylo
 	}
 
 	for _, m := range msg.Series {
-		e.logger.Debug("sent metric tags", zap.Any("resources", m.Resources), zap.Any("tags", m.Tags))
+		e.logger.Info("sent metric tags", zap.Any("resources", m.Resources), zap.Any("tags", m.Tags))
 	}
 	return nil
 }

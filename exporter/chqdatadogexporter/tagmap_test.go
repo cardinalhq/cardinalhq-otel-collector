@@ -44,3 +44,37 @@ func TestTagString(t *testing.T) {
 	tagStringSplit := strings.Split(tagString, ",")
 	assert.ElementsMatch(t, expectedTagsSplit, tagStringSplit)
 }
+
+func TestTagStrings(t *testing.T) {
+	resourceAttrs := pcommon.NewMap()
+	scopeAttrs := pcommon.NewMap()
+	logAttrs := pcommon.NewMap()
+
+	resourceAttrs.PutStr("container.id", "12345")
+	resourceAttrs.PutStr("k8s.persistentvolume.access_mode", "ReadWriteOnce")
+	resourceAttrs.PutStr("log.file.path", "/var/log")
+	resourceAttrs.PutStr("log.file.name", "app.log")
+
+	scopeAttrs.PutStr("telemetry.sdk.language", "go")
+
+	logAttrs.PutStr("bobs.your", "uncle")
+	logAttrs.PutInt("number", 123)
+	logAttrs.PutBool("is_true", true)
+
+	expectedTags := []string{
+		"number:123",
+		"is_true:true",
+		"bobs.your:uncle",
+		"language:go",
+	}
+	expectedResources := []string{
+		"container_id:12345",
+		"access_mode:ReadWriteOnce",
+		"dirname:/var/log",
+		"filename:app.log",
+	}
+
+	tags, resources := tagStrings(resourceAttrs, scopeAttrs, logAttrs)
+	assert.ElementsMatch(t, expectedTags, tags)
+	assert.ElementsMatch(t, expectedResources, resources)
+}

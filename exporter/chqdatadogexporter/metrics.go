@@ -200,9 +200,5 @@ func (e *datadogExporter) sendMetrics(ctx context.Context, msg *ddpb.MetricPaylo
 	if resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to send metrics, status code: %d", resp.StatusCode)
 	}
-
-	for _, m := range msg.Series {
-		e.logger.Info("sent metric tags", zap.Any("resources", m.Resources), zap.Any("tags", m.Tags))
-	}
 	return nil
 }

@@ -22,6 +22,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
@@ -91,7 +92,17 @@ func (e *datadogExporter) convertGaugeMetric(_ context.Context, metric pmetric.M
 			Type:   ddpb.MetricPayload_GAUGE,
 		}
 		dp := g.DataPoints().At(i)
-		m.Tags = append(m.Tags, tagStrings(rAttr, sAttr, dp.Attributes())...)
+		tags, resources := tagStrings(rAttr, sAttr, dp.Attributes())
+		m.Tags = append(m.Tags, tags...)
+		if len(resources) > 0 {
+			for _, resource := range resources {
+				i := strings.Split(resource, ":")
+				m.Resources = append(m.Resources, &ddpb.MetricPayload_Resource{
+					Type: i[0],
+					Name: i[1],
+				})
+			}
+		}
 		m.Points = append(m.Points, &ddpb.MetricPayload_MetricPoint{
 			Timestamp: dp.Timestamp().AsTime().Unix(),
 			Value:     valueAsFloat64(dp),
@@ -117,7 +128,17 @@ func (e *datadogExporter) convertSumMetric(_ context.Context, metric pmetric.Met
 			value = value / float64(interval)
 			m.Type = ddpb.MetricPayload_RATE
 		}
-		m.Tags = append(m.Tags, tagStrings(rAttr, sAttr, lAttr)...)
+		tags, resources := tagStrings(rAttr, sAttr, dp.Attributes())
+		m.Tags = append(m.Tags, tags...)
+		if len(resources) > 0 {
+			for _, resource := range resources {
+				i := strings.Split(resource, ":")
+				m.Resources = append(m.Resources, &ddpb.MetricPayload_Resource{
+					Type: i[0],
+					Name: i[1],
+				})
+			}
+		}
 		lAttr.Remove("_dd.rateInterval")
 		m.Points = append(m.Points, &ddpb.MetricPayload_MetricPoint{
 			Timestamp: dp.Timestamp().AsTime().Unix(),

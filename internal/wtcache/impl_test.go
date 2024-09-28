@@ -119,16 +119,16 @@ func TestCacheImpl_Put(t *testing.T) {
 	cache := NewCache()
 
 	// add a few values
-	cache.Put("key1", "value1")
-	cache.Put("key2", "value2")
-	cache.Put("key3", "value3")
+	assert.NoError(t, cache.Put("key1", "value1"))
+	assert.NoError(t, cache.Put("key2", "value2"))
+	assert.NoError(t, cache.Put("key3", "value3"))
 
 	// Test case 1: Key found in cache, not expired
 	cache.cache["key1"] = cacheItem{
 		value:  "value1",
 		expiry: time.Now().Add(1 * time.Hour),
 	}
-	cache.Put("key1", "value1.1")
+	assert.NoError(t, cache.Put("key1", "value1.1"))
 	value, err := cache.Get("key1")
 	assert.Equal(t, "value1.1", value)
 	assert.Nil(t, err)
@@ -138,7 +138,7 @@ func TestCacheImpl_Put(t *testing.T) {
 		value:  "value2",
 		expiry: time.Now().Add(-1 * time.Hour),
 	}
-	cache.Put("key2", "value2.1")
+	assert.NoError(t, cache.Put("key2", "value2.1"))
 	value, err = cache.Get("key2")
 	assert.Equal(t, "value2.1", value)
 	assert.Nil(t, err)
@@ -173,7 +173,7 @@ func TestCacheImpl_Delete(t *testing.T) {
 	cache := NewCache()
 
 	// add a few values
-	cache.Put("key1", "value1")
+	assert.NoError(t, cache.Put("key1", "value1"))
 
 	// Test case 1: Key found in cache
 	cache.Delete("key1")
@@ -189,9 +189,9 @@ func TestCacheImpl_Clear(t *testing.T) {
 	cache := NewCache()
 
 	// add a few values
-	cache.Put("key1", "value1")
-	cache.Put("key2", "value2")
-	cache.Put("key3", "value3")
+	assert.NoError(t, cache.Put("key1", "value1"))
+	assert.NoError(t, cache.Put("key2", "value2"))
+	assert.NoError(t, cache.Put("key3", "value3"))
 
 	// Test case 1: Clear cache
 	cache.Clear()
@@ -206,7 +206,7 @@ func TestCacheImple_WithTTL(t *testing.T) {
 	cache := NewCache(WithTTL(123*time.Hour), WithTimeFunc(statictime))
 
 	// add a value
-	cache.Put("key1", "value1")
+	assert.NoError(t, cache.Put("key1", "value1"))
 	item := cache.cache["key1"]
 	assert.Equal(t, 123*time.Hour, item.expiry.Sub(statictime()))
 }

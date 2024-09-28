@@ -388,26 +388,26 @@ func TestBox_GetClosedIntervals(t *testing.T) {
 	timefunc := func() time.Time { return time.Unix(1000, 1000) }
 	buffer := NewMemoryBuffer()
 
-	buffer.Write(&BufferRecord{
+	assert.NoError(t, buffer.Write(&BufferRecord{
 		Interval: 1,
 		Scope:    "scope1",
-	})
-	buffer.Write(&BufferRecord{
+	}))
+	assert.NoError(t, buffer.Write(&BufferRecord{
 		Interval: 2,
 		Scope:    "scope1",
-	})
-	buffer.Write(&BufferRecord{
+	}))
+	assert.NoError(t, buffer.Write(&BufferRecord{
 		Interval: 997,
 		Scope:    "scope1",
-	})
-	buffer.Write(&BufferRecord{
+	}))
+	assert.NoError(t, buffer.Write(&BufferRecord{
 		Interval: 1230,
 		Scope:    "scope1",
-	})
-	buffer.Write(&BufferRecord{
+	}))
+	assert.NoError(t, buffer.Write(&BufferRecord{
 		Interval: 4560,
 		Scope:    "scope1",
-	})
+	}))
 
 	box, err := NewBoxer(WithBufferStorage(buffer), WithInterval(time.Second), WithIntervalCount(2), WithGrace(time.Millisecond*200), WithTimeFunc(timefunc))
 	assert.NoError(t, err)
@@ -444,6 +444,7 @@ func TestBox_IntervalsAndTime(t *testing.T) {
 func TestBox_CloseInterval(t *testing.T) {
 	buffer := NewMemoryBuffer()
 	box, err := NewBoxer(WithBufferStorage(buffer), WithInterval(time.Second), WithIntervalCount(2), WithGrace(time.Millisecond*200))
+	assert.NoError(t, err)
 
 	records := []*BufferRecord{
 		{

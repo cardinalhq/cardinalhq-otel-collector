@@ -84,9 +84,11 @@ var (
 )
 
 func tagStrings(resourceAttrs pcommon.Map, scopeAttrs pcommon.Map, logAttrs pcommon.Map) (tags []string, resources []string) {
+	// This should really go onto the resource list, but it seems datadog doesn't
+	// add these to the metric, so we will do this.
 	resourceAttrs.Range(func(k string, v pcommon.Value) bool {
 		if tag, ok := rAttrMap[k]; ok {
-			resources = append(resources, tag+":"+v.AsString())
+			tags = append(tags, tag+":"+v.AsString())
 		}
 		return true
 	})

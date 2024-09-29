@@ -66,12 +66,13 @@ func TestTagStrings(t *testing.T) {
 		"is_true:true",
 		"bobs.your:uncle",
 		"language:go",
+	}
+	expectedResources := []string{
 		"container_id:12345",
 		"access_mode:ReadWriteOnce",
 		"dirname:/var/log",
 		"filename:app.log",
 	}
-	expectedResources := []string{}
 
 	tags, resources := tagStrings(resourceAttrs, scopeAttrs, logAttrs)
 	assert.ElementsMatch(t, expectedTags, tags)

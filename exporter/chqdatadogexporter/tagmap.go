@@ -88,7 +88,7 @@ func tagStrings(resourceAttrs pcommon.Map, scopeAttrs pcommon.Map, logAttrs pcom
 	// add these to the metric, so we will do this.
 	resourceAttrs.Range(func(k string, v pcommon.Value) bool {
 		if tag, ok := rAttrMap[k]; ok {
-			tags = append(tags, tag+":"+v.AsString())
+			resources = append(resources, tag+":"+v.AsString())
 		}
 		return true
 	})

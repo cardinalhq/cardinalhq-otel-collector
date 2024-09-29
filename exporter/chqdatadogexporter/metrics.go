@@ -95,6 +95,7 @@ func (e *datadogExporter) convertGaugeMetric(_ context.Context, metric pmetric.M
 		tags, resources := tagStrings(rAttr, sAttr, dp.Attributes())
 		m.Tags = append(m.Tags, tags...)
 		if len(resources) > 0 {
+			m.Tags = append(m.Tags, resources...) // TODO this should not be needed but datadog does not seem to add resources to the metric
 			for _, resource := range resources {
 				i := strings.Split(resource, ":")
 				m.Resources = append(m.Resources, &ddpb.MetricPayload_Resource{
@@ -131,6 +132,7 @@ func (e *datadogExporter) convertSumMetric(_ context.Context, metric pmetric.Met
 		tags, resources := tagStrings(rAttr, sAttr, dp.Attributes())
 		m.Tags = append(m.Tags, tags...)
 		if len(resources) > 0 {
+			m.Tags = append(m.Tags, resources...) // TODO this should not be needed but datadog does not seem to add resources to the metric
 			for _, resource := range resources {
 				i := strings.Split(resource, ":")
 				m.Resources = append(m.Resources, &ddpb.MetricPayload_Resource{

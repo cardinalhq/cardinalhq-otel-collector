@@ -6,17 +6,18 @@ toolchain go1.22.4
 
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
+	github.com/cespare/xxhash/v2 v2.3.0
 	go.opentelemetry.io/collector/component v0.110.0
 	go.opentelemetry.io/collector/consumer v0.110.0
 	go.opentelemetry.io/collector/pdata v1.16.0
 	go.opentelemetry.io/collector/processor v0.110.0
+	go.opentelemetry.io/otel v1.30.0
 	go.opentelemetry.io/otel/metric v1.30.0
 	go.opentelemetry.io/otel/trace v1.30.0
 	go.uber.org/zap v1.27.0
 )
 
 require (
-	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/db47h/ragel/v2 v2.2.4 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -27,7 +28,6 @@ require (
 	go.opentelemetry.io/collector/internal/globalsignal v0.110.0 // indirect
 	go.opentelemetry.io/collector/pdata/pprofile v0.110.0 // indirect
 	go.opentelemetry.io/collector/pipeline v0.110.0 // indirect
-	go.opentelemetry.io/otel v1.30.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0 // indirect
 	golang.org/x/net v0.29.0 // indirect

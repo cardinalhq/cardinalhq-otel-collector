@@ -54,7 +54,7 @@ func (e *chqEnforcer) ConsumeSpans(ctx context.Context, td ptrace.Traces) (ptrac
 					removeAllCardinalFields(sr.Attributes())
 				}
 				if err := e.recordSpan(now, serviceName, fingerprint, sr, statusCode, isSlow); err != nil {
-					e.logger.Error("Failed to record log", zap.Error(err))
+					e.logger.Error("Failed to record span", zap.Error(err))
 				}
 				return false
 			})

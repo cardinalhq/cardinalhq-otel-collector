@@ -53,8 +53,9 @@ type chqEnforcer struct {
 	vendor             string
 
 	// for logs
-	logstats *stats.StatsCombiner[*chqpb.LogStats]
-	sampler  sampler.LogSampler
+	logstats    *stats.StatsCombiner[*chqpb.LogStats]
+	logSampler  sampler.LogSampler
+	spanSampler sampler.SpanSampler
 
 	// for spans
 	spanStats *stats.StatsCombiner[*chqpb.SpanStats]
@@ -101,11 +102,11 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextCo
 	case "logs":
 		statsExporter.logstats = stats.NewStatsCombiner[*chqpb.LogStats](now, config.Statistics.Interval)
 		statsExporter.logger.Info("sending log statistics", zap.Duration("interval", config.Statistics.Interval))
-		statsExporter.sampler = sampler.NewLogSamplerImpl(context.Background(), statsExporter.logger)
+		statsExporter.logSampler = sampler.NewLogSamplerImpl(context.Background(), statsExporter.logger)
 	case "spans":
 		statsExporter.spanStats = stats.NewStatsCombiner[*chqpb.SpanStats](now, config.Statistics.Interval)
 		statsExporter.logger.Info("sending span statistics", zap.Duration("interval", config.Statistics.Interval))
-		statsExporter.sampler = sampler.NewLogSamplerImpl(context.Background(), statsExporter.logger)
+		statsExporter.spanSampler = sampler.NewSpanSamplerImpl(context.Background(), statsExporter.logger)
 	case "metrics":
 		statsExporter.metricstats = stats.NewStatsCombiner[*MetricStat](now, config.Statistics.Interval)
 		statsExporter.logger.Info("sending metric statistics", zap.Duration("interval", config.Statistics.Interval))

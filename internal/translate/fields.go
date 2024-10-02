@@ -51,6 +51,7 @@ const (
 	CardinalFieldValue             = CardinalFieldPrefixDot + "value"
 	CardinalFieldZeroCount         = CardinalFieldPrefixDot + "zero_count"
 	CardinalFieldSpanName          = CardinalFieldPrefixDot + "span_name"
+	CardinalFieldResourceName      = CardinalFieldPrefixDot + "resource_name"
 	CardinalFieldScopeSchemaURL    = CardinalFieldPrefixDot + "scope_schemaurl"
 	CardinalFieldAggregated        = CardinalFieldPrefixDot + "aggregated"
 	CardinalFieldAggregatedOutput  = CardinalFieldPrefixDot + "aggregated_output"

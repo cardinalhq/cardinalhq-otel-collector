@@ -63,7 +63,7 @@ func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, e
 			ill.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
 				fingerprint := getFingerprint(lr.Attributes())
 				if e.pbPhase == chqpb.Phase_POST {
-					shouldDrop := e.logSampler(fingerprint, rl, ill, lr)
+					shouldDrop := e.shouldDropLog(fingerprint, rl, ill, lr)
 					if shouldDrop {
 						return true
 					}
@@ -87,9 +87,9 @@ func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, e
 	return ld, nil
 }
 
-func (e *chqEnforcer) logSampler(fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) bool {
+func (e *chqEnforcer) shouldDropLog(fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) bool {
 	fingerprintString := fmt.Sprintf("%d", fingerprint)
-	rule_match := e.sampler.Sample(fingerprintString, rl.Resource().Attributes(), sl.Scope().Attributes(), lr.Attributes())
+	rule_match := e.logSampler.Sample(fingerprintString, rl.Resource().Attributes(), sl.Scope().Attributes(), lr.Attributes())
 	return rule_match != ""
 }
 
@@ -163,5 +163,5 @@ func (e *chqEnforcer) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsR
 
 func (e *chqEnforcer) updateLogsamplingConfig(sc sampler.SamplerConfig) {
 	e.logger.Info("Updating log sampling config", zap.String("vendor", e.vendor))
-	e.sampler.UpdateConfig(&sc, e.vendor)
+	e.logSampler.UpdateConfig(&sc, e.vendor)
 }

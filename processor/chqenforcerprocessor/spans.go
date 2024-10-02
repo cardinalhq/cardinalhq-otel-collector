@@ -45,7 +45,7 @@ func (e *chqEnforcer) ConsumeSpans(ctx context.Context, td ptrace.Traces) (ptrac
 				isSlow := e.isSpanSlow(sr, uint64(fingerprint))
 
 				if e.pbPhase == chqpb.Phase_POST {
-					shouldDrop := e.spanSampler(fingerprint, sr, statusCode, isSlow)
+					shouldDrop := e.shouldDropSpan(fingerprint, sr, statusCode, isSlow)
 					if shouldDrop {
 						return true
 					}
@@ -93,13 +93,10 @@ func (e *chqEnforcer) findSpanSketch(fingerprint uint64) *SlidingEstimatorStat {
 	return sketch
 }
 
-// TODO: Implement the spanSampler function
-func (e *chqEnforcer) spanSampler(fingerprint int64, span ptrace.Span, statusCode string, isSlow bool) bool {
-	//fingerprintString := fmt.Sprintf("%d", fingerprint)
-
-	rule_match := ""
-	//rule_match := e.sampler.Sample(fingerprintString, statusCode, isSlow)
-	return rule_match != ""
+func (e *chqEnforcer) shouldDropSpan(fingerprint int64, span ptrace.Span, statusCode string, isSlow bool) bool {
+	fingerprintString := fmt.Sprintf("%d", fingerprint)
+	ruleMatch := e.spanSampler.Sample(span, fingerprintString, statusCode, isSlow)
+	return ruleMatch != ""
 }
 
 func getSpanFingerprint(l pcommon.Map) int64 {
@@ -120,7 +117,21 @@ func toAttributesAndSize(attributes map[string]interface{}) (map[string]string, 
 	return result, size
 }
 
-func (e *chqEnforcer) recordSpan(now time.Time, serviceName string, fingerprint int64, span ptrace.Span, statusCode string, isSlow bool) error {
+func getOrElse(m map[string]string, key string, defaultValue string) string {
+	// Check if the key exists in the map
+	if value, ok := m[key]; ok {
+		return value
+	}
+	// If the key does not exist, return the default value
+	return defaultValue
+}
+
+func (e *chqEnforcer) recordSpan(now time.Time,
+	serviceName string,
+	fingerprint int64,
+	span ptrace.Span,
+	statusCode string,
+	isSlow bool) error {
 	// spanSize = (size of attributes + top level fields)
 	var stringAttributes, spanSize = toAttributesAndSize(span.Attributes().AsRaw())
 	spanSize += int64(len(span.TraceID().String()))
@@ -142,7 +153,7 @@ func (e *chqEnforcer) recordSpan(now time.Time, serviceName string, fingerprint 
 			TraceId:  span.TraceID().String(),
 			SpanName: span.Name(),
 			SpanKind: span.Kind().String(),
-			Resource: "",
+			Resource: getOrElse(stringAttributes, translate.CardinalFieldResourceName, ""),
 			SpanTags: stringAttributes,
 		},
 	}

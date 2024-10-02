@@ -56,6 +56,9 @@ type chqEnforcer struct {
 	logstats *stats.StatsCombiner[*chqpb.LogStats]
 	sampler  sampler.LogSampler
 
+	// for spans
+	spanStats *stats.StatsCombiner[*chqpb.SpanStats]
+
 	// for metrics
 	metricstats          *stats.StatsCombiner[*MetricStat]
 	nextMetricReceiver   consumer.Metrics
@@ -98,6 +101,10 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextCo
 	case "logs":
 		statsExporter.logstats = stats.NewStatsCombiner[*chqpb.LogStats](now, config.Statistics.Interval)
 		statsExporter.logger.Info("sending log statistics", zap.Duration("interval", config.Statistics.Interval))
+		statsExporter.sampler = sampler.NewLogSamplerImpl(context.Background(), statsExporter.logger)
+	case "spans":
+		statsExporter.spanStats = stats.NewStatsCombiner[*chqpb.SpanStats](now, config.Statistics.Interval)
+		statsExporter.logger.Info("sending span statistics", zap.Duration("interval", config.Statistics.Interval))
 		statsExporter.sampler = sampler.NewLogSamplerImpl(context.Background(), statsExporter.logger)
 	case "metrics":
 		statsExporter.metricstats = stats.NewStatsCombiner[*MetricStat](now, config.Statistics.Interval)

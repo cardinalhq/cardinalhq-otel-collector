@@ -16,6 +16,7 @@ package chqpb
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/cespare/xxhash"
 
@@ -45,5 +46,43 @@ func (l *LogStats) Increment(_ string, count int, size int64) error {
 }
 
 func (l *LogStats) Initialize() error {
+	return nil
+}
+
+func (l *SpanStats) Key() uint64 {
+	// Create the initial key with ServiceName, Fingerprint, Phase, and VendorId
+	key := fmt.Sprintf("%s:%d:%d:%s", l.ServiceName, l.Fingerprint, l.Phase, l.VendorId)
+
+	// Collect keys from the tags map and sort them to ensure consistent order
+	var sortedKeys []string
+	for k := range l.Tags {
+		sortedKeys = append(sortedKeys, k)
+	}
+	sort.Strings(sortedKeys)
+
+	// Append sorted key-value pairs to the key
+	for _, k := range sortedKeys {
+		key += fmt.Sprintf(":%s=%s", k, l.Tags[k])
+	}
+
+	// Return the xxhash of the resulting key string
+	return xxhash.Sum64String(key)
+}
+
+func (l *SpanStats) Matches(other stats.StatsObject) bool {
+	otherSpanStats, ok := other.(*SpanStats)
+	if !ok {
+		return false
+	}
+	return l.Key() == otherSpanStats.Key()
+}
+
+func (l *SpanStats) Increment(_ string, count int, size int64) error {
+	l.Count += int64(count)
+	l.SpanSize += size
+	return nil
+}
+
+func (l *SpanStats) Initialize() error {
 	return nil
 }

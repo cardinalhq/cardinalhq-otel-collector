@@ -34,7 +34,7 @@ func NewFactory() processor.Factory {
 	return processor.NewFactory(
 		metadata.Type,
 		createDefaultConfig,
-		processor.WithTraces(createTracesProcessor, metadata.TracesStability),
+		processor.WithTraces(createSpansProcessor, metadata.TracesStability),
 		processor.WithLogs(createLogsProcessor, metadata.LogsStability),
 		processor.WithMetrics(createMetricsProcessor, metadata.MetricsStability),
 	)
@@ -107,14 +107,14 @@ func createMetricsProcessor(ctx context.Context, set processor.Settings, cfg com
 		processorhelper.WithCapabilities(e.Capabilities()))
 }
 
-func createTracesProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Traces) (processor.Traces, error) {
-	e, err := newCHQEnforcer(cfg.(*Config), "traces", set, nil)
+func createSpansProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Traces) (processor.Traces, error) {
+	e, err := newCHQEnforcer(cfg.(*Config), "spans", set, nil)
 	if err != nil {
 		return nil, err
 	}
 	return processorhelper.NewTracesProcessor(
 		ctx, set, cfg, nextConsumer,
-		e.ConsumeTraces,
+		e.ConsumeSpans,
 		processorhelper.WithStart(e.Start),
 		processorhelper.WithShutdown(e.Shutdown),
 		processorhelper.WithCapabilities(e.Capabilities()))

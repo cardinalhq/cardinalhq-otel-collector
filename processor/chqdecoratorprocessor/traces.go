@@ -16,13 +16,15 @@ package chqdecoratorprocessor
 
 import (
 	"context"
+	"github.com/cespare/xxhash/v2"
+	semconv "go.opentelemetry.io/otel/semconv/v1.22.0"
 	"os"
+	"strings"
 
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/spantagger"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
@@ -40,49 +42,71 @@ func newSpansProcessor(set processor.Settings, _ *Config) (*spansProcessor, erro
 	return sp, nil
 }
 
-func getFingerprint(traces ptrace.Traces) (uint64, bool, string) {
-	fp, he, err := spantagger.Fingerprint(traces)
-	switch err {
-	case nil:
-		return fp, he, ""
-	case spantagger.InconsistentTraceIDsError:
-		return 0, he, "InconsistentTraceIDs"
-	case spantagger.OrphanedSpanError:
-		return 0, he, "OrphanedSpan"
-	case spantagger.NoRootError:
-		return 0, he, "NoRoot"
-	case spantagger.MultipleRootsError:
-		return 0, he, "MultipleRoots"
-	default:
-		return 0, he, "UnknownError"
-	}
-}
-
 func (sp *spansProcessor) processTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
-	fingerprint, hasError, fpError := getFingerprint(td)
-	return sp.decorateTraces(td, fingerprint, hasError, fpError)
+	return sp.decorateTraces(td)
 }
 
-func (sp *spansProcessor) decorateTraces(td ptrace.Traces, fingerprint uint64, hasError bool, fpError string) (ptrace.Traces, error) {
+//TODO: Use this function to get the resource field and add it to span fingerprint
+/**
+  val resource = scrubResource({
+    val ddr = if (columnNames.contains(DD_RESOURCE)) resultSet.getString(DD_RESOURCE) else ""
+    if (ddr == null || ddr.isEmpty) {
+      if (spanHttpMethod != null && spanHttpMethod.nonEmpty) {
+        if (spanHttpRoute != null && spanHttpRoute.nonEmpty) {
+          spanHttpMethod + " " + spanHttpRoute
+        } else if (spanHttpUrl != null && spanHttpUrl.nonEmpty) {
+          spanHttpMethod + " " + spanHttpUrl
+        } else {
+          spanHttpMethod
+        }
+      } else {
+        ""
+      }
+    } else ddr
+  })
+*/
+func getSpanFingerprint(sr ptrace.Span, serviceName string) int64 {
+	attrs := sr.Attributes()
+	var fingerprintAttributes []string
+
+	// Add serviceName
+	fingerprintAttributes = append(fingerprintAttributes, serviceName)
+
+	// Add spanName
+	if spanNameAttr, exists := attrs.Get(translate.CardinalFieldSpanName); exists {
+		fingerprintAttributes = append(fingerprintAttributes, spanNameAttr.Str())
+	}
+
+	// Add spanKind
+	fingerprintAttributes = append(fingerprintAttributes, sr.Kind().String())
+
+	// Compute hash on parts
+	return int64(xxhash.Sum64String(strings.Join(fingerprintAttributes, "##")))
+}
+
+func (sp *spansProcessor) decorateTraces(td ptrace.Traces) (ptrace.Traces, error) {
 	environment := translate.EnvironmentFromEnv()
 	rss := td.ResourceSpans()
 	for i := 0; i < rss.Len(); i++ {
 		rs := rss.At(i)
+		snk := string(semconv.ServiceNameKey)
+		serviceName, serviceNameExists := rs.Resource().Attributes().Get(snk)
+
 		ilss := rs.ScopeSpans()
 		for j := 0; j < ilss.Len(); j++ {
 			ils := ilss.At(j)
 			spans := ils.Spans()
 			for k := 0; k < spans.Len(); k++ {
 				span := spans.At(k)
-				span.Attributes().PutInt(translate.CardinalFieldFingerprint, int64(fingerprint))
-				span.Attributes().PutBool(translate.CardinalFieldTraceHasError, hasError)
-				span.Attributes().PutBool(translate.CardinalFieldFingerprintError, span.Status().Code() == ptrace.StatusCodeError)
-				if fpError != "" {
-					span.Attributes().PutStr(translate.CardinalFieldSpanHasError, fpError)
+
+				var spanFingerprint int64
+				if serviceNameExists {
+					spanFingerprint = getSpanFingerprint(span, serviceName.Str())
+				} else {
+					spanFingerprint = getSpanFingerprint(span, "unknown")
 				}
-				if span.ParentSpanID().IsEmpty() {
-					span.Attributes().PutBool(translate.CardinalFieldIsRootSpan, true)
-				}
+
+				span.Attributes().PutInt(translate.CardinalFieldFingerprint, spanFingerprint)
 				span.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, sp.podName)
 				span.Attributes().PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
 				span.Attributes().PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())

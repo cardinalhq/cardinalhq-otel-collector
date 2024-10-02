@@ -16,6 +16,7 @@ package chqdecoratorprocessor
 
 import (
 	"context"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/fingerprinter"
 	"github.com/cespare/xxhash/v2"
 	semconv "go.opentelemetry.io/otel/semconv/v1.22.0"
 	"os"
@@ -31,13 +32,23 @@ import (
 type spansProcessor struct {
 	logger  *zap.Logger
 	podName string
+
+	finger fingerprinter.Fingerprinter
 }
+
+const (
+	httpMethod  = "http.request.method"
+	httpRoute   = "http.route"
+	httpUrlPath = "url.path"
+)
 
 func newSpansProcessor(set processor.Settings, _ *Config) (*spansProcessor, error) {
 	sp := &spansProcessor{
 		logger:  set.Logger,
 		podName: os.Getenv("POD_NAME"),
 	}
+
+	sp.finger = fingerprinter.NewFingerprinter()
 
 	return sp, nil
 }
@@ -46,26 +57,33 @@ func (sp *spansProcessor) processTraces(ctx context.Context, td ptrace.Traces) (
 	return sp.decorateTraces(td)
 }
 
-//TODO: Use this function to get the resource field and add it to span fingerprint
-/**
-  val resource = scrubResource({
-    val ddr = if (columnNames.contains(DD_RESOURCE)) resultSet.getString(DD_RESOURCE) else ""
-    if (ddr == null || ddr.isEmpty) {
-      if (spanHttpMethod != null && spanHttpMethod.nonEmpty) {
-        if (spanHttpRoute != null && spanHttpRoute.nonEmpty) {
-          spanHttpMethod + " " + spanHttpRoute
-        } else if (spanHttpUrl != null && spanHttpUrl.nonEmpty) {
-          spanHttpMethod + " " + spanHttpUrl
-        } else {
-          spanHttpMethod
-        }
-      } else {
-        ""
-      }
-    } else ddr
-  })
-*/
-func getSpanFingerprint(sr ptrace.Span, serviceName string) int64 {
+func (sp *spansProcessor) getHttpResource(span ptrace.Span) string {
+	attrs := span.Attributes()
+	var resourceKeys []string
+
+	//Reference: https://opentelemetry.io/docs/specs/semconv/http/http-spans/
+	if method, methodExists := attrs.Get(httpMethod); methodExists {
+		resourceKeys = append(resourceKeys, method.Str())
+	}
+
+	if route, routeExists := attrs.Get(httpRoute); routeExists {
+		resourceKeys = append(resourceKeys, route.Str())
+	} else {
+		if urlPath, urlPathExists := attrs.Get(httpUrlPath); urlPathExists {
+			urlPathStr, _, err := sp.finger.TokenizeInput(urlPath.Str())
+			if err == nil {
+				resourceKeys = append(resourceKeys, urlPathStr)
+			}
+		}
+	}
+
+	if len(resourceKeys) > 0 {
+		return strings.Join(resourceKeys, " ")
+	}
+	return ""
+}
+
+func getSpanFingerprint(sr ptrace.Span, httpResource string, serviceName string) int64 {
 	attrs := sr.Attributes()
 	var fingerprintAttributes []string
 
@@ -79,6 +97,9 @@ func getSpanFingerprint(sr ptrace.Span, serviceName string) int64 {
 
 	// Add spanKind
 	fingerprintAttributes = append(fingerprintAttributes, sr.Kind().String())
+
+	// Add resource
+	fingerprintAttributes = append(fingerprintAttributes, httpResource)
 
 	// Compute hash on parts
 	return int64(xxhash.Sum64String(strings.Join(fingerprintAttributes, "##")))
@@ -99,11 +120,16 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces) (ptrace.Traces, error
 			for k := 0; k < spans.Len(); k++ {
 				span := spans.At(k)
 
+				httpResource := sp.getHttpResource(span)
+				if httpResource != "" {
+					span.Attributes().PutStr(translate.CardinalFieldResourceName, httpResource)
+				}
+
 				var spanFingerprint int64
 				if serviceNameExists {
-					spanFingerprint = getSpanFingerprint(span, serviceName.Str())
+					spanFingerprint = getSpanFingerprint(span, httpResource, serviceName.Str())
 				} else {
-					spanFingerprint = getSpanFingerprint(span, "unknown")
+					spanFingerprint = getSpanFingerprint(span, httpResource, "unknown")
 				}
 
 				span.Attributes().PutInt(translate.CardinalFieldFingerprint, spanFingerprint)

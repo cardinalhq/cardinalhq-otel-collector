@@ -20,24 +20,27 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlspan"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/ottlfuncs"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/pdata/plog"
+	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.uber.org/zap"
 )
 
-type logRule struct {
+type filterRule struct {
 	id       string
-	ruleType LogRuleType
+	ruleType EventSamplingRuleType
 	sampler  Sampler
-	config   LogSamplingConfigV1
+	config   EventSamplingConfigV1
 
 	resourceCondition *ottl.Condition[ottlresource.TransformContext]
 	scopeCondition    *ottl.Condition[ottlscope.TransformContext]
 	logCondition      *ottl.Condition[ottllog.TransformContext]
+	spanCondition     *ottl.Condition[ottlspan.TransformContext]
 }
 
-func (lr *logRule) parseConditions() {
+func (fr *filterRule) parseConditions() {
 	resourceParser, _ := ottlresource.NewParser(ottlfuncs.StandardFuncs[ottlresource.TransformContext](),
 		component.TelemetrySettings{Logger: zap.NewNop()})
 
@@ -47,42 +50,48 @@ func (lr *logRule) parseConditions() {
 	logParser, _ := ottllog.NewParser(ottlfuncs.StandardFuncs[ottllog.TransformContext](),
 		component.TelemetrySettings{Logger: zap.NewNop()})
 
-	if lr.config.Filter != nil {
-		for _, filter := range lr.config.Filter {
+	spanParser, _ := ottlspan.NewParser(ottlfuncs.StandardFuncs[ottlspan.TransformContext](),
+		component.TelemetrySettings{Logger: zap.NewNop()})
+
+	if fr.config.Filter != nil {
+		for _, filter := range fr.config.Filter {
 			switch filter.ContextId {
 			case "resource":
-				lr.resourceCondition, _ = resourceParser.ParseCondition(filter.Condition)
+				fr.resourceCondition, _ = resourceParser.ParseCondition(filter.Condition)
 
 			case "scope":
-				lr.scopeCondition, _ = scopeParser.ParseCondition(filter.Condition)
+				fr.scopeCondition, _ = scopeParser.ParseCondition(filter.Condition)
 
 			case "log":
-				lr.logCondition, _ = logParser.ParseCondition(filter.Condition)
+				fr.logCondition, _ = logParser.ParseCondition(filter.Condition)
+
+			case "span":
+				fr.spanCondition, _ = spanParser.ParseCondition(filter.Condition)
 			}
 		}
 	}
 }
 
-func (lr *logRule) evaluate(rl plog.ResourceLogs, sl plog.ScopeLogs, ll plog.LogRecord) bool {
-	if lr.resourceCondition != nil {
+func (fr *filterRule) evaluateLog(rl plog.ResourceLogs, sl plog.ScopeLogs, ll plog.LogRecord) bool {
+	if fr.resourceCondition != nil {
 		transformCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
-		eval, err := lr.resourceCondition.Eval(context.Background(), transformCtx)
+		eval, err := fr.resourceCondition.Eval(context.Background(), transformCtx)
 		if err != nil || !eval {
 			return false
 		}
 	}
 
-	if lr.scopeCondition != nil {
+	if fr.scopeCondition != nil {
 		transformCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), sl)
-		eval, err := lr.scopeCondition.Eval(context.Background(), transformCtx)
+		eval, err := fr.scopeCondition.Eval(context.Background(), transformCtx)
 		if err != nil || !eval {
 			return false
 		}
 	}
 
-	if lr.logCondition != nil {
+	if fr.logCondition != nil {
 		transformCtx := ottllog.NewTransformContext(ll, sl.Scope(), rl.Resource(), sl, rl)
-		eval, err := lr.logCondition.Eval(context.Background(), transformCtx)
+		eval, err := fr.logCondition.Eval(context.Background(), transformCtx)
 		if err != nil || !eval {
 			return false
 		}
@@ -90,11 +99,38 @@ func (lr *logRule) evaluate(rl plog.ResourceLogs, sl plog.ScopeLogs, ll plog.Log
 	return true
 }
 
-func newLogRule(c LogSamplingConfigV1) *logRule {
+func (fr *filterRule) evaluateSpan(rl ptrace.ResourceSpans, sl ptrace.ScopeSpans, ll ptrace.Span) bool {
+	if fr.resourceCondition != nil {
+		transformCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
+		eval, err := fr.resourceCondition.Eval(context.Background(), transformCtx)
+		if err != nil || !eval {
+			return false
+		}
+	}
+
+	if fr.scopeCondition != nil {
+		transformCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), sl)
+		eval, err := fr.scopeCondition.Eval(context.Background(), transformCtx)
+		if err != nil || !eval {
+			return false
+		}
+	}
+
+	if fr.spanCondition != nil {
+		transformCtx := ottlspan.NewTransformContext(ll, sl.Scope(), rl.Resource(), sl, rl)
+		eval, err := fr.spanCondition.Eval(context.Background(), transformCtx)
+		if err != nil || !eval {
+			return false
+		}
+	}
+	return true
+}
+
+func newFilterRule(c EventSamplingConfigV1) *filterRule {
 	// Create the logRule instance
-	r := &logRule{
+	r := &filterRule{
 		id:       c.Id,
-		ruleType: logRuletypeToInt(c.RuleType),
+		ruleType: samplingRuleTypeToInt(c.RuleType),
 		config:   c,
 	}
 

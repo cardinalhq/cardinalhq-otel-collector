@@ -14,21 +14,21 @@
 
 package sampler
 
-type LogRuleType int
+type EventSamplingRuleType int
 
 const (
-	LogRuleTypeUnknown LogRuleType = iota
-	LogRuleTypeRandom
-	LogRuleTypeRPS
+	EventSamplingRuleTypeUnknown EventSamplingRuleType = iota
+	EventSamplingRuleTypeRandom
+	EventSamplingRuleTypeRPS
 )
 
-func logRuletypeToInt(ruleType string) LogRuleType {
+func samplingRuleTypeToInt(ruleType string) EventSamplingRuleType {
 	switch ruleType {
 	case "random":
-		return LogRuleTypeRandom
+		return EventSamplingRuleTypeRandom
 	case "rps":
-		return LogRuleTypeRPS
+		return EventSamplingRuleTypeRPS
 	default:
-		return LogRuleTypeUnknown
+		return EventSamplingRuleTypeUnknown
 	}
 }

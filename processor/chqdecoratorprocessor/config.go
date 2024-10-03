@@ -34,8 +34,9 @@ type LogsConfig struct {
 }
 
 type TracesConfig struct {
-	EstimatorWindowSize int   `mapstructure:"estimator_window_size"`
-	EstimatorInterval   int64 `mapstructure:"estimator_interval"`
+	Transforms          []ContextStatement `mapstructure:"trace_statements"`
+	EstimatorWindowSize int                `mapstructure:"estimator_window_size"`
+	EstimatorInterval   int64              `mapstructure:"estimator_interval"`
 }
 
 type ContextID string

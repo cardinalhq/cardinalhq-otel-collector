@@ -23,20 +23,20 @@ import (
 func TestLogSamplingConfig_Equals(t *testing.T) {
 	tests := []struct {
 		name     string
-		lsc      LogSamplingConfigV1
-		other    LogSamplingConfigV1
+		lsc      EventSamplingConfigV1
+		other    EventSamplingConfigV1
 		expected bool
 	}{
 		{
 			"equal",
-			LogSamplingConfigV1{
+			EventSamplingConfigV1{
 				Id:         "id",
 				RuleType:   "ruleType",
 				Filter:     []Filter{{ContextId: "resource", Condition: `attributes["key"] == "value"`}},
 				SampleRate: 0.5,
 				RPS:        100,
 			},
-			LogSamplingConfigV1{
+			EventSamplingConfigV1{
 				Id:         "id",
 				RuleType:   "ruleType",
 				Filter:     []Filter{{ContextId: "resource", Condition: `attributes["key"] == "value"`}},
@@ -47,14 +47,14 @@ func TestLogSamplingConfig_Equals(t *testing.T) {
 		},
 		{
 			"different id",
-			LogSamplingConfigV1{
+			EventSamplingConfigV1{
 				Id:         "id",
 				RuleType:   "ruleType",
 				Filter:     []Filter{{ContextId: "resource", Condition: `attributes["key"] == "value"`}},
 				SampleRate: 0.5,
 				RPS:        100,
 			},
-			LogSamplingConfigV1{
+			EventSamplingConfigV1{
 				Id:         "id2",
 				RuleType:   "ruleType",
 				Filter:     []Filter{{ContextId: "resource", Condition: `attributes["key"] == "value"`}},
@@ -65,14 +65,14 @@ func TestLogSamplingConfig_Equals(t *testing.T) {
 		},
 		{
 			"different rule type",
-			LogSamplingConfigV1{
+			EventSamplingConfigV1{
 				Id:         "id",
 				RuleType:   "ruleType",
 				Filter:     []Filter{{ContextId: "resource", Condition: `attributes["key"] == "value"`}},
 				SampleRate: 0.5,
 				RPS:        100,
 			},
-			LogSamplingConfigV1{
+			EventSamplingConfigV1{
 				Id:         "id",
 				RuleType:   "ruleType2",
 				Filter:     []Filter{{ContextId: "resource", Condition: `attributes["key"] == "value"`}},
@@ -83,14 +83,14 @@ func TestLogSamplingConfig_Equals(t *testing.T) {
 		},
 		{
 			"different filter",
-			LogSamplingConfigV1{
+			EventSamplingConfigV1{
 				Id:         "id",
 				RuleType:   "ruleType",
 				Filter:     []Filter{{ContextId: "resource", Condition: `attributes["key"] == "value"`}},
 				SampleRate: 0.5,
 				RPS:        100,
 			},
-			LogSamplingConfigV1{
+			EventSamplingConfigV1{
 				Id:         "id",
 				RuleType:   "ruleType",
 				Filter:     []Filter{{ContextId: "resource", Condition: `attributes["key2"] == "value2"`}},
@@ -101,14 +101,14 @@ func TestLogSamplingConfig_Equals(t *testing.T) {
 		},
 		{
 			"different sample rate",
-			LogSamplingConfigV1{
+			EventSamplingConfigV1{
 				Id:         "id",
 				RuleType:   "ruleType",
 				Filter:     []Filter{{ContextId: "resource", Condition: `attributes["key"] == "value"`}},
 				SampleRate: 0.5,
 				RPS:        100,
 			},
-			LogSamplingConfigV1{
+			EventSamplingConfigV1{
 				Id:         "id",
 				RuleType:   "ruleType",
 				Filter:     []Filter{{ContextId: "resource", Condition: `attributes["key"] == "value"`}},
@@ -119,14 +119,14 @@ func TestLogSamplingConfig_Equals(t *testing.T) {
 		},
 		{
 			"different rps",
-			LogSamplingConfigV1{
+			EventSamplingConfigV1{
 				Id:         "id",
 				RuleType:   "ruleType",
 				Filter:     []Filter{{ContextId: "resource", Condition: `attributes["key"] == "value"`}},
 				SampleRate: 0.5,
 				RPS:        100,
 			},
-			LogSamplingConfigV1{
+			EventSamplingConfigV1{
 				Id:         "id",
 				RuleType:   "ruleType",
 				Filter:     []Filter{{ContextId: "resource", Condition: `attributes["key"] == "value"`}},
@@ -137,8 +137,8 @@ func TestLogSamplingConfig_Equals(t *testing.T) {
 		},
 		{
 			"empty",
-			LogSamplingConfigV1{},
-			LogSamplingConfigV1{},
+			EventSamplingConfigV1{},
+			EventSamplingConfigV1{},
 			true,
 		},
 	}

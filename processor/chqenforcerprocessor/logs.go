@@ -89,7 +89,7 @@ func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, e
 
 func (e *chqEnforcer) shouldDropLog(serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) bool {
 	fingerprintString := fmt.Sprintf("%d", fingerprint)
-	rule_match := e.logSampler.Sample(serviceName, fingerprintString, rl, sl, lr)
+	rule_match := e.logSampler.SampleLogs(serviceName, fingerprintString, rl, sl, lr)
 	return rule_match != ""
 }
 
@@ -191,7 +191,7 @@ func (e *chqEnforcer) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsR
 	return nil
 }
 
-func (e *chqEnforcer) updateLogsamplingConfig(sc sampler.SamplerConfig) {
+func (e *chqEnforcer) updateLogsSampling(sc sampler.SamplerConfig) {
 	e.logger.Info("Updating log sampling config", zap.String("vendor", e.vendor))
-	e.logSampler.UpdateConfig(&sc, e.vendor)
+	e.logSampler.UpdateConfig(sc.Logs.Sampling, e.vendor)
 }

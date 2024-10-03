@@ -17,7 +17,6 @@ package chqenforcerprocessor
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -53,8 +52,8 @@ type chqEnforcer struct {
 
 	// for logs
 	logstats    *stats.StatsCombiner[*chqpb.LogStats]
-	logSampler  sampler.LogSampler
-	spanSampler sampler.SpanSampler
+	logSampler  sampler.EventSampler
+	spanSampler sampler.EventSampler
 
 	// for spans
 	spanStats *stats.StatsCombiner[*chqpb.SpanStats]
@@ -67,12 +66,6 @@ type chqEnforcer struct {
 	aggregatorF          sampler.MetricAggregator[float64]
 	lastEmitCheck        time.Time
 	aggregatedDatapoints metric.Int64Counter
-
-	// for traces
-	slowSampler          sampler.Sampler
-	hasErrorSampler      sampler.Sampler
-	uninterestingSampler sampler.Sampler
-	sentFingerprints     *fingerprintTracker
 }
 
 func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextConsumer consumer.Metrics) (*chqEnforcer, error) {
@@ -97,7 +90,7 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextCo
 	case "logs":
 		statsExporter.logstats = stats.NewStatsCombiner[*chqpb.LogStats](now, config.Statistics.Interval)
 		statsExporter.logger.Info("sending log statistics", zap.Duration("interval", config.Statistics.Interval))
-		statsExporter.logSampler = sampler.NewLogSamplerImpl(context.Background(), statsExporter.logger)
+		statsExporter.logSampler = sampler.NewEventSamplerImpl(context.Background(), statsExporter.logger)
 	case "metrics":
 		statsExporter.metricstats = stats.NewStatsCombiner[*MetricStat](now, config.Statistics.Interval)
 		statsExporter.logger.Info("sending metric statistics", zap.Duration("interval", config.Statistics.Interval))
@@ -112,7 +105,7 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextCo
 	case "traces":
 		statsExporter.spanStats = stats.NewStatsCombiner[*chqpb.SpanStats](now, config.Statistics.Interval)
 		statsExporter.logger.Info("sending span statistics", zap.Duration("interval", config.Statistics.Interval))
-		statsExporter.spanSampler = sampler.NewSpanSamplerImpl(context.Background(), statsExporter.logger)
+		statsExporter.spanSampler = sampler.NewEventSamplerImpl(context.Background(), statsExporter.logger)
 	}
 
 	return statsExporter, nil
@@ -141,33 +134,12 @@ func (e *chqEnforcer) Start(ctx context.Context, host component.Host) error {
 
 	e.configCallbackID = e.configExtension.RegisterCallback(e.id.String()+"/"+e.ttype, e.configUpdateCallback)
 
-	if e.ttype == "traces" {
-		if err := e.slowSampler.Start(); err != nil {
-			return fmt.Errorf("error starting slow sampler: %w", err)
-		}
-		if err := e.hasErrorSampler.Start(); err != nil {
-			return fmt.Errorf("error starting has error sampler: %w", err)
-		}
-		if err := e.uninterestingSampler.Start(); err != nil {
-			return fmt.Errorf("error starting uninteresting sampler: %w", err)
-		}
-		e.sentFingerprints = newFingerprintTracker()
-	}
 	return nil
 }
 
 func (e *chqEnforcer) Shutdown(ctx context.Context) error {
 	var errors *multierror.Error
 	e.configExtension.UnregisterCallback(e.configCallbackID)
-	if e.slowSampler != nil {
-		errors = multierror.Append(errors, e.slowSampler.Stop())
-	}
-	if e.hasErrorSampler != nil {
-		errors = multierror.Append(errors, e.hasErrorSampler.Stop())
-	}
-	if e.uninterestingSampler != nil {
-		errors = multierror.Append(errors, e.uninterestingSampler.Stop())
-	}
 	return errors.ErrorOrNil()
 }
 
@@ -186,7 +158,9 @@ func (e *chqEnforcer) setupMetricTelemetry() error {
 func (e *chqEnforcer) configUpdateCallback(sc sampler.SamplerConfig) {
 	switch e.ttype {
 	case "logs":
-		e.updateLogsamplingConfig(sc)
+		e.updateLogsSampling(sc)
+	case "traces":
+		e.updateTracesSampling(sc)
 	case "metrics":
 		e.updateMetricsamplingConfig(sc)
 	}

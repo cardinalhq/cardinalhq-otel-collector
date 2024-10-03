@@ -23,7 +23,11 @@ type SamplerConfig struct {
 }
 
 type LogConfigV1 struct {
-	Sampling []LogSamplingConfigV1 `json:"sampling,omitempty" yaml:"sampling,omitempty"`
+	Sampling []EventSamplingConfigV1 `json:"sampling,omitempty" yaml:"sampling,omitempty"`
+}
+
+type TraceConfigV1 struct {
+	Sampling []EventSamplingConfigV1 `json:"sampling,omitempty" yaml:"sampling,omitempty"`
 }
 
 type Filter struct {
@@ -31,7 +35,7 @@ type Filter struct {
 	Condition string `json:"condition,omitempty" yaml:"condition,omitempty"`
 }
 
-type LogSamplingConfigV1 struct {
+type EventSamplingConfigV1 struct {
 	Id         string   `json:"id,omitempty" yaml:"id,omitempty"`
 	RuleType   string   `json:"ruleType,omitempty" yaml:"ruleType,omitempty"`
 	Filter     []Filter `json:"filter,omitempty" yaml:"filter,omitempty"`
@@ -53,17 +57,7 @@ type AggregatorConfigV1 struct {
 	Vendor     string            `json:"vendor,omitempty" yaml:"vendor,omitempty"`
 }
 
-type TraceConfigV1 struct {
-	TraceSampling []TraceSamplingConfigV1 `json:"traceSampling,omitempty" yaml:"traceSampling,omitempty"`
-}
-
-type TraceSamplingConfigV1 struct {
-	UninterestingSampleRate int    `json:"uninterestingSampleRate,omitempty" yaml:"uninterestingSampleRate,omitempty"`
-	SlowSampleRate          int    `json:"slowSampleRate,omitempty" yaml:"slowSampleRate,omitempty"`
-	Vendor                  string `json:"vendor,omitempty" yaml:"vendor,omitempty"`
-}
-
-func (lsc LogSamplingConfigV1) Equals(other LogSamplingConfigV1) bool {
+func (lsc EventSamplingConfigV1) Equals(other EventSamplingConfigV1) bool {
 	if lsc.Id != other.Id ||
 		lsc.RPS != other.RPS ||
 		lsc.RuleType != other.RuleType ||

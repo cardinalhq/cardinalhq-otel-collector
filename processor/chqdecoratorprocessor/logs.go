@@ -18,41 +18,14 @@ import (
 	"context"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/fingerprinter"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
-	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
-	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/ottlfuncs"
-	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
 	"os"
 )
-
-type resourceTransformation struct {
-	context    ContextID
-	conditions []*ottl.Condition[ottlresource.TransformContext]
-	statements []*ottl.Statement[ottlresource.TransformContext]
-}
-
-type scopeTransformation struct {
-	context    ContextID
-	conditions []*ottl.Condition[ottlscope.TransformContext]
-	statements []*ottl.Statement[ottlscope.TransformContext]
-}
-
-type logTransformation struct {
-	context    ContextID
-	conditions []*ottl.Condition[ottllog.TransformContext]
-	statements []*ottl.Statement[ottllog.TransformContext]
-}
-
-type transformations struct {
-	resourceTransformations []resourceTransformation
-	scopeTransformations    []scopeTransformation
-	logTransformations      []logTransformation
-}
 
 type logProcessor struct {
 	logger  *zap.Logger
@@ -62,97 +35,12 @@ type logProcessor struct {
 	transformations transformations
 }
 
-func (lp *logProcessor) toTransformations(contextStatements []ContextStatement) transformations {
-	// Set up parsers for each context type (resource, scope, log)
-	resourceParser, _ := ottlresource.NewParser(ottlfuncs.StandardFuncs[ottlresource.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
-	scopeParser, _ := ottlscope.NewParser(ottlfuncs.StandardFuncs[ottlscope.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
-	logParser, _ := ottllog.NewParser(ottlfuncs.StandardFuncs[ottllog.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
-
-	// Initialize an empty slice for each type of transformation
-	transformations := transformations{
-		resourceTransformations: []resourceTransformation{},
-		scopeTransformations:    []scopeTransformation{},
-		logTransformations:      []logTransformation{},
-	}
-
-	// Iterate over context statements and parse them based on their context type
-	for _, cs := range contextStatements {
-		switch cs.Context {
-		case "resource":
-			// Parse conditions and statements for resource context
-			conditions, err := resourceParser.ParseConditions(cs.Conditions)
-			if err != nil {
-				lp.logger.Error("Error parsing resource conditions", zap.Error(err))
-				continue
-			}
-			statements, err := resourceParser.ParseStatements(cs.Statements)
-			if err != nil {
-				lp.logger.Error("Error parsing resource statements", zap.Error(err))
-				continue
-			}
-
-			// Append parsed resource transformations
-			transformations.resourceTransformations = append(transformations.resourceTransformations, resourceTransformation{
-				context:    cs.Context,
-				conditions: conditions,
-				statements: statements,
-			})
-
-		case "scope":
-			// Parse conditions and statements for scope context
-			conditions, err := scopeParser.ParseConditions(cs.Conditions)
-			if err != nil {
-				lp.logger.Error("Error parsing scope conditions", zap.Error(err))
-				continue
-			}
-			statements, err := scopeParser.ParseStatements(cs.Statements)
-			if err != nil {
-				lp.logger.Error("Error parsing scope statements", zap.Error(err))
-				continue
-			}
-
-			// Append parsed scope transformations
-			transformations.scopeTransformations = append(transformations.scopeTransformations, scopeTransformation{
-				context:    cs.Context,
-				conditions: conditions,
-				statements: statements,
-			})
-
-		case "log":
-			// Parse conditions and statements for log context
-			conditions, err := logParser.ParseConditions(cs.Conditions)
-			if err != nil {
-				lp.logger.Error("Error parsing log conditions", zap.Error(err))
-				continue
-			}
-			statements, err := logParser.ParseStatements(cs.Statements)
-			if err != nil {
-				lp.logger.Error("Error parsing log statements", zap.Error(err))
-				continue
-			}
-
-			// Append parsed log transformations
-			transformations.logTransformations = append(transformations.logTransformations, logTransformation{
-				context:    cs.Context,
-				conditions: conditions,
-				statements: statements,
-			})
-
-		default:
-			// Handle unknown context types
-			println("Unknown context: ", cs.Context)
-		}
-	}
-
-	return transformations
-}
-
 func newLogsProcessor(set processor.Settings, cfg *Config) (*logProcessor, error) {
 	lp := &logProcessor{
 		logger:  set.Logger,
 		podName: os.Getenv("POD_NAME"),
 	}
-	lp.transformations = lp.toTransformations(cfg.LogsConfig.Transforms)
+	lp.transformations = toTransformations(cfg.LogsConfig.Transforms, lp.logger)
 
 	set.Logger.Info("Decorator processor configured")
 

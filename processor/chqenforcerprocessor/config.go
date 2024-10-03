@@ -28,6 +28,7 @@ type Config struct {
 	Statistics               StatisticsConfig        `mapstructure:"statistics"`
 	MetricAggregation        MetricAggregationConfig `mapstructure:"metric_aggregation"`
 	LogsConfig               LogsConfig              `mapstructure:"logs"`
+	TracesConfig             TracesConfig            `mapstructure:"traces"`
 	ConfigurationExtension   *component.ID           `mapstructure:"configuration_extension"`
 	DropDecorationAttributes bool                    `mapstructure:"drop_decoration_attributes"`
 }
@@ -51,6 +52,10 @@ type StatsEnrichment struct {
 }
 
 type LogsConfig struct {
+	StatsEnrichments []StatsEnrichment `mapstructure:"stats_enrichment"`
+}
+
+type TracesConfig struct {
 	StatsEnrichments []StatsEnrichment `mapstructure:"stats_enrichment"`
 }
 

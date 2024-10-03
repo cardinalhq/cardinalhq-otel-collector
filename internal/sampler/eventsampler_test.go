@@ -27,34 +27,34 @@ import (
 func TestSamplerForType(t *testing.T) {
 	cases := []struct {
 		name         string
-		config       LogSamplingConfigV1
-		expectedType LogRuleType
+		config       EventSamplingConfigV1
+		expectedType EventSamplingRuleType
 		expected     Sampler
 	}{
 		{
 			name: "random rule type",
-			config: LogSamplingConfigV1{
+			config: EventSamplingConfigV1{
 				RuleType:   "random",
 				SampleRate: 0.5,
 			},
-			expectedType: LogRuleTypeRandom,
+			expectedType: EventSamplingRuleTypeRandom,
 			expected:     &StaticSampler{fixedRate: 2},
 		},
 		{
 			name: "rps rule type",
-			config: LogSamplingConfigV1{
+			config: EventSamplingConfigV1{
 				RuleType: "rps",
 				RPS:      100,
 			},
-			expectedType: LogRuleTypeRPS,
+			expectedType: EventSamplingRuleTypeRPS,
 			expected:     &rpsSampler{MaxRPS: 100, clearFrequencyDuration: defaultClearFrequencyDuration},
 		},
 		{
 			name: "unknown rule type",
-			config: LogSamplingConfigV1{
+			config: EventSamplingConfigV1{
 				RuleType: "unknown",
 			},
-			expectedType: LogRuleTypeUnknown,
+			expectedType: EventSamplingRuleTypeUnknown,
 			expected:     nil,
 		},
 	}
@@ -187,6 +187,14 @@ func TestGetServiceName(t *testing.T) {
 	}
 }
 
+func getServiceName(rattr pcommon.Map) string {
+	serviceName, ok := rattr.Get("service.name")
+	if !ok {
+		return "unknown-service"
+	}
+	return serviceName.AsString()
+}
+
 func makeConstantSampler() Sampler {
 	return &StaticSampler{fixedRate: 0}
 }
@@ -194,7 +202,7 @@ func makeConstantSampler() Sampler {
 func TestShouldFilterLog(t *testing.T) {
 	tests := []struct {
 		name     string
-		rules    map[string]*logRule
+		rules    map[string]*filterRule
 		rattr    map[string]string
 		iattr    map[string]string
 		lattr    map[string]string
@@ -202,7 +210,7 @@ func TestShouldFilterLog(t *testing.T) {
 	}{
 		{
 			"no rules",
-			map[string]*logRule{},
+			map[string]*filterRule{},
 			map[string]string{"service.name": "my-service"},
 			map[string]string{},
 			map[string]string{},
@@ -210,17 +218,12 @@ func TestShouldFilterLog(t *testing.T) {
 		},
 		{
 			"no matching rules",
-			map[string]*logRule{
-				"rule1": {
-					id:       "rule1",
-					ruleType: LogRuleTypeRPS,
-					sampler:  makeConstantSampler(),
-					config: LogSamplingConfigV1{
-						Filter: []Filter{
-							{ContextId: "resource", Condition: `attributes["service.name"] == "other-service"`},
-						},
+			map[string]*filterRule{
+				"rule1": newFilterRule(EventSamplingConfigV1{
+					Filter: []Filter{
+						{ContextId: "resource", Condition: `attributes["service.name"] == "other-service"`},
 					},
-				},
+				}),
 			},
 			map[string]string{"service.name": "my-service"},
 			map[string]string{},
@@ -229,12 +232,12 @@ func TestShouldFilterLog(t *testing.T) {
 		},
 		{
 			"matching rule",
-			map[string]*logRule{
+			map[string]*filterRule{
 				"rule1": {
 					id:       "rule1",
-					ruleType: LogRuleTypeRPS,
+					ruleType: EventSamplingRuleTypeRPS,
 					sampler:  makeConstantSampler(),
-					config: LogSamplingConfigV1{
+					config: EventSamplingConfigV1{
 						Filter: []Filter{
 							{ContextId: "resource", Condition: `attributes["service.name"] == "my-service"`},
 						},
@@ -248,12 +251,12 @@ func TestShouldFilterLog(t *testing.T) {
 		},
 		{
 			"multiple rules",
-			map[string]*logRule{
+			map[string]*filterRule{
 				"rule1": {
 					id:       "rule1",
-					ruleType: LogRuleTypeRPS,
+					ruleType: EventSamplingRuleTypeRPS,
 					sampler:  makeConstantSampler(),
-					config: LogSamplingConfigV1{
+					config: EventSamplingConfigV1{
 						Filter: []Filter{
 							{ContextId: "resource", Condition: `attributes["service.name"] == "my-service"`},
 						},
@@ -261,9 +264,9 @@ func TestShouldFilterLog(t *testing.T) {
 				},
 				"rule2": {
 					id:       "rule2",
-					ruleType: LogRuleTypeRPS,
+					ruleType: EventSamplingRuleTypeRPS,
 					sampler:  makeConstantSampler(),
-					config: LogSamplingConfigV1{
+					config: EventSamplingConfigV1{
 						Filter: []Filter{},
 					},
 				},
@@ -275,12 +278,12 @@ func TestShouldFilterLog(t *testing.T) {
 		},
 		{
 			"empty filter",
-			map[string]*logRule{
+			map[string]*filterRule{
 				"rule1": {
 					id:       "rule1",
-					ruleType: LogRuleTypeRPS,
+					ruleType: EventSamplingRuleTypeRPS,
 					sampler:  makeConstantSampler(),
-					config: LogSamplingConfigV1{
+					config: EventSamplingConfigV1{
 						Filter: []Filter{},
 					},
 				},
@@ -313,14 +316,14 @@ func TestShouldFilterLog(t *testing.T) {
 				lattr.PutStr(k, v)
 			}
 
-			// Initialize the LogSamplerImpl with the test rules
-			ls := &LogSamplerImpl{
+			// Initialize the EventSamplerImpl with the test rules
+			ls := &EventSamplerImpl{
 				rules:  tt.rules,
 				logger: zap.NewNop(), // Use a no-op logger for testing
 			}
 
-			// Call shouldFilter to get the result
-			actual := ls.shouldFilter("", "", rl, sl, ll)
+			// Call shouldFilterLog to get the result
+			actual := ls.shouldFilterLog("", "", rl, sl, ll)
 
 			// Check if the actual result matches any of the expected rules
 			assert.Contains(t, tt.expected, actual)

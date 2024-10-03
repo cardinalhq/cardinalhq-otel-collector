@@ -18,42 +18,43 @@ import (
 	"context"
 	"fmt"
 	"go.opentelemetry.io/collector/pdata/plog"
+	"go.opentelemetry.io/collector/pdata/ptrace"
 	"math/rand"
 	"sync"
 
-	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.uber.org/zap"
 )
 
-type LogSampler interface {
-	Sample(serviceName string, fingerprint string, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) (droppingRule string)
-	UpdateConfig(config *SamplerConfig, vendor string)
+type EventSampler interface {
+	SampleLogs(serviceName string, fingerprint string, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) (droppingRule string)
+	SampleSpans(serviceName string, fingerprint string, rl ptrace.ResourceSpans, sl ptrace.ScopeSpans, lr ptrace.Span) (droppingRule string)
+	UpdateConfig(config []EventSamplingConfigV1, vendor string)
 }
 
-var _ LogSampler = (*LogSamplerImpl)(nil)
+var _ EventSampler = (*EventSamplerImpl)(nil)
 
-type LogSamplerImpl struct {
+type EventSamplerImpl struct {
 	sync.RWMutex
-	rules map[string]*logRule
+	rules map[string]*filterRule
 
 	logger *zap.Logger
 }
 
-func NewLogSamplerImpl(ctx context.Context, logger *zap.Logger) *LogSamplerImpl {
-	ls := &LogSamplerImpl{
+func NewEventSamplerImpl(ctx context.Context, logger *zap.Logger) *EventSamplerImpl {
+	ls := &EventSamplerImpl{
 		logger: logger,
-		rules:  map[string]*logRule{},
+		rules:  map[string]*filterRule{},
 	}
 	return ls
 }
 
-func (ls *LogSamplerImpl) UpdateConfig(config *SamplerConfig, vendor string) {
+func (ls *EventSamplerImpl) UpdateConfig(config []EventSamplingConfigV1, vendor string) {
 	ls.Lock()
 	defer ls.Unlock()
-	ls.configure(config.Logs.Sampling, vendor)
+	ls.configure(config, vendor)
 }
 
-func (ls *LogSamplerImpl) Sample(serviceName string,
+func (ls *EventSamplerImpl) SampleLogs(serviceName string,
 	fingerprint string,
 	rl plog.ResourceLogs,
 	sl plog.ScopeLogs,
@@ -61,18 +62,53 @@ func (ls *LogSamplerImpl) Sample(serviceName string,
 	ls.RLock()
 	defer ls.RUnlock()
 
-	return ls.shouldFilter(serviceName, fingerprint, rl, sl, ll)
+	return ls.shouldFilterLog(serviceName, fingerprint, rl, sl, ll)
 }
 
-func getServiceName(rattr pcommon.Map) string {
-	serviceName, ok := rattr.Get("service.name")
-	if !ok {
-		return "unknown-service"
+func (ls *EventSamplerImpl) SampleSpans(serviceName string,
+	fingerprint string,
+	rl ptrace.ResourceSpans,
+	sl ptrace.ScopeSpans,
+	lr ptrace.Span) (droppingRule string) {
+	ls.RLock()
+	defer ls.RUnlock()
+
+	return ls.shouldFilterSpan(serviceName, fingerprint, rl, sl, lr)
+}
+
+func (ls *EventSamplerImpl) shouldFilterSpan(serviceName string,
+	fingerprint string,
+	rl ptrace.ResourceSpans,
+	sl ptrace.ScopeSpans,
+	ll ptrace.Span) (droppingRule string) {
+	if len(ls.rules) == 0 {
+		return ""
 	}
-	return serviceName.AsString()
+
+	ret := ""
+	matched := false
+	key := fmt.Sprintf("%s:%s", serviceName, fingerprint)
+	randval := rand.Float64()
+
+	for rid, r := range ls.rules {
+		// if we already have a match, don't bother checking any more random rules.
+		if matched && r.ruleType == EventSamplingRuleTypeRandom {
+			continue
+		}
+		if r.evaluateSpan(rl, sl, ll) {
+			rate := r.sampler.GetSampleRate(key)
+			wasHit := shouldFilter(rate, randval)
+			if wasHit && !matched {
+				ret = rid
+				matched = true
+			}
+		}
+	}
+
+	return ret
 }
 
-func (ls *LogSamplerImpl) shouldFilter(serviceName string,
+func (ls *EventSamplerImpl) shouldFilterLog(serviceName string,
 	fingerprint string,
 	rl plog.ResourceLogs,
 	sl plog.ScopeLogs,
@@ -88,10 +124,10 @@ func (ls *LogSamplerImpl) shouldFilter(serviceName string,
 
 	for rid, r := range ls.rules {
 		// if we already have a match, don't bother checking any more random rules.
-		if matched && r.ruleType == LogRuleTypeRandom {
+		if matched && r.ruleType == EventSamplingRuleTypeRandom {
 			continue
 		}
-		if r.evaluate(rl, sl, ll) {
+		if r.evaluateLog(rl, sl, ll) {
 			rate := r.sampler.GetSampleRate(key)
 			wasHit := shouldFilter(rate, randval)
 			if wasHit && !matched {
@@ -123,7 +159,7 @@ func randomToRPS(rate float64) int {
 	return int(1 / rate)
 }
 
-func (ls *LogSamplerImpl) configure(config []LogSamplingConfigV1, vendor string) {
+func (ls *EventSamplerImpl) configure(config []EventSamplingConfigV1, vendor string) {
 	ls.logger.Info("Updating log sampling rules", zap.Any("config", config))
 	currentIDs := map[string]bool{}
 	for k := range ls.rules {
@@ -156,55 +192,55 @@ func (ls *LogSamplerImpl) configure(config []LogSamplingConfigV1, vendor string)
 }
 
 // new rule must be started by the caller.
-func (ls *LogSamplerImpl) addRule(c LogSamplingConfigV1) {
-	ls.logger.Info("Adding log sampling rule", zap.String("id", c.Id), zap.Any("config", c))
-	r := newLogRule(c)
+func (ls *EventSamplerImpl) addRule(c EventSamplingConfigV1) {
+	ls.logger.Info("Adding event sampling rule", zap.String("id", c.Id), zap.Any("config", c))
+	r := newFilterRule(c)
 
 	r.ruleType, r.sampler = samplerForType(c, ls.logger)
 	if r.sampler == nil {
-		ls.logger.Error("Unknown log sampling rule type", zap.String("type", c.RuleType))
+		ls.logger.Error("Unknown event sampling rule type", zap.String("type", c.RuleType))
 		return
 	}
 	if err := r.sampler.Start(); err != nil {
-		ls.logger.Error("Error starting log sampler", zap.Error(err))
+		ls.logger.Error("Error starting event sampler", zap.Error(err))
 		return
 	}
-	ls.logger.Info("Started log sampling rule", zap.String("id", c.Id))
+	ls.logger.Info("Started event sampling rule", zap.String("id", c.Id))
 	ls.rules[c.Id] = r
 }
 
-func samplerForType(c LogSamplingConfigV1, logger *zap.Logger) (ruleType LogRuleType, sampler Sampler) {
+func samplerForType(c EventSamplingConfigV1, logger *zap.Logger) (ruleType EventSamplingRuleType, sampler Sampler) {
 	switch c.RuleType {
 	case "random":
-		return LogRuleTypeRandom, NewStaticSampler(int(1 / c.SampleRate))
+		return EventSamplingRuleTypeRandom, NewStaticSampler(int(1 / c.SampleRate))
 	case "rps":
 		switch c.RPS {
 		case 0, 1:
-			return LogRuleTypeRPS, NewStaticSampler(c.RPS)
+			return EventSamplingRuleTypeRPS, NewStaticSampler(c.RPS)
 		default:
-			return LogRuleTypeRPS, NewRPSSampler(WithMaxRPS(c.RPS), WithLogger(logger))
+			return EventSamplingRuleTypeRPS, NewRPSSampler(WithMaxRPS(c.RPS), WithLogger(logger))
 		}
 	}
-	return LogRuleTypeUnknown, nil
+	return EventSamplingRuleTypeUnknown, nil
 }
 
 // existing rule must be stopped and started by the caller.
-func (ls *LogSamplerImpl) updateCurrentRule(r *logRule, c LogSamplingConfigV1) {
+func (ls *EventSamplerImpl) updateCurrentRule(r *filterRule, c EventSamplingConfigV1) {
 	if r.config.Equals(c) {
 		return
 	}
-	ls.logger.Info("Updating log sampling rule", zap.String("id", c.Id), zap.Any("config", c))
+	ls.logger.Info("Updating event sampling rule", zap.String("id", c.Id), zap.Any("config", c))
 	_ = r.sampler.Stop()
 	r.ruleType, r.sampler = samplerForType(c, ls.logger)
 	if r.sampler == nil {
-		ls.logger.Error("Unknown log sampling rule type", zap.String("type", c.RuleType))
+		ls.logger.Error("Unknown event sampling rule type", zap.String("type", c.RuleType))
 		return
 	}
 	r.config = c
 	r.parseConditions()
 
 	if err := r.sampler.Start(); err != nil {
-		ls.logger.Error("Error starting log sampler", zap.Error(err))
+		ls.logger.Error("Error starting event sampler", zap.Error(err))
 	}
 	ls.logger.Info("Started log sampling rule", zap.String("id", c.Id))
 }

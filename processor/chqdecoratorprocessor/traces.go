@@ -18,6 +18,10 @@ import (
 	"context"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/fingerprinter"
 	"github.com/cespare/xxhash/v2"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlspan"
+
 	semconv "go.opentelemetry.io/otel/semconv/v1.22.0"
 	"os"
 	"strings"
@@ -40,6 +44,8 @@ type spansProcessor struct {
 	estimatorInterval   int64
 	estimatorLock       sync.Mutex
 	estimators          map[uint64]*SlidingEstimatorStat
+
+	transformations transformations
 }
 
 const (
@@ -57,6 +63,7 @@ func newSpansProcessor(set processor.Settings, c *Config) (*spansProcessor, erro
 		estimatorInterval:   c.TracesConfig.EstimatorInterval,
 	}
 
+	sp.transformations = toTransformations(c.TracesConfig.Transforms, sp.logger)
 	sp.finger = fingerprinter.NewFingerprinter()
 
 	return sp, nil
@@ -87,6 +94,54 @@ func (sp *spansProcessor) findSpanSketch(fingerprint uint64) *SlidingEstimatorSt
 		return estimator
 	}
 	return sketch
+}
+
+func (sp *spansProcessor) evaluateResourceTransformations(rl ptrace.ResourceSpans) {
+	transformCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
+	for _, transformation := range sp.transformations.resourceTransformations {
+		allConditionsTrue := true
+		for _, condition := range transformation.conditions {
+			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
+			allConditionsTrue = allConditionsTrue && conditionMet
+		}
+		if allConditionsTrue {
+			for _, statement := range transformation.statements {
+				_, _, _ = statement.Execute(context.Background(), transformCtx)
+			}
+		}
+	}
+}
+
+func (sp *spansProcessor) evaluateScopeTransformations(sl ptrace.ScopeSpans, rl ptrace.ResourceSpans) {
+	transformCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), sl)
+	for _, transformation := range sp.transformations.scopeTransformations {
+		allConditionsTrue := true
+		for _, condition := range transformation.conditions {
+			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
+			allConditionsTrue = allConditionsTrue && conditionMet
+		}
+		if allConditionsTrue {
+			for _, statement := range transformation.statements {
+				_, _, _ = statement.Execute(context.Background(), transformCtx)
+			}
+		}
+	}
+}
+
+func (sp *spansProcessor) evaluateSpanTransformations(span ptrace.Span, sl ptrace.ScopeSpans, rl ptrace.ResourceSpans) {
+	transformCtx := ottlspan.NewTransformContext(span, sl.Scope(), rl.Resource(), sl, rl)
+	for _, transformation := range sp.transformations.spanTransformations {
+		allConditionsTrue := true
+		for _, condition := range transformation.conditions {
+			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
+			allConditionsTrue = allConditionsTrue && conditionMet
+		}
+		if allConditionsTrue {
+			for _, statement := range transformation.statements {
+				_, _, _ = statement.Execute(context.Background(), transformCtx)
+			}
+		}
+	}
 }
 
 func (sp *spansProcessor) getHttpResource(span ptrace.Span) string {
@@ -140,17 +195,27 @@ func getSpanFingerprint(sr ptrace.Span, httpResource string, serviceName string)
 func (sp *spansProcessor) decorateTraces(td ptrace.Traces) (ptrace.Traces, error) {
 	environment := translate.EnvironmentFromEnv()
 	rss := td.ResourceSpans()
+
 	for i := 0; i < rss.Len(); i++ {
 		rs := rss.At(i)
+		// Evaluate resource transformations
+		sp.evaluateResourceTransformations(rs)
+
 		snk := string(semconv.ServiceNameKey)
 		serviceName, serviceNameExists := rs.Resource().Attributes().Get(snk)
 
 		ilss := rs.ScopeSpans()
+
 		for j := 0; j < ilss.Len(); j++ {
 			ils := ilss.At(j)
+			// Evaluate scope transformations
+			sp.evaluateScopeTransformations(ils, rs)
+
 			spans := ils.Spans()
 			for k := 0; k < spans.Len(); k++ {
 				span := spans.At(k)
+				// Evaluate scope transformations
+				sp.evaluateSpanTransformations(span, ils, rs)
 
 				httpResource := sp.getHttpResource(span)
 				if httpResource != "" {

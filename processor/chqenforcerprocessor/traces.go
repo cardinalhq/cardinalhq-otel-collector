@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
@@ -41,22 +42,26 @@ func (e *chqEnforcer) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptra
 			iss.Spans().RemoveIf(func(sr ptrace.Span) bool {
 				fingerprint := getSpanFingerprint(sr.Attributes())
 
-				statusCode := sr.Status().Code().String()
+				if e.pbPhase == chqpb.Phase_POST {
+					shouldDrop := e.shouldDropSpan(serviceName, fingerprint, sr, iss, rs)
+					if shouldDrop {
+						return true
+					}
+				}
+
+				// isSlow is an attribute of the span, but is a cardinal field so will be removed at this point.
+				// we want cardinal fields to be removed because we don't want to account for them in the size of the span.
+				// being sent to the stats backend.
 				var isSlow = false
 				if isSlowSpan, exists := sr.Attributes().Get(translate.CardinalFieldSpanIsSlow); exists {
 					isSlow = isSlowSpan.Bool()
 				}
 
-				if e.pbPhase == chqpb.Phase_POST {
-					shouldDrop := e.shouldDropSpan(fingerprint, sr, statusCode, isSlow)
-					if shouldDrop {
-						return true
-					}
-				}
 				if e.config.DropDecorationAttributes {
 					removeAllCardinalFields(sr.Attributes())
 				}
-				if err := e.recordSpan(now, serviceName, fingerprint, sr, statusCode, isSlow); err != nil {
+
+				if err := e.recordSpan(now, serviceName, fingerprint, isSlow, sr, iss, rs); err != nil {
 					e.logger.Error("Failed to record span", zap.Error(err))
 				}
 				return false
@@ -73,9 +78,9 @@ func (e *chqEnforcer) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptra
 	return td, nil
 }
 
-func (e *chqEnforcer) shouldDropSpan(fingerprint int64, span ptrace.Span, statusCode string, isSlow bool) bool {
+func (e *chqEnforcer) shouldDropSpan(service string, fingerprint int64, span ptrace.Span, iss ptrace.ScopeSpans, rs ptrace.ResourceSpans) bool {
 	fingerprintString := fmt.Sprintf("%d", fingerprint)
-	ruleMatch := e.spanSampler.Sample(span, fingerprintString, statusCode, isSlow)
+	ruleMatch := e.spanSampler.SampleSpans(service, fingerprintString, rs, iss, span)
 	return ruleMatch != ""
 }
 
@@ -109,9 +114,11 @@ func getOrElse(m map[string]string, key string, defaultValue string) string {
 func (e *chqEnforcer) recordSpan(now time.Time,
 	serviceName string,
 	fingerprint int64,
+	isSlow bool,
 	span ptrace.Span,
-	statusCode string,
-	isSlow bool) error {
+	iss ptrace.ScopeSpans,
+	rs ptrace.ResourceSpans,
+) error {
 	// spanSize = (size of attributes + top level fields)
 	var stringAttributes, spanSize = toAttributesAndSize(span.Attributes().AsRaw())
 	spanSize += int64(len(span.TraceID().String()))
@@ -119,16 +126,45 @@ func (e *chqEnforcer) recordSpan(now time.Time,
 	spanSize += int64(len(span.Kind().String()))
 	spanSize += int64(len(span.SpanID().String()))
 
+	// Derive tags from e.config.LogsConfig.StatsEnrichments based on the contextId, and then add tags to the SpanStats Tags Map
+	tagsToEnrich := map[string]string{
+		"span.status_code": span.Status().Code().String(),
+		"span.is_slow":     fmt.Sprintf("%v", isSlow),
+		"span.kind":        span.Kind().String(),
+	}
+
+	for _, enrichment := range e.config.TracesConfig.StatsEnrichments {
+		if enrichment.Context == "span" {
+			for _, tag := range enrichment.Tags {
+				if tagValue, found := span.Attributes().Get(tag); found {
+					key := fmt.Sprintf("log.%s", tag)
+					tagsToEnrich[key] = tagValue.AsString()
+				}
+			}
+		} else if enrichment.Context == "resource" {
+			for _, tag := range enrichment.Tags {
+				if tagValue, found := rs.Resource().Attributes().Get(tag); found {
+					key := fmt.Sprintf("resource.%s", tag)
+					tagsToEnrich[key] = tagValue.AsString()
+				}
+			}
+		} else if enrichment.Context == "scope" {
+			for _, tag := range enrichment.Tags {
+				if tagValue, found := iss.Scope().Attributes().Get(tag); found {
+					key := fmt.Sprintf("scope.%s", tag)
+					tagsToEnrich[key] = tagValue.AsString()
+				}
+			}
+		}
+	}
+
 	rec := &chqpb.SpanStats{
 		ServiceName: serviceName,
 		Fingerprint: fingerprint,
 		Phase:       e.pbPhase,
 		VendorId:    e.config.Statistics.Vendor,
 		Count:       1,
-		Tags: map[string]string{
-			"span.status_code": statusCode,
-			"span.is_slow":     fmt.Sprintf("%v", isSlow),
-		},
+		Tags:        tagsToEnrich,
 		Exemplar: &chqpb.SpanExemplar{
 			TraceId:  span.TraceID().String(),
 			SpanName: span.Name(),
@@ -186,4 +222,9 @@ func (e *chqEnforcer) postSpanStats(ctx context.Context, wrapper *chqpb.SpanStat
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 	return nil
+}
+
+func (e *chqEnforcer) updateTracesSampling(sc sampler.SamplerConfig) {
+	e.logger.Info("Updating traces sampling config", zap.String("vendor", e.vendor))
+	e.spanSampler.UpdateConfig(sc.Traces.Sampling, e.vendor)
 }

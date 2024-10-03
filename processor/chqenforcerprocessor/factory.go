@@ -108,7 +108,7 @@ func createMetricsProcessor(ctx context.Context, set processor.Settings, cfg com
 }
 
 func createSpansProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Traces) (processor.Traces, error) {
-	e, err := newCHQEnforcer(cfg.(*Config), "spans", set, nil)
+	e, err := newCHQEnforcer(cfg.(*Config), "traces", set, nil)
 	if err != nil {
 		return nil, err
 	}

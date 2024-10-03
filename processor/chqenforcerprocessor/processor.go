@@ -103,10 +103,6 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextCo
 		statsExporter.logstats = stats.NewStatsCombiner[*chqpb.LogStats](now, config.Statistics.Interval)
 		statsExporter.logger.Info("sending log statistics", zap.Duration("interval", config.Statistics.Interval))
 		statsExporter.logSampler = sampler.NewLogSamplerImpl(context.Background(), statsExporter.logger)
-	case "spans":
-		statsExporter.spanStats = stats.NewStatsCombiner[*chqpb.SpanStats](now, config.Statistics.Interval)
-		statsExporter.logger.Info("sending span statistics", zap.Duration("interval", config.Statistics.Interval))
-		statsExporter.spanSampler = sampler.NewSpanSamplerImpl(context.Background(), statsExporter.logger)
 	case "metrics":
 		statsExporter.metricstats = stats.NewStatsCombiner[*MetricStat](now, config.Statistics.Interval)
 		statsExporter.logger.Info("sending metric statistics", zap.Duration("interval", config.Statistics.Interval))
@@ -120,11 +116,9 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextCo
 		}
 	case "traces":
 		statsExporter.estimators = make(map[uint64]*SlidingEstimatorStat)
-		statsExporter.estimatorWindowSize = *config.TraceConfig.EstimatorWindowSize
-		statsExporter.estimatorInterval = *config.TraceConfig.EstimatorInterval
-		statsExporter.slowSampler = sampler.NewRPSSampler(sampler.WithMaxRPS(*config.TraceConfig.SlowRate))
-		statsExporter.hasErrorSampler = sampler.NewRPSSampler(sampler.WithMaxRPS(*config.TraceConfig.HasErrorRate))
-		statsExporter.uninterestingSampler = sampler.NewRPSSampler(sampler.WithMaxRPS(*config.TraceConfig.UninterestingRate))
+		statsExporter.spanStats = stats.NewStatsCombiner[*chqpb.SpanStats](now, config.Statistics.Interval)
+		statsExporter.logger.Info("sending span statistics", zap.Duration("interval", config.Statistics.Interval))
+		statsExporter.spanSampler = sampler.NewSpanSamplerImpl(context.Background(), statsExporter.logger)
 	}
 
 	return statsExporter, nil

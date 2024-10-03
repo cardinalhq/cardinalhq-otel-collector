@@ -63,7 +63,7 @@ func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, e
 			sl.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
 				fingerprint := getFingerprint(lr.Attributes())
 				if e.pbPhase == chqpb.Phase_POST {
-					shouldDrop := e.shouldDropLog(fingerprint, rl, sl, lr)
+					shouldDrop := e.shouldDropLog(serviceName, fingerprint, rl, sl, lr)
 					if shouldDrop {
 						return true
 					}
@@ -87,9 +87,9 @@ func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, e
 	return ld, nil
 }
 
-func (e *chqEnforcer) shouldDropLog(fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) bool {
+func (e *chqEnforcer) shouldDropLog(serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) bool {
 	fingerprintString := fmt.Sprintf("%d", fingerprint)
-	rule_match := e.logSampler.Sample(fingerprintString, rl.Resource().Attributes(), sl.Scope().Attributes(), lr.Attributes())
+	rule_match := e.logSampler.Sample(serviceName, fingerprintString, rl, sl, lr)
 	return rule_match != ""
 }
 

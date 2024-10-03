@@ -8,8 +8,8 @@ require (
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
 	github.com/stretchr/testify v1.9.0
 	go.opentelemetry.io/collector/component v0.110.0
-	go.opentelemetry.io/collector/config/confighttp v0.110.0
-	go.opentelemetry.io/collector/extension v0.110.0
+	go.opentelemetry.io/collector/config/confighttp v0.108.1
+	go.opentelemetry.io/collector/extension v0.108.1
 	go.opentelemetry.io/otel/metric v1.30.0
 	go.opentelemetry.io/otel/trace v1.30.0
 	go.uber.org/zap v1.27.0

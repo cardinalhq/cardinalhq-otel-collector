@@ -17,6 +17,7 @@ package sampler
 import (
 	"context"
 	"fmt"
+	"go.opentelemetry.io/collector/pdata/plog"
 	"math/rand"
 	"sync"
 
@@ -25,7 +26,7 @@ import (
 )
 
 type LogSampler interface {
-	Sample(fingerprint string, rattr pcommon.Map, iattr pcommon.Map, lattr pcommon.Map) (droppingRule string)
+	Sample(serviceName string, fingerprint string, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) (droppingRule string)
 	UpdateConfig(config *SamplerConfig, vendor string)
 }
 
@@ -36,13 +37,6 @@ type LogSamplerImpl struct {
 	rules map[string]*logRule
 
 	logger *zap.Logger
-}
-
-type logRule struct {
-	id       string
-	ruleType LogRuleType
-	sampler  Sampler
-	config   LogSamplingConfigV1
 }
 
 func NewLogSamplerImpl(ctx context.Context, logger *zap.Logger) *LogSamplerImpl {
@@ -59,11 +53,15 @@ func (ls *LogSamplerImpl) UpdateConfig(config *SamplerConfig, vendor string) {
 	ls.configure(config.Logs.Sampling, vendor)
 }
 
-func (ls *LogSamplerImpl) Sample(fingerprint string, rattr pcommon.Map, iattr pcommon.Map, lattr pcommon.Map) (droppingRule string) {
+func (ls *LogSamplerImpl) Sample(serviceName string,
+	fingerprint string,
+	rl plog.ResourceLogs,
+	sl plog.ScopeLogs,
+	ll plog.LogRecord) (droppingRule string) {
 	ls.RLock()
 	defer ls.RUnlock()
 
-	return ls.shouldFilter(fingerprint, rattr, iattr, lattr)
+	return ls.shouldFilter(serviceName, fingerprint, rl, sl, ll)
 }
 
 func getServiceName(rattr pcommon.Map) string {
@@ -74,27 +72,26 @@ func getServiceName(rattr pcommon.Map) string {
 	return serviceName.AsString()
 }
 
-func (ls *LogSamplerImpl) shouldFilter(fingerprint string, rattr pcommon.Map, iattr pcommon.Map, lattr pcommon.Map) (droppingRule string) {
+func (ls *LogSamplerImpl) shouldFilter(serviceName string,
+	fingerprint string,
+	rl plog.ResourceLogs,
+	sl plog.ScopeLogs,
+	ll plog.LogRecord) (droppingRule string) {
 	if len(ls.rules) == 0 {
 		return ""
 	}
 
 	ret := ""
 	matched := false
-	key := fmt.Sprintf("%s:%s", getServiceName(rattr), fingerprint)
+	key := fmt.Sprintf("%s:%s", serviceName, fingerprint)
 	randval := rand.Float64()
-	attrs := map[string]pcommon.Map{
-		"resource": rattr,
-		"scope":    iattr,
-		"log":      lattr,
-	}
 
 	for rid, r := range ls.rules {
-		// if we already have a rule, don't bother checking any more random rules.
+		// if we already have a match, don't bother checking any more random rules.
 		if matched && r.ruleType == LogRuleTypeRandom {
 			continue
 		}
-		if matchscope(r.config.Scope, attrs) {
+		if r.evaluate(rl, sl, ll) {
 			rate := r.sampler.GetSampleRate(key)
 			wasHit := shouldFilter(rate, randval)
 			if wasHit && !matched {
@@ -161,11 +158,8 @@ func (ls *LogSamplerImpl) configure(config []LogSamplingConfigV1, vendor string)
 // new rule must be started by the caller.
 func (ls *LogSamplerImpl) addRule(c LogSamplingConfigV1) {
 	ls.logger.Info("Adding log sampling rule", zap.String("id", c.Id), zap.Any("config", c))
-	r := logRule{
-		id:       c.Id,
-		ruleType: logRuletypeToInt(c.RuleType),
-		config:   c,
-	}
+	r := newLogRule(c)
+
 	r.ruleType, r.sampler = samplerForType(c, ls.logger)
 	if r.sampler == nil {
 		ls.logger.Error("Unknown log sampling rule type", zap.String("type", c.RuleType))
@@ -176,7 +170,7 @@ func (ls *LogSamplerImpl) addRule(c LogSamplingConfigV1) {
 		return
 	}
 	ls.logger.Info("Started log sampling rule", zap.String("id", c.Id))
-	ls.rules[c.Id] = &r
+	ls.rules[c.Id] = r
 }
 
 func samplerForType(c LogSamplingConfigV1, logger *zap.Logger) (ruleType LogRuleType, sampler Sampler) {
@@ -207,6 +201,8 @@ func (ls *LogSamplerImpl) updateCurrentRule(r *logRule, c LogSamplingConfigV1) {
 		return
 	}
 	r.config = c
+	r.parseConditions()
+
 	if err := r.sampler.Start(); err != nil {
 		ls.logger.Error("Error starting log sampler", zap.Error(err))
 	}

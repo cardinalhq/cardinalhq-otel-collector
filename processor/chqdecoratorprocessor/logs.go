@@ -17,7 +17,6 @@ package chqdecoratorprocessor
 import (
 	"context"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/fingerprinter"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
@@ -56,7 +55,6 @@ type transformations struct {
 }
 
 type logProcessor struct {
-	sampler sampler.LogSampler
 	logger  *zap.Logger
 	finger  fingerprinter.Fingerprinter
 	podName string
@@ -150,11 +148,8 @@ func (lp *logProcessor) toTransformations(contextStatements []ContextStatement) 
 }
 
 func newLogsProcessor(set processor.Settings, cfg *Config) (*logProcessor, error) {
-	samp := sampler.NewLogSamplerImpl(context.Background(), set.Logger)
-
 	lp := &logProcessor{
 		logger:  set.Logger,
-		sampler: samp,
 		podName: os.Getenv("POD_NAME"),
 	}
 	lp.transformations = lp.toTransformations(cfg.LogsConfig.Transforms)

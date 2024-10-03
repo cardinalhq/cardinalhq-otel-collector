@@ -1,5 +1,11 @@
 github.com/OneOfOne/xxhash v1.2.2 h1:KMrpdQIwFcEqXDklaen+P1axHaj9BSKzvpUUfnHldSE=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
+github.com/alecthomas/assert/v2 v2.3.0 h1:mAsH2wmvjsuvyBvAmCtm7zFsBlb8mIHx5ySLVdDZXL0=
+github.com/alecthomas/assert/v2 v2.3.0/go.mod h1:pXcQ2Asjp247dahGEmsZ6ru0UVwnkhktn7S0bBDLxvQ=
+github.com/alecthomas/participle/v2 v2.1.1 h1:hrjKESvSqGHzRb4yW1ciisFJ4p3MGYih6icjJvbsmV8=
+github.com/alecthomas/participle/v2 v2.1.1/go.mod h1:Y1+hAs8DHPmc3YUFzqllV+eSQ9ljPTk0ZkPMtEdAx2c=
+github.com/alecthomas/repr v0.2.0 h1:HAzS41CIzNW5syS8Mf9UwXhNH1J9aix/BvDRf1Ml2Yk=
+github.com/alecthomas/repr v0.2.0/go.mod h1:Fr0507jx4eOXV7AlPV6AVZLYrLIuIeSOWtW57eE/O/4=
 github.com/apache/datasketches-go v0.0.0-20240723070244-57d8af6c2e71 h1:YfjfaPjGLEUzRjhBfwHhwZW/oBRNCMq+XvxTD1s+md0=
 github.com/apache/datasketches-go v0.0.0-20240723070244-57d8af6c2e71/go.mod h1:d6gftfreCcQJZaXAYyyYkHDwbcrGo63PjgWEYRdHZYw=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
@@ -14,8 +20,15 @@ github.com/cpuguy83/go-md2man/v2 v2.0.4/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46t
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+<<<<<<< HEAD
 github.com/ebitengine/purego v0.8.0 h1:JbqvnEzRvPpxhCJzJJ2y0RbiZ8nyjccVUrSM3q+GvvE=
 github.com/ebitengine/purego v0.8.0/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
+=======
+github.com/elastic/go-grok v0.3.1 h1:WEhUxe2KrwycMnlvMimJXvzRa7DoByJB4PVUIE1ZD/U=
+github.com/elastic/go-grok v0.3.1/go.mod h1:n38ls8ZgOboZRgKcjMY8eFeZFMmcL9n2lP0iHhIDk64=
+github.com/elastic/lunes v0.1.0 h1:amRtLPjwkWtzDF/RKzcEPMvSsSseLDLW+bnhfNSLRe4=
+github.com/elastic/lunes v0.1.0/go.mod h1:xGphYIt3XdZRtyWosHQTErsQTd4OP1p9wsbVoHelrd4=
+>>>>>>> c07b7fb (Add support for OTTL based rules for Logs)
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/fsnotify/fsnotify v1.7.0 h1:8JEhPFa5W2WU7YfeZzPNqzMP6Lwt7L2715Ggo0nosvA=
@@ -28,8 +41,17 @@ github.com/go-logr/stdr v1.2.2/go.mod h1:mMo/vtBO5dYbehREoey6XUKy/eSumjCCveDpRre
 github.com/go-ole/go-ole v1.2.6/go.mod h1:pprOEPIfldk/42T2oK7lQ4v4JSDwmV0As9GaiUsvbm0=
 github.com/go-ole/go-ole v1.3.0 h1:Dt6ye7+vXGIKZ7Xtk4s6/xVdGDQynvom7xCFEdWr6uE=
 github.com/go-ole/go-ole v1.3.0/go.mod h1:5LS6F96DhAwUc7C+1HLexzMXY1xGRSryjyPPKW6zv78=
+<<<<<<< HEAD
 github.com/go-viper/mapstructure/v2 v2.2.1 h1:ZAaOCxANMuZx5RCeg0mBdEZk7DZasvvZIxtHqx8aGss=
 github.com/go-viper/mapstructure/v2 v2.2.1/go.mod h1:oJDH3BJKyqBA2TXFhDsKDGDTlndYOZ6rGS0BRZIxGhM=
+=======
+github.com/go-viper/mapstructure/v2 v2.1.0 h1:gHnMa2Y/pIxElCH2GlZZ1lZSsn6XMtufpGyP1XxdC/w=
+github.com/go-viper/mapstructure/v2 v2.1.0/go.mod h1:oJDH3BJKyqBA2TXFhDsKDGDTlndYOZ6rGS0BRZIxGhM=
+github.com/gobwas/glob v0.2.3 h1:A4xDbljILXROh+kObIiy5kIaPYD8e96x1tgBhUI5J+Y=
+github.com/gobwas/glob v0.2.3/go.mod h1:d3Ez4x06l9bZtSvzIay5+Yzi0fmZzPgnTbPcKjJAkT8=
+github.com/goccy/go-json v0.10.3 h1:KZ5WoDbxAIgm2HNbYckL0se1fHD6rz5j4ywS6ebzDqA=
+github.com/goccy/go-json v0.10.3/go.mod h1:oq7eo15ShAhp70Anwd5lgX2pLfOS3QCiwU/PULtXL6M=
+>>>>>>> c07b7fb (Add support for OTTL based rules for Logs)
 github.com/gogo/protobuf v1.3.2 h1:Ov1cvc58UF3b5XjBnZv7+opcTcQFZebYjWzi34vdm4Q=
 github.com/gogo/protobuf v1.3.2/go.mod h1:P1XiOD3dCwIKUDQYPy72D8LYyHL2YPYrpS2s69NZV8Q=
 github.com/golang/snappy v0.0.4 h1:yAGX7huGHXlcLOEtBnF4w7FQwA26wojNCwOYAEhLjQM=
@@ -48,6 +70,12 @@ github.com/hashicorp/go-multierror v1.1.1 h1:H5DkEtf6CXdFp0N0Em5UCwQpXMWke8IA0+l
 github.com/hashicorp/go-multierror v1.1.1/go.mod h1:iw975J/qwKPdAO1clOe2L8331t/9/fmwbPZ6JB6eMoM=
 github.com/hashicorp/go-version v1.7.0 h1:5tqGy27NaOTB8yJKUZELlFAS/LTKJkrmONwQKeRZfjY=
 github.com/hashicorp/go-version v1.7.0/go.mod h1:fltr4n8CU8Ke44wwGCBoEymUuxUHl09ZGVZPK5anwXA=
+github.com/hashicorp/golang-lru v0.5.4 h1:YDjusn29QI/Das2iO9M0BHnIbxPeyuCHsjMW+lJfyTc=
+github.com/hashicorp/golang-lru v0.5.4/go.mod h1:iADmTwqILo4mZ8BN3D2Q6+9jd8WM5uGBxy+E8yxSoD4=
+github.com/hexops/gotextdiff v1.0.3 h1:gitA9+qJrrTCsiCl7+kh75nPqQt1cx4ZkudSTLoUqJM=
+github.com/hexops/gotextdiff v1.0.3/go.mod h1:pSWU5MAI3yDq+fZBTazCSJysOMbxWL1BSow5/V2vxeg=
+github.com/iancoleman/strcase v0.3.0 h1:nTXanmYxhfFAMjZL34Ov6gkzEsSJZ5DbhxWjvSASxEI=
+github.com/iancoleman/strcase v0.3.0/go.mod h1:iwCmte+B7n89clKwxIoIXy/HfoL7AsD47ZCWhYzw7ho=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=
@@ -68,8 +96,15 @@ github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
 github.com/kr/text v0.2.0/go.mod h1:eLer722TekiGuMkidMxC/pM04lWEeraHUUmBw8l2grE=
 github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0SNc=
 github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
+<<<<<<< HEAD
 github.com/lufia/plan9stats v0.0.0-20240909124753-873cd0166683 h1:7UMa6KCCMjZEMDtTVdcGu0B1GmmC7QJKiCCjyTAWQy0=
 github.com/lufia/plan9stats v0.0.0-20240909124753-873cd0166683/go.mod h1:ilwx/Dta8jXAgpFYFvSWEMwxmbWXyiUHkd5FwyKhb5k=
+=======
+github.com/lufia/plan9stats v0.0.0-20240819163618-b1d8f4d146e7 h1:5RK988zAqB3/AN3opGfRpoQgAVqr6/A5+qRTi67VUZY=
+github.com/lufia/plan9stats v0.0.0-20240819163618-b1d8f4d146e7/go.mod h1:ilwx/Dta8jXAgpFYFvSWEMwxmbWXyiUHkd5FwyKhb5k=
+github.com/magefile/mage v1.15.0 h1:BvGheCMAsG3bWUDbZ8AyXXpCNwU9u5CB6sM+HNb9HYg=
+github.com/magefile/mage v1.15.0/go.mod h1:z5UZb/iS3GoOSn0JgWuiw7dxlurVYTu+/jHXqQg881A=
+>>>>>>> c07b7fb (Add support for OTTL based rules for Logs)
 github.com/mitchellh/copystructure v1.2.0 h1:vpKXTN4ewci03Vljg/q9QvCGUDttBOGBIa15WveJJGw=
 github.com/mitchellh/copystructure v1.2.0/go.mod h1:qLl+cE2AmVv+CoeAwDPye/v+N2HKCj9FbZEVFJRxO9s=
 github.com/mitchellh/reflectwalk v1.0.2 h1:G2LzWKi524PWgd3mLHV8Y5k7s6XUvT0Gef6zxSIeXaQ=
@@ -81,6 +116,10 @@ github.com/modern-go/reflect2 v1.0.2 h1:xBagoLtFs94CBntxluKeaWgTMpvLxC4ur3nMaC9G
 github.com/modern-go/reflect2 v1.0.2/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjYzDa0/r8luk=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
+github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal v0.110.0 h1:Pn3SxtOswZyyebq7AIuM1FSDNOUW525QjWdgqUzPHLM=
+github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal v0.110.0/go.mod h1:ZjPILhF0GqsPugqe530whfSWKxamiydp7ukaFgM/aEM=
+github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl v0.110.0 h1:GMVz1u0Nf/jpaXVc06HEUWLNIdjhEZeyMtMbTYc/1+M=
+github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl v0.110.0/go.mod h1:KBzZVcHIP+fRqLkTFZU+6uL571KrkyZ6kvGVHRIMpMM=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 h1:o4JXh1EVt9k/+g42oCprj/FisM4qX9L3sZB3upGN2ZU=
@@ -117,18 +156,26 @@ github.com/tklauser/numcpus v0.8.0 h1:Mx4Wwe/FjZLeQsK/6kt2EOepwwSl7SmJrK5bV/dXYg
 github.com/tklauser/numcpus v0.8.0/go.mod h1:ZJZlAY+dmR4eut8epnzf0u/VwodKmryxR8txiloSqBE=
 github.com/twmb/murmur3 v1.1.8 h1:8Yt9taO/WN3l08xErzjeschgZU2QSrwm1kclYq+0aRg=
 github.com/twmb/murmur3 v1.1.8/go.mod h1:Qq/R7NUyOfr65zD+6Q5IHKsJLwP7exErjN6lyyq3OSQ=
+github.com/ua-parser/uap-go v0.0.0-20240611065828-3a4781585db6 h1:SIKIoA4e/5Y9ZOl0DCe3eVMLPOQzJxgZpfdHHeauNTM=
+github.com/ua-parser/uap-go v0.0.0-20240611065828-3a4781585db6/go.mod h1:BUbeWZiieNxAuuADTBNb3/aeje6on3DhU3rpWsQSB1E=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo0=
 github.com/yusufpapurcu/wmi v1.2.4/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
+<<<<<<< HEAD
 go.opentelemetry.io/collector v0.110.0 h1:v1muSqb80nTvzQa/4nR83JqvKISNRQn1zvi1EyhLTuk=
 go.opentelemetry.io/collector v0.110.0/go.mod h1:N3tbcxHKHxBZcnsgM8l33/44rsZOABff5Hpo0aWg1cU=
+=======
+go.opentelemetry.io/collector v0.108.1 h1:c3JZU5g5KezDXaMgL7GDFB7ihuLNzXo6eBuaJOmBiDA=
+go.opentelemetry.io/collector v0.108.1/go.mod h1:7GL32WiQkZzJjxHstHme9igzYumDsw1hFPep3v1guHQ=
+>>>>>>> c07b7fb (Add support for OTTL based rules for Logs)
 go.opentelemetry.io/collector/client v1.16.0 h1:3m7HzWR41+4M8r9q7UvEDjMBTFMrik/BdvAuwCs0cV4=
 go.opentelemetry.io/collector/client v1.16.0/go.mod h1:N01Alc/CouREl18hmxdaQXGfID7dBZrrbsBar7WHkZ0=
 go.opentelemetry.io/collector/component v0.110.0 h1:z7uSY/1dcK+vTY2z3v0XxeCoi2wqgHTow/ds3Gozuz4=
 go.opentelemetry.io/collector/component v0.110.0/go.mod h1:W99gZdfGtQ5Zg6Bhrwrcl/uZcCG+2qBnZ1z2JO5WCW0=
 go.opentelemetry.io/collector/component/componentprofiles v0.110.0 h1:YH43aYKPYfnC0TqgI+WlbHsJkTvQPO3ImJybK3oyxQ8=
 go.opentelemetry.io/collector/component/componentprofiles v0.110.0/go.mod h1:ZDVFaOhCt6ce2u/HHwqxoV5f+8P2dh0Xut8laYRu4+o=
+<<<<<<< HEAD
 go.opentelemetry.io/collector/component/componentstatus v0.110.0 h1:j+Fg88CgxmiCKL6cBCKRLHTduYbNE1OK1OYaXxGjuk4=
 go.opentelemetry.io/collector/component/componentstatus v0.110.0/go.mod h1:UI3vOkwnI6JkRYxuWCrrlJe45ywTdlew426r4Wy4gH4=
 go.opentelemetry.io/collector/config/configauth v0.110.0 h1:EtrWNvrYvQzj7zYiZQUxlgAkaXKp2j1tha5AP2YnN2E=
@@ -161,12 +208,45 @@ go.opentelemetry.io/collector/connector v0.110.0 h1:gUUjgLzeipFAGAwDtKAqMtMRM4dU
 go.opentelemetry.io/collector/connector v0.110.0/go.mod h1:k4OjXus3SntyImXcEZzw2+6DS2MZAyBEfp/j2tbSNHU=
 go.opentelemetry.io/collector/connector/connectorprofiles v0.110.0 h1:EHdVhXPRZ1IFwVfo5a9IiOs3RJ6wtbTL4W5f1p3Q3Vo=
 go.opentelemetry.io/collector/connector/connectorprofiles v0.110.0/go.mod h1:VG1L8zbGZfWwJTlN4KYUcFMWVHXys86NfcshY+uVuLk=
+=======
+go.opentelemetry.io/collector/component/componentstatus v0.108.1 h1:63B7/TsZ1wIT+JFopOAAvyM8GaWDyJQncQ/G12HR334=
+go.opentelemetry.io/collector/component/componentstatus v0.108.1/go.mod h1:PAJmG8ip5gvEtJ9uPpLtVmwnxtjA8t4MmEbzg6nQxVs=
+go.opentelemetry.io/collector/config/configauth v0.108.1 h1:If0hRGyfDbC9Y80CYcLBKeSdY7BXcs98r7gPJlzH5uU=
+go.opentelemetry.io/collector/config/configauth v0.108.1/go.mod h1:8P3fOkwwP7k09xaTKmu7MrMgTZmMXtWdUrJQgjhy3a4=
+go.opentelemetry.io/collector/config/configcompression v1.14.1 h1:YiNlBSeyDaFWrDPFpMJ7y7XlWYMDV0bh8GwO9ukXNa8=
+go.opentelemetry.io/collector/config/configcompression v1.14.1/go.mod h1:pnxkFCLUZLKWzYJvfSwZnPrnm0twX14CYj2ADth5xiU=
+go.opentelemetry.io/collector/config/confighttp v0.108.1 h1:+KRFQfm0W2NHEtNMa1UuXvXvBX6B/2CTBvJk6Zi3Jhk=
+go.opentelemetry.io/collector/config/confighttp v0.108.1/go.mod h1:iqdC0Gljy2U7HDX3a7pZlAH2EI3TNhFWyoVwc9R16XE=
+go.opentelemetry.io/collector/config/configopaque v1.14.1 h1:5xAEa4ld+57xWKdU2gR5/6+rBa7LTCPfShJQFUxN0Zw=
+go.opentelemetry.io/collector/config/configopaque v1.14.1/go.mod h1:6zlLIyOoRpJJ+0bEKrlZOZon3rOp5Jrz9fMdR4twOS4=
+go.opentelemetry.io/collector/config/configretry v1.14.1 h1:kJBpb/1GGKktEa6taf4TgfFY34JD4WpCFVq9by+VWyU=
+go.opentelemetry.io/collector/config/configretry v1.14.1/go.mod h1:KvQF5cfphq1rQm1dKR4eLDNQYw6iI2fY72NMZVa+0N0=
+go.opentelemetry.io/collector/config/configtelemetry v0.110.0 h1:V8Y/Xv7TJpnNGHLrheRKrMydcKBxWYAZ+dj71Kllyos=
+go.opentelemetry.io/collector/config/configtelemetry v0.110.0/go.mod h1:R0MBUxjSMVMIhljuDHWIygzzJWQyZHXXWIgQNxcFwhc=
+go.opentelemetry.io/collector/config/configtls v1.14.1 h1:cd5kNvLnIe+GVHUV6Fk6O5fkwS4at8dVCrFo7t0O8kE=
+go.opentelemetry.io/collector/config/configtls v1.14.1/go.mod h1:StxglrVWeRIFaqc2hpsF9xSsv2A5MOAx5GhG4WjFuP4=
+go.opentelemetry.io/collector/config/internal v0.108.1 h1:Z/U8+UpvGT2DZ64/kp/nlosJgjCkhZ7MaEqQ3QHudyo=
+go.opentelemetry.io/collector/config/internal v0.108.1/go.mod h1:tRaaE2CNdXE3lUQcIBGJkdBPSGYY3Taa6DzkWmxmgzk=
+go.opentelemetry.io/collector/confmap v1.14.1 h1:GPMa+q5ThiBFQaYKJ7xeomiw9tIokkTA1AiF1zwKJck=
+go.opentelemetry.io/collector/confmap v1.14.1/go.mod h1:GrIZ12P/9DPOuTpe2PIS51a0P/ZM6iKtByVee1Uf3+k=
+go.opentelemetry.io/collector/confmap/provider/envprovider v0.108.1 h1:Y6NsaeHnRaptyDzThK7SesFsBJm6A8FlEymYnezuEC0=
+go.opentelemetry.io/collector/confmap/provider/envprovider v0.108.1/go.mod h1:1LFEe1dy5EuSPOq2nUmodFo3JnJOme5+TxtsPPLgfRA=
+go.opentelemetry.io/collector/confmap/provider/fileprovider v0.108.1 h1:EyRKaxRe8A+5JU0vYPeNqj260dguUzaFkrh63PKkGk8=
+go.opentelemetry.io/collector/confmap/provider/fileprovider v0.108.1/go.mod h1:3Vl2shpuWraLK7ydsVjDiZuPGxDs+F54/NBLFun0EaU=
+go.opentelemetry.io/collector/confmap/provider/httpprovider v0.108.1 h1:1qPMc5TEL/J/80y7mmc0sZCPpurW2E6uJrzUDKpNMMQ=
+go.opentelemetry.io/collector/confmap/provider/httpprovider v0.108.1/go.mod h1:Knp6z1C2fHWO58AG4gas+1du+rWQfV4mr4G5ttQEa7g=
+go.opentelemetry.io/collector/confmap/provider/yamlprovider v0.108.1 h1:SeSLl88erP2+S1fc0Z2VP/HMXWxunfoNSemhOOw0xKI=
+go.opentelemetry.io/collector/confmap/provider/yamlprovider v0.108.1/go.mod h1:ozOtsxcQXrVndGjNwzsXcWfo0+dpBtHmL7bMrPE2EIM=
+go.opentelemetry.io/collector/connector v0.108.1 h1:+5QvgQrMRtA8//Io+6BsgP7kl3IIjKiiI/bFDvKM56Y=
+go.opentelemetry.io/collector/connector v0.108.1/go.mod h1:jIoTENAyA+BqkzqlttJK3cAehZ1WpbyTM87i/N6t1pc=
+>>>>>>> c07b7fb (Add support for OTTL based rules for Logs)
 go.opentelemetry.io/collector/consumer v0.110.0 h1:CnB83KSFQxhFAbNJwTM0blahg16xa6CyUnIIA5qPMbA=
 go.opentelemetry.io/collector/consumer v0.110.0/go.mod h1:WlzhfwDfwKkEa5XFdN5x9+jjp9ZF5EUSmtOgVe69zm0=
 go.opentelemetry.io/collector/consumer/consumerprofiles v0.110.0 h1:KlEGGPFmQN7CFbj8pkiD9J6L820kJgC0zYKqeSFGLEo=
 go.opentelemetry.io/collector/consumer/consumerprofiles v0.110.0/go.mod h1:Br4qElhLqAYDMddroNox3CpNv+NxgPgNfGhxFXXxYIw=
 go.opentelemetry.io/collector/consumer/consumertest v0.110.0 h1:/rOL4sJr4eSzOp5z6+R7MmuJ5UD6PFOs7S2FA7puE1g=
 go.opentelemetry.io/collector/consumer/consumertest v0.110.0/go.mod h1:sKL3UwB6nyH/33JE173o755ekYPwlS/8fs8opTSgPiY=
+<<<<<<< HEAD
 go.opentelemetry.io/collector/exporter v0.110.0 h1:9XIzyk/xlNuSCfwEebJO9uiAlC4hjwhUSZbYv4JAXEE=
 go.opentelemetry.io/collector/exporter v0.110.0/go.mod h1:Nr3aSDaak4j8tOCRqp4gUhsYloXwnhZnQ/sz0Qqb+yY=
 go.opentelemetry.io/collector/exporter/exporterprofiles v0.110.0 h1:zq3RDDYX7jKTNEJgFbbfAtjeOtMU+doabpZzIyRoRv0=
@@ -191,6 +271,26 @@ go.opentelemetry.io/collector/otelcol v0.110.0 h1:nZjsCSQ6StXaJUxyFBH+VC35BQJ+Dp
 go.opentelemetry.io/collector/otelcol v0.110.0/go.mod h1:x7KFlMkEirBPp9P9oisM05oLztSqVFps9D7jPDuqr8A=
 go.opentelemetry.io/collector/otelcol/otelcoltest v0.110.0 h1:eGiaB8ByeiwiHeaOoPi0M8ZgucCJOkUJwBAb20DaMlE=
 go.opentelemetry.io/collector/otelcol/otelcoltest v0.110.0/go.mod h1:fV9o7foiDVvmtzQjAXkMNdp2FLcN59I5itRbpQOSxgA=
+=======
+go.opentelemetry.io/collector/exporter v0.108.1 h1:VjtbIwwR2B1GMf69FxVvwcKYIpbkC7v2wBxLt5vjYKI=
+go.opentelemetry.io/collector/exporter v0.108.1/go.mod h1:nD32bomG/yYyqwTZQJFIhRhP++bbk+3oqlx+/RZZ6XY=
+go.opentelemetry.io/collector/extension v0.108.1 h1:XNQ9bOegD38gktyLJXlGN2Wb6AbiBi2nAuiOIdg+zA0=
+go.opentelemetry.io/collector/extension v0.108.1/go.mod h1:fZE5j4jL9XVbm4H53gj9y/VDhP/5assmZ4yU0EwSjBc=
+go.opentelemetry.io/collector/extension/auth v0.108.1 h1:h1kuC5Lvzxb3LcShUXdVHjh+PpqX/Kpd2ypNObwxH0s=
+go.opentelemetry.io/collector/extension/auth v0.108.1/go.mod h1:QLvy/dJdiPEhUbkhqIythMoVnZxmvbzeA2Wnm4oZSgU=
+go.opentelemetry.io/collector/extension/zpagesextension v0.108.1 h1:OH250Z/bXJTZjkeMwUERbLZiNPETlOxE3q4n536Kc4s=
+go.opentelemetry.io/collector/extension/zpagesextension v0.108.1/go.mod h1:3QSnFvGq5jXXwSPi94x2ggBGPZxdtD0lxpPOpV3RZRc=
+go.opentelemetry.io/collector/featuregate v1.14.1 h1:5jvlRe1b5FqhGsyYtuwrzNhFLthGCfm98b3PsCRgXDA=
+go.opentelemetry.io/collector/featuregate v1.14.1/go.mod h1:47xrISO71vJ83LSMm8+yIDsUbKktUp48Ovt7RR6VbRs=
+go.opentelemetry.io/collector/internal/globalgates v0.108.1 h1:mzSR+psDtEdxwWBQP/e5ZSovPswU+fG5ctvWNvQ6MiU=
+go.opentelemetry.io/collector/internal/globalgates v0.108.1/go.mod h1:N3Ha+6JNawEoxVP35MKHnQtKW9zGa6XY/h/9rF96ZZg=
+go.opentelemetry.io/collector/internal/globalsignal v0.110.0 h1:S6bfFEiek8vJeXAbciWS7W8UR6ZrVJB3ftNyFTMHQaY=
+go.opentelemetry.io/collector/internal/globalsignal v0.110.0/go.mod h1:GqMXodPWOxK5uqpX8MaMXC2389y2XJTa5nPwf8FYDK8=
+go.opentelemetry.io/collector/otelcol v0.108.1 h1:fp9AplsVClzuF/iKO5LBZjswmybA1pfVujxWBfQ9OsA=
+go.opentelemetry.io/collector/otelcol v0.108.1/go.mod h1:8QIMB1AsnRJiHBOcLN+jD20rBP8J0dY/7dCAZVP979c=
+go.opentelemetry.io/collector/otelcol/otelcoltest v0.108.1 h1:hgno9ZIHXDa5O76MTjcZpc/HIaS3dh+Ou70kO/p/0bs=
+go.opentelemetry.io/collector/otelcol/otelcoltest v0.108.1/go.mod h1:XFUp8EA7YVU1Reww/8+bGDCe1CMI1GoEZU3609ps3j4=
+>>>>>>> c07b7fb (Add support for OTTL based rules for Logs)
 go.opentelemetry.io/collector/pdata v1.16.0 h1:g02K8jlRnmQ7TQDuXpdgVL6vIxIVqr5Gbb1qIR27rto=
 go.opentelemetry.io/collector/pdata v1.16.0/go.mod h1:YZZJIt2ehxosYf/Y1pbvexjNWsIGNNrzzlCTO9jC1F4=
 go.opentelemetry.io/collector/pdata/pprofile v0.110.0 h1:DknuOGOdjYIzVnromhVcW5rWyyjPahf65UAfgXz1xfo=
@@ -199,16 +299,22 @@ go.opentelemetry.io/collector/pdata/testdata v0.110.0 h1:XUXuaKVpD5G7VvTlBCBo/7C
 go.opentelemetry.io/collector/pdata/testdata v0.110.0/go.mod h1:lvpGoQcVDbRjuH3caNIkQ+pkU/+MLKVV4MdNFcp5mxU=
 go.opentelemetry.io/collector/pipeline v0.110.0 h1:nArQj8lt2R6ajbbmZ0f7JqkzAzvIOSwxsxDEv9HGKHw=
 go.opentelemetry.io/collector/pipeline v0.110.0/go.mod h1:qWk90kohDYBgI/1Kw4DQaQU82+y9GJY8MDse7H2JTWg=
+<<<<<<< HEAD
 go.opentelemetry.io/collector/processor v0.110.0 h1:i7/RB5otjkbrk1+c7WG1KbRpTqSbYnI+QDs1BULVKik=
 go.opentelemetry.io/collector/processor v0.110.0/go.mod h1:+vzvc4F5VeoTjJe7jIHH8lIO9daSZE4+z8RGpSRoryg=
 go.opentelemetry.io/collector/processor/processorprofiles v0.110.0 h1:bFzfDON5xPh+d83jn+pEz8yk8TldbGPt0z3ZF4SHCjU=
 go.opentelemetry.io/collector/processor/processorprofiles v0.110.0/go.mod h1:psxTLRj+C+H91DG+KMnyycUCTKWtGMhOkGCpO0Pb3CA=
+=======
+go.opentelemetry.io/collector/processor v0.108.1 h1:Mly4umNdYxqANdd3WfGS0XAttx2wPWaFdAL83Gbkch8=
+go.opentelemetry.io/collector/processor v0.108.1/go.mod h1:KO37fWaj20BNCffVeVm2PePuMqskgkfMmgOscs9FUtk=
+>>>>>>> c07b7fb (Add support for OTTL based rules for Logs)
 go.opentelemetry.io/collector/receiver v0.110.0 h1:uv+mCadEpWT7yoRvMil1bY44aZbZ7y4oAqsjvypf+t4=
 go.opentelemetry.io/collector/receiver v0.110.0/go.mod h1:rTNskk6R+8bU4dlAB1IgdwkIiBl44+C6qcvdyarAyF0=
 go.opentelemetry.io/collector/receiver/receiverprofiles v0.110.0 h1:QDbKYVQFlQJfo05qS8O0zyZghxeGmxlVUKIuIJQST6U=
 go.opentelemetry.io/collector/receiver/receiverprofiles v0.110.0/go.mod h1:DsNqyNWfax62zb1y2ek2ERzrEAiaJocSfc+QLtHNnxI=
 go.opentelemetry.io/collector/semconv v0.110.0 h1:KHQnOHe3gUz0zsxe8ph9kN5OTypCFD4V+06AiBTfeNk=
 go.opentelemetry.io/collector/semconv v0.110.0/go.mod h1:zCJ5njhWpejR+A40kiEoeFm1xq1uzyZwMnRNX6/D82A=
+<<<<<<< HEAD
 go.opentelemetry.io/collector/service v0.110.0 h1:jeGdUi+5HQuH0Ho/Gd+VusY77MYJAUxUm0Vxh7aNbjQ=
 go.opentelemetry.io/collector/service v0.110.0/go.mod h1:FDa4DFK49FhjNvLnin48bdxZ15IedaU86EcyD3BceqU=
 go.opentelemetry.io/contrib/config v0.10.0 h1:2JknAzMaYjxrHkTnZh3eOme/Y2P5eHE2SWfhfV6Xd6c=
@@ -243,12 +349,53 @@ go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.30.0 h1:kn1BudCgwtE7PxL
 go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.30.0/go.mod h1:ljkUDtAMdleoi9tIG1R6dJUpVwDcYjw3J2Q6Q/SuiC0=
 go.opentelemetry.io/otel/log v0.6.0 h1:nH66tr+dmEgW5y+F9LanGJUBYPrRgP4g2EkmPE3LeK8=
 go.opentelemetry.io/otel/log v0.6.0/go.mod h1:KdySypjQHhP069JX0z/t26VHwa8vSwzgaKmXtIB3fJM=
+=======
+go.opentelemetry.io/collector/service v0.108.1 h1:Ov0qP5JiX0DHaCrZY0jHnpqc8MVHwSZKdZHpCfSJVUQ=
+go.opentelemetry.io/collector/service v0.108.1/go.mod h1:mbZXlO5gT99nXNGbDOG6peqPd6og5Tm49P4FP0oi56U=
+go.opentelemetry.io/contrib/config v0.9.0 h1:AJ1c6+vJ6SxvqBBhsi2RhLFMlc6SnJOg81Jp4toFyNw=
+go.opentelemetry.io/contrib/config v0.9.0/go.mod h1:u/u2L6y/c8GKrq/AP51sfXV4Eu24btVlC3A5f867xwg=
+go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.54.0 h1:TT4fX+nBOA/+LUkobKGW1ydGcn+G3vRw9+g5HwCphpk=
+go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.54.0/go.mod h1:L7UH0GbB0p47T4Rri3uHjbpCFYrVrwc1I25QhNPiGK8=
+go.opentelemetry.io/contrib/propagators/b3 v1.29.0 h1:hNjyoRsAACnhoOLWupItUjABzeYmX3GTTZLzwJluJlk=
+go.opentelemetry.io/contrib/propagators/b3 v1.29.0/go.mod h1:E76MTitU1Niwo5NSN+mVxkyLu4h4h7Dp/yh38F2WuIU=
+go.opentelemetry.io/contrib/zpages v0.53.0 h1:hGgaJ3nrescxEk383gOBHA5gNfoquHs8oV/XcKYxJkw=
+go.opentelemetry.io/contrib/zpages v0.53.0/go.mod h1:iOo8fpUxMAu5+4x9DSEQeUOCeY19KaN6v2OPSeIggz4=
+go.opentelemetry.io/otel v1.30.0 h1:F2t8sK4qf1fAmY9ua4ohFS/K+FUuOPemHUIXHtktrts=
+go.opentelemetry.io/otel v1.30.0/go.mod h1:tFw4Br9b7fOS+uEao81PJjVMjW/5fvNCbpsDIXqP0pc=
+go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.5.0 h1:4d++HQ+Ihdl+53zSjtsCUFDmNMju2FC9qFkUlTxPLqo=
+go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.5.0/go.mod h1:mQX5dTO3Mh5ZF7bPKDkt5c/7C41u/SiDr9XgTpzXXn8=
+go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.29.0 h1:k6fQVDQexDE+3jG2SfCQjnHS7OamcP73YMoxEVq5B6k=
+go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.29.0/go.mod h1:t4BrYLHU450Zo9fnydWlIuswB1bm7rM8havDpWOJeDo=
+go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.29.0 h1:xvhQxJ/C9+RTnAj5DpTg7LSM1vbbMTiXt7e9hsfqHNw=
+go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.29.0/go.mod h1:Fcvs2Bz1jkDM+Wf5/ozBGmi3tQ/c9zPKLnsipnfhGAo=
+go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.29.0 h1:dIIDULZJpgdiHz5tXrTgKIMLkus6jEFa7x5SOKcyR7E=
+go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.29.0/go.mod h1:jlRVBe7+Z1wyxFSUs48L6OBQZ5JwH2Hg/Vbl+t9rAgI=
+go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.29.0 h1:nSiV3s7wiCam610XcLbYOmMfJxB9gO4uK3Xgv5gmTgg=
+go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.29.0/go.mod h1:hKn/e/Nmd19/x1gvIHwtOwVWM+VhuITSWip3JUDghj0=
+go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.29.0 h1:JAv0Jwtl01UFiyWZEMiJZBiTlv5A50zNs8lsthXqIio=
+go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.29.0/go.mod h1:QNKLmUEAq2QUbPQUfvw4fmv0bgbK7UlOSFCnXyfvSNc=
+go.opentelemetry.io/otel/exporters/prometheus v0.51.0 h1:G7uexXb/K3T+T9fNLCCKncweEtNEBMTO+46hKX5EdKw=
+go.opentelemetry.io/otel/exporters/prometheus v0.51.0/go.mod h1:v0mFe5Kk7woIh938mrZBJBmENYquyA0IICrlYm4Y0t4=
+go.opentelemetry.io/otel/exporters/stdout/stdoutlog v0.5.0 h1:ThVXnEsdwNcxdBO+r96ci1xbF+PgNjwlk457VNuJODo=
+go.opentelemetry.io/otel/exporters/stdout/stdoutlog v0.5.0/go.mod h1:rHWcSmC4q2h3gje/yOq6sAOaq8+UHxN/Ru3BbmDXOfY=
+go.opentelemetry.io/otel/exporters/stdout/stdoutmetric v1.29.0 h1:WDdP9acbMYjbKIyJUhTvtzj601sVJOqgWdUxSdR/Ysc=
+go.opentelemetry.io/otel/exporters/stdout/stdoutmetric v1.29.0/go.mod h1:BLbf7zbNIONBLPwvFnwNHGj4zge8uTCM/UPIVW1Mq2I=
+go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.29.0 h1:X3ZjNp36/WlkSYx0ul2jw4PtbNEDDeLskw3VPsrpYM0=
+go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.29.0/go.mod h1:2uL/xnOXh0CHOBFCWXz5u1A4GXLiW+0IQIzVbeOEQ0U=
+go.opentelemetry.io/otel/log v0.5.0 h1:x1Pr6Y3gnXgl1iFBwtGy1W/mnzENoK0w0ZoaeOI3i30=
+go.opentelemetry.io/otel/log v0.5.0/go.mod h1:NU/ozXeGuOR5/mjCRXYbTC00NFJ3NYuraV/7O78F0rE=
+>>>>>>> c07b7fb (Add support for OTTL based rules for Logs)
 go.opentelemetry.io/otel/metric v1.30.0 h1:4xNulvn9gjzo4hjg+wzIKG7iNFEaBMX00Qd4QIZs7+w=
 go.opentelemetry.io/otel/metric v1.30.0/go.mod h1:aXTfST94tswhWEb+5QjlSqG+cZlmyXy/u8jFpor3WqQ=
 go.opentelemetry.io/otel/sdk v1.30.0 h1:cHdik6irO49R5IysVhdn8oaiR9m8XluDaJAs4DfOrYE=
 go.opentelemetry.io/otel/sdk v1.30.0/go.mod h1:p14X4Ok8S+sygzblytT1nqG98QG2KYKv++HE0LY/mhg=
+<<<<<<< HEAD
 go.opentelemetry.io/otel/sdk/log v0.6.0 h1:4J8BwXY4EeDE9Mowg+CyhWVBhTSLXVXodiXxS/+PGqI=
 go.opentelemetry.io/otel/sdk/log v0.6.0/go.mod h1:L1DN8RMAduKkrwRAFDEX3E3TLOq46+XMGSbUfHU/+vE=
+=======
+go.opentelemetry.io/otel/sdk/log v0.5.0 h1:A+9lSjlZGxkQOr7QSBJcuyyYBw79CufQ69saiJLey7o=
+go.opentelemetry.io/otel/sdk/log v0.5.0/go.mod h1:zjxIW7sw1IHolZL2KlSAtrUi8JHttoeiQy43Yl3WuVQ=
+>>>>>>> c07b7fb (Add support for OTTL based rules for Logs)
 go.opentelemetry.io/otel/sdk/metric v1.30.0 h1:QJLT8Pe11jyHBHfSAgYH7kEmT24eX792jZO1bo4BXkM=
 go.opentelemetry.io/otel/sdk/metric v1.30.0/go.mod h1:waS6P3YqFNzeP01kuo/MBBYqaoBJl7efRQHOaydhy1Y=
 go.opentelemetry.io/otel/trace v1.30.0 h1:7UBkkYzeg3C7kQX8VAidWh2biiQbtAKjyIML8dQ9wmc=
@@ -299,16 +446,28 @@ golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8T
 golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 gonum.org/v1/gonum v0.15.1 h1:FNy7N6OUZVUaWG9pTiD+jlhdQ3lMP+/LcTpJ6+a8sQ0=
 gonum.org/v1/gonum v0.15.1/go.mod h1:eZTZuRFrzu5pcyjN5wJhcIhnUdNijYxX1T2IcrOGY0o=
+<<<<<<< HEAD
 google.golang.org/genproto/googleapis/api v0.0.0-20240930140551-af27646dc61f h1:jTm13A2itBi3La6yTGqn8bVSrc3ZZ1r8ENHlIXBfnRA=
 google.golang.org/genproto/googleapis/api v0.0.0-20240930140551-af27646dc61f/go.mod h1:CLGoBuH1VHxAUXVPP8FfPwPEVJB6lz3URE5mY2SuayE=
 google.golang.org/genproto/googleapis/rpc v0.0.0-20240930140551-af27646dc61f h1:cUMEy+8oS78BWIH9OWazBkzbr090Od9tWBNtZHkOhf0=
 google.golang.org/genproto/googleapis/rpc v0.0.0-20240930140551-af27646dc61f/go.mod h1:UqMtugtsSgubUsoxbuAoiCXvqvErP7Gf0so0mK9tHxU=
 google.golang.org/grpc v1.67.1 h1:zWnc1Vrcno+lHZCOofnIMvycFcc0QRGIzm9dhnDX68E=
 google.golang.org/grpc v1.67.1/go.mod h1:1gLDyUQU7CTLJI90u3nXZ9ekeghjeM7pTDZlqFNg2AA=
+=======
+google.golang.org/genproto/googleapis/api v0.0.0-20240827150818-7e3bb234dfed h1:3RgNmBoI9MZhsj3QxC+AP/qQhNwpCLOvYDYYsFrhFt0=
+google.golang.org/genproto/googleapis/api v0.0.0-20240827150818-7e3bb234dfed/go.mod h1:OCdP9MfskevB/rbYvHTsXTtKC+3bHWajPdoKgjcYkfo=
+google.golang.org/genproto/googleapis/rpc v0.0.0-20240827150818-7e3bb234dfed h1:J6izYgfBXAI3xTKLgxzTmUltdYaLsuBxFCgDHWJ/eXg=
+google.golang.org/genproto/googleapis/rpc v0.0.0-20240827150818-7e3bb234dfed/go.mod h1:UqMtugtsSgubUsoxbuAoiCXvqvErP7Gf0so0mK9tHxU=
+google.golang.org/grpc v1.66.2 h1:3QdXkuq3Bkh7w+ywLdLvM56cmGvQHUMZpiCzt6Rqaoo=
+google.golang.org/grpc v1.66.2/go.mod h1:s3/l6xSSCURdVfAnL+TqCNMyTDAGN6+lZeVxnZR128Y=
+>>>>>>> c07b7fb (Add support for OTTL based rules for Logs)
 google.golang.org/protobuf v1.34.2 h1:6xV6lTsCfpGD21XK49h7MhtcApnLqkfYgPcdHftf6hg=
 google.golang.org/protobuf v1.34.2/go.mod h1:qYOHts0dSfpeUzUFpOMr/WGzszTmLH+DiWniOlNbLDw=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c h1:Hei/4ADfdWqJk1ZMxUNpqntNwaWcugrBjAiHlqqRiVk=
 gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c/go.mod h1:JHkPIbrfpd72SG/EVd6muEfDQjcINNoR0C8j2r3qZ4Q=
+gopkg.in/yaml.v2 v2.2.1/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
+gopkg.in/yaml.v2 v2.4.0 h1:D8xgwECY7CYvx+Y2n4sBz93Jn9JRvxdiyyo8CTfuKaY=
+gopkg.in/yaml.v2 v2.4.0/go.mod h1:RDklbk79AGWmwhnvt/jBztapEOGDOx6ZbXqjP6csGnQ=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=

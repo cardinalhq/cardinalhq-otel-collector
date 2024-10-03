@@ -14,8 +14,6 @@
 
 package sampler
 
-import "maps"
-
 type SamplerConfig struct {
 	Logs    LogConfigV1    `json:"logs,omitempty" yaml:"logs,omitempty"`
 	Metrics MetricConfigV1 `json:"metrics,omitempty" yaml:"metrics,omitempty"`
@@ -28,13 +26,18 @@ type LogConfigV1 struct {
 	Sampling []LogSamplingConfigV1 `json:"sampling,omitempty" yaml:"sampling,omitempty"`
 }
 
+type Filter struct {
+	ContextId string `json:"contextId,omitempty" yaml:"contextId,omitempty"`
+	Condition string `json:"condition,omitempty" yaml:"condition,omitempty"`
+}
+
 type LogSamplingConfigV1 struct {
-	Id         string            `json:"id,omitempty" yaml:"id,omitempty"`
-	RuleType   string            `json:"ruleType,omitempty" yaml:"ruleType,omitempty"`
-	Scope      map[string]string `json:"scope,omitempty" yaml:"scope,omitempty"`
-	SampleRate float64           `json:"sampleRate,omitempty" yaml:"sampleRate,omitempty"`
-	RPS        int               `json:"rps,omitempty" yaml:"rps,omitempty"`
-	Vendor     string            `json:"vendor,omitempty" yaml:"vendor,omitempty"`
+	Id         string   `json:"id,omitempty" yaml:"id,omitempty"`
+	RuleType   string   `json:"ruleType,omitempty" yaml:"ruleType,omitempty"`
+	Filter     []Filter `json:"filter,omitempty" yaml:"filter,omitempty"`
+	SampleRate float64  `json:"sampleRate,omitempty" yaml:"sampleRate,omitempty"`
+	RPS        int      `json:"rps,omitempty" yaml:"rps,omitempty"`
+	Vendor     string   `json:"vendor,omitempty" yaml:"vendor,omitempty"`
 }
 
 type MetricConfigV1 struct {
@@ -61,9 +64,24 @@ type TraceSamplingConfigV1 struct {
 }
 
 func (lsc LogSamplingConfigV1) Equals(other LogSamplingConfigV1) bool {
-	return lsc.Id == other.Id &&
-		lsc.RuleType == other.RuleType &&
-		lsc.SampleRate == other.SampleRate &&
-		lsc.RPS == other.RPS &&
-		maps.Equal(lsc.Scope, other.Scope)
+	if lsc.Id != other.Id ||
+		lsc.RPS != other.RPS ||
+		lsc.RuleType != other.RuleType ||
+		lsc.SampleRate != other.SampleRate ||
+		lsc.RPS != other.RPS &&
+			lsc.Vendor != other.Vendor {
+		return false
+	}
+
+	if len(lsc.Filter) != len(other.Filter) {
+		return false
+	}
+
+	for i := range lsc.Filter {
+		if lsc.Filter[i].ContextId != other.Filter[i].ContextId ||
+			lsc.Filter[i].Condition != other.Filter[i].Condition {
+			return false
+		}
+	}
+	return true
 }

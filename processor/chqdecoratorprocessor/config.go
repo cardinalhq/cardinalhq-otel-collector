@@ -86,7 +86,7 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	multierr.Append(errors, validateTracesConfig(c.TracesConfig))
+	errors = multierr.Append(errors, validateTracesConfig(c.TracesConfig))
 
 	return errors
 }

@@ -42,7 +42,10 @@ func (e *chqEnforcer) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptra
 				fingerprint := getSpanFingerprint(sr.Attributes())
 
 				statusCode := sr.Status().Code().String()
-				isSlow := e.isSpanSlow(sr, uint64(fingerprint))
+				var isSlow = false
+				if isSlowSpan, exists := sr.Attributes().Get(translate.CardinalFieldSpanIsSlow); exists {
+					isSlow = isSlowSpan.Bool()
+				}
 
 				if e.pbPhase == chqpb.Phase_POST {
 					shouldDrop := e.shouldDropSpan(fingerprint, sr, statusCode, isSlow)
@@ -68,29 +71,6 @@ func (e *chqEnforcer) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptra
 	}
 
 	return td, nil
-}
-
-func (e *chqEnforcer) isSpanSlow(span ptrace.Span, fingerprint uint64) bool {
-	spanDuration := span.EndTimestamp().AsTime().Sub(span.StartTimestamp().AsTime()).Abs().Milliseconds()
-	return e.slowSpanPercentile(fingerprint, float64(spanDuration))
-}
-
-func (e *chqEnforcer) slowSpanPercentile(fingerprint uint64, duration float64) bool {
-	sketch := e.findSpanSketch(fingerprint)
-	sketch.Update(time.Now().UnixMilli(), duration)
-	return sketch.GreaterThanThreeStdDev(duration)
-}
-
-func (e *chqEnforcer) findSpanSketch(fingerprint uint64) *SlidingEstimatorStat {
-	e.estimatorLock.Lock()
-	defer e.estimatorLock.Unlock()
-	sketch, ok := e.estimators[fingerprint]
-	if !ok {
-		estimator := NewSlidingEstimatorStat(e.estimatorWindowSize, e.estimatorInterval)
-		e.estimators[fingerprint] = estimator
-		return estimator
-	}
-	return sketch
 }
 
 func (e *chqEnforcer) shouldDropSpan(fingerprint int64, span ptrace.Span, statusCode string, isSlow bool) bool {

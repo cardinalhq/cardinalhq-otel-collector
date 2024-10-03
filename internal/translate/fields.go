@@ -36,6 +36,7 @@ const (
 	CardinalFieldLevel             = CardinalFieldPrefixDot + "level"
 	CardinalFieldScale             = CardinalFieldPrefixDot + "scale"
 	CardinalFieldSpanDuration      = CardinalFieldPrefixDot + "span_duration"
+	CardinalFieldSpanIsSlow        = CardinalFieldPrefixDot + "isSlow"
 	CardinalFieldSpanEndTime       = CardinalFieldPrefixDot + "span_end_time"
 	CardinalFieldSpanEventcount    = CardinalFieldPrefixDot + "span_eventcount"
 	CardinalFieldSpanKind          = CardinalFieldPrefixDot + "span_kind"

@@ -21,6 +21,8 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.22.0"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor"
@@ -33,7 +35,11 @@ type spansProcessor struct {
 	logger  *zap.Logger
 	podName string
 
-	finger fingerprinter.Fingerprinter
+	finger              fingerprinter.Fingerprinter
+	estimatorWindowSize int
+	estimatorInterval   int64
+	estimatorLock       sync.Mutex
+	estimators          map[uint64]*SlidingEstimatorStat
 }
 
 const (
@@ -42,10 +48,13 @@ const (
 	httpUrlPath = "url.path"
 )
 
-func newSpansProcessor(set processor.Settings, _ *Config) (*spansProcessor, error) {
+func newSpansProcessor(set processor.Settings, c *Config) (*spansProcessor, error) {
 	sp := &spansProcessor{
-		logger:  set.Logger,
-		podName: os.Getenv("POD_NAME"),
+		logger:              set.Logger,
+		podName:             os.Getenv("POD_NAME"),
+		estimators:          make(map[uint64]*SlidingEstimatorStat),
+		estimatorWindowSize: *c.TracesConfig.EstimatorWindowSize,
+		estimatorInterval:   *c.TracesConfig.EstimatorInterval,
 	}
 
 	sp.finger = fingerprinter.NewFingerprinter()
@@ -55,6 +64,29 @@ func newSpansProcessor(set processor.Settings, _ *Config) (*spansProcessor, erro
 
 func (sp *spansProcessor) processTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
 	return sp.decorateTraces(td)
+}
+
+func (sp *spansProcessor) isSpanSlow(span ptrace.Span, fingerprint uint64) bool {
+	spanDuration := span.EndTimestamp().AsTime().Sub(span.StartTimestamp().AsTime()).Abs().Milliseconds()
+	return sp.slowSpanPercentile(fingerprint, float64(spanDuration))
+}
+
+func (sp *spansProcessor) slowSpanPercentile(fingerprint uint64, duration float64) bool {
+	sketch := sp.findSpanSketch(fingerprint)
+	sketch.Update(time.Now().UnixMilli(), duration)
+	return sketch.GreaterThanThreeStdDev(duration)
+}
+
+func (sp *spansProcessor) findSpanSketch(fingerprint uint64) *SlidingEstimatorStat {
+	sp.estimatorLock.Lock()
+	defer sp.estimatorLock.Unlock()
+	sketch, ok := sp.estimators[fingerprint]
+	if !ok {
+		estimator := NewSlidingEstimatorStat(sp.estimatorWindowSize, sp.estimatorInterval)
+		sp.estimators[fingerprint] = estimator
+		return estimator
+	}
+	return sketch
 }
 
 func (sp *spansProcessor) getHttpResource(span ptrace.Span) string {
@@ -131,7 +163,8 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces) (ptrace.Traces, error
 				} else {
 					spanFingerprint = getSpanFingerprint(span, httpResource, "unknown")
 				}
-
+				isSlow := sp.isSpanSlow(span, uint64(spanFingerprint))
+				span.Attributes().PutBool(translate.CardinalFieldSpanIsSlow, isSlow)
 				span.Attributes().PutInt(translate.CardinalFieldFingerprint, spanFingerprint)
 				span.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, sp.podName)
 				span.Attributes().PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())

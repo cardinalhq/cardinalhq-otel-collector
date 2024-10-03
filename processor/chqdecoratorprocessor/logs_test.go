@@ -39,14 +39,16 @@ func TestLogProcessorProcessLogs_ConditionStatementEvaluation(t *testing.T) {
 
 	// Create mock config with log_statements
 	cfg := &Config{
-		LogStatements: []ContextStatement{
-			{
-				Context: "log",
-				Conditions: []string{
-					"IsMap(body) and body[\"object\"] != nil",
-				},
-				Statements: []string{
-					"set(body, attributes[\"http.route\"])",
+		LogsConfig: LogsConfig{
+			Transforms: []ContextStatement{
+				{
+					Context: "log",
+					Conditions: []string{
+						"IsMap(body) and body[\"object\"] != nil",
+					},
+					Statements: []string{
+						"set(body, attributes[\"http.route\"])",
+					},
 				},
 			},
 		},

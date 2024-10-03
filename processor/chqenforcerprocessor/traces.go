@@ -29,7 +29,7 @@ import (
 	"time"
 )
 
-func (e *chqEnforcer) ConsumeSpans(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
+func (e *chqEnforcer) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
 	if td.ResourceSpans().Len() == 0 {
 		return td, nil
 	}
@@ -146,8 +146,8 @@ func (e *chqEnforcer) recordSpan(now time.Time,
 		VendorId:    e.config.Statistics.Vendor,
 		Count:       1,
 		Tags: map[string]string{
-			"statusCode": statusCode,
-			"isSlow":     fmt.Sprintf("%v", isSlow),
+			"span.status_code": statusCode,
+			"span.is_slow":     fmt.Sprintf("%v", isSlow),
 		},
 		Exemplar: &chqpb.SpanExemplar{
 			TraceId:  span.TraceID().String(),

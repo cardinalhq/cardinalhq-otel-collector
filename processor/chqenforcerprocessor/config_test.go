@@ -15,6 +15,7 @@
 package chqenforcerprocessor
 
 import (
+	"go.uber.org/multierr"
 	"path/filepath"
 	"testing"
 	"time"
@@ -87,7 +88,7 @@ func TestConfig(t *testing.T) {
 		MetricAggregation: MetricAggregationConfig{
 			Interval: 10 * time.Second,
 		},
-		TraceConfig: TraceConfig{
+		TraceConfig: TracesConfig{
 			GraphURL:            "http://example.com",
 			UninterestingRate:   &defaultUninterestingRate,
 			SlowRate:            &defaultSlowRate,
@@ -106,52 +107,52 @@ func TestTraceConfig_Validate(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		config    *TraceConfig
+		config    *TracesConfig
 		wantError bool
 	}{
 		{
 			"valid",
-			&TraceConfig{
+			&TracesConfig{
 				GraphURL: "http://example.com",
 			},
 			false,
 		},
 		{
 			"invalid URL",
-			&TraceConfig{
+			&TracesConfig{
 				GraphURL: "://example.com",
 			},
 			true,
 		},
 		{
 			"unsupported scheme",
-			&TraceConfig{
+			&TracesConfig{
 				GraphURL: "ftp://example.com",
 			},
 			true,
 		},
 		{
 			"no graphurl",
-			&TraceConfig{},
+			&TracesConfig{},
 			false,
 		},
 		{
 			"invalid uninteresting rate",
-			&TraceConfig{
+			&TracesConfig{
 				UninterestingRate: &[]int{-1}[0],
 			},
 			true,
 		},
 		{
 			"invalid slow rate",
-			&TraceConfig{
+			&TracesConfig{
 				SlowRate: &[]int{-1}[0],
 			},
 			true,
 		},
 		{
 			"invalid has error rate",
-			&TraceConfig{
+			&TracesConfig{
 				HasErrorRate: &[]int{-1}[0],
 			},
 			true,
@@ -167,10 +168,81 @@ func TestTraceConfig_Validate(t *testing.T) {
 }
 
 func TestTraceConfig_ValidateAppliesDefaults(t *testing.T) {
-	cfg := &TraceConfig{}
+	cfg := &TracesConfig{}
 	err := cfg.Validate()
 	require.NoError(t, err)
 	require.NotNil(t, cfg.UninterestingRate)
 	require.NotNil(t, cfg.SlowRate)
 	require.NotNil(t, cfg.HasErrorRate)
+}
+
+// Test the Validate function for LogsConfig
+func TestLogsConfigValidate(t *testing.T) {
+	// Case 1: Valid LogsConfig with valid ContextID and Tags
+	validConfig := &LogsConfig{
+		StatsEnrichments: []StatsEnrichment{
+			{
+				Context: "log", // Valid context
+				Tags:    []string{"tag1", "tag2"},
+			},
+			{
+				Context: "resource", // Valid context
+				Tags:    []string{"tag3"},
+			},
+		},
+	}
+
+	err := validConfig.Validate()
+	assert.NoError(t, err, "Expected no error for valid config")
+
+	// Case 2: Invalid ContextID
+	invalidContextConfig := &LogsConfig{
+		StatsEnrichments: []StatsEnrichment{
+			{
+				Context: "invalidContext", // Invalid context
+				Tags:    []string{"tag1"},
+			},
+		},
+	}
+
+	err = invalidContextConfig.Validate()
+	assert.Error(t, err, "Expected error for invalid context")
+	assert.Contains(t, err.Error(), "invalid context: invalidContext", "Error message should mention invalid context")
+
+	// Case 3: Empty Tags
+	emptyTagsConfig := &LogsConfig{
+		StatsEnrichments: []StatsEnrichment{
+			{
+				Context: "log",      // Valid context
+				Tags:    []string{}, // Empty tags
+			},
+		},
+	}
+
+	err = emptyTagsConfig.Validate()
+	assert.Error(t, err, "Expected error for empty tags")
+	assert.Contains(t, err.Error(), "empty tags for context: log", "Error message should mention empty tags")
+
+	// Case 4: Multiple Errors (Invalid ContextID and Empty Tags)
+	multipleErrorsConfig := &LogsConfig{
+		StatsEnrichments: []StatsEnrichment{
+			{
+				Context: "invalidContext", // Invalid context
+				Tags:    []string{},       // Empty tags
+			},
+			{
+				Context: "scope",    // Valid context
+				Tags:    []string{}, // Empty tags
+			},
+		},
+	}
+
+	err = multipleErrorsConfig.Validate()
+	assert.Error(t, err, "Expected multiple errors for invalid context and empty tags")
+
+	// Check if both errors are captured
+	errs := multierr.Errors(err)
+	assert.Len(t, errs, 2, "Expected two errors: one for invalid context and one for empty tags")
+	assert.Contains(t, errs[0].Error(), "invalid context: invalidContext", "First error should be about invalid context")
+	assert.Contains(t, errs[1].Error(), "empty tags for context: scope", "Second error should be about empty tags")
 }

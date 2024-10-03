@@ -13,3 +13,59 @@
 // limitations under the License.
 
 package chqdecoratorprocessor
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+// Test the Validate function
+func TestConfigValidate(t *testing.T) {
+	// Case 1: Valid Config with valid LogStatements
+	validConfig := &Config{
+		LogStatements: []ContextStatement{
+			{
+				Context:    "log",
+				Conditions: []string{"IsMap(body) and body[\"object\"] != nil"},
+				Statements: []string{"set(body, attributes[\"http.route\"])"},
+			},
+		},
+	}
+
+	err := validConfig.Validate()
+	assert.NoError(t, err, "Expected no error for valid config")
+
+	// Case 2: Invalid Config with invalid LogStatements (invalid condition)
+	invalidConfig := &Config{
+		LogStatements: []ContextStatement{
+			{
+				Context:    "log",
+				Conditions: []string{"IsMap(body) and body[object] != nil"},
+				Statements: []string{"log.attributes['new_key'] = 'new_value'"},
+			},
+		},
+	}
+
+	err = invalidConfig.Validate()
+	assert.Error(t, err, "Expected error for invalid condition in LogStatements")
+
+	// Case 3: Invalid Config with invalid Statements
+	invalidStatementConfig := &Config{
+		LogStatements: []ContextStatement{
+			{
+				Context:    "log",
+				Conditions: []string{"IsMap(body) and body[\"object\"] != nil"},
+				Statements: []string{"log.attributes['new_key'] = 'new_value'"}, // Invalid statement (missing proper syntax)
+			},
+		},
+	}
+
+	err = invalidStatementConfig.Validate()
+	assert.Error(t, err, "Expected error for invalid statement in LogStatements")
+
+	// Case 4: Empty Config (should pass with no error)
+	emptyConfig := &Config{}
+	err = emptyConfig.Validate()
+	assert.NoError(t, err, "Expected no error for empty config")
+}

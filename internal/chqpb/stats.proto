@@ -31,6 +31,7 @@ message LogStats {
 	int64 logSize = 5;
 	string exemplar = 6;
 	string vendorId = 7;
+	map<string, string> tags = 8;
 }
 
 message SpanStatsReport {

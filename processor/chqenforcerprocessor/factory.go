@@ -46,14 +46,6 @@ const (
 	defaultStatisticsInterval = 1 * time.Minute
 )
 
-var (
-	defaultUninterestingRate         = 1
-	defaultSlowRate                  = 2
-	defaultHasErrorRate              = 2
-	defaultEstimatorWindowSize       = 30
-	defaultEstimatorInterval   int64 = 10_000
-)
-
 func createDefaultConfig() component.Config {
 	return &Config{
 		Statistics: StatisticsConfig{

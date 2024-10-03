@@ -53,8 +53,8 @@ func newSpansProcessor(set processor.Settings, c *Config) (*spansProcessor, erro
 		logger:              set.Logger,
 		podName:             os.Getenv("POD_NAME"),
 		estimators:          make(map[uint64]*SlidingEstimatorStat),
-		estimatorWindowSize: *c.TracesConfig.EstimatorWindowSize,
-		estimatorInterval:   *c.TracesConfig.EstimatorInterval,
+		estimatorWindowSize: c.TracesConfig.EstimatorWindowSize,
+		estimatorInterval:   c.TracesConfig.EstimatorInterval,
 	}
 
 	sp.finger = fingerprinter.NewFingerprinter()

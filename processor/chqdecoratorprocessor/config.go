@@ -16,6 +16,7 @@ package chqdecoratorprocessor
 
 import (
 	"fmt"
+
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/ottlfuncs"
 	"go.opentelemetry.io/collector/component"
@@ -33,8 +34,8 @@ type LogsConfig struct {
 }
 
 type TracesConfig struct {
-	EstimatorWindowSize *int   `mapstructure:"estimator_window_size"`
-	EstimatorInterval   *int64 `mapstructure:"estimator_interval"`
+	EstimatorWindowSize int   `mapstructure:"estimator_window_size"`
+	EstimatorInterval   int64 `mapstructure:"estimator_interval"`
 }
 
 type ContextID string
@@ -82,6 +83,23 @@ func (c *Config) Validate() error {
 				errors = multierr.Append(errors, err)
 			}
 		}
+	}
+
+	multierr.Append(errors, validateTracesConfig(c.TracesConfig))
+
+	return errors
+}
+
+func validateTracesConfig(tc TracesConfig) error {
+	var errors error
+	if tc.EstimatorWindowSize < 10 {
+		err := fmt.Errorf("estimator_window_size must be greater than or equal to 10")
+		errors = multierr.Append(errors, err)
+	}
+
+	if tc.EstimatorInterval < 1000 {
+		err := fmt.Errorf("estimator_interval must be greater than or equal to 1000")
+		errors = multierr.Append(errors, err)
 	}
 
 	return errors

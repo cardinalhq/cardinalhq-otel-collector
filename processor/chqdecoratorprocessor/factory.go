@@ -16,6 +16,7 @@ package chqdecoratorprocessor
 
 import (
 	"context"
+
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/metadata"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
@@ -36,7 +37,12 @@ func NewFactory() processor.Factory {
 }
 
 func createDefaultConfig() component.Config {
-	return &Config{}
+	return &Config{
+		TracesConfig: TracesConfig{
+			EstimatorWindowSize: 30,
+			EstimatorInterval:   10_000,
+		},
+	}
 }
 
 func createMetricsProcessor(

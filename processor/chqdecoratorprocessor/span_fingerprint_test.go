@@ -32,8 +32,8 @@ func TestSpansProcessor_FingerprintWithHttpResource(t *testing.T) {
 	// Initialize spansProcessor with the corrected configuration
 	config := &Config{
 		TracesConfig: TracesConfig{
-			EstimatorWindowSize: &windowSize, // Use pointer
-			EstimatorInterval:   &interval,   // Use pointer
+			EstimatorWindowSize: windowSize, // Use pointer
+			EstimatorInterval:   interval,   // Use pointer
 		},
 	}
 	processorSettings := processor.Settings{}

@@ -16,7 +16,6 @@ package chqdecoratorprocessor
 
 import (
 	"context"
-
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/metadata"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
@@ -64,7 +63,7 @@ func createLogsProcessor(
 	cfg component.Config,
 	nextConsumer consumer.Logs,
 ) (processor.Logs, error) {
-	fp, err := newLogsProcessor(set)
+	fp, err := newLogsProcessor(set, cfg.(*Config))
 	if err != nil {
 		return nil, err
 	}

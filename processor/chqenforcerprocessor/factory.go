@@ -70,7 +70,7 @@ func createDefaultConfig() component.Config {
 		MetricAggregation: MetricAggregationConfig{
 			Interval: defaultMetricAggregation,
 		},
-		TraceConfig: TraceConfig{
+		TraceConfig: TracesConfig{
 			UninterestingRate:   &defaultUninterestingRate,
 			SlowRate:            &defaultSlowRate,
 			HasErrorRate:        &defaultHasErrorRate,
@@ -114,7 +114,7 @@ func createSpansProcessor(ctx context.Context, set processor.Settings, cfg compo
 	}
 	return processorhelper.NewTracesProcessor(
 		ctx, set, cfg, nextConsumer,
-		e.ConsumeSpans,
+		e.ConsumeTraces,
 		processorhelper.WithStart(e.Start),
 		processorhelper.WithShutdown(e.Shutdown),
 		processorhelper.WithCapabilities(e.Capabilities()))

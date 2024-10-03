@@ -29,7 +29,8 @@ import (
 type Config struct {
 	Statistics               StatisticsConfig        `mapstructure:"statistics"`
 	MetricAggregation        MetricAggregationConfig `mapstructure:"metric_aggregation"`
-	TraceConfig              TraceConfig             `mapstructure:"traces"`
+	TraceConfig              TracesConfig            `mapstructure:"traces"`
+	LogsConfig               LogsConfig              `mapstructure:"logs"`
 	ConfigurationExtension   *component.ID           `mapstructure:"configuration_extension"`
 	DropDecorationAttributes bool                    `mapstructure:"drop_decoration_attributes"`
 }
@@ -45,7 +46,18 @@ type MetricAggregationConfig struct {
 	Interval time.Duration `mapstructure:"interval"`
 }
 
-type TraceConfig struct {
+type ContextID string
+
+type StatsEnrichment struct {
+	Context ContextID `mapstructure:"context"`
+	Tags    []string  `mapstructure:"tags"`
+}
+
+type LogsConfig struct {
+	StatsEnrichments []StatsEnrichment `mapstructure:"stats_enrichment"`
+}
+
+type TracesConfig struct {
 	// Where to send the graph data.  This will be done using a HTTP post.
 	GraphURL string `mapstructure:"graph_url"`
 	// UninterestingRate is the rate limit applied to traces that
@@ -109,7 +121,7 @@ func (c *MetricAggregationConfig) Validate() error {
 	return errs
 }
 
-func (cfg *TraceConfig) Validate() error {
+func (cfg *TracesConfig) Validate() error {
 	var errors *multierror.Error
 
 	if cfg.GraphURL != "" {
@@ -154,4 +166,34 @@ func (cfg *TraceConfig) Validate() error {
 		errors = multierror.Append(errors, err)
 	}
 	return errors.ErrorOrNil()
+}
+
+var validContexts = map[ContextID]bool{
+	"resource": true,
+	"scope":    true,
+	"log":      true,
+}
+
+// Validate function for LogsConfig
+func (cfg *LogsConfig) Validate() error {
+	var errors error
+
+	// Validate each StatsEnrichment
+	for _, enrichment := range cfg.StatsEnrichments {
+		// Check if the ContextID is valid
+		if !validContexts[enrichment.Context] {
+			// Append error for invalid context and skip tags validation for this entry
+			err := fmt.Errorf("invalid context: %s. Must be one of: resource, scope, log", enrichment.Context)
+			errors = multierr.Append(errors, err)
+			continue
+		}
+
+		// Validate Tags only if ContextID is valid
+		if len(enrichment.Tags) == 0 {
+			err := fmt.Errorf("empty tags for context: %s", enrichment.Context)
+			errors = multierr.Append(errors, err)
+		}
+	}
+
+	return errors
 }

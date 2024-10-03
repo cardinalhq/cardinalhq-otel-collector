@@ -70,13 +70,6 @@ func createDefaultConfig() component.Config {
 		MetricAggregation: MetricAggregationConfig{
 			Interval: defaultMetricAggregation,
 		},
-		TraceConfig: TracesConfig{
-			UninterestingRate:   &defaultUninterestingRate,
-			SlowRate:            &defaultSlowRate,
-			HasErrorRate:        &defaultHasErrorRate,
-			EstimatorWindowSize: &defaultEstimatorWindowSize,
-			EstimatorInterval:   &defaultEstimatorInterval,
-		},
 		DropDecorationAttributes: defaultDropDecorationTags,
 	}
 }

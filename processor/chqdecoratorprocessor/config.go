@@ -24,7 +24,17 @@ import (
 )
 
 type Config struct {
-	LogStatements []ContextStatement `mapstructure:"log_statements"`
+	LogsConfig   LogsConfig   `mapstructure:"logs"`
+	TracesConfig TracesConfig `mapstructure:"traces"`
+}
+
+type LogsConfig struct {
+	Transforms []ContextStatement `mapstructure:"log_statements"`
+}
+
+type TracesConfig struct {
+	EstimatorWindowSize *int   `mapstructure:"estimator_window_size"`
+	EstimatorInterval   *int64 `mapstructure:"estimator_interval"`
 }
 
 type ContextID string
@@ -46,13 +56,13 @@ var validContexts = map[ContextID]bool{
 // Validate function for your custom processor's Config
 func (c *Config) Validate() error {
 	var errors error
-	if len(c.LogStatements) > 0 {
+	if len(c.LogsConfig.Transforms) > 0 {
 		pc, err := ottllog.NewParser(ottlfuncs.StandardFuncs[ottllog.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
 		if err != nil {
 			return err
 		}
 
-		for _, cs := range c.LogStatements {
+		for _, cs := range c.LogsConfig.Transforms {
 			// Check if ContextID is valid (resource, scope, or log)
 			if !validContexts[cs.Context] {
 				err := fmt.Errorf("invalid context: %s. Must be one of: resource, scope, log", cs.Context)

@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 
 	"go.opentelemetry.io/collector/component"
@@ -70,10 +69,6 @@ type chqEnforcer struct {
 	aggregatedDatapoints metric.Int64Counter
 
 	// for traces
-	estimatorWindowSize  int
-	estimatorInterval    int64
-	estimators           map[uint64]*SlidingEstimatorStat
-	estimatorLock        sync.Mutex
 	slowSampler          sampler.Sampler
 	hasErrorSampler      sampler.Sampler
 	uninterestingSampler sampler.Sampler
@@ -115,7 +110,6 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextCo
 			return nil, err
 		}
 	case "traces":
-		statsExporter.estimators = make(map[uint64]*SlidingEstimatorStat)
 		statsExporter.spanStats = stats.NewStatsCombiner[*chqpb.SpanStats](now, config.Statistics.Interval)
 		statsExporter.logger.Info("sending span statistics", zap.Duration("interval", config.Statistics.Interval))
 		statsExporter.spanSampler = sampler.NewSpanSamplerImpl(context.Background(), statsExporter.logger)

@@ -157,7 +157,7 @@ func newLogsProcessor(set processor.Settings, cfg *Config) (*logProcessor, error
 		sampler: samp,
 		podName: os.Getenv("POD_NAME"),
 	}
-	lp.transformations = lp.toTransformations(cfg.LogStatements)
+	lp.transformations = lp.toTransformations(cfg.LogsConfig.Transforms)
 
 	set.Logger.Info("Decorator processor configured")
 

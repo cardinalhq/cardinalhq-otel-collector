@@ -18,6 +18,10 @@ import (
 	"math/rand"
 	"testing"
 
+	"go.opentelemetry.io/collector/component"
+	"go.opentelemetry.io/collector/pdata/plog"
+	"go.uber.org/zap"
+
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 )
@@ -25,34 +29,34 @@ import (
 func TestSamplerForType(t *testing.T) {
 	cases := []struct {
 		name         string
-		config       LogSamplingConfigV1
-		expectedType LogRuleType
+		config       EventSamplingConfigV1
+		expectedType EventSamplingRuleType
 		expected     Sampler
 	}{
 		{
 			name: "random rule type",
-			config: LogSamplingConfigV1{
+			config: EventSamplingConfigV1{
 				RuleType:   "random",
 				SampleRate: 0.5,
 			},
-			expectedType: LogRuleTypeRandom,
+			expectedType: EventSamplingRuleTypeRandom,
 			expected:     &StaticSampler{fixedRate: 2},
 		},
 		{
 			name: "rps rule type",
-			config: LogSamplingConfigV1{
+			config: EventSamplingConfigV1{
 				RuleType: "rps",
 				RPS:      100,
 			},
-			expectedType: LogRuleTypeRPS,
+			expectedType: EventSamplingRuleTypeRPS,
 			expected:     &rpsSampler{MaxRPS: 100, clearFrequencyDuration: defaultClearFrequencyDuration},
 		},
 		{
 			name: "unknown rule type",
-			config: LogSamplingConfigV1{
+			config: EventSamplingConfigV1{
 				RuleType: "unknown",
 			},
-			expectedType: LogRuleTypeUnknown,
+			expectedType: EventSamplingRuleTypeUnknown,
 			expected:     nil,
 		},
 	}
@@ -185,14 +189,46 @@ func TestGetServiceName(t *testing.T) {
 	}
 }
 
+func getServiceName(rattr pcommon.Map) string {
+	serviceName, ok := rattr.Get("service.name")
+	if !ok {
+		return "unknown-service"
+	}
+	return serviceName.AsString()
+}
+
 func makeConstantSampler() Sampler {
 	return &StaticSampler{fixedRate: 0}
 }
 
 func TestShouldFilterLog(t *testing.T) {
+	rule1, err := newFilterRule(EventSamplingConfigV1{
+		Filter: []Filter{
+			{ContextId: "resource", Condition: `attributes["service.name"] == "other-service"`},
+		},
+	},
+		component.TelemetrySettings{Logger: zap.NewNop()},
+	)
+	assert.NoError(t, err)
+
+	matchingRule, err := newFilterRule(EventSamplingConfigV1{
+		Id:         "matchingRule",
+		RuleType:   "rps",
+		SampleRate: 0.5,
+		RPS:        100,
+		Vendor:     "test-vendor",
+		Filter: []Filter{
+			{ContextId: "resource", Condition: `attributes["service.name"] == "my-service"`},
+		},
+	},
+		component.TelemetrySettings{Logger: zap.NewNop()})
+	matchingRule.sampler = makeConstantSampler()
+
+	assert.NoError(t, err)
+
 	tests := []struct {
 		name     string
-		rules    map[string]*logRule
+		rules    map[string]*filterRule
 		rattr    map[string]string
 		iattr    map[string]string
 		lattr    map[string]string
@@ -200,7 +236,7 @@ func TestShouldFilterLog(t *testing.T) {
 	}{
 		{
 			"no rules",
-			map[string]*logRule{},
+			map[string]*filterRule{},
 			map[string]string{"service.name": "my-service"},
 			map[string]string{},
 			map[string]string{},
@@ -208,13 +244,8 @@ func TestShouldFilterLog(t *testing.T) {
 		},
 		{
 			"no matching rules",
-			map[string]*logRule{
-				"rule1": {
-					"rule1",
-					LogRuleTypeRPS,
-					makeConstantSampler(),
-					LogSamplingConfigV1{Scope: map[string]string{"resource.service.name": "other-service"}},
-				},
+			map[string]*filterRule{
+				"rule1": rule1,
 			},
 			map[string]string{"service.name": "my-service"},
 			map[string]string{},
@@ -223,75 +254,47 @@ func TestShouldFilterLog(t *testing.T) {
 		},
 		{
 			"matching rule",
-			map[string]*logRule{
-				"rule1": {
-					"rule1",
-					LogRuleTypeRPS,
-					makeConstantSampler(),
-					LogSamplingConfigV1{Scope: map[string]string{"resource.service.name": "my-service"}},
-				},
+			map[string]*filterRule{
+				"matchingRule": matchingRule,
 			},
 			map[string]string{"service.name": "my-service"},
 			map[string]string{},
 			map[string]string{},
-			[]string{"rule1"},
-		},
-		{
-			"multiple rules",
-			map[string]*logRule{
-				"rule1": {
-					"rule1",
-					LogRuleTypeRPS,
-					makeConstantSampler(),
-					LogSamplingConfigV1{Scope: map[string]string{"resource.service.name": "my-service"}},
-				},
-				"rule2": {
-					"rule2",
-					LogRuleTypeRPS,
-					makeConstantSampler(),
-					LogSamplingConfigV1{Scope: map[string]string{}},
-				},
-			},
-			map[string]string{"service.name": "my-service"},
-			map[string]string{},
-			map[string]string{},
-			[]string{"rule1", "rule2"},
-		},
-		{
-			"empty scope",
-			map[string]*logRule{
-				"rule1": {
-					"rule1",
-					LogRuleTypeRPS,
-					makeConstantSampler(),
-					LogSamplingConfigV1{Scope: map[string]string{}},
-				},
-			},
-			map[string]string{"service.name": "my-service"},
-			map[string]string{},
-			map[string]string{},
-			[]string{"rule1"},
+			[]string{"matchingRule"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rattr := pcommon.NewMap()
+			// Create mock data for ResourceLogs, ScopeLogs, and LogRecord
+			rl := plog.NewResourceLogs()
+			rattr := rl.Resource().Attributes()
 			for k, v := range tt.rattr {
 				rattr.PutStr(k, v)
 			}
-			iattr := pcommon.NewMap()
+
+			sl := plog.NewScopeLogs()
+			iattr := sl.Scope().Attributes()
 			for k, v := range tt.iattr {
 				iattr.PutStr(k, v)
 			}
-			lattr := pcommon.NewMap()
+
+			ll := plog.NewLogRecord()
+			lattr := ll.Attributes()
 			for k, v := range tt.lattr {
 				lattr.PutStr(k, v)
 			}
-			ls := &LogSamplerImpl{
-				rules: tt.rules,
+
+			// Initialize the EventSamplerImpl with the test rules
+			ls := &EventSamplerImpl{
+				rules:  tt.rules,
+				logger: zap.NewNop(), // Use a no-op logger for testing
 			}
-			actual := ls.shouldFilter("", rattr, iattr, lattr)
+
+			// Call shouldFilterLog to get the result
+			actual := ls.shouldFilterLog("", "", rl, sl, ll)
+
+			// Check if the actual result matches any of the expected rules
 			assert.Contains(t, tt.expected, actual)
 		})
 	}

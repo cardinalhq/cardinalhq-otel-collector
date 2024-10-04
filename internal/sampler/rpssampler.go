@@ -276,7 +276,7 @@ func calculateSampleRates(goalRatio float64, buckets map[string]float64) map[str
 			newSampleRates[key] = 1
 			extra += goalForKey - count
 		} else {
-			// there are more samples than the allotted number. Sample this key enough
+			// there are more samples than the allotted number. SampleLogs this key enough
 			// to knock it under the limit (aka round up)
 			rate := math.Ceil(count / goalForKey)
 			// if counts are <= 1 we can get values for goalForKey that are +Inf

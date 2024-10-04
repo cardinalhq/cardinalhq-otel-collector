@@ -31,7 +31,33 @@ message LogStats {
 	int64 logSize = 5;
 	string exemplar = 6;
 	string vendorId = 7;
+	map<string, string> tags = 8;
 }
+
+message SpanStatsReport {
+	int64 submittedAt = 1;
+	repeated SpanStats stats = 2;
+}
+
+message SpanExemplar {
+	string traceId = 1;
+	string spanName = 2;
+	string resource = 3;
+	string spanKind = 4;
+	map<string, string> spanTags = 5;
+}
+
+message SpanStats {
+	string serviceName = 1;
+	int64 fingerprint = 2;
+	Phase phase = 3;
+	int64 count = 4;
+	int64 spanSize = 5;
+	SpanExemplar exemplar = 6;
+	string vendorId = 7;
+	map<string, string> tags = 8;
+}
+
 
 message MetricStatsReport {
 	int64 submittedAt = 1;

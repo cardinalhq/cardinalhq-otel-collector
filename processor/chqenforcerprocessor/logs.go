@@ -59,11 +59,11 @@ func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, e
 
 	ld.ResourceLogs().RemoveIf(func(rl plog.ResourceLogs) bool {
 		serviceName := getServiceName(rl.Resource().Attributes())
-		rl.ScopeLogs().RemoveIf(func(ill plog.ScopeLogs) bool {
-			ill.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
+		rl.ScopeLogs().RemoveIf(func(sl plog.ScopeLogs) bool {
+			sl.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
 				fingerprint := getFingerprint(lr.Attributes())
 				if e.pbPhase == chqpb.Phase_POST {
-					shouldDrop := e.logSampler(fingerprint, rl, ill, lr)
+					shouldDrop := e.shouldDropLog(serviceName, fingerprint, rl, sl, lr)
 					if shouldDrop {
 						return true
 					}
@@ -71,12 +71,12 @@ func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, e
 				if e.config.DropDecorationAttributes {
 					removeAllCardinalFields(lr.Attributes())
 				}
-				if err := e.recordLog(now, serviceName, fingerprint, lr.Body().AsString()); err != nil {
+				if err := e.recordLog(now, serviceName, fingerprint, rl, sl, lr); err != nil {
 					e.logger.Error("Failed to record log", zap.Error(err))
 				}
 				return false
 			})
-			return ill.LogRecords().Len() == 0
+			return sl.LogRecords().Len() == 0
 		})
 		return rl.ScopeLogs().Len() == 0
 	})
@@ -87,9 +87,9 @@ func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, e
 	return ld, nil
 }
 
-func (e *chqEnforcer) logSampler(fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) bool {
+func (e *chqEnforcer) shouldDropLog(serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) bool {
 	fingerprintString := fmt.Sprintf("%d", fingerprint)
-	rule_match := e.sampler.Sample(fingerprintString, rl.Resource().Attributes(), sl.Scope().Attributes(), lr.Attributes())
+	rule_match := e.logSampler.SampleLogs(serviceName, fingerprintString, rl, sl, lr)
 	return rule_match != ""
 }
 
@@ -99,8 +99,37 @@ func removeAllCardinalFields(attr pcommon.Map) {
 	})
 }
 
-func (e *chqEnforcer) recordLog(now time.Time, serviceName string, fingerprint int64, message string) error {
+func (e *chqEnforcer) recordLog(now time.Time, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) error {
+	message := lr.Body().AsString()
 	logSize := int64(len(message))
+
+	// Derive tags from e.config.LogsConfig.StatsEnrichments based on the contextId, and then add tags to the LogStats.Tags Map
+	tags := make(map[string]string)
+	for _, enrichment := range e.config.LogsConfig.StatsEnrichments {
+		if enrichment.Context == "log" {
+			for _, tag := range enrichment.Tags {
+				if tagValue, found := lr.Attributes().Get(tag); found {
+					key := fmt.Sprintf("log.%s", tag)
+					tags[key] = tagValue.AsString()
+				}
+			}
+		} else if enrichment.Context == "resource" {
+			for _, tag := range enrichment.Tags {
+				if tagValue, found := rl.Resource().Attributes().Get(tag); found {
+					key := fmt.Sprintf("resource.%s", tag)
+					tags[key] = tagValue.AsString()
+				}
+			}
+		} else if enrichment.Context == "scope" {
+			for _, tag := range enrichment.Tags {
+				if tagValue, found := sl.Scope().Attributes().Get(tag); found {
+					key := fmt.Sprintf("scope.%s", tag)
+					tags[key] = tagValue.AsString()
+				}
+			}
+		}
+	}
+
 	rec := &chqpb.LogStats{
 		ServiceName: serviceName,
 		Fingerprint: fingerprint,
@@ -109,6 +138,7 @@ func (e *chqEnforcer) recordLog(now time.Time, serviceName string, fingerprint i
 		Count:       1,
 		LogSize:     logSize,
 		Exemplar:    message,
+		Tags:        tags,
 	}
 	bucketpile, err := e.logstats.Record(now, rec, "", 1, logSize)
 	if err != nil {
@@ -161,7 +191,7 @@ func (e *chqEnforcer) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsR
 	return nil
 }
 
-func (e *chqEnforcer) updateLogsamplingConfig(sc sampler.SamplerConfig) {
+func (e *chqEnforcer) updateLogsSampling(sc sampler.SamplerConfig) {
 	e.logger.Info("Updating log sampling config", zap.String("vendor", e.vendor))
-	e.sampler.UpdateConfig(&sc, e.vendor)
+	e.logSampler.UpdateConfig(sc.Logs.Sampling, e.vendor, e.telemetrySettings)
 }

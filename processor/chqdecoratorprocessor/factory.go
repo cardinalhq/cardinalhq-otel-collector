@@ -37,7 +37,12 @@ func NewFactory() processor.Factory {
 }
 
 func createDefaultConfig() component.Config {
-	return &Config{}
+	return &Config{
+		TracesConfig: TracesConfig{
+			EstimatorWindowSize: 30,
+			EstimatorInterval:   10_000,
+		},
+	}
 }
 
 func createMetricsProcessor(
@@ -64,7 +69,7 @@ func createLogsProcessor(
 	cfg component.Config,
 	nextConsumer consumer.Logs,
 ) (processor.Logs, error) {
-	fp, err := newLogsProcessor(set)
+	fp, err := newLogsProcessor(set, cfg.(*Config))
 	if err != nil {
 		return nil, err
 	}

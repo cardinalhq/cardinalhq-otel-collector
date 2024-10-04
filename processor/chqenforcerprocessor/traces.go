@@ -17,259 +17,215 @@ package chqenforcerprocessor
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"time"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/spantagger"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor/processorhelper"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
 )
 
 func (e *chqEnforcer) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
-	//
-	// At this stage, coming from the decorator and before being otherwise grouped,
-	// each trace bundle is its own thing.  We can pull the various flags out of
-	// any of the spans in the bundle, and use them to decide whether to filter
-	// the trace bundle.
-	//
-	fingerprint, hasError := e.getFingerprint(td)
-	if fingerprint == 0 {
+	if td.ResourceSpans().Len() == 0 {
+		return td, nil
+	}
+
+	now := time.Now()
+	td.ResourceSpans().RemoveIf(func(rs ptrace.ResourceSpans) bool {
+		serviceName := getServiceName(rs.Resource().Attributes())
+		rs.ScopeSpans().RemoveIf(func(iss ptrace.ScopeSpans) bool {
+			iss.Spans().RemoveIf(func(sr ptrace.Span) bool {
+				fingerprint := getSpanFingerprint(sr.Attributes())
+
+				if e.pbPhase == chqpb.Phase_POST {
+					shouldDrop := e.shouldDropSpan(serviceName, fingerprint, sr, iss, rs)
+					if shouldDrop {
+						return true
+					}
+				}
+
+				// isSlow is an attribute of the span, but is a cardinal field so will be removed at this point.
+				// we want cardinal fields to be removed because we don't want to account for them in the size of the span.
+				// being sent to the stats backend.
+				var isSlow = false
+				if isSlowSpan, exists := sr.Attributes().Get(translate.CardinalFieldSpanIsSlow); exists {
+					isSlow = isSlowSpan.Bool()
+				}
+
+				if e.config.DropDecorationAttributes {
+					removeAllCardinalFields(sr.Attributes())
+				}
+
+				if err := e.recordSpan(now, serviceName, fingerprint, isSlow, sr, iss, rs); err != nil {
+					e.logger.Error("Failed to record span", zap.Error(err))
+				}
+				return false
+			})
+			return iss.Spans().Len() == 0
+		})
+		return rs.ScopeSpans().Len() == 0
+	})
+
+	if td.ResourceSpans().Len() == 0 {
 		return td, processorhelper.ErrSkipProcessingData
 	}
-	filtered, filteredReason := e.shouldFilter(td, fingerprint, hasError)
-	if !filtered {
-		filtered = e.maybeRateLimit(fingerprint, filtered, filteredReason)
-	}
 
-	if e.config.TraceConfig.GraphURL != "" {
-		if err := e.postFingerprint(ctx, td, fingerprint); err != nil {
-			e.logger.Warn("failed to post fingerprint", zap.Error(err))
-		}
-	}
-
-	if filtered {
-		return td, processorhelper.ErrSkipProcessingData
-	}
-
-	if e.config.DropDecorationAttributes {
-		dropDecorations(td)
-	}
 	return td, nil
 }
 
-func dropDecorations(td ptrace.Traces) {
-	rss := td.ResourceSpans()
-	for i := 0; i < rss.Len(); i++ {
-		rs := rss.At(i)
-		ilss := rs.ScopeSpans()
-		for j := 0; j < ilss.Len(); j++ {
-			ils := ilss.At(j)
-			spans := ils.Spans()
-			for k := 0; k < spans.Len(); k++ {
-				span := spans.At(k)
-				removeAllCardinalFields(span.Attributes())
+func (e *chqEnforcer) shouldDropSpan(service string, fingerprint int64, span ptrace.Span, iss ptrace.ScopeSpans, rs ptrace.ResourceSpans) bool {
+	fingerprintString := fmt.Sprintf("%d", fingerprint)
+	ruleMatch := e.spanSampler.SampleSpans(service, fingerprintString, rs, iss, span)
+	return ruleMatch != ""
+}
+
+func getSpanFingerprint(l pcommon.Map) int64 {
+	fnk := translate.CardinalFieldFingerprint
+	if fingerprintField, found := l.Get(fnk); found {
+		return fingerprintField.Int()
+	}
+	return 0
+}
+
+func toAttributesAndSize(attributes map[string]interface{}) (map[string]string, int64) {
+	result := make(map[string]string)
+	var size int64 = 0
+	for key, value := range attributes {
+		size += int64(len(key) + len(fmt.Sprintf("%v", value)))
+		result[key] = fmt.Sprintf("%v", value)
+	}
+	return result, size
+}
+
+func getOrElse(m map[string]string, key string, defaultValue string) string {
+	// Check if the key exists in the map
+	if value, ok := m[key]; ok {
+		return value
+	}
+	// If the key does not exist, return the default value
+	return defaultValue
+}
+
+func (e *chqEnforcer) recordSpan(now time.Time,
+	serviceName string,
+	fingerprint int64,
+	isSlow bool,
+	span ptrace.Span,
+	iss ptrace.ScopeSpans,
+	rs ptrace.ResourceSpans,
+) error {
+	// spanSize = (size of attributes + top level fields)
+	var stringAttributes, spanSize = toAttributesAndSize(span.Attributes().AsRaw())
+	spanSize += int64(len(span.TraceID().String()))
+	spanSize += int64(len(span.Name()))
+	spanSize += int64(len(span.Kind().String()))
+	spanSize += int64(len(span.SpanID().String()))
+
+	// Derive tags from e.config.LogsConfig.StatsEnrichments based on the contextId, and then add tags to the SpanStats Tags Map
+	tagsToEnrich := map[string]string{
+		"span.status_code": span.Status().Code().String(),
+		"span.is_slow":     fmt.Sprintf("%v", isSlow),
+		"span.kind":        span.Kind().String(),
+	}
+
+	for _, enrichment := range e.config.TracesConfig.StatsEnrichments {
+		if enrichment.Context == "span" {
+			for _, tag := range enrichment.Tags {
+				if tagValue, found := span.Attributes().Get(tag); found {
+					key := fmt.Sprintf("log.%s", tag)
+					tagsToEnrich[key] = tagValue.AsString()
+				}
 			}
-		}
-	}
-}
-
-func (e *chqEnforcer) getFingerprint(td ptrace.Traces) (uint64, bool) {
-	rs := td.ResourceSpans()
-	if rs.Len() == 0 {
-		return 0, false
-	}
-	rs0 := rs.At(0)
-	ilss := rs0.ScopeSpans()
-	if ilss.Len() == 0 {
-		return 0, false
-	}
-	ils0 := ilss.At(0)
-	spans := ils0.Spans()
-	if spans.Len() == 0 {
-		return 0, false
-	}
-	span0 := spans.At(0)
-
-	fingerprint := getFingerprint(span0.Attributes())
-	if fingerprint == 0 {
-		return 0, false
-	}
-
-	hasErrorVal, found := span0.Attributes().Get(translate.CardinalFieldTraceHasError)
-	if !found {
-		return 0, false
-	}
-	hasError := hasErrorVal.Bool()
-
-	return uint64(fingerprint), hasError
-}
-
-func (e *chqEnforcer) findSketch(fingerprint uint64) *SlidingEstimatorStat {
-	e.estimatorLock.Lock()
-	defer e.estimatorLock.Unlock()
-	sketch, ok := e.estimators[fingerprint]
-	if !ok {
-		estimator := NewSlidingEstimatorStat(e.estimatorWindowSize, e.estimatorInterval)
-		e.estimators[fingerprint] = estimator
-		return estimator
-	}
-	return sketch
-}
-
-func (e *chqEnforcer) slowPercentile(fingerprint uint64, duration float64) bool {
-	sketch := e.findSketch(fingerprint)
-	sketch.Update(time.Now().UnixMilli(), duration)
-	return sketch.GreaterThanThreeStdDev(duration)
-}
-
-type filteredReason string
-
-const (
-	filteredReasonTraceHasError filteredReason = "trace_has_error"
-	filteredReasonSlow          filteredReason = "slow"
-	filteredReasonUninteresting filteredReason = "uninteresting"
-	filteredReasonInvalid       filteredReason = "invalid_fingerprint"
-)
-
-func (e *chqEnforcer) shouldFilter(td ptrace.Traces, fingerprint uint64, hasError bool) (bool, filteredReason) {
-	if fingerprint == 0 {
-		return true, filteredReasonInvalid
-	}
-	slow := e.isSlow(td, fingerprint) // always call this to update our sketch
-	if hasError {
-		return false, filteredReasonTraceHasError
-	}
-	if slow {
-		return false, filteredReasonSlow
-	}
-	return false, filteredReasonUninteresting
-}
-
-func (sp *chqEnforcer) rateLimitSlow(fingerprint uint64) bool {
-	rate := sp.slowSampler.GetSampleRate(fmt.Sprintf("%d", fingerprint))
-	return rateHelper(rate)
-}
-
-func (e *chqEnforcer) rateLimitHasError(fingerprint uint64) bool {
-	rate := e.hasErrorSampler.GetSampleRate(fmt.Sprintf("%d", fingerprint))
-	return rateHelper(rate)
-}
-
-func (e *chqEnforcer) rateLimitUninteresting(fingerprint uint64) bool {
-	rate := e.uninterestingSampler.GetSampleRate(fmt.Sprintf("%d", fingerprint))
-	return rateHelper(rate)
-}
-
-func (e *chqEnforcer) maybeRateLimit(fingerprint uint64, filtered bool, filteredReason filteredReason) bool {
-	if filtered {
-		return filtered
-	}
-
-	switch filteredReason {
-	case filteredReasonSlow:
-		if e.rateLimitSlow(fingerprint) {
-			return true
-		}
-	case filteredReasonTraceHasError:
-		if e.rateLimitHasError(fingerprint) {
-			return true
-		}
-	case filteredReasonUninteresting:
-		if e.rateLimitUninteresting(fingerprint) {
-			return true
-		}
-	}
-
-	return filtered
-}
-
-// isSlow returns true if the trace is slow compared to the 75% percentile
-// of traces with the same fingerprint.
-func (e *chqEnforcer) isSlow(td ptrace.Traces, fingerprint uint64) bool {
-	rootDuration, found := findRootDuration(td)
-	if !found {
-		return false
-	}
-	return e.slowPercentile(fingerprint, float64(rootDuration))
-}
-
-func rateHelper(rate int) bool {
-	switch rate {
-	case 0:
-		return true
-	case 1:
-		return false
-	default:
-		return rand.Float64() >= 1/float64(rate)
-	}
-}
-
-func findRootDuration(td ptrace.Traces) (int64, bool) {
-	rss := td.ResourceSpans()
-	for i := 0; i < rss.Len(); i++ {
-		rs := rss.At(i)
-		ilss := rs.ScopeSpans()
-		for j := 0; j < ilss.Len(); j++ {
-			ils := ilss.At(j)
-			spans := ils.Spans()
-			for k := 0; k < spans.Len(); k++ {
-				span := spans.At(k)
-				if span.ParentSpanID().IsEmpty() {
-					return span.EndTimestamp().AsTime().Sub(span.StartTimestamp().AsTime()).Abs().Milliseconds(), true
+		} else if enrichment.Context == "resource" {
+			for _, tag := range enrichment.Tags {
+				if tagValue, found := rs.Resource().Attributes().Get(tag); found {
+					key := fmt.Sprintf("resource.%s", tag)
+					tagsToEnrich[key] = tagValue.AsString()
+				}
+			}
+		} else if enrichment.Context == "scope" {
+			for _, tag := range enrichment.Tags {
+				if tagValue, found := iss.Scope().Attributes().Get(tag); found {
+					key := fmt.Sprintf("scope.%s", tag)
+					tagsToEnrich[key] = tagValue.AsString()
 				}
 			}
 		}
 	}
-	return 0, false
+
+	rec := &chqpb.SpanStats{
+		ServiceName: serviceName,
+		Fingerprint: fingerprint,
+		Phase:       e.pbPhase,
+		VendorId:    e.config.Statistics.Vendor,
+		Count:       1,
+		Tags:        tagsToEnrich,
+		Exemplar: &chqpb.SpanExemplar{
+			TraceId:  span.TraceID().String(),
+			SpanName: span.Name(),
+			SpanKind: span.Kind().String(),
+			Resource: getOrElse(stringAttributes, translate.CardinalFieldResourceName, ""),
+			SpanTags: stringAttributes,
+		},
+	}
+	bucketpile, err := e.spanStats.Record(now, rec, "", 1, spanSize)
+	if err != nil {
+		return err
+	}
+	if bucketpile != nil {
+		// TODO should send this to a channel and have a separate goroutine send it
+		go e.sendSpanStats(context.Background(), now, bucketpile)
+	}
+	return nil
 }
 
-func (e *chqEnforcer) sendGraph(ctx context.Context, graph *spantagger.Graph) error {
-	u := e.config.TraceConfig.GraphURL
-	if u == "" {
-		return nil
+func (e *chqEnforcer) sendSpanStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*chqpb.SpanStats) {
+	wrapper := &chqpb.SpanStatsReport{
+		SubmittedAt: now.UnixMilli(),
+		Stats:       []*chqpb.SpanStats{},
 	}
-	b, err := json.Marshal(graph)
+	for _, items := range *bucketpile {
+		wrapper.Stats = append(wrapper.Stats, items...)
+	}
+
+	if err := e.postSpanStats(ctx, wrapper); err != nil {
+		e.logger.Error("Failed to send span stats", zap.Error(err))
+	}
+	e.logger.Info("Sent log stats", zap.Int("count", len(wrapper.Stats)))
+}
+
+func (e *chqEnforcer) postSpanStats(ctx context.Context, wrapper *chqpb.SpanStatsReport) error {
+	b, err := proto.Marshal(wrapper)
 	if err != nil {
-		return fmt.Errorf("failed to marshal graph: %w", err)
+		return err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(b))
+	e.logger.Info("Sending span stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
+	endpoint := e.config.Statistics.Endpoint + "/api/v1/spanstats"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		return err
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", "application/x-protobuf")
+
 	resp, err := e.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to send graph: %w", err)
+		return err
 	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		return fmt.Errorf("failed to send graph: http status %d", resp.StatusCode)
-	}
+	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
 	return nil
 }
 
-func (e *chqEnforcer) postFingerprint(ctx context.Context, td ptrace.Traces, fingerprint uint64) error {
-	if fingerprint == 0 {
-		return nil
-	}
-	if !e.newTrace(fingerprint) {
-		return nil
-	}
-	graph, _, err := spantagger.BuildTree(td, int64(fingerprint))
-	if err != nil {
-		e.deleteTrace(fingerprint)
-		return fmt.Errorf("failed to build graph: %w", err)
-	}
-	if err := e.sendGraph(ctx, graph); err != nil {
-		e.deleteTrace(fingerprint)
-		return fmt.Errorf("failed to send graph: %w", err)
-	}
-
-	return nil
+func (e *chqEnforcer) updateTracesSampling(sc sampler.SamplerConfig) {
+	e.logger.Info("Updating traces sampling config", zap.String("vendor", e.vendor))
+	e.spanSampler.UpdateConfig(sc.Traces.Sampling, e.vendor, e.telemetrySettings)
 }

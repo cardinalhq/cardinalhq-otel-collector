@@ -13,8 +13,6 @@ processors:
       phase: presample
       vendor: alice
     configuration_extension: nop
-    traces:
-      graph_url: "http://example.com"
 
 exporters:
   nop:

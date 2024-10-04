@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/multierr"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/component"
@@ -87,90 +89,78 @@ func TestConfig(t *testing.T) {
 		MetricAggregation: MetricAggregationConfig{
 			Interval: 10 * time.Second,
 		},
-		TraceConfig: TraceConfig{
-			GraphURL:            "http://example.com",
-			UninterestingRate:   &defaultUninterestingRate,
-			SlowRate:            &defaultSlowRate,
-			HasErrorRate:        &defaultHasErrorRate,
-			EstimatorWindowSize: &defaultEstimatorWindowSize,
-			EstimatorInterval:   &defaultEstimatorInterval,
-		},
 		DropDecorationAttributes: defaultDropDecorationTags,
 	}
 	assert.Equal(t, expected, e)
 }
 
-func TestTraceConfig_Validate(t *testing.T) {
-	//one := int(1)
-	//zero := int(0)
-
-	tests := []struct {
-		name      string
-		config    *TraceConfig
-		wantError bool
-	}{
-		{
-			"valid",
-			&TraceConfig{
-				GraphURL: "http://example.com",
+// Test the Validate function for LogsConfig
+func TestLogsConfigValidate(t *testing.T) {
+	// Case 1: Valid LogsConfig with valid ContextID and Tags
+	validConfig := &LogsConfig{
+		StatsEnrichments: []StatsEnrichment{
+			{
+				Context: "log", // Valid context
+				Tags:    []string{"tag1", "tag2"},
 			},
-			false,
-		},
-		{
-			"invalid URL",
-			&TraceConfig{
-				GraphURL: "://example.com",
+			{
+				Context: "resource", // Valid context
+				Tags:    []string{"tag3"},
 			},
-			true,
-		},
-		{
-			"unsupported scheme",
-			&TraceConfig{
-				GraphURL: "ftp://example.com",
-			},
-			true,
-		},
-		{
-			"no graphurl",
-			&TraceConfig{},
-			false,
-		},
-		{
-			"invalid uninteresting rate",
-			&TraceConfig{
-				UninterestingRate: &[]int{-1}[0],
-			},
-			true,
-		},
-		{
-			"invalid slow rate",
-			&TraceConfig{
-				SlowRate: &[]int{-1}[0],
-			},
-			true,
-		},
-		{
-			"invalid has error rate",
-			&TraceConfig{
-				HasErrorRate: &[]int{-1}[0],
-			},
-			true,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.config.Validate()
-			require.Equal(t, tt.wantError, err != nil)
-		})
-	}
-}
+	err := validConfig.Validate()
+	assert.NoError(t, err, "Expected no error for valid config")
 
-func TestTraceConfig_ValidateAppliesDefaults(t *testing.T) {
-	cfg := &TraceConfig{}
-	err := cfg.Validate()
-	require.NoError(t, err)
-	require.NotNil(t, cfg.UninterestingRate)
-	require.NotNil(t, cfg.SlowRate)
-	require.NotNil(t, cfg.HasErrorRate)
+	// Case 2: Invalid ContextID
+	invalidContextConfig := &LogsConfig{
+		StatsEnrichments: []StatsEnrichment{
+			{
+				Context: "invalidContext", // Invalid context
+				Tags:    []string{"tag1"},
+			},
+		},
+	}
+
+	err = invalidContextConfig.Validate()
+	assert.Error(t, err, "Expected error for invalid context")
+	assert.Contains(t, err.Error(), "invalid context: invalidContext", "Error message should mention invalid context")
+
+	// Case 3: Empty Tags
+	emptyTagsConfig := &LogsConfig{
+		StatsEnrichments: []StatsEnrichment{
+			{
+				Context: "log",      // Valid context
+				Tags:    []string{}, // Empty tags
+			},
+		},
+	}
+
+	err = emptyTagsConfig.Validate()
+	assert.Error(t, err, "Expected error for empty tags")
+	assert.Contains(t, err.Error(), "empty tags for context: log", "Error message should mention empty tags")
+
+	// Case 4: Multiple Errors (Invalid ContextID and Empty Tags)
+	multipleErrorsConfig := &LogsConfig{
+		StatsEnrichments: []StatsEnrichment{
+			{
+				Context: "invalidContext", // Invalid context
+				Tags:    []string{},       // Empty tags
+			},
+			{
+				Context: "scope",    // Valid context
+				Tags:    []string{}, // Empty tags
+			},
+		},
+	}
+
+	err = multipleErrorsConfig.Validate()
+	assert.Error(t, err, "Expected multiple errors for invalid context and empty tags")
+
+	// Check if both errors are captured
+	errs := multierr.Errors(err)
+	assert.Len(t, errs, 2, "Expected two errors: one for invalid context and one for empty tags")
+	assert.Contains(t, errs[0].Error(), "invalid context: invalidContext", "First error should be about invalid context")
+	assert.Contains(t, errs[1].Error(), "empty tags for context: scope", "Second error should be about empty tags")
 }

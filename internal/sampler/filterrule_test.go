@@ -99,7 +99,7 @@ func TestFilterRule_ResourceConditionLog(t *testing.T) {
 // TestFilterRule_ScopeConditionLog Test scope-based condition for logs
 func TestFilterRule_ScopeConditionLog(t *testing.T) {
 	// Create a filterRule with a scope-based condition
-	config := createTestConfig("scope", `scope.name == "test-scope"`)
+	config := createTestConfig("scope", `name == "test-scope"`)
 	rule, err := newFilterRule(config, component.TelemetrySettings{Logger: zap.NewNop()})
 	require.NoError(t, err)
 
@@ -172,7 +172,7 @@ func TestFilterRule_ResourceConditionSpan(t *testing.T) {
 // TestFilterRule_ScopeConditionSpan Test scope-based condition for spans
 func TestFilterRule_ScopeConditionSpan(t *testing.T) {
 	// Create a filterRule with a scope-based condition
-	config := createTestConfig("scope", `scope.name == "test-scope"`)
+	config := createTestConfig("scope", `name == "test-scope"`)
 	rule, err := newFilterRule(config, component.TelemetrySettings{Logger: zap.NewNop()})
 	require.NoError(t, err)
 

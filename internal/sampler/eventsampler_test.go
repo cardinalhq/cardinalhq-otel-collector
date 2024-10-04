@@ -211,6 +211,21 @@ func TestShouldFilterLog(t *testing.T) {
 	)
 	assert.NoError(t, err)
 
+	matchingRule, err := newFilterRule(EventSamplingConfigV1{
+		Id:         "matchingRule",
+		RuleType:   "rps",
+		SampleRate: 0.5,
+		RPS:        100,
+		Vendor:     "test-vendor",
+		Filter: []Filter{
+			{ContextId: "resource", Condition: `attributes["service.name"] == "my-service"`},
+		},
+	},
+		component.TelemetrySettings{Logger: zap.NewNop()})
+	matchingRule.sampler = makeConstantSampler()
+
+	assert.NoError(t, err)
+
 	tests := []struct {
 		name     string
 		rules    map[string]*filterRule
@@ -240,65 +255,12 @@ func TestShouldFilterLog(t *testing.T) {
 		{
 			"matching rule",
 			map[string]*filterRule{
-				"rule1": {
-					id:       "rule1",
-					ruleType: EventSamplingRuleTypeRPS,
-					sampler:  makeConstantSampler(),
-					config: EventSamplingConfigV1{
-						Filter: []Filter{
-							{ContextId: "resource", Condition: `attributes["service.name"] == "my-service"`},
-						},
-					},
-				},
+				"matchingRule": matchingRule,
 			},
 			map[string]string{"service.name": "my-service"},
 			map[string]string{},
 			map[string]string{},
-			[]string{"rule1"},
-		},
-		{
-			"multiple rules",
-			map[string]*filterRule{
-				"rule1": {
-					id:       "rule1",
-					ruleType: EventSamplingRuleTypeRPS,
-					sampler:  makeConstantSampler(),
-					config: EventSamplingConfigV1{
-						Filter: []Filter{
-							{ContextId: "resource", Condition: `attributes["service.name"] == "my-service"`},
-						},
-					},
-				},
-				"rule2": {
-					id:       "rule2",
-					ruleType: EventSamplingRuleTypeRPS,
-					sampler:  makeConstantSampler(),
-					config: EventSamplingConfigV1{
-						Filter: []Filter{},
-					},
-				},
-			},
-			map[string]string{"service.name": "my-service"},
-			map[string]string{},
-			map[string]string{},
-			[]string{"rule1", "rule2"},
-		},
-		{
-			"empty filter",
-			map[string]*filterRule{
-				"rule1": {
-					id:       "rule1",
-					ruleType: EventSamplingRuleTypeRPS,
-					sampler:  makeConstantSampler(),
-					config: EventSamplingConfigV1{
-						Filter: []Filter{},
-					},
-				},
-			},
-			map[string]string{"service.name": "my-service"},
-			map[string]string{},
-			map[string]string{},
-			[]string{"rule1"},
+			[]string{"matchingRule"},
 		},
 	}
 

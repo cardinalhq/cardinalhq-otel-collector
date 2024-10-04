@@ -88,6 +88,7 @@ func (fr *filterRule) parseConditions(telemetry component.TelemetrySettings) err
 }
 
 func (fr *filterRule) evaluateLog(rl plog.ResourceLogs, sl plog.ScopeLogs, ll plog.LogRecord) bool {
+	matched := fr.resourceCondition != nil || fr.scopeCondition != nil || fr.logCondition != nil
 	if fr.resourceCondition != nil {
 		transformCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
 		eval, err := fr.resourceCondition.Eval(context.Background(), transformCtx)
@@ -111,10 +112,12 @@ func (fr *filterRule) evaluateLog(rl plog.ResourceLogs, sl plog.ScopeLogs, ll pl
 			return false
 		}
 	}
-	return true
+	return matched
 }
 
 func (fr *filterRule) evaluateSpan(rl ptrace.ResourceSpans, sl ptrace.ScopeSpans, ll ptrace.Span) bool {
+	matched := fr.resourceCondition != nil || fr.scopeCondition != nil || fr.spanCondition != nil
+
 	if fr.resourceCondition != nil {
 		transformCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
 		eval, err := fr.resourceCondition.Eval(context.Background(), transformCtx)
@@ -138,7 +141,7 @@ func (fr *filterRule) evaluateSpan(rl ptrace.ResourceSpans, sl ptrace.ScopeSpans
 			return false
 		}
 	}
-	return true
+	return matched
 }
 
 func newFilterRule(c EventSamplingConfigV1, telemetry component.TelemetrySettings) (*filterRule, error) {

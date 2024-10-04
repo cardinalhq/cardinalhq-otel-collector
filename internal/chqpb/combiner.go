@@ -16,7 +16,7 @@ package chqpb
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/cespare/xxhash"
 
@@ -25,10 +25,7 @@ import (
 
 func (l *LogStats) Key() uint64 {
 	key := fmt.Sprintf("%s:%d:%d:%s", l.ServiceName, l.Fingerprint, int32(l.Phase), l.VendorId)
-
 	key = appendTags(l.Tags, key)
-
-	// Return the xxhash of the resulting key string
 	return xxhash.Sum64String(key)
 }
 
@@ -51,24 +48,18 @@ func (l *LogStats) Initialize() error {
 }
 
 func (l *SpanStats) Key() uint64 {
-	// Create the initial key with ServiceName, Fingerprint, Phase, and VendorId
 	key := fmt.Sprintf("%s:%d:%d:%s", l.ServiceName, l.Fingerprint, l.Phase, l.VendorId)
-
 	key = appendTags(l.Tags, key)
-
-	// Return the xxhash of the resulting key string
 	return xxhash.Sum64String(key)
 }
 
 func appendTags(tags map[string]string, key string) string {
-	// Collect keys from the tags map and sort them to ensure consistent order
 	var sortedKeys []string
 	for k := range tags {
 		sortedKeys = append(sortedKeys, k)
 	}
-	sort.Strings(sortedKeys)
+	slices.Sort(sortedKeys)
 
-	// Append sorted key-value pairs to the key
 	for _, k := range sortedKeys {
 		key += fmt.Sprintf(":%s=%s", k, tags[k])
 	}

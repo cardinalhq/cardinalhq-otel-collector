@@ -63,6 +63,14 @@ func createDefaultConfig() component.Config {
 			Interval: defaultMetricAggregation,
 		},
 		DropDecorationAttributes: defaultDropDecorationTags,
+		LogsConfig: LogsConfig{
+			StatsEnrichments: []StatsEnrichment{
+				{
+					Context: "resource",
+					Tags:    []string{"k8s.namespace.name"},
+				},
+			},
+		},
 	}
 }
 

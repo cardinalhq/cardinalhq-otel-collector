@@ -44,10 +44,10 @@ func TestLogProcessorProcessLogs_ConditionStatementEvaluation(t *testing.T) {
 				{
 					Context: "log",
 					Conditions: []string{
-						"IsMap(body) and body[\"object\"] != nil",
+						`IsMap(body) and body["object"] != nil`,
 					},
 					Statements: []string{
-						"set(body, attributes[\"http.route\"])",
+						`set(body, attributes["http.route"])`,
 					},
 				},
 			},

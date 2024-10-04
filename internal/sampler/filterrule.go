@@ -16,6 +16,7 @@ package sampler
 
 import (
 	"context"
+
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
@@ -25,7 +26,6 @@ import (
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/ptrace"
-	"go.uber.org/zap"
 )
 
 type filterRule struct {
@@ -40,36 +40,51 @@ type filterRule struct {
 	spanCondition     *ottl.Condition[ottlspan.TransformContext]
 }
 
-func (fr *filterRule) parseConditions() {
-	resourceParser, _ := ottlresource.NewParser(ottlfuncs.StandardFuncs[ottlresource.TransformContext](),
-		component.TelemetrySettings{Logger: zap.NewNop()})
-
-	scopeParser, _ := ottlscope.NewParser(ottlfuncs.StandardFuncs[ottlscope.TransformContext](),
-		component.TelemetrySettings{Logger: zap.NewNop()})
-
-	logParser, _ := ottllog.NewParser(ottlfuncs.StandardFuncs[ottllog.TransformContext](),
-		component.TelemetrySettings{Logger: zap.NewNop()})
-
-	spanParser, _ := ottlspan.NewParser(ottlfuncs.StandardFuncs[ottlspan.TransformContext](),
-		component.TelemetrySettings{Logger: zap.NewNop()})
+func (fr *filterRule) parseConditions(telemetry component.TelemetrySettings) error {
+	resourceParser, err := ottlresource.NewParser(ottlfuncs.StandardFuncs[ottlresource.TransformContext](), telemetry)
+	if err != nil {
+		return err
+	}
+	scopeParser, err := ottlscope.NewParser(ottlfuncs.StandardFuncs[ottlscope.TransformContext](), telemetry)
+	if err != nil {
+		return err
+	}
+	logParser, err := ottllog.NewParser(ottlfuncs.StandardFuncs[ottllog.TransformContext](), telemetry)
+	if err != nil {
+		return err
+	}
+	spanParser, err := ottlspan.NewParser(ottlfuncs.StandardFuncs[ottlspan.TransformContext](), telemetry)
+	if err != nil {
+		return err
+	}
 
 	if fr.config.Filter != nil {
 		for _, filter := range fr.config.Filter {
 			switch filter.ContextId {
 			case "resource":
-				fr.resourceCondition, _ = resourceParser.ParseCondition(filter.Condition)
-
+				fr.resourceCondition, err = resourceParser.ParseCondition(filter.Condition)
+				if err != nil {
+					return err
+				}
 			case "scope":
-				fr.scopeCondition, _ = scopeParser.ParseCondition(filter.Condition)
-
+				fr.scopeCondition, err = scopeParser.ParseCondition(filter.Condition)
+				if err != nil {
+					return err
+				}
 			case "log":
-				fr.logCondition, _ = logParser.ParseCondition(filter.Condition)
-
+				fr.logCondition, err = logParser.ParseCondition(filter.Condition)
+				if err != nil {
+					return err
+				}
 			case "span":
-				fr.spanCondition, _ = spanParser.ParseCondition(filter.Condition)
+				fr.spanCondition, err = spanParser.ParseCondition(filter.Condition)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
+	return nil
 }
 
 func (fr *filterRule) evaluateLog(rl plog.ResourceLogs, sl plog.ScopeLogs, ll plog.LogRecord) bool {
@@ -126,7 +141,7 @@ func (fr *filterRule) evaluateSpan(rl ptrace.ResourceSpans, sl ptrace.ScopeSpans
 	return true
 }
 
-func newFilterRule(c EventSamplingConfigV1) *filterRule {
+func newFilterRule(c EventSamplingConfigV1, telemetry component.TelemetrySettings) (*filterRule, error) {
 	// Create the logRule instance
 	r := &filterRule{
 		id:       c.Id,
@@ -135,7 +150,9 @@ func newFilterRule(c EventSamplingConfigV1) *filterRule {
 	}
 
 	// Call parseConditions to initialize the conditions
-	r.parseConditions()
+	if err := r.parseConditions(telemetry); err != nil {
+		return nil, err
+	}
 
-	return r
+	return r, nil
 }

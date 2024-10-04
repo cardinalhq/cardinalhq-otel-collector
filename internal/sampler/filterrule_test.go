@@ -17,8 +17,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/ptrace"
+	"go.uber.org/zap"
 )
 
 // Helper function to create a test EventSamplingConfigV1
@@ -80,7 +83,8 @@ func createTestSpan() ptrace.Span {
 func TestFilterRule_ResourceConditionLog(t *testing.T) {
 	// Create a filterRule with a resource-based condition
 	config := createTestConfig("resource", `attributes["service.name"] == "test-service"`)
-	rule := newFilterRule(config)
+	rule, err := newFilterRule(config, component.TelemetrySettings{Logger: zap.NewNop()})
+	require.NoError(t, err)
 
 	// Create test data
 	rl := createTestResourceLogs()
@@ -96,7 +100,8 @@ func TestFilterRule_ResourceConditionLog(t *testing.T) {
 func TestFilterRule_ScopeConditionLog(t *testing.T) {
 	// Create a filterRule with a scope-based condition
 	config := createTestConfig("scope", `scope.name == "test-scope"`)
-	rule := newFilterRule(config)
+	rule, err := newFilterRule(config, component.TelemetrySettings{Logger: zap.NewNop()})
+	require.NoError(t, err)
 
 	// Create test data
 	rl := createTestResourceLogs()
@@ -112,7 +117,8 @@ func TestFilterRule_ScopeConditionLog(t *testing.T) {
 func TestFilterRule_LogRecordConditionLog(t *testing.T) {
 	// Create a filterRule with a log record-based condition
 	config := createTestConfig("log", `attributes["log.level"] == "INFO"`)
-	rule := newFilterRule(config)
+	rule, err := newFilterRule(config, component.TelemetrySettings{Logger: zap.NewNop()})
+	require.NoError(t, err)
 
 	// Create test data
 	rl := createTestResourceLogs()
@@ -128,7 +134,8 @@ func TestFilterRule_LogRecordConditionLog(t *testing.T) {
 func TestFilterRule_LogRecordConditionLog_Negative(t *testing.T) {
 	// Create a filterRule with a log record-based condition
 	config := createTestConfig("log", `attributes["log.level"] == "INFO"`)
-	rule := newFilterRule(config)
+	rule, err := newFilterRule(config, component.TelemetrySettings{Logger: zap.NewNop()})
+	require.NoError(t, err)
 
 	// Create test data with mismatched log level
 	rl := createTestResourceLogs()
@@ -149,7 +156,8 @@ func TestFilterRule_LogRecordConditionLog_Negative(t *testing.T) {
 func TestFilterRule_ResourceConditionSpan(t *testing.T) {
 	// Create a filterRule with a resource-based condition
 	config := createTestConfig("resource", `attributes["service.name"] == "test-service"`)
-	rule := newFilterRule(config)
+	rule, err := newFilterRule(config, component.TelemetrySettings{Logger: zap.NewNop()})
+	require.NoError(t, err)
 
 	// Create test data
 	rs := createTestResourceSpans()
@@ -165,7 +173,8 @@ func TestFilterRule_ResourceConditionSpan(t *testing.T) {
 func TestFilterRule_ScopeConditionSpan(t *testing.T) {
 	// Create a filterRule with a scope-based condition
 	config := createTestConfig("scope", `scope.name == "test-scope"`)
-	rule := newFilterRule(config)
+	rule, err := newFilterRule(config, component.TelemetrySettings{Logger: zap.NewNop()})
+	require.NoError(t, err)
 
 	// Create test data
 	rs := createTestResourceSpans()
@@ -181,7 +190,8 @@ func TestFilterRule_ScopeConditionSpan(t *testing.T) {
 func TestFilterRule_SpanConditionSpan(t *testing.T) {
 	// Create a filterRule with a span-based condition
 	config := createTestConfig("span", `attributes["span.kind"] == "internal"`)
-	rule := newFilterRule(config)
+	rule, err := newFilterRule(config, component.TelemetrySettings{Logger: zap.NewNop()})
+	assert.NoError(t, err)
 
 	// Create test data
 	rs := createTestResourceSpans()
@@ -197,7 +207,8 @@ func TestFilterRule_SpanConditionSpan(t *testing.T) {
 func TestFilterRule_SpanConditionSpan_Negative(t *testing.T) {
 	// Create a filterRule with a span-based condition
 	config := createTestConfig("span", `attributes["span.kind"] == "internal"`)
-	rule := newFilterRule(config)
+	rule, err := newFilterRule(config, component.TelemetrySettings{Logger: zap.NewNop()})
+	require.NoError(t, err)
 
 	// Create test data with mismatched span kind
 	rs := createTestResourceSpans()

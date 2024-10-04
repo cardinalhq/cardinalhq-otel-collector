@@ -15,10 +15,11 @@
 package chqenforcerprocessor
 
 import (
-	"go.uber.org/multierr"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"go.uber.org/multierr"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

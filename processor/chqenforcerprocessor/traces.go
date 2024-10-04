@@ -18,6 +18,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
@@ -26,8 +29,6 @@ import (
 	"go.opentelemetry.io/collector/processor/processorhelper"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
-	"net/http"
-	"time"
 )
 
 func (e *chqEnforcer) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
@@ -226,5 +227,5 @@ func (e *chqEnforcer) postSpanStats(ctx context.Context, wrapper *chqpb.SpanStat
 
 func (e *chqEnforcer) updateTracesSampling(sc sampler.SamplerConfig) {
 	e.logger.Info("Updating traces sampling config", zap.String("vendor", e.vendor))
-	e.spanSampler.UpdateConfig(sc.Traces.Sampling, e.vendor)
+	e.spanSampler.UpdateConfig(sc.Traces.Sampling, e.vendor, e.telemetrySettings)
 }

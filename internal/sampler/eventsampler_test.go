@@ -15,10 +15,12 @@
 package sampler
 
 import (
-	"go.opentelemetry.io/collector/pdata/plog"
-	"go.uber.org/zap"
 	"math/rand"
 	"testing"
+
+	"go.opentelemetry.io/collector/component"
+	"go.opentelemetry.io/collector/pdata/plog"
+	"go.uber.org/zap"
 
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -200,6 +202,15 @@ func makeConstantSampler() Sampler {
 }
 
 func TestShouldFilterLog(t *testing.T) {
+	rule1, err := newFilterRule(EventSamplingConfigV1{
+		Filter: []Filter{
+			{ContextId: "resource", Condition: `attributes["service.name"] == "other-service"`},
+		},
+	},
+		component.TelemetrySettings{Logger: zap.NewNop()},
+	)
+	assert.NoError(t, err)
+
 	tests := []struct {
 		name     string
 		rules    map[string]*filterRule
@@ -219,11 +230,7 @@ func TestShouldFilterLog(t *testing.T) {
 		{
 			"no matching rules",
 			map[string]*filterRule{
-				"rule1": newFilterRule(EventSamplingConfigV1{
-					Filter: []Filter{
-						{ContextId: "resource", Condition: `attributes["service.name"] == "other-service"`},
-					},
-				}),
+				"rule1": rule1,
 			},
 			map[string]string{"service.name": "my-service"},
 			map[string]string{},

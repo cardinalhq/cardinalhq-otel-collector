@@ -17,10 +17,12 @@ package sampler
 import (
 	"context"
 	"fmt"
-	"go.opentelemetry.io/collector/pdata/plog"
-	"go.opentelemetry.io/collector/pdata/ptrace"
 	"math/rand"
 	"sync"
+
+	"go.opentelemetry.io/collector/component"
+	"go.opentelemetry.io/collector/pdata/plog"
+	"go.opentelemetry.io/collector/pdata/ptrace"
 
 	"go.uber.org/zap"
 )
@@ -28,7 +30,7 @@ import (
 type EventSampler interface {
 	SampleLogs(serviceName string, fingerprint string, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) (droppingRule string)
 	SampleSpans(serviceName string, fingerprint string, rl ptrace.ResourceSpans, sl ptrace.ScopeSpans, lr ptrace.Span) (droppingRule string)
-	UpdateConfig(config []EventSamplingConfigV1, vendor string)
+	UpdateConfig(config []EventSamplingConfigV1, vendor string, telemetry component.TelemetrySettings)
 }
 
 var _ EventSampler = (*EventSamplerImpl)(nil)
@@ -48,10 +50,10 @@ func NewEventSamplerImpl(ctx context.Context, logger *zap.Logger) *EventSamplerI
 	return ls
 }
 
-func (ls *EventSamplerImpl) UpdateConfig(config []EventSamplingConfigV1, vendor string) {
+func (ls *EventSamplerImpl) UpdateConfig(config []EventSamplingConfigV1, vendor string, telemetry component.TelemetrySettings) {
 	ls.Lock()
 	defer ls.Unlock()
-	ls.configure(config, vendor)
+	ls.configure(config, vendor, telemetry)
 }
 
 func (ls *EventSamplerImpl) SampleLogs(serviceName string,
@@ -159,7 +161,7 @@ func randomToRPS(rate float64) int {
 	return int(1 / rate)
 }
 
-func (ls *EventSamplerImpl) configure(config []EventSamplingConfigV1, vendor string) {
+func (ls *EventSamplerImpl) configure(config []EventSamplingConfigV1, vendor string, telemetry component.TelemetrySettings) {
 	ls.logger.Info("Updating log sampling rules", zap.Any("config", config))
 	currentIDs := map[string]bool{}
 	for k := range ls.rules {
@@ -175,9 +177,14 @@ func (ls *EventSamplerImpl) configure(config []EventSamplingConfigV1, vendor str
 			continue
 		}
 		if currentrule, ok := ls.rules[c.Id]; ok {
-			ls.updateCurrentRule(currentrule, c)
+			if err := ls.updateCurrentRule(currentrule, c, telemetry); err != nil {
+				ls.logger.Error("Error updating log sampling rule (removing)", zap.String("id", c.Id), zap.Error(err))
+				continue
+			}
 		} else {
-			ls.addRule(c)
+			if err := ls.addRule(c, telemetry); err != nil {
+				ls.logger.Error("Error adding log sampling rule", zap.String("id", c.Id), zap.Error(err))
+			}
 		}
 		delete(currentIDs, c.Id)
 	}
@@ -192,21 +199,23 @@ func (ls *EventSamplerImpl) configure(config []EventSamplingConfigV1, vendor str
 }
 
 // new rule must be started by the caller.
-func (ls *EventSamplerImpl) addRule(c EventSamplingConfigV1) {
+func (ls *EventSamplerImpl) addRule(c EventSamplingConfigV1, telemetry component.TelemetrySettings) error {
 	ls.logger.Info("Adding event sampling rule", zap.String("id", c.Id), zap.Any("config", c))
-	r := newFilterRule(c)
+	r, err := newFilterRule(c, telemetry)
+	if err != nil {
+		return fmt.Errorf("error creating event sampling rule: %w", err)
+	}
 
 	r.ruleType, r.sampler = samplerForType(c, ls.logger)
 	if r.sampler == nil {
-		ls.logger.Error("Unknown event sampling rule type", zap.String("type", c.RuleType))
-		return
+		return fmt.Errorf("unknown event sampling rule type %s", c.RuleType)
 	}
 	if err := r.sampler.Start(); err != nil {
-		ls.logger.Error("Error starting event sampler", zap.Error(err))
-		return
+		return fmt.Errorf("error starting event sampler: %w", err)
 	}
 	ls.logger.Info("Started event sampling rule", zap.String("id", c.Id))
 	ls.rules[c.Id] = r
+	return nil
 }
 
 func samplerForType(c EventSamplingConfigV1, logger *zap.Logger) (ruleType EventSamplingRuleType, sampler Sampler) {
@@ -225,22 +234,24 @@ func samplerForType(c EventSamplingConfigV1, logger *zap.Logger) (ruleType Event
 }
 
 // existing rule must be stopped and started by the caller.
-func (ls *EventSamplerImpl) updateCurrentRule(r *filterRule, c EventSamplingConfigV1) {
+func (ls *EventSamplerImpl) updateCurrentRule(r *filterRule, c EventSamplingConfigV1, telemetry component.TelemetrySettings) error {
 	if r.config.Equals(c) {
-		return
+		return nil
 	}
 	ls.logger.Info("Updating event sampling rule", zap.String("id", c.Id), zap.Any("config", c))
 	_ = r.sampler.Stop()
 	r.ruleType, r.sampler = samplerForType(c, ls.logger)
 	if r.sampler == nil {
-		ls.logger.Error("Unknown event sampling rule type", zap.String("type", c.RuleType))
-		return
+		return fmt.Errorf("unknown event sampling rule type %s", c.RuleType)
 	}
 	r.config = c
-	r.parseConditions()
+	if err := r.parseConditions(telemetry); err != nil {
+		return fmt.Errorf("error parsing conditions: %w", err)
+	}
 
 	if err := r.sampler.Start(); err != nil {
-		ls.logger.Error("Error starting event sampler", zap.Error(err))
+		return fmt.Errorf("error starting event sampler: %w", err)
 	}
 	ls.logger.Info("Started log sampling rule", zap.String("id", c.Id))
+	return nil
 }

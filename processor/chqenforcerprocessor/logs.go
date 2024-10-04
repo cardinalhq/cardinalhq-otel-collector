@@ -193,5 +193,5 @@ func (e *chqEnforcer) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsR
 
 func (e *chqEnforcer) updateLogsSampling(sc sampler.SamplerConfig) {
 	e.logger.Info("Updating log sampling config", zap.String("vendor", e.vendor))
-	e.logSampler.UpdateConfig(sc.Logs.Sampling, e.vendor)
+	e.logSampler.UpdateConfig(sc.Logs.Sampling, e.vendor, e.telemetrySettings)
 }

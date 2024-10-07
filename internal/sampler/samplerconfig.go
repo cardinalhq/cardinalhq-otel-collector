@@ -55,8 +55,9 @@ type MetricConfigV1 struct {
 }
 
 type AggregatorConfigV1 struct {
-	Id              string                  `json:"id,omitempty" yaml:"id,omitempty"`
-	MetricName      string                  `json:"metricName,omitempty" yaml:"metricName,omitempty"`
+	Id         string `json:"id,omitempty" yaml:"id,omitempty"`
+	MetricName string `json:"metricName,omitempty" yaml:"metricName,omitempty"`
+	// Metric specific transformations
 	Transformations []ottl.ContextStatement `json:"transformations,omitempty" yaml:"transformations,omitempty"`
 	Vendor          string                  `json:"vendor,omitempty" yaml:"vendor,omitempty"`
 }

@@ -106,6 +106,7 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextCo
 		interval := config.MetricAggregation.Interval.Milliseconds()
 		statsExporter.aggregatorI = sampler.NewMetricAggregatorImpl[int64](interval, nil)
 		statsExporter.aggregatorF = sampler.NewMetricAggregatorImpl[float64](interval, nil)
+		statsExporter.metricTransformations = make(map[string]ottl.Transformations)
 		err := statsExporter.setupMetricTelemetry()
 		if err != nil {
 			return nil, err

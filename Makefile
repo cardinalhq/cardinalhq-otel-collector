@@ -53,7 +53,7 @@ all: ${TARGETS}
 .PHONY: generate
 generate:
 	for i in $(MODULE_SOURCE_PATHS); do \
-		(echo ============ generating $$i ... ; cd $$i && go generate ./...) \
+		(echo ============ generating $$i ... ; cd $$i && go generate ./...) || exit 1; \
 	done
 
 #
@@ -62,17 +62,17 @@ generate:
 check: test
 	license-eye header check
 	for i in $(MODULE_SOURCE_PATHS); do \
-		(echo ============ linting $$i ... ; cd $$i && golangci-lint run) \
+		(echo ============ linting $$i ... ; cd $$i && golangci-lint run) || exit 1; \
 	done
 
 update-deps:
 	for i in $(MODULE_SOURCE_PATHS); do \
-		(echo ============ updating $$i ... ; cd $$i && go get -u -t ./... && go mod tidy) \
+		(echo ============ updating $$i ... ; cd $$i && go get -u -t ./... && go mod tidy) || exit 1; \
 	done
 
 tidy:
 	for i in $(MODULE_SOURCE_PATHS); do \
-		(echo ============ go tidy in $$i ... ; cd $$i && go mod tidy) \
+		(echo ============ go tidy in $$i ... ; cd $$i && go mod tidy) || exit 1; \
 	done
 
 
@@ -128,7 +128,7 @@ image-names:
 .PHONY: test
 test: generate
 	for i in $(MODULE_SOURCE_PATHS); do \
-		(echo ============ testing $$i ... ; cd $$i && go test ./...) \
+		(echo ============ testing $$i ... && cd $$i && go test ./...) || exit 1; \
 	done
 
 #

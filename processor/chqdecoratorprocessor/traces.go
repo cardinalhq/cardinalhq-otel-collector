@@ -17,33 +17,19 @@ package chqdecoratorprocessor
 import (
 	"context"
 	"fmt"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/fingerprinter"
+	"strings"
+	"time"
+
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 	"github.com/cespare/xxhash/v2"
 	semconv "go.opentelemetry.io/otel/semconv/v1.22.0"
-	"strings"
-	"sync"
-	"time"
 
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
-
-type spansProcessor struct {
-	logger  *zap.Logger
-	podName string
-
-	finger              fingerprinter.Fingerprinter
-	estimatorWindowSize int
-	estimatorInterval   int64
-	estimatorLock       sync.Mutex
-	estimators          map[uint64]*SlidingEstimatorStat
-
-	transformations ottl.Transformations
-}
 
 const (
 	httpMethod  = "http.request.method"
@@ -185,10 +171,6 @@ func (c *chqDecorator) decorateTraces(td ptrace.Traces) (ptrace.Traces, error) {
 func (c *chqDecorator) shouldDropSpan(serviceName string, fingerprint int64, rl ptrace.ResourceSpans, sl ptrace.ScopeSpans, lr ptrace.Span) bool {
 	fingerprintString := fmt.Sprintf("%d", fingerprint)
 	return c.traceSampler.SampleSpans(serviceName, fingerprintString, rl, sl, lr) != ""
-}
-
-func (sp *spansProcessor) Shutdown(context.Context) error {
-	return nil
 }
 
 func (c *chqDecorator) updateTracesSampling(sc sampler.SamplerConfig) {

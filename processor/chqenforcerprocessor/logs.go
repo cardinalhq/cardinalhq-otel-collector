@@ -18,10 +18,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
@@ -204,10 +205,13 @@ func (e *chqEnforcer) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsR
 }
 
 func (c *chqEnforcer) updateLogTransformations(sc sampler.SamplerConfig) {
+	c.logger.Info("Updating log transformations config", zap.String("vendor", c.vendor))
+	transformations, err := ottl.ParseTransformations(sc.Logs.Transformations, c.logger)
+	if err != nil {
+		c.logger.Error("Failed to parse log transformations, keeping old rules", zap.Error(err))
+		return
+	}
 	c.Lock()
 	defer c.Unlock()
-
-	c.logger.Info("Updating log transformations config", zap.String("vendor", c.vendor))
-	transformations, _ := ottl.ParseTransformations(sc.Logs.Transformations, c.logger)
 	c.logTransformations = transformations
 }

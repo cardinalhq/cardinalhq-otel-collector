@@ -16,27 +16,41 @@ package chqdecoratorprocessor
 
 import (
 	"context"
-	"go.opentelemetry.io/collector/processor"
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/collector/component"
+	"go.opentelemetry.io/collector/processor"
+	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
 // Helper function to create a spansProcessor with mock transformations
-func createSpansProcessorWithTransformations() *spansProcessor {
+func createSpansProcessorWithTransformations(t *testing.T) *chqDecorator {
 	// Mock processor settings and config
 
-	settings := processor.Settings{}
+	processorSettings := processor.Settings{
+		TelemetrySettings: component.TelemetrySettings{Logger: zap.NewNop()},
+	}
 	config := &Config{
 		TracesConfig: TracesConfig{
 			EstimatorWindowSize: 5,
 			EstimatorInterval:   1000,
-			Transforms: []ContextStatement{
-				// Resource level transformations
+		},
+	}
+
+	c, err := newCHQDecorator(config, "traces", processorSettings)
+
+	c.updateTracesSampling(sampler.SamplerConfig{
+		Traces: sampler.TraceConfigV1{
+			Transformations: []ottl.ContextStatement{
 				{
 					Context:    "resource",
 					Conditions: []string{`attributes["service.name"] == "test-service"`},
@@ -53,13 +67,11 @@ func createSpansProcessorWithTransformations() *spansProcessor {
 					Context:    "span",
 					Conditions: []string{`attributes["kind"] == "internal"`},
 					Statements: []string{`set(attributes["transformed"], true)`},
-				},
-			},
+				}},
 		},
-	}
-
-	sp, _ := newSpansProcessor(settings, config)
-	return sp
+	})
+	require.NoError(t, err)
+	return c
 }
 
 // Helper function to create test traces
@@ -83,7 +95,7 @@ func createTestTraces() ptrace.Traces {
 // TestSpansProcessor_Transformations tests the application of transformations at all levels
 func TestSpansProcessor_Transformations(t *testing.T) {
 	// Create the spansProcessor with mock transformations
-	sp := createSpansProcessorWithTransformations()
+	sp := createSpansProcessorWithTransformations(t)
 
 	// Create the test traces
 	td := createTestTraces()

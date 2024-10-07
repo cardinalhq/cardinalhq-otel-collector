@@ -15,10 +15,13 @@ package chqdecoratorprocessor
 
 import (
 	"context"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"testing"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
+	"go.uber.org/zap"
+
 	"github.com/stretchr/testify/assert"
+	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor"
 	semconv "go.opentelemetry.io/otel/semconv/v1.22.0"
@@ -36,8 +39,10 @@ func TestSpansProcessor_FingerprintWithHttpResource(t *testing.T) {
 			EstimatorInterval:   interval,   // Use pointer
 		},
 	}
-	processorSettings := processor.Settings{}
-	sp, err := newSpansProcessor(processorSettings, config)
+	processorSettings := processor.Settings{
+		TelemetrySettings: component.TelemetrySettings{Logger: zap.NewNop()},
+	}
+	sp, err := newCHQDecorator(config, "traces", processorSettings)
 	assert.NoError(t, err)
 
 	// Mock service name

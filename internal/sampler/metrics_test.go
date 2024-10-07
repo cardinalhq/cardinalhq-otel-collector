@@ -15,6 +15,9 @@
 package sampler
 
 import (
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"go.opentelemetry.io/collector/pdata/pmetric"
+	"go.uber.org/zap"
 	"testing"
 	"time"
 
@@ -189,7 +192,8 @@ func TestAttrsToMap(t *testing.T) {
 		"scope2.name3": "true",
 	}
 
-	result := attrsToMap(attrs)
+	result, transformed := attrsToMap(attrs)
+	assert.Equal(t, transformed, false)
 
 	if len(result) != len(expected) {
 		t.Errorf("Expected %d attributes, but got %d", len(expected), len(result))
@@ -256,139 +260,87 @@ func TestConfigure(t *testing.T) {
 	assert.Equal(t, rules, m.rules)
 }
 
-func TestMatchAndAdd(t *testing.T) {
-	conf := []AggregatorConfigV1{
+func TestMatchAndAdd_AverageAfterDroppingDimension(t *testing.T) {
+	statements := []ottl.ContextStatement{
 		{
-			Id:         "rule1",
-			MetricName: "metric1",
-			Scope: map[string]string{
-				"resource.name": "resource1",
+			Context:    "datapoint",
+			Conditions: []string{},
+			Statements: []string{
+				`delete_key(attributes, "movieId")`, // Drop the movieId key
 			},
-			Tags: []string{
-				"resource.name",
-				"instrumentation.name",
-			},
-			TagAction: "keep",
 		},
 	}
+	conf := []AggregatorConfigV1{
+		{
+			Id:              "rule1",
+			MetricName:      "metric1",
+			Transformations: statements,
+		},
+	}
+
+	// Parse transformations
+	transformations, err := ottl.ParseTransformations(statements, zap.NewNop())
+	assert.NoError(t, err)
+	assert.NotNil(t, transformations)
+
+	// Initialize metric aggregator
 	m := NewMetricAggregatorImpl[float64](10, conf)
 
-	rattr := pcommon.NewMap()
-	rattr.PutStr("name", "resource1")
+	// Create ResourceMetrics
+	rm := pmetric.NewResourceMetrics()
 
-	iattr := pcommon.NewMap()
-	iattr.PutStr("name", "instrumentation1")
+	// Create ScopeMetrics
+	scopeMetrics := rm.ScopeMetrics().AppendEmpty()
+	metric := scopeMetrics.Metrics().AppendEmpty()
+	metric.SetName("metric1")
+	metric.SetEmptyGauge()
 
-	mattr := pcommon.NewMap()
-	mattr.PutStr("name", "metric1")
+	// Create the first DataPoint (movieId1)
+	dp1 := metric.Gauge().DataPoints().AppendEmpty()
+	dp1.SetTimestamp(pcommon.Timestamp(1641024001231000000)) // Corresponds to time.UnixMilli(1641024001231)
+	dp1.Attributes().PutStr("movieId", "movieId1")
+	dp1.SetDoubleValue(1.0)
 
-	buckets := []float64{1}
-	values := []float64{10.0}
-	aggregationType := AggregationTypeSum
-	name := "metric1"
+	// Create the second DataPoint (movieId2)
+	dp2 := metric.Gauge().DataPoints().AppendEmpty()
+	dp2.SetTimestamp(pcommon.Timestamp(1641024001231000000)) // Same timestamp as dp1
+	dp2.Attributes().PutStr("movieId", "movieId2")
+	dp1.SetDoubleValue(2.0)
 
-	expectedTags := map[string]string{
-		"resource.name":        "resource1",
-		"instrumentation.name": "instrumentation1",
-	}
+	// Apply transformations to both data points
+	transformations.ExecuteDataPointTransforms(dp1, metric, scopeMetrics, rm)
+	transformations.ExecuteDataPointTransforms(dp2, metric, scopeMetrics, rm)
+
+	// At this point, both data points should have their "movieId" attribute dropped.
 
 	ttime := time.UnixMilli(1641024001231)
 	tbox := timebox(ttime, 10)
 
-	actualRule, err := m.MatchAndAdd(&ttime, buckets, values, aggregationType, name, nil, rattr, iattr, mattr)
+	// Call MatchAndAdd for both data points (which have had movieId dropped)
+	rattr := rm.Resource().Attributes()
+	sattr := scopeMetrics.Scope().Attributes()
+	dp1Attributes := dp1.Attributes()
+	dp2Attributes := dp2.Attributes()
+
+	buckets := []float64{1}
+
+	_, err = m.MatchAndAdd(&ttime, buckets, []float64{1.0}, AggregationTypeAvg, "metric1", nil, rattr, sattr, dp1Attributes)
 	assert.Nil(t, err)
 
-	assert.Equal(t, &conf[0], actualRule)
-	assert.Equal(t, 1, len(m.sets))
-	assert.Equal(t, 1, len(m.sets[tbox].Aggregations))
-	// we don't know what the actual entry is, so we will pull out
-	// whatever is there.
-	for _, v := range m.sets[tbox].Aggregations {
-		assert.Equal(t, values, v.Value())
-		assert.Equal(t, aggregationType, v.AggregationType())
-		assert.Equal(t, expectedTags, v.Tags())
-		assert.Equal(t, uint64(1), v.Count())
-	}
-
-	actualRule, err = m.MatchAndAdd(&ttime, buckets, values, aggregationType, "bob", nil, rattr, iattr, mattr)
+	_, err = m.MatchAndAdd(&ttime, buckets, []float64{2.0}, AggregationTypeAvg, "metric1", nil, rattr, sattr, dp2Attributes)
 	assert.Nil(t, err)
-	assert.Nil(t, actualRule)
-	// should be no changes
+
+	expectedAverage := 1.5
+
 	assert.Equal(t, 1, len(m.sets))
-	assert.Equal(t, 1, len(m.sets[tbox].Aggregations))
-	// we don't know what the actual entry is, so we will pull out
-	// whatever is there.
-	for _, v := range m.sets[tbox].Aggregations {
-		assert.Equal(t, values, v.Value())
-		assert.Equal(t, aggregationType, v.AggregationType())
-		assert.Equal(t, expectedTags, v.Tags())
-		assert.Equal(t, uint64(1), v.Count())
-	}
+	aggregations := m.sets[tbox].Aggregations
+	assert.Equal(t, 1, len(aggregations))
 
-}
-
-func TestMatchscopeMap(t *testing.T) {
-	tests := []struct {
-		name   string
-		scope  map[string]string
-		attrs  map[string]string
-		result bool
-	}{
-		{
-			name: "matching scope and attrs",
-			scope: map[string]string{
-				"key1": "value1",
-				"key2": "value2",
-			},
-			attrs: map[string]string{
-				"key1": "value1",
-				"key2": "value2",
-			},
-			result: true,
-		},
-		{
-			name: "non-matching scope and attrs",
-			scope: map[string]string{
-				"key1": "value1",
-				"key2": "value2",
-			},
-			attrs: map[string]string{
-				"key1": "value1",
-				"key2": "value3",
-			},
-			result: false,
-		},
-		{
-			name:   "empty scope and attrs",
-			scope:  map[string]string{},
-			attrs:  map[string]string{},
-			result: true,
-		},
-		{
-			name:  "empty scope and non-empty attrs",
-			scope: map[string]string{},
-			attrs: map[string]string{
-				"key1": "value1",
-				"key2": "value2",
-			},
-			result: true,
-		},
-		{
-			name: "non-empty scope and empty attrs",
-			scope: map[string]string{
-				"key1": "value1",
-				"key2": "value2",
-			},
-			attrs:  map[string]string{},
-			result: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			actual := matchscopeMap(tt.scope, tt.attrs)
-			assert.Equal(t, tt.result, actual)
-		})
+	for _, v := range aggregations {
+		assert.Equal(t, "metric1", v.Name())
+		assert.Equal(t, AggregationTypeAvg, v.AggregationType())
+		assert.Equal(t, expectedAverage, v.Value()[0])
+		assert.Equal(t, uint64(2), v.Count()) // Both data points are aggregated
 	}
 }
 

@@ -22,6 +22,8 @@ const (
 	CardinalFieldCounts            = CardinalFieldPrefixDot + "counts"
 	CardinalFieldFiltered          = CardinalFieldPrefixDot + "filtered"
 	CardinalFieldFingerprint       = CardinalFieldPrefixDot + "fingerprint"
+	CardinalFieldDrop              = CardinalFieldPrefixDot + "drop"
+	CardinalFieldTransformed       = CardinalFieldPrefixDot + "transformed"
 	CardinalFieldHostname          = CardinalFieldPrefixDot + "hostname"
 	CardinalFieldID                = CardinalFieldPrefixDot + "id"
 	CardinalFieldMessage           = CardinalFieldPrefixDot + "message"

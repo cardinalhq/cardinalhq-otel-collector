@@ -17,8 +17,10 @@ package chqenforcerprocessor
 import (
 	"context"
 	"errors"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/collector/component"
@@ -37,9 +39,12 @@ import (
 )
 
 type chqEnforcer struct {
-	config             *Config
-	httpClient         *http.Client
-	logger             *zap.Logger
+	sync.RWMutex
+
+	config     *Config
+	httpClient *http.Client
+	logger     *zap.Logger
+
 	id                 component.ID
 	ttype              string
 	httpClientSettings confighttp.ClientConfig
@@ -51,15 +56,17 @@ type chqEnforcer struct {
 	vendor             string
 
 	// for logs
-	logstats    *stats.StatsCombiner[*chqpb.LogStats]
-	logSampler  sampler.EventSampler
-	spanSampler sampler.EventSampler
+	logstats           *stats.StatsCombiner[*chqpb.LogStats]
+	logTransformations ottl.Transformations
 
 	// for spans
-	spanStats *stats.StatsCombiner[*chqpb.SpanStats]
+	spanStats            *stats.StatsCombiner[*chqpb.SpanStats]
+	traceTransformations ottl.Transformations
 
 	// for metrics
-	metricstats          *stats.StatsCombiner[*MetricStat]
+	metricstats           *stats.StatsCombiner[*MetricStat]
+	metricTransformations map[string]ottl.Transformations
+
 	nextMetricReceiver   consumer.Metrics
 	aggregationInterval  time.Duration
 	aggregatorI          sampler.MetricAggregator[int64]
@@ -90,7 +97,8 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextCo
 	case "logs":
 		statsExporter.logstats = stats.NewStatsCombiner[*chqpb.LogStats](now, config.Statistics.Interval)
 		statsExporter.logger.Info("sending log statistics", zap.Duration("interval", config.Statistics.Interval))
-		statsExporter.logSampler = sampler.NewEventSamplerImpl(context.Background(), statsExporter.logger)
+		statsExporter.logTransformations = ottl.Transformations{}
+
 	case "metrics":
 		statsExporter.metricstats = stats.NewStatsCombiner[*MetricStat](now, config.Statistics.Interval)
 		statsExporter.logger.Info("sending metric statistics", zap.Duration("interval", config.Statistics.Interval))
@@ -105,7 +113,7 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextCo
 	case "traces":
 		statsExporter.spanStats = stats.NewStatsCombiner[*chqpb.SpanStats](now, config.Statistics.Interval)
 		statsExporter.logger.Info("sending span statistics", zap.Duration("interval", config.Statistics.Interval))
-		statsExporter.spanSampler = sampler.NewEventSamplerImpl(context.Background(), statsExporter.logger)
+		statsExporter.traceTransformations = ottl.Transformations{}
 	}
 
 	return statsExporter, nil
@@ -158,11 +166,11 @@ func (e *chqEnforcer) setupMetricTelemetry() error {
 func (e *chqEnforcer) configUpdateCallback(sc sampler.SamplerConfig) {
 	switch e.ttype {
 	case "logs":
-		e.updateLogsSampling(sc)
+		e.updateLogTransformations(sc)
 	case "traces":
-		e.updateTracesSampling(sc)
+		e.updateTraceTransformations(sc)
 	case "metrics":
-		e.updateMetricsamplingConfig(sc)
+		e.updateMetricSamplingConfig(sc)
 	}
 	e.logger.Info("Configuration updated")
 }

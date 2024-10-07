@@ -16,20 +16,17 @@ package chqdecoratorprocessor
 
 import (
 	"context"
+	"fmt"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/fingerprinter"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 	"github.com/cespare/xxhash/v2"
-	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
-	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
-	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlspan"
-
 	semconv "go.opentelemetry.io/otel/semconv/v1.22.0"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/ptrace"
-	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
@@ -45,7 +42,7 @@ type spansProcessor struct {
 	estimatorLock       sync.Mutex
 	estimators          map[uint64]*SlidingEstimatorStat
 
-	transformations transformations
+	transformations ottl.Transformations
 }
 
 const (
@@ -54,97 +51,32 @@ const (
 	httpUrlPath = "url.path"
 )
 
-func newSpansProcessor(set processor.Settings, c *Config) (*spansProcessor, error) {
-	sp := &spansProcessor{
-		logger:              set.Logger,
-		podName:             os.Getenv("POD_NAME"),
-		estimators:          make(map[uint64]*SlidingEstimatorStat),
-		estimatorWindowSize: c.TracesConfig.EstimatorWindowSize,
-		estimatorInterval:   c.TracesConfig.EstimatorInterval,
-	}
-
-	sp.transformations = toTransformations(c.TracesConfig.Transforms, sp.logger)
-	sp.finger = fingerprinter.NewFingerprinter()
-
-	return sp, nil
+func (c *chqDecorator) processTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
+	return c.decorateTraces(td)
 }
 
-func (sp *spansProcessor) processTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
-	return sp.decorateTraces(td)
-}
-
-func (sp *spansProcessor) isSpanSlow(span ptrace.Span, fingerprint uint64) bool {
+func (c *chqDecorator) isSpanSlow(span ptrace.Span, fingerprint uint64) bool {
 	spanDuration := span.EndTimestamp().AsTime().Sub(span.StartTimestamp().AsTime()).Abs().Milliseconds()
-	return sp.slowSpanPercentile(fingerprint, float64(spanDuration))
+	return c.slowSpanPercentile(fingerprint, float64(spanDuration))
 }
 
-func (sp *spansProcessor) slowSpanPercentile(fingerprint uint64, duration float64) bool {
-	sketch := sp.findSpanSketch(fingerprint)
+func (c *chqDecorator) slowSpanPercentile(fingerprint uint64, duration float64) bool {
+	sketch := c.findSpanSketch(fingerprint)
 	sketch.Update(time.Now().UnixMilli(), duration)
 	return sketch.GreaterThanThreeStdDev(duration)
 }
 
-func (sp *spansProcessor) findSpanSketch(fingerprint uint64) *SlidingEstimatorStat {
-	sp.estimatorLock.Lock()
-	defer sp.estimatorLock.Unlock()
-	sketch, ok := sp.estimators[fingerprint]
+func (c *chqDecorator) findSpanSketch(fingerprint uint64) *SlidingEstimatorStat {
+	sketch, ok := c.estimators[fingerprint]
 	if !ok {
-		estimator := NewSlidingEstimatorStat(sp.estimatorWindowSize, sp.estimatorInterval)
-		sp.estimators[fingerprint] = estimator
+		estimator := NewSlidingEstimatorStat(c.estimatorWindowSize, c.estimatorInterval)
+		c.estimators[fingerprint] = estimator
 		return estimator
 	}
 	return sketch
 }
 
-func (sp *spansProcessor) evaluateResourceTransformations(rl ptrace.ResourceSpans) {
-	transformCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
-	for _, transformation := range sp.transformations.resourceTransformations {
-		allConditionsTrue := true
-		for _, condition := range transformation.conditions {
-			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
-			allConditionsTrue = allConditionsTrue && conditionMet
-		}
-		if allConditionsTrue {
-			for _, statement := range transformation.statements {
-				_, _, _ = statement.Execute(context.Background(), transformCtx)
-			}
-		}
-	}
-}
-
-func (sp *spansProcessor) evaluateScopeTransformations(sl ptrace.ScopeSpans, rl ptrace.ResourceSpans) {
-	transformCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), sl)
-	for _, transformation := range sp.transformations.scopeTransformations {
-		allConditionsTrue := true
-		for _, condition := range transformation.conditions {
-			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
-			allConditionsTrue = allConditionsTrue && conditionMet
-		}
-		if allConditionsTrue {
-			for _, statement := range transformation.statements {
-				_, _, _ = statement.Execute(context.Background(), transformCtx)
-			}
-		}
-	}
-}
-
-func (sp *spansProcessor) evaluateSpanTransformations(span ptrace.Span, sl ptrace.ScopeSpans, rl ptrace.ResourceSpans) {
-	transformCtx := ottlspan.NewTransformContext(span, sl.Scope(), rl.Resource(), sl, rl)
-	for _, transformation := range sp.transformations.spanTransformations {
-		allConditionsTrue := true
-		for _, condition := range transformation.conditions {
-			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
-			allConditionsTrue = allConditionsTrue && conditionMet
-		}
-		if allConditionsTrue {
-			for _, statement := range transformation.statements {
-				_, _, _ = statement.Execute(context.Background(), transformCtx)
-			}
-		}
-	}
-}
-
-func (sp *spansProcessor) getHttpResource(span ptrace.Span) string {
+func (c *chqDecorator) getHttpResource(span ptrace.Span) string {
 	attrs := span.Attributes()
 	var resourceKeys []string
 
@@ -157,7 +89,7 @@ func (sp *spansProcessor) getHttpResource(span ptrace.Span) string {
 		resourceKeys = append(resourceKeys, route.Str())
 	} else {
 		if urlPath, urlPathExists := attrs.Get(httpUrlPath); urlPathExists {
-			urlPathStr, _, err := sp.finger.TokenizeInput(urlPath.Str())
+			urlPathStr, _, err := c.traceFingerprinter.TokenizeInput(urlPath.Str())
 			if err == nil {
 				resourceKeys = append(resourceKeys, urlPathStr)
 			}
@@ -192,14 +124,17 @@ func getSpanFingerprint(sr ptrace.Span, httpResource string, serviceName string)
 	return int64(xxhash.Sum64String(strings.Join(fingerprintAttributes, "##")))
 }
 
-func (sp *spansProcessor) decorateTraces(td ptrace.Traces) (ptrace.Traces, error) {
+func (c *chqDecorator) decorateTraces(td ptrace.Traces) (ptrace.Traces, error) {
+	c.Lock()
+	defer c.Unlock()
+
 	environment := translate.EnvironmentFromEnv()
 	rss := td.ResourceSpans()
 
 	for i := 0; i < rss.Len(); i++ {
 		rs := rss.At(i)
 		// Evaluate resource transformations
-		sp.evaluateResourceTransformations(rs)
+		c.traceTransformations.ExecuteResourceSpanTransformations(rs)
 
 		snk := string(semconv.ServiceNameKey)
 		serviceName, serviceNameExists := rs.Resource().Attributes().Get(snk)
@@ -209,15 +144,15 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces) (ptrace.Traces, error
 		for j := 0; j < ilss.Len(); j++ {
 			ils := ilss.At(j)
 			// Evaluate scope transformations
-			sp.evaluateScopeTransformations(ils, rs)
+			c.traceTransformations.ExecuteScopeSpanTransformations(ils, rs)
 
 			spans := ils.Spans()
 			for k := 0; k < spans.Len(); k++ {
 				span := spans.At(k)
 				// Evaluate scope transformations
-				sp.evaluateSpanTransformations(span, ils, rs)
+				c.traceTransformations.ExecuteSpanTransformations(span, ils, rs)
 
-				httpResource := sp.getHttpResource(span)
+				httpResource := c.getHttpResource(span)
 				if httpResource != "" {
 					span.Attributes().PutStr(translate.CardinalFieldResourceName, httpResource)
 				}
@@ -228,10 +163,16 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces) (ptrace.Traces, error
 				} else {
 					spanFingerprint = getSpanFingerprint(span, httpResource, "unknown")
 				}
-				isSlow := sp.isSpanSlow(span, uint64(spanFingerprint))
+				isSlow := c.isSpanSlow(span, uint64(spanFingerprint))
 				span.Attributes().PutBool(translate.CardinalFieldSpanIsSlow, isSlow)
+
+				// Evaluate if we should drop this span, if yes add it to the attributes
+				// for the downstream enforcers to drop it.
+				shouldDrop := c.shouldDropSpan(serviceName.Str(), spanFingerprint, rs, ils, span)
+				span.Attributes().PutBool(translate.CardinalFieldDrop, shouldDrop)
+
 				span.Attributes().PutInt(translate.CardinalFieldFingerprint, spanFingerprint)
-				span.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, sp.podName)
+				span.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, c.podName)
 				span.Attributes().PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
 				span.Attributes().PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 			}
@@ -241,6 +182,22 @@ func (sp *spansProcessor) decorateTraces(td ptrace.Traces) (ptrace.Traces, error
 	return td, nil
 }
 
+func (c *chqDecorator) shouldDropSpan(serviceName string, fingerprint int64, rl ptrace.ResourceSpans, sl ptrace.ScopeSpans, lr ptrace.Span) bool {
+	fingerprintString := fmt.Sprintf("%d", fingerprint)
+	return c.traceSampler.SampleSpans(serviceName, fingerprintString, rl, sl, lr) != ""
+}
+
 func (sp *spansProcessor) Shutdown(context.Context) error {
 	return nil
+}
+
+func (c *chqDecorator) updateTracesSampling(sc sampler.SamplerConfig) {
+	c.Lock()
+	defer c.Unlock()
+	c.logger.Info("Updating trace sampling config", zap.String("vendor", c.vendor))
+	c.traceSampler.UpdateConfig(sc.Traces.Sampling, c.vendor, c.telemetrySettings)
+	// ok to ignore the parse error here, because we expect the config to be valid because it got validated
+	// before it was saved by the UI.
+	transformations, _ := ottl.ParseTransformations(sc.Traces.Transformations, c.logger)
+	c.traceTransformations = transformations
 }

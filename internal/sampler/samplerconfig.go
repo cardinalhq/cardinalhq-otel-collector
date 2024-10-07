@@ -14,6 +14,8 @@
 
 package sampler
 
+import "github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+
 type SamplerConfig struct {
 	Logs    LogConfigV1    `json:"logs,omitempty" yaml:"logs,omitempty"`
 	Metrics MetricConfigV1 `json:"metrics,omitempty" yaml:"metrics,omitempty"`
@@ -23,11 +25,13 @@ type SamplerConfig struct {
 }
 
 type LogConfigV1 struct {
-	Sampling []EventSamplingConfigV1 `json:"sampling,omitempty" yaml:"sampling,omitempty"`
+	Transformations []ottl.ContextStatement `json:"transformations,omitempty" yaml:"transformations,omitempty"`
+	Sampling        []EventSamplingConfigV1 `json:"sampling,omitempty" yaml:"sampling,omitempty"`
 }
 
 type TraceConfigV1 struct {
-	Sampling []EventSamplingConfigV1 `json:"sampling,omitempty" yaml:"sampling,omitempty"`
+	Transformations []ottl.ContextStatement `json:"transformations,omitempty" yaml:"transformations,omitempty"`
+	Sampling        []EventSamplingConfigV1 `json:"sampling,omitempty" yaml:"sampling,omitempty"`
 }
 
 type Filter struct {
@@ -45,16 +49,16 @@ type EventSamplingConfigV1 struct {
 }
 
 type MetricConfigV1 struct {
-	Aggregators []AggregatorConfigV1 `json:"aggregators,omitempty" yaml:"aggregators,omitempty"`
+	// General transformations that apply to all metrics for e.g. team associations.
+	Transformations []ottl.ContextStatement `json:"transformations,omitempty" yaml:"transformations,omitempty"`
+	Aggregators     []AggregatorConfigV1    `json:"aggregators,omitempty" yaml:"aggregators,omitempty"`
 }
 
 type AggregatorConfigV1 struct {
-	Id         string            `json:"id,omitempty" yaml:"id,omitempty"`
-	Scope      map[string]string `json:"scope,omitempty" yaml:"scope,omitempty"`
-	MetricName string            `json:"metricName,omitempty" yaml:"metricName,omitempty"`
-	Tags       []string          `json:"tags,omitempty" yaml:"tags,omitempty"`
-	TagAction  string            `json:"tagAction,omitempty" yaml:"tagAction,omitempty"`
-	Vendor     string            `json:"vendor,omitempty" yaml:"vendor,omitempty"`
+	Id              string                  `json:"id,omitempty" yaml:"id,omitempty"`
+	MetricName      string                  `json:"metricName,omitempty" yaml:"metricName,omitempty"`
+	Transformations []ottl.ContextStatement `json:"transformations,omitempty" yaml:"transformations,omitempty"`
+	Vendor          string                  `json:"vendor,omitempty" yaml:"vendor,omitempty"`
 }
 
 func (lsc EventSamplingConfigV1) Equals(other EventSamplingConfigV1) bool {

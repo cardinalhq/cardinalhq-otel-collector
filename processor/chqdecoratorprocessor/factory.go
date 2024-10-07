@@ -51,15 +51,15 @@ func createMetricsProcessor(
 	cfg component.Config,
 	nextConsumer consumer.Metrics,
 ) (processor.Metrics, error) {
-	dp, err := newMetricProcessor(set)
+	c, err := newCHQDecorator(cfg.(*Config), "metrics", set)
 	if err != nil {
 		return nil, err
 	}
 	return processorhelper.NewMetricsProcessor(
 		ctx, set, cfg, nextConsumer,
-		dp.processMetrics,
+		c.processMetrics,
 		processorhelper.WithCapabilities(processorCapabilities),
-		processorhelper.WithShutdown(dp.Shutdown),
+		processorhelper.WithShutdown(c.Shutdown),
 	)
 }
 
@@ -69,15 +69,15 @@ func createLogsProcessor(
 	cfg component.Config,
 	nextConsumer consumer.Logs,
 ) (processor.Logs, error) {
-	fp, err := newLogsProcessor(set, cfg.(*Config))
+	c, err := newCHQDecorator(cfg.(*Config), "logs", set)
 	if err != nil {
 		return nil, err
 	}
 	return processorhelper.NewLogsProcessor(
 		ctx, set, cfg, nextConsumer,
-		fp.processLogs,
+		c.processLogs,
 		processorhelper.WithCapabilities(processorCapabilities),
-		processorhelper.WithShutdown(fp.Shutdown),
+		processorhelper.WithShutdown(c.Shutdown),
 	)
 }
 
@@ -87,14 +87,14 @@ func createTracesProcessor(
 	cfg component.Config,
 	nextConsumer consumer.Traces,
 ) (processor.Traces, error) {
-	fp, err := newSpansProcessor(set, cfg.(*Config))
+	c, err := newCHQDecorator(cfg.(*Config), "traces", set)
 	if err != nil {
 		return nil, err
 	}
 	return processorhelper.NewTracesProcessor(
 		ctx, set, cfg, nextConsumer,
-		fp.processTraces,
+		c.processTraces,
 		processorhelper.WithCapabilities(processorCapabilities),
-		processorhelper.WithShutdown(fp.Shutdown),
+		processorhelper.WithShutdown(c.Shutdown),
 	)
 }

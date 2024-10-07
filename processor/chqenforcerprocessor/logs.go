@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"net/http"
 	"strings"
 	"time"
@@ -50,7 +51,18 @@ func getFingerprint(l pcommon.Map) int64 {
 	return 0
 }
 
+func (e *chqEnforcer) shouldDropLog(l pcommon.Map) bool {
+	fnk := translate.CardinalFieldDrop
+	if fingerprintField, found := l.Get(fnk); found {
+		return fingerprintField.Bool()
+	}
+	return false
+}
+
 func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
+	e.Lock()
+	defer e.Unlock()
+
 	if ld.ResourceLogs().Len() == 0 {
 		return ld, nil
 	}
@@ -58,12 +70,18 @@ func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, e
 	now := time.Now()
 
 	ld.ResourceLogs().RemoveIf(func(rl plog.ResourceLogs) bool {
+		e.logTransformations.ExecuteResourceLogTransforms(rl)
+
 		serviceName := getServiceName(rl.Resource().Attributes())
 		rl.ScopeLogs().RemoveIf(func(sl plog.ScopeLogs) bool {
+			e.logTransformations.ExecuteScopeLogTransforms(sl, rl)
+
 			sl.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
+				e.logTransformations.ExecuteLogTransforms(lr, sl, rl)
+
 				fingerprint := getFingerprint(lr.Attributes())
 				if e.pbPhase == chqpb.Phase_POST {
-					shouldDrop := e.shouldDropLog(serviceName, fingerprint, rl, sl, lr)
+					shouldDrop := e.shouldDropLog(lr.Attributes())
 					if shouldDrop {
 						return true
 					}
@@ -85,12 +103,6 @@ func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, e
 		return ld, processorhelper.ErrSkipProcessingData
 	}
 	return ld, nil
-}
-
-func (e *chqEnforcer) shouldDropLog(serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) bool {
-	fingerprintString := fmt.Sprintf("%d", fingerprint)
-	rule_match := e.logSampler.SampleLogs(serviceName, fingerprintString, rl, sl, lr)
-	return rule_match != ""
 }
 
 func removeAllCardinalFields(attr pcommon.Map) {
@@ -191,7 +203,11 @@ func (e *chqEnforcer) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsR
 	return nil
 }
 
-func (e *chqEnforcer) updateLogsSampling(sc sampler.SamplerConfig) {
-	e.logger.Info("Updating log sampling config", zap.String("vendor", e.vendor))
-	e.logSampler.UpdateConfig(sc.Logs.Sampling, e.vendor, e.telemetrySettings)
+func (c *chqEnforcer) updateLogTransformations(sc sampler.SamplerConfig) {
+	c.Lock()
+	defer c.Unlock()
+
+	c.logger.Info("Updating log transformations config", zap.String("vendor", c.vendor))
+	transformations, _ := ottl.ParseTransformations(sc.Logs.Transformations, c.logger)
+	c.logTransformations = transformations
 }

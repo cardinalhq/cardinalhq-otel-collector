@@ -16,111 +16,59 @@ package chqdecoratorprocessor
 
 import (
 	"context"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/fingerprinter"
+	"fmt"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
-	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
-	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
-	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
-	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
-	"os"
 )
 
-type logProcessor struct {
-	logger  *zap.Logger
-	finger  fingerprinter.Fingerprinter
-	podName string
-
-	transformations transformations
-}
-
-func newLogsProcessor(set processor.Settings, cfg *Config) (*logProcessor, error) {
-	lp := &logProcessor{
-		logger:  set.Logger,
-		podName: os.Getenv("POD_NAME"),
+func getServiceName(r pcommon.Map) string {
+	snk := string(semconv.ServiceNameKey)
+	if serviceNameField, found := r.Get(snk); found {
+		return serviceNameField.AsString()
 	}
-	lp.transformations = toTransformations(cfg.LogsConfig.Transforms, lp.logger)
-
-	set.Logger.Info("Decorator processor configured")
-
-	lp.finger = fingerprinter.NewFingerprinter()
-
-	return lp, nil
+	return "unknown"
 }
 
-func (lp *logProcessor) evaluateResourceTransformations(rl plog.ResourceLogs) {
-	transformCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
-	for _, transformation := range lp.transformations.resourceTransformations {
-		allConditionsTrue := true
-		for _, condition := range transformation.conditions {
-			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
-			allConditionsTrue = allConditionsTrue && conditionMet
-		}
-		if allConditionsTrue {
-			for _, statement := range transformation.statements {
-				_, _, _ = statement.Execute(context.Background(), transformCtx)
-			}
-		}
-	}
-}
+func (c *chqDecorator) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
+	c.Lock()
+	defer c.Unlock()
 
-func (lp *logProcessor) evaluateScopeTransformations(sl plog.ScopeLogs, rl plog.ResourceLogs) {
-	transformCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), sl)
-	for _, transformation := range lp.transformations.scopeTransformations {
-		allConditionsTrue := true
-		for _, condition := range transformation.conditions {
-			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
-			allConditionsTrue = allConditionsTrue && conditionMet
-		}
-		if allConditionsTrue {
-			for _, statement := range transformation.statements {
-				_, _, _ = statement.Execute(context.Background(), transformCtx)
-			}
-		}
-	}
-}
-
-func (lp *logProcessor) evaluateLogTransformations(log plog.LogRecord, sl plog.ScopeLogs, rl plog.ResourceLogs) {
-	transformCtx := ottllog.NewTransformContext(log, sl.Scope(), rl.Resource(), sl, rl)
-	for _, transformation := range lp.transformations.logTransformations {
-		allConditionsTrue := true
-		for _, condition := range transformation.conditions {
-			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
-			allConditionsTrue = allConditionsTrue && conditionMet
-		}
-		if allConditionsTrue {
-			for _, statement := range transformation.statements {
-				_, _, _ = statement.Execute(context.Background(), transformCtx)
-			}
-		}
-	}
-}
-
-func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
 	environment := translate.EnvironmentFromEnv()
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
+		serviceName := getServiceName(rl.Resource().Attributes())
+
 		// Evaluate resource transformations
-		lp.evaluateResourceTransformations(rl)
+		c.logTransformations.ExecuteResourceLogTransforms(rl)
 
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
 			sl := rl.ScopeLogs().At(j)
 			// Evaluate scope transformations
-			lp.evaluateScopeTransformations(sl, rl)
+			c.logTransformations.ExecuteScopeLogTransforms(sl, rl)
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				log := sl.LogRecords().At(k)
-				fingerprint, level, err := lp.finger.Fingerprint(log.Body().AsString())
+				fingerprint, level, err := c.logFingerprinter.Fingerprint(log.Body().AsString())
 				if err != nil {
-					lp.logger.Debug("Error fingerprinting log", zap.Error(err))
+					c.logger.Debug("Error fingerprinting log", zap.Error(err))
 					continue
 				}
-				// Evaluate log scope transformations
-				lp.evaluateLogTransformations(log, sl, rl)
 
+				// Evaluate log scope transformations
+				c.logTransformations.ExecuteLogTransforms(log, sl, rl)
+
+				// Evaluate if we should drop this log
+				shouldDrop := c.shouldDropLog(serviceName, fingerprint, rl, sl, log)
+
+				log.Attributes().PutBool(translate.CardinalFieldDrop, shouldDrop)
 				log.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)
 				log.Attributes().PutStr(translate.CardinalFieldLevel, level)
-				log.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, lp.podName)
+				log.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, c.podName)
 				log.Attributes().PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
 				log.Attributes().PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 			}
@@ -130,6 +78,18 @@ func (lp *logProcessor) processLogs(_ context.Context, ld plog.Logs) (plog.Logs,
 	return ld, nil
 }
 
-func (lp *logProcessor) Shutdown(_ context.Context) error {
-	return nil
+func (c *chqDecorator) shouldDropLog(serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) bool {
+	fingerprintString := fmt.Sprintf("%d", fingerprint)
+	return c.logSampler.SampleLogs(serviceName, fingerprintString, rl, sl, lr) != ""
+}
+
+func (c *chqDecorator) updateLogsSampling(sc sampler.SamplerConfig) {
+	c.Lock()
+	defer c.Unlock()
+	c.logger.Info("Updating log sampling config", zap.String("vendor", c.vendor))
+	c.logSampler.UpdateConfig(sc.Logs.Sampling, c.vendor, c.telemetrySettings)
+	// ok to ignore the parse error here, because we expect the config to be valid because it got validated
+	// before it was saved by the UI.
+	transformations, _ := ottl.ParseTransformations(sc.Logs.Transformations, c.logger)
+	c.logTransformations = transformations
 }

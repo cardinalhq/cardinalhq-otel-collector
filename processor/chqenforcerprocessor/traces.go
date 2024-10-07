@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"net/http"
 	"time"
 
@@ -32,19 +33,26 @@ import (
 )
 
 func (e *chqEnforcer) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
+	e.Lock()
+	defer e.Unlock()
+
 	if td.ResourceSpans().Len() == 0 {
 		return td, nil
 	}
 
 	now := time.Now()
 	td.ResourceSpans().RemoveIf(func(rs ptrace.ResourceSpans) bool {
+		e.traceTransformations.ExecuteResourceSpanTransformations(rs)
 		serviceName := getServiceName(rs.Resource().Attributes())
 		rs.ScopeSpans().RemoveIf(func(iss ptrace.ScopeSpans) bool {
+			e.traceTransformations.ExecuteScopeSpanTransformations(iss, rs)
+
 			iss.Spans().RemoveIf(func(sr ptrace.Span) bool {
 				fingerprint := getSpanFingerprint(sr.Attributes())
+				e.traceTransformations.ExecuteSpanTransformations(sr, iss, rs)
 
 				if e.pbPhase == chqpb.Phase_POST {
-					shouldDrop := e.shouldDropSpan(serviceName, fingerprint, sr, iss, rs)
+					shouldDrop := e.shouldDropSpan(sr.Attributes())
 					if shouldDrop {
 						return true
 					}
@@ -79,10 +87,12 @@ func (e *chqEnforcer) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptra
 	return td, nil
 }
 
-func (e *chqEnforcer) shouldDropSpan(service string, fingerprint int64, span ptrace.Span, iss ptrace.ScopeSpans, rs ptrace.ResourceSpans) bool {
-	fingerprintString := fmt.Sprintf("%d", fingerprint)
-	ruleMatch := e.spanSampler.SampleSpans(service, fingerprintString, rs, iss, span)
-	return ruleMatch != ""
+func (e *chqEnforcer) shouldDropSpan(l pcommon.Map) bool {
+	fnk := translate.CardinalFieldDrop
+	if fingerprintField, found := l.Get(fnk); found {
+		return fingerprintField.Bool()
+	}
+	return false
 }
 
 func getSpanFingerprint(l pcommon.Map) int64 {
@@ -225,7 +235,11 @@ func (e *chqEnforcer) postSpanStats(ctx context.Context, wrapper *chqpb.SpanStat
 	return nil
 }
 
-func (e *chqEnforcer) updateTracesSampling(sc sampler.SamplerConfig) {
-	e.logger.Info("Updating traces sampling config", zap.String("vendor", e.vendor))
-	e.spanSampler.UpdateConfig(sc.Traces.Sampling, e.vendor, e.telemetrySettings)
+func (c *chqEnforcer) updateTraceTransformations(sc sampler.SamplerConfig) {
+	c.Lock()
+	defer c.Unlock()
+
+	c.logger.Info("Updating trace transformations config", zap.String("vendor", c.vendor))
+	transformations, _ := ottl.ParseTransformations(sc.Traces.Transformations, c.logger)
+	c.traceTransformations = transformations
 }

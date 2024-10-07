@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"net/http"
 	"strings"
 	"time"
@@ -49,6 +50,10 @@ func (e *chqEnforcer) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (p
 				case pmetric.MetricTypeGauge:
 					m.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
 						if e.pbPhase == chqpb.Phase_POST {
+							// check if metricTransformations exist for this metric
+							if transformations, ok := e.metricTransformations[metricName]; ok {
+								transformations.ExecuteAllMetricsTransforms(dp, m, ilm, rm)
+							}
 							agg := e.aggregate(rm, ilm, m, dp)
 							if agg {
 								e.aggregatedDatapoints.Add(ctx, 1, metric.WithAttributes(
@@ -234,8 +239,19 @@ func (e *chqEnforcer) postMetricStats(ctx context.Context, wrapper *chqpb.Metric
 	return nil
 }
 
-func (e *chqEnforcer) updateMetricsamplingConfig(sc sampler.SamplerConfig) {
+func (e *chqEnforcer) updateMetricSamplingConfig(sc sampler.SamplerConfig) {
+	e.Lock()
+	defer e.Unlock()
+
 	e.logger.Info("Updating metric sampling config", zap.String("vendor", e.vendor))
 	e.aggregatorF.Configure(sc, e.vendor)
 	e.aggregatorI.Configure(sc, e.vendor)
+
+	for _, agg := range sc.Metrics.Aggregators {
+		if agg.Vendor == e.vendor {
+			metricName := agg.MetricName
+			transformations, _ := ottl.ParseTransformations(agg.Transformations, e.logger)
+			e.metricTransformations[metricName] = transformations
+		}
+	}
 }

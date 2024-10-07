@@ -15,6 +15,7 @@
 package sampler
 
 import (
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"slices"
 	"strings"
 	"sync"
@@ -130,7 +131,7 @@ func (m *MetricAggregatorImpl[T]) MatchAndAdd(
 		if rule.MetricName != "" && rule.MetricName != name {
 			continue
 		}
-		attrs := attrsToMap(map[string]pcommon.Map{
+		attrs, transformed := attrsToMap(map[string]pcommon.Map{
 			"resource":        rattr,
 			"instrumentation": iattr,
 			"metric":          mattr,
@@ -138,14 +139,7 @@ func (m *MetricAggregatorImpl[T]) MatchAndAdd(
 		for k, v := range metadata {
 			attrs["metadata."+k] = v
 		}
-		if matchscopeMap(rule.Scope, attrs) {
-			if len(rule.Tags) > 0 {
-				if rule.TagAction == "keep" {
-					KeepTags(attrs, rule.Tags)
-				} else {
-					RemoveTags(attrs, rule.Tags)
-				}
-			}
+		if transformed {
 			err := m.add(*t, name, buckets, values, aggregationType, attrs)
 			return &rule, err
 		}
@@ -153,24 +147,17 @@ func (m *MetricAggregatorImpl[T]) MatchAndAdd(
 	return nil, nil
 }
 
-func matchscopeMap(scope map[string]string, attrs map[string]string) bool {
-	for k, v := range scope {
-		if attrs[k] != v {
-			return false
-		}
-	}
-	return true
-}
-
-func attrsToMap(attrs map[string]pcommon.Map) map[string]string {
+func attrsToMap(attrs map[string]pcommon.Map) (map[string]string, bool) {
 	ret := map[string]string{}
+	var transformed bool
 	for scope, attr := range attrs {
 		attr.Range(func(k string, v pcommon.Value) bool {
+			transformed = transformed || k == translate.CardinalFieldTransformed && v.Bool()
 			ret[scope+"."+k] = v.AsString()
 			return true
 		})
 	}
-	return ret
+	return ret, transformed
 }
 
 func RemoveTags(attrs map[string]string, tags []string) {

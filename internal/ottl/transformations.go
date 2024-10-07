@@ -87,7 +87,6 @@ type Transformations struct {
 }
 
 func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logger) (Transformations, error) {
-	// Set up parsers for each context type (resource, scope, log)
 	var errors error
 
 	resourceParser, _ := ottlresource.NewParser(ottlfuncs.StandardFuncs[ottlresource.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
@@ -97,7 +96,6 @@ func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logg
 	metricParser, _ := ottlmetric.NewParser(ottlfuncs.StandardFuncs[ottlmetric.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
 	dataPointParser, _ := ottldatapoint.NewParser(ottlfuncs.StandardFuncs[ottldatapoint.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
 
-	// Initialize an empty slice for each type of transformation
 	transformations := Transformations{
 		resourceTransforms:  []resourceTransform{},
 		scopeTransforms:     []scopeTransform{},
@@ -107,11 +105,9 @@ func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logg
 		dataPointTransforms: []dataPointTransform{},
 	}
 
-	// Iterate over context statements and parse them based on their context type
 	for _, cs := range contextStatements {
 		switch cs.Context {
 		case "resource":
-			// Parse conditions and statements for resource context
 			conditions, err := resourceParser.ParseConditions(cs.Conditions)
 			if err != nil {
 				logger.Error("Error parsing resource conditions", zap.Error(err))
@@ -125,7 +121,6 @@ func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logg
 				continue
 			}
 
-			// Append parsed resource Transformations
 			transformations.resourceTransforms = append(transformations.resourceTransforms, resourceTransform{
 				context:    cs.Context,
 				conditions: conditions,
@@ -133,7 +128,6 @@ func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logg
 			})
 
 		case "scope":
-			// Parse conditions and statements for scope context
 			conditions, err := scopeParser.ParseConditions(cs.Conditions)
 			if err != nil {
 				logger.Error("Error parsing scope conditions", zap.Error(err))
@@ -147,7 +141,6 @@ func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logg
 				continue
 			}
 
-			// Append parsed scope Transformations
 			transformations.scopeTransforms = append(transformations.scopeTransforms, scopeTransform{
 				context:    cs.Context,
 				conditions: conditions,
@@ -155,7 +148,6 @@ func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logg
 			})
 
 		case "log":
-			// Parse conditions and statements for log context
 			conditions, err := logParser.ParseConditions(cs.Conditions)
 			if err != nil {
 				logger.Error("Error parsing log conditions", zap.Error(err))
@@ -169,7 +161,6 @@ func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logg
 				continue
 			}
 
-			// Append parsed log Transformations
 			transformations.logTransforms = append(transformations.logTransforms, logTransform{
 				context:    cs.Context,
 				conditions: conditions,
@@ -177,7 +168,6 @@ func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logg
 			})
 
 		case "span":
-			// Parse conditions and statements for log context
 			conditions, err := spanParser.ParseConditions(cs.Conditions)
 			if err != nil {
 				logger.Error("Error parsing span conditions", zap.Error(err))
@@ -191,7 +181,6 @@ func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logg
 				continue
 			}
 
-			// Append parsed span Transformations
 			transformations.spanTransforms = append(transformations.spanTransforms, spanTransform{
 				context:    cs.Context,
 				conditions: conditions,
@@ -199,7 +188,6 @@ func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logg
 			})
 
 		case "metric":
-			// Parse conditions and statements for log context
 			conditions, err := metricParser.ParseConditions(cs.Conditions)
 			if err != nil {
 				logger.Error("Error parsing metric conditions", zap.Error(err))
@@ -213,7 +201,6 @@ func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logg
 				continue
 			}
 
-			// Append parsed metric Transformations
 			transformations.metricTransforms = append(transformations.metricTransforms, metricTransform{
 				context:    cs.Context,
 				conditions: conditions,
@@ -221,7 +208,6 @@ func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logg
 			})
 
 		case "datapoint":
-			// Parse conditions and statements for log context
 			conditions, err := dataPointParser.ParseConditions(cs.Conditions)
 			if err != nil {
 				logger.Error("Error parsing datapoint conditions", zap.Error(err))
@@ -235,7 +221,6 @@ func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logg
 				continue
 			}
 
-			// Append parsed datapoint Transformations
 			transformations.dataPointTransforms = append(transformations.dataPointTransforms, dataPointTransform{
 				context:    cs.Context,
 				conditions: conditions,
@@ -243,7 +228,6 @@ func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logg
 			})
 
 		default:
-			// Handle unknown context types
 			logger.Error("Unknown context: ", zap.String("context", string(cs.Context)))
 		}
 	}

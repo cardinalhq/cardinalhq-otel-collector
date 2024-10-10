@@ -16,7 +16,7 @@ package ottl
 
 import (
 	"context"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
@@ -26,17 +26,18 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlspan"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/ottlfuncs"
 	"go.opentelemetry.io/collector/component"
-	"go.opentelemetry.io/collector/pdata/plog"
-	"go.opentelemetry.io/collector/pdata/pmetric"
-	"go.opentelemetry.io/collector/pdata/ptrace"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
+	"sort"
 )
 
 type ContextID string
 
 type ContextStatement struct {
 	Context    ContextID `mapstructure:"context"`
+	RuleId     string    `mapstructure:"ruleId"`
+	Priority   int       `mapstructure:"priority"`
 	Conditions []string  `mapstructure:"conditions"`
 	Statements []string  `mapstructure:"statements"`
 }
@@ -78,32 +79,92 @@ type dataPointTransform struct {
 }
 
 type Transformations struct {
-	resourceTransforms  []resourceTransform
-	scopeTransforms     []scopeTransform
-	logTransforms       []logTransform
-	spanTransforms      []spanTransform
-	metricTransforms    []metricTransform
-	dataPointTransforms []dataPointTransform
+	resourceTransformsByRuleId  map[string]map[string]resourceTransform
+	scopeTransformsByRuleId     map[string]map[string]scopeTransform
+	logTransformsByRuleId       map[string]map[string]logTransform
+	spanTransformsByRuleId      map[string]map[string]spanTransform
+	metricTransformsByRuleId    map[string]map[string]metricTransform
+	dataPointTransformsByRuleId map[string]map[string]dataPointTransform
+	logger                      *zap.Logger
 }
 
-func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logger) (Transformations, error) {
+func MergeWith(this Transformations, other Transformations) Transformations {
+	return Transformations{
+		resourceTransformsByRuleId:  merge(this.resourceTransformsByRuleId, other.resourceTransformsByRuleId),
+		scopeTransformsByRuleId:     merge(this.scopeTransformsByRuleId, other.scopeTransformsByRuleId),
+		logTransformsByRuleId:       merge(this.logTransformsByRuleId, other.logTransformsByRuleId),
+		spanTransformsByRuleId:      merge(this.spanTransformsByRuleId, other.spanTransformsByRuleId),
+		metricTransformsByRuleId:    merge(this.metricTransformsByRuleId, other.metricTransformsByRuleId),
+		dataPointTransformsByRuleId: merge(this.dataPointTransformsByRuleId, other.dataPointTransformsByRuleId),
+	}
+}
+
+func merge[T any](map1, map2 map[string]map[string]T) map[string]map[string]T {
+	result := make(map[string]map[string]T, len(map1))
+
+	// Copy all entries from map1
+	for outerKey, innerMap := range map1 {
+		result[outerKey] = make(map[string]T, len(innerMap))
+		for innerKey, value := range innerMap {
+			result[outerKey][innerKey] = value
+		}
+	}
+
+	// Merge map2 into the result
+	for outerKey, innerMap := range map2 {
+		// If outerKey already exists, merge the inner maps
+		if _, exists := result[outerKey]; exists {
+			for innerKey, value := range innerMap {
+				result[outerKey][innerKey] = value
+			}
+		} else {
+			// If outerKey does not exist, add the entire inner map
+			result[outerKey] = make(map[string]T, len(innerMap))
+			for innerKey, value := range innerMap {
+				result[outerKey][innerKey] = value
+			}
+		}
+	}
+
+	return result
+}
+
+func mkFactory[T any]() map[string]ottl.Factory[T] {
+	factoryMap := map[string]ottl.Factory[T]{}
+	for factoryName, factory := range ottlfuncs.StandardFuncs[T]() {
+		factoryMap[factoryName] = factory
+	}
+	for factoryName, factory := range ottlfuncs.StandardConverters[T]() {
+		factoryMap[factoryName] = factory
+	}
+	return factoryMap
+}
+
+func ParseTransformations(statement sampler.Instruction, logger *zap.Logger) (Transformations, error) {
 	var errors error
 
-	resourceParser, _ := ottlresource.NewParser(ottlfuncs.StandardFuncs[ottlresource.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
-	scopeParser, _ := ottlscope.NewParser(ottlfuncs.StandardFuncs[ottlscope.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
-	logParser, _ := ottllog.NewParser(ottlfuncs.StandardFuncs[ottllog.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
-	spanParser, _ := ottlspan.NewParser(ottlfuncs.StandardFuncs[ottlspan.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
-	metricParser, _ := ottlmetric.NewParser(ottlfuncs.StandardFuncs[ottlmetric.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
-	dataPointParser, _ := ottldatapoint.NewParser(ottlfuncs.StandardFuncs[ottldatapoint.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
+	contextStatements := statement.Statements
+	resourceParser, _ := ottlresource.NewParser(mkFactory[ottlresource.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
+	scopeParser, _ := ottlscope.NewParser(mkFactory[ottlscope.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
+	logParser, _ := ottllog.NewParser(mkFactory[ottllog.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
+	spanParser, _ := ottlspan.NewParser(mkFactory[ottlspan.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
+	metricParser, _ := ottlmetric.NewParser(mkFactory[ottlmetric.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
+	dataPointParser, _ := ottldatapoint.NewParser(mkFactory[ottldatapoint.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
 
 	transformations := Transformations{
-		resourceTransforms:  []resourceTransform{},
-		scopeTransforms:     []scopeTransform{},
-		logTransforms:       []logTransform{},
-		spanTransforms:      []spanTransform{},
-		metricTransforms:    []metricTransform{},
-		dataPointTransforms: []dataPointTransform{},
+		resourceTransformsByRuleId:  map[string]map[string]resourceTransform{},
+		scopeTransformsByRuleId:     map[string]map[string]scopeTransform{},
+		logTransformsByRuleId:       map[string]map[string]logTransform{},
+		spanTransformsByRuleId:      map[string]map[string]spanTransform{},
+		metricTransformsByRuleId:    map[string]map[string]metricTransform{},
+		dataPointTransformsByRuleId: map[string]map[string]dataPointTransform{},
+		logger:                      logger,
 	}
+
+	// Sort contextStatements by priority
+	sort.Slice(contextStatements, func(i, j int) bool {
+		return contextStatements[i].Priority < contextStatements[j].Priority
+	})
 
 	for _, cs := range contextStatements {
 		switch cs.Context {
@@ -121,11 +182,14 @@ func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logg
 				continue
 			}
 
-			transformations.resourceTransforms = append(transformations.resourceTransforms, resourceTransform{
+			if _, exists := transformations.resourceTransformsByRuleId[statement.VendorId]; !exists {
+				transformations.resourceTransformsByRuleId[statement.VendorId] = make(map[string]resourceTransform)
+			}
+			transformations.resourceTransformsByRuleId[statement.VendorId][cs.RuleId] = resourceTransform{
 				context:    cs.Context,
 				conditions: conditions,
 				statements: statements,
-			})
+			}
 
 		case "scope":
 			conditions, err := scopeParser.ParseConditions(cs.Conditions)
@@ -141,11 +205,14 @@ func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logg
 				continue
 			}
 
-			transformations.scopeTransforms = append(transformations.scopeTransforms, scopeTransform{
+			if _, exists := transformations.scopeTransformsByRuleId[statement.VendorId]; !exists {
+				transformations.scopeTransformsByRuleId[statement.VendorId] = make(map[string]scopeTransform)
+			}
+			transformations.scopeTransformsByRuleId[statement.VendorId][cs.RuleId] = scopeTransform{
 				context:    cs.Context,
 				conditions: conditions,
 				statements: statements,
-			})
+			}
 
 		case "log":
 			conditions, err := logParser.ParseConditions(cs.Conditions)
@@ -161,11 +228,14 @@ func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logg
 				continue
 			}
 
-			transformations.logTransforms = append(transformations.logTransforms, logTransform{
+			if _, exists := transformations.logTransformsByRuleId[statement.VendorId]; !exists {
+				transformations.logTransformsByRuleId[statement.VendorId] = make(map[string]logTransform)
+			}
+			transformations.logTransformsByRuleId[statement.VendorId][cs.RuleId] = logTransform{
 				context:    cs.Context,
 				conditions: conditions,
 				statements: statements,
-			})
+			}
 
 		case "span":
 			conditions, err := spanParser.ParseConditions(cs.Conditions)
@@ -181,11 +251,14 @@ func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logg
 				continue
 			}
 
-			transformations.spanTransforms = append(transformations.spanTransforms, spanTransform{
+			if _, exists := transformations.spanTransformsByRuleId[statement.VendorId]; !exists {
+				transformations.spanTransformsByRuleId[statement.VendorId] = make(map[string]spanTransform)
+			}
+			transformations.spanTransformsByRuleId[statement.VendorId][cs.RuleId] = spanTransform{
 				context:    cs.Context,
 				conditions: conditions,
 				statements: statements,
-			})
+			}
 
 		case "metric":
 			conditions, err := metricParser.ParseConditions(cs.Conditions)
@@ -201,11 +274,14 @@ func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logg
 				continue
 			}
 
-			transformations.metricTransforms = append(transformations.metricTransforms, metricTransform{
+			if _, exists := transformations.metricTransformsByRuleId[statement.VendorId]; !exists {
+				transformations.metricTransformsByRuleId[statement.VendorId] = make(map[string]metricTransform)
+			}
+			transformations.metricTransformsByRuleId[statement.VendorId][cs.RuleId] = metricTransform{
 				context:    cs.Context,
 				conditions: conditions,
 				statements: statements,
-			})
+			}
 
 		case "datapoint":
 			conditions, err := dataPointParser.ParseConditions(cs.Conditions)
@@ -221,11 +297,14 @@ func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logg
 				continue
 			}
 
-			transformations.dataPointTransforms = append(transformations.dataPointTransforms, dataPointTransform{
+			if _, exists := transformations.dataPointTransformsByRuleId[statement.VendorId]; !exists {
+				transformations.dataPointTransformsByRuleId[statement.VendorId] = make(map[string]dataPointTransform)
+			}
+			transformations.dataPointTransformsByRuleId[statement.VendorId][cs.RuleId] = dataPointTransform{
 				context:    cs.Context,
 				conditions: conditions,
 				statements: statements,
-			})
+			}
 
 		default:
 			logger.Error("Unknown context: ", zap.String("context", string(cs.Context)))
@@ -235,217 +314,127 @@ func ParseTransformations(contextStatements []ContextStatement, logger *zap.Logg
 	return transformations, errors
 }
 
-func (t *Transformations) ExecuteResourceLogTransforms(rl plog.ResourceLogs) {
-	transformCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
-	for _, transformation := range t.resourceTransforms {
+func evaluateTransform[T any](eval func(T), rulesByRuleIdByVendorId map[string]map[string]T, vendorId string, ruleIds pcommon.Slice) {
+	if ruleIds.Len() == 0 || vendorId == "" {
+		for _, transformsByRuleId := range rulesByRuleIdByVendorId {
+			for _, transform := range transformsByRuleId {
+				eval(transform)
+			}
+		}
+	} else {
+		for i := 0; i < ruleIds.Len(); i++ {
+			ruleId := ruleIds.At(i)
+			if transform, ok := rulesByRuleIdByVendorId[vendorId][ruleId.Str()]; ok {
+				eval(transform)
+			}
+		}
+	}
+}
+
+func (t *Transformations) ExecuteResourceTransforms(transformCtx ottlresource.TransformContext, vendorId string, ruleIds pcommon.Slice) {
+	evaluateTransform[resourceTransform](func(resourceTransform resourceTransform) {
 		allConditionsTrue := true
-		for _, condition := range transformation.conditions {
+		for _, condition := range resourceTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
 		if allConditionsTrue {
-			for _, statement := range transformation.statements {
-				_, transformed, _ := statement.Execute(context.Background(), transformCtx)
-				if transformed {
-					rl.Resource().Attributes().PutBool(translate.CardinalFieldTransformed, true)
+			for _, statement := range resourceTransform.statements {
+				_, _, err := statement.Execute(context.Background(), transformCtx)
+				if err != nil {
+					t.logger.Error("Error executing resource transformation", zap.Error(err))
 				}
 			}
 		}
-	}
+	}, t.resourceTransformsByRuleId, vendorId, ruleIds)
 }
 
-func (t *Transformations) ExecuteScopeLogTransforms(sl plog.ScopeLogs, rl plog.ResourceLogs) {
-	transformCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), sl)
-	for _, transformation := range t.scopeTransforms {
+func (t *Transformations) ExecuteScopeTransforms(transformCtx ottlscope.TransformContext, vendorId string, ruleIds pcommon.Slice) {
+	evaluateTransform[scopeTransform](func(scopeTransform scopeTransform) {
 		allConditionsTrue := true
-		for _, condition := range transformation.conditions {
+		for _, condition := range scopeTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
 		if allConditionsTrue {
-			for _, statement := range transformation.statements {
-				_, transformed, _ := statement.Execute(context.Background(), transformCtx)
-				if transformed {
-					sl.Scope().Attributes().PutBool(translate.CardinalFieldTransformed, true)
+			for _, statement := range scopeTransform.statements {
+				_, _, err := statement.Execute(context.Background(), transformCtx)
+				if err != nil {
+					t.logger.Error("Error executing scope transformation", zap.Error(err))
 				}
 			}
 		}
-	}
+	}, t.scopeTransformsByRuleId, vendorId, ruleIds)
 }
 
-func (t *Transformations) ExecuteLogTransforms(log plog.LogRecord, sl plog.ScopeLogs, rl plog.ResourceLogs) {
-	transformCtx := ottllog.NewTransformContext(log, sl.Scope(), rl.Resource(), sl, rl)
-	for _, transformation := range t.logTransforms {
+func (t *Transformations) ExecuteLogTransforms(transformCtx ottllog.TransformContext, vendorId string, ruleIds pcommon.Slice) {
+	evaluateTransform[logTransform](func(logTransform logTransform) {
 		allConditionsTrue := true
-		for _, condition := range transformation.conditions {
+		for _, condition := range logTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
 		if allConditionsTrue {
-			for _, statement := range transformation.statements {
-				_, transformed, _ := statement.Execute(context.Background(), transformCtx)
-				if transformed {
-					log.Attributes().PutBool(translate.CardinalFieldTransformed, true)
+			for _, statement := range logTransform.statements {
+				_, _, err := statement.Execute(context.Background(), transformCtx)
+				if err != nil {
+					t.logger.Error("Error executing log transformation", zap.Error(err))
 				}
 			}
 		}
-	}
+	}, t.logTransformsByRuleId, vendorId, ruleIds)
 }
 
-func (t *Transformations) ExecuteResourceSpanTransformations(rl ptrace.ResourceSpans) {
-	transformCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
-	for _, transformation := range t.resourceTransforms {
+func (t *Transformations) ExecuteSpanTransforms(transformCtx ottlspan.TransformContext, vendorId string, ruleIds pcommon.Slice) {
+	evaluateTransform[spanTransform](func(spanTransform spanTransform) {
 		allConditionsTrue := true
-		for _, condition := range transformation.conditions {
+		for _, condition := range spanTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
 		if allConditionsTrue {
-			for _, statement := range transformation.statements {
-				_, transformed, _ := statement.Execute(context.Background(), transformCtx)
-				if transformed {
-					rl.Resource().Attributes().PutBool(translate.CardinalFieldTransformed, true)
+			for _, statement := range spanTransform.statements {
+				_, _, err := statement.Execute(context.Background(), transformCtx)
+				if err != nil {
+					t.logger.Error("Error executing span transformation", zap.Error(err))
 				}
 			}
 		}
-	}
+	}, t.spanTransformsByRuleId, vendorId, ruleIds)
 }
 
-func (t *Transformations) ExecuteScopeSpanTransformations(sl ptrace.ScopeSpans, rl ptrace.ResourceSpans) {
-	transformCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), sl)
-	for _, transformation := range t.scopeTransforms {
+func (t *Transformations) ExecuteMetricTransforms(transformCtx ottlmetric.TransformContext, vendorId string, ruleIds pcommon.Slice) {
+	evaluateTransform[metricTransform](func(metricTransform metricTransform) {
 		allConditionsTrue := true
-		for _, condition := range transformation.conditions {
+		for _, condition := range metricTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
 		if allConditionsTrue {
-			for _, statement := range transformation.statements {
-				_, transformed, _ := statement.Execute(context.Background(), transformCtx)
-				if transformed {
-					sl.Scope().Attributes().PutBool(translate.CardinalFieldTransformed, true)
+			for _, statement := range metricTransform.statements {
+				_, _, err := statement.Execute(context.Background(), transformCtx)
+				if err != nil {
+					t.logger.Error("Error executing metric transformation", zap.Error(err))
 				}
 			}
 		}
-	}
+	}, t.metricTransformsByRuleId, vendorId, ruleIds)
 }
 
-func (t *Transformations) ExecuteSpanTransformations(span ptrace.Span, sl ptrace.ScopeSpans, rl ptrace.ResourceSpans) {
-	transformCtx := ottlspan.NewTransformContext(span, sl.Scope(), rl.Resource(), sl, rl)
-	for _, transformation := range t.spanTransforms {
+func (t *Transformations) ExecuteDataPointTransforms(transformCtx ottldatapoint.TransformContext, vendorId string, ruleIds pcommon.Slice) {
+	evaluateTransform[dataPointTransform](func(dataPointTransform dataPointTransform) {
 		allConditionsTrue := true
-		for _, condition := range transformation.conditions {
+		for _, condition := range dataPointTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
 		if allConditionsTrue {
-			for _, statement := range transformation.statements {
-				_, transformed, _ := statement.Execute(context.Background(), transformCtx)
-				if transformed {
-					span.Attributes().PutBool(translate.CardinalFieldTransformed, true)
+			for _, statement := range dataPointTransform.statements {
+				_, _, err := statement.Execute(context.Background(), transformCtx)
+				if err != nil {
+					t.logger.Error("Error executing datapoint transformation", zap.Error(err))
 				}
 			}
 		}
-	}
-}
-
-func (t *Transformations) ExecuteResourceMetricTransforms(rl pmetric.ResourceMetrics) {
-	transformCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
-	for _, transformation := range t.resourceTransforms {
-		allConditionsTrue := true
-		for _, condition := range transformation.conditions {
-			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
-			allConditionsTrue = allConditionsTrue && conditionMet
-		}
-		if allConditionsTrue {
-			for _, statement := range transformation.statements {
-				_, transformed, _ := statement.Execute(context.Background(), transformCtx)
-				if transformed {
-					rl.Resource().Attributes().PutBool(translate.CardinalFieldTransformed, true)
-				}
-			}
-		}
-	}
-}
-
-func (t *Transformations) ExecuteScopeMetricTransforms(sl pmetric.ScopeMetrics, rl pmetric.ResourceMetrics) {
-	transformCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), sl)
-	for _, transformation := range t.scopeTransforms {
-		allConditionsTrue := true
-		for _, condition := range transformation.conditions {
-			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
-			allConditionsTrue = allConditionsTrue && conditionMet
-		}
-		if allConditionsTrue {
-			for _, statement := range transformation.statements {
-				_, transformed, _ := statement.Execute(context.Background(), transformCtx)
-				if transformed {
-					sl.Scope().Attributes().PutBool(translate.CardinalFieldTransformed, true)
-				}
-			}
-		}
-	}
-}
-
-func (t *Transformations) ExecuteMetricTransforms(m pmetric.Metric,
-	sl pmetric.ScopeMetrics,
-	rl pmetric.ResourceMetrics) {
-	transformCtx := ottlmetric.NewTransformContext(m, sl.Metrics(), sl.Scope(), rl.Resource(), sl, rl)
-	for _, transformation := range t.metricTransforms {
-		allConditionsTrue := true
-		for _, condition := range transformation.conditions {
-			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
-			allConditionsTrue = allConditionsTrue && conditionMet
-		}
-		if allConditionsTrue {
-			for _, statement := range transformation.statements {
-				_, _, _ = statement.Execute(context.Background(), transformCtx)
-			}
-		}
-	}
-}
-
-func (t *Transformations) ExecuteAllMetricsTransforms(d any,
-	m pmetric.Metric,
-	sl pmetric.ScopeMetrics,
-	rl pmetric.ResourceMetrics) {
-	t.ExecuteResourceMetricTransforms(rl)
-	t.ExecuteScopeMetricTransforms(sl, rl)
-	t.ExecuteMetricTransforms(m, sl, rl)
-	t.ExecuteDataPointTransforms(d, m, sl, rl)
-}
-
-func (t *Transformations) ExecuteDataPointTransforms(d any,
-	m pmetric.Metric,
-	sl pmetric.ScopeMetrics,
-	rl pmetric.ResourceMetrics) {
-	transformCtx := ottldatapoint.NewTransformContext(d, m, sl.Metrics(), sl.Scope(), rl.Resource(), sl, rl)
-	for _, transformation := range t.dataPointTransforms {
-		allConditionsTrue := true
-		for _, condition := range transformation.conditions {
-			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
-			allConditionsTrue = allConditionsTrue && conditionMet
-		}
-		if allConditionsTrue {
-			for _, statement := range transformation.statements {
-				_, transformed, _ := statement.Execute(context.Background(), transformCtx)
-				if transformed {
-					switch d.(type) {
-					case pmetric.NumberDataPoint:
-						attrs := d.(pmetric.NumberDataPoint).Attributes()
-						attrs.PutBool(translate.CardinalFieldTransformed, true)
-					case pmetric.HistogramDataPoint:
-						attrs := d.(pmetric.HistogramDataPoint).Attributes()
-						attrs.PutBool(translate.CardinalFieldTransformed, true)
-					case pmetric.ExponentialHistogramDataPoint:
-						attrs := d.(pmetric.ExponentialHistogramDataPoint).Attributes()
-						attrs.PutBool(translate.CardinalFieldTransformed, true)
-					case pmetric.SummaryDataPoint:
-						attrs := d.(pmetric.SummaryDataPoint).Attributes()
-						attrs.PutBool(translate.CardinalFieldTransformed, true)
-					}
-				}
-			}
-		}
-	}
+	}, t.dataPointTransformsByRuleId, vendorId, ruleIds)
 }

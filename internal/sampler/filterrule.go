@@ -32,7 +32,7 @@ type filterRule struct {
 	id       string
 	ruleType EventSamplingRuleType
 	sampler  Sampler
-	config   EventSamplingConfigV1
+	config   SamplingRule
 
 	resourceCondition *ottl.Condition[ottlresource.TransformContext]
 	scopeCondition    *ottl.Condition[ottlscope.TransformContext]
@@ -58,8 +58,8 @@ func (fr *filterRule) parseConditions(telemetry component.TelemetrySettings) err
 		return err
 	}
 
-	if fr.config.Filter != nil {
-		for _, filter := range fr.config.Filter {
+	if fr.config.Conditions != nil {
+		for _, filter := range fr.config.Conditions {
 			switch filter.ContextId {
 			case "resource":
 				fr.resourceCondition, err = resourceParser.ParseCondition(filter.Condition)
@@ -144,10 +144,10 @@ func (fr *filterRule) evaluateSpan(rl ptrace.ResourceSpans, sl ptrace.ScopeSpans
 	return matched
 }
 
-func newFilterRule(c EventSamplingConfigV1, telemetry component.TelemetrySettings) (*filterRule, error) {
-	// Create the logRule instance
+func newFilterRule(c SamplingRule, telemetry component.TelemetrySettings) (*filterRule, error) {
+	// Create the filterRule instance
 	r := &filterRule{
-		id:       c.Id,
+		id:       c.RuleId,
 		ruleType: samplingRuleTypeToInt(c.RuleType),
 		config:   c,
 	}

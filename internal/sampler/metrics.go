@@ -26,26 +26,22 @@ import (
 
 type MetricAggregator[T int64 | float64] interface {
 	Emit(now time.Time) map[int64]*AggregationSet[T]
-	Configure(config SamplerConfig, vendor string)
-	MatchAndAdd(t *time.Time, buckets []T, value []T, aggregationType AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (*AggregatorConfigV1, error)
-	HasRules() bool
+	MatchAndAdd(t *time.Time, buckets []T, value []T, aggregationType AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (bool, error)
 }
 
 type MetricAggregatorImpl[T int64 | float64] struct {
 	sets      map[int64]*AggregationSet[T]
 	setsLock  sync.Mutex
-	rules     []AggregatorConfigV1
 	rulesLock sync.RWMutex
 	interval  int64
 }
 
 var _ MetricAggregator[int64] = (*MetricAggregatorImpl[int64])(nil)
 
-func NewMetricAggregatorImpl[T int64 | float64](interval int64, rules []AggregatorConfigV1) *MetricAggregatorImpl[T] {
+func NewMetricAggregatorImpl[T int64 | float64](interval int64) *MetricAggregatorImpl[T] {
 	return &MetricAggregatorImpl[T]{
 		sets:     map[int64]*AggregationSet[T]{},
 		interval: interval,
-		rules:    rules,
 	}
 }
 
@@ -63,29 +59,6 @@ func (m *MetricAggregatorImpl[T]) Emit(now time.Time) map[int64]*AggregationSet[
 		}
 	}
 	return ret
-}
-
-func rulesForVendor(rules []AggregatorConfigV1, vendor string) []AggregatorConfigV1 {
-	ret := []AggregatorConfigV1{}
-	for _, rule := range rules {
-		if rule.Vendor == vendor {
-			ret = append(ret, rule)
-		}
-	}
-	return ret
-}
-
-func (m *MetricAggregatorImpl[T]) Configure(config SamplerConfig, vendor string) {
-	newrules := rulesForVendor(config.Metrics.Aggregators, vendor)
-	m.rulesLock.Lock()
-	defer m.rulesLock.Unlock()
-	m.rules = newrules
-}
-
-func (m *MetricAggregatorImpl[T]) HasRules() bool {
-	m.rulesLock.RLock()
-	defer m.rulesLock.RUnlock()
-	return len(m.rules) > 0
 }
 
 func timebox(t time.Time, interval int64) int64 {
@@ -123,28 +96,23 @@ func (m *MetricAggregatorImpl[T]) MatchAndAdd(
 	rattr pcommon.Map,
 	iattr pcommon.Map,
 	mattr pcommon.Map,
-) (*AggregatorConfigV1, error) {
+) (bool, error) {
 	m.rulesLock.RLock()
 	defer m.rulesLock.RUnlock()
 	t = nowtime(t)
-	for _, rule := range m.rules {
-		if rule.MetricName != "" && rule.MetricName != name {
-			continue
-		}
-		attrs, transformed := attrsToMap(map[string]pcommon.Map{
-			"resource":        rattr,
-			"instrumentation": iattr,
-			"metric":          mattr,
-		})
-		for k, v := range metadata {
-			attrs["metadata."+k] = v
-		}
-		if transformed {
-			err := m.add(*t, name, buckets, values, aggregationType, attrs)
-			return &rule, err
-		}
+	attrs, transformed := attrsToMap(map[string]pcommon.Map{
+		"resource":        rattr,
+		"instrumentation": iattr,
+		"metric":          mattr,
+	})
+	for k, v := range metadata {
+		attrs["metadata."+k] = v
 	}
-	return nil, nil
+	if transformed {
+		err := m.add(*t, name, buckets, values, aggregationType, attrs)
+		return true, err
+	}
+	return false, nil
 }
 
 func attrsToMap(attrs map[string]pcommon.Map) (map[string]string, bool) {
@@ -152,7 +120,7 @@ func attrsToMap(attrs map[string]pcommon.Map) (map[string]string, bool) {
 	var transformed bool
 	for scope, attr := range attrs {
 		attr.Range(func(k string, v pcommon.Value) bool {
-			transformed = transformed || k == translate.CardinalFieldTransformed && v.Bool()
+			transformed = transformed || k == translate.CardinalFieldAggregated && v.Bool()
 			ret[scope+"."+k] = v.AsString()
 			return true
 		})

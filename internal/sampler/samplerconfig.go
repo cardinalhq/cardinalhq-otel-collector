@@ -17,21 +17,27 @@ package sampler
 import "github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 
 type SamplerConfig struct {
-	Logs    LogConfigV1    `json:"logs,omitempty" yaml:"logs,omitempty"`
+	Logs    EventConfigV1  `json:"logs,omitempty" yaml:"logs,omitempty"`
 	Metrics MetricConfigV1 `json:"metrics,omitempty" yaml:"metrics,omitempty"`
-	Traces  TraceConfigV1  `json:"traces,omitempty" yaml:"traces,omitempty"`
+	Traces  EventConfigV1  `json:"traces,omitempty" yaml:"traces,omitempty"`
 
 	hash uint64
 }
 
-type LogConfigV1 struct {
-	Transformations []ottl.ContextStatement `json:"transformations,omitempty" yaml:"transformations,omitempty"`
-	Sampling        []EventSamplingConfigV1 `json:"sampling,omitempty" yaml:"sampling,omitempty"`
+type EventConfigV1 struct {
+	Decorators    []Instruction  `json:"decorators,omitempty" yaml:"decorators,omitempty"`
+	Enforcers     []Instruction  `json:"enforcers,omitempty" yaml:"enforcers,omitempty"`
+	SamplingRules []SamplingRule `json:"samplingRules,omitempty" yaml:"samplingRules,omitempty"`
 }
 
-type TraceConfigV1 struct {
-	Transformations []ottl.ContextStatement `json:"transformations,omitempty" yaml:"transformations,omitempty"`
-	Sampling        []EventSamplingConfigV1 `json:"sampling,omitempty" yaml:"sampling,omitempty"`
+type MetricConfigV1 struct {
+	Decorators []Instruction `json:"decorators,omitempty" yaml:"decorators,omitempty"`
+	Enforcers  []Instruction `json:"enforcers,omitempty" yaml:"enforcers,omitempty"`
+}
+
+type Instruction struct {
+	VendorId   string                  `json:"vendorId,omitempty" yaml:"vendorId,omitempty"`
+	Statements []ottl.ContextStatement `json:"statements,omitempty" yaml:"statements,omitempty"`
 }
 
 type Filter struct {
@@ -39,48 +45,43 @@ type Filter struct {
 	Condition string `json:"condition,omitempty" yaml:"condition,omitempty"`
 }
 
-type EventSamplingConfigV1 struct {
-	Id         string   `json:"id,omitempty" yaml:"id,omitempty"`
-	RuleType   string   `json:"ruleType,omitempty" yaml:"ruleType,omitempty"`
-	Filter     []Filter `json:"filter,omitempty" yaml:"filter,omitempty"`
+func (f Filter) Equals(other Filter) bool {
+	return f.ContextId == other.ContextId && f.Condition == other.Condition
+}
+
+type SamplingRule struct {
+	RuleId     string   `json:"ruleId,omitempty" yaml:"ruleId,omitempty"`
+	Priority   int      `json:"priority,omitempty" yaml:"priority,omitempty"`
+	VendorId   string   `json:"vendorId,omitempty" yaml:"vendorId,omitempty"`
+	Conditions []Filter `json:"filter,omitempty" yaml:"filter,omitempty"`
 	SampleRate float64  `json:"sampleRate,omitempty" yaml:"sampleRate,omitempty"`
 	RPS        int      `json:"rps,omitempty" yaml:"rps,omitempty"`
-	Vendor     string   `json:"vendor,omitempty" yaml:"vendor,omitempty"`
+	RuleType   string   `json:"ruleType,omitempty" yaml:"ruleType,omitempty"`
 }
 
-type MetricConfigV1 struct {
-	// General transformations that apply to all metrics for e.g. team associations.
-	Transformations []ottl.ContextStatement `json:"transformations,omitempty" yaml:"transformations,omitempty"`
-	Aggregators     []AggregatorConfigV1    `json:"aggregators,omitempty" yaml:"aggregators,omitempty"`
-}
-
-type AggregatorConfigV1 struct {
-	Id         string `json:"id,omitempty" yaml:"id,omitempty"`
-	MetricName string `json:"metricName,omitempty" yaml:"metricName,omitempty"`
-	// Metric specific transformations
-	Transformations []ottl.ContextStatement `json:"transformations,omitempty" yaml:"transformations,omitempty"`
-	Vendor          string                  `json:"vendor,omitempty" yaml:"vendor,omitempty"`
-}
-
-func (lsc EventSamplingConfigV1) Equals(other EventSamplingConfigV1) bool {
-	if lsc.Id != other.Id ||
-		lsc.RPS != other.RPS ||
-		lsc.RuleType != other.RuleType ||
-		lsc.SampleRate != other.SampleRate ||
-		lsc.RPS != other.RPS &&
-			lsc.Vendor != other.Vendor {
+func (sr SamplingRule) Equals(other SamplingRule) bool {
+	// Compare simple fields
+	if sr.RuleId != other.RuleId ||
+		sr.Priority != other.Priority ||
+		sr.VendorId != other.VendorId ||
+		sr.SampleRate != other.SampleRate ||
+		sr.RPS != other.RPS ||
+		sr.RuleType != other.RuleType {
 		return false
 	}
 
-	if len(lsc.Filter) != len(other.Filter) {
+	// Compare Conditions slices length
+	if len(sr.Conditions) != len(other.Conditions) {
 		return false
 	}
 
-	for i := range lsc.Filter {
-		if lsc.Filter[i].ContextId != other.Filter[i].ContextId ||
-			lsc.Filter[i].Condition != other.Filter[i].Condition {
+	// Compare Conditions slice content
+	for i, condition := range sr.Conditions {
+		if !condition.Equals(other.Conditions[i]) {
 			return false
 		}
 	}
+
+	// All fields are equal
 	return true
 }

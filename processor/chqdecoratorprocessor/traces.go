@@ -17,6 +17,10 @@ package chqdecoratorprocessor
 import (
 	"context"
 	"fmt"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlspan"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"strings"
 	"time"
 
@@ -116,11 +120,13 @@ func (c *chqDecorator) decorateTraces(td ptrace.Traces) (ptrace.Traces, error) {
 
 	environment := translate.EnvironmentFromEnv()
 	rss := td.ResourceSpans()
+	transformations := c.traceTransformations
 
 	for i := 0; i < rss.Len(); i++ {
 		rs := rss.At(i)
 		// Evaluate resource transformations
-		c.traceTransformations.ExecuteResourceSpanTransformations(rs)
+		resourceCtx := ottlresource.NewTransformContext(rs.Resource(), rs)
+		transformations.ExecuteResourceTransforms(resourceCtx, "", pcommon.Slice{})
 
 		snk := string(semconv.ServiceNameKey)
 		serviceName, serviceNameExists := rs.Resource().Attributes().Get(snk)
@@ -130,13 +136,15 @@ func (c *chqDecorator) decorateTraces(td ptrace.Traces) (ptrace.Traces, error) {
 		for j := 0; j < ilss.Len(); j++ {
 			ils := ilss.At(j)
 			// Evaluate scope transformations
-			c.traceTransformations.ExecuteScopeSpanTransformations(ils, rs)
+			scopeCtx := ottlscope.NewTransformContext(ils.Scope(), rs.Resource(), rs)
+			transformations.ExecuteScopeTransforms(scopeCtx, "", pcommon.Slice{})
 
 			spans := ils.Spans()
 			for k := 0; k < spans.Len(); k++ {
 				span := spans.At(k)
 				// Evaluate scope transformations
-				c.traceTransformations.ExecuteSpanTransformations(span, ils, rs)
+				spanCtx := ottlspan.NewTransformContext(span, ils.Scope(), rs.Resource(), ils, rs)
+				transformations.ExecuteSpanTransforms(spanCtx, "", pcommon.Slice{})
 
 				httpResource := c.getHttpResource(span)
 				if httpResource != "" {
@@ -154,8 +162,7 @@ func (c *chqDecorator) decorateTraces(td ptrace.Traces) (ptrace.Traces, error) {
 
 				// Evaluate if we should drop this span, if yes add it to the attributes
 				// for the downstream enforcers to drop it.
-				shouldDrop := c.shouldDropSpan(serviceName.Str(), spanFingerprint, rs, ils, span)
-				span.Attributes().PutBool(translate.CardinalFieldDrop, shouldDrop)
+				c.evaluateTraceSamplingRules(serviceName.Str(), spanFingerprint, rs, ils, span)
 
 				span.Attributes().PutInt(translate.CardinalFieldFingerprint, spanFingerprint)
 				span.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, c.podName)
@@ -168,18 +175,30 @@ func (c *chqDecorator) decorateTraces(td ptrace.Traces) (ptrace.Traces, error) {
 	return td, nil
 }
 
-func (c *chqDecorator) shouldDropSpan(serviceName string, fingerprint int64, rl ptrace.ResourceSpans, sl ptrace.ScopeSpans, lr ptrace.Span) bool {
+func (c *chqDecorator) evaluateTraceSamplingRules(serviceName string, fingerprint int64, rl ptrace.ResourceSpans, sl ptrace.ScopeSpans, lr ptrace.Span) {
 	fingerprintString := fmt.Sprintf("%d", fingerprint)
-	return c.traceSampler.SampleSpans(serviceName, fingerprintString, rl, sl, lr) != ""
+	ruleMatches := c.logSampler.SampleSpans(serviceName, fingerprintString, rl, sl, lr)
+	attributes := lr.Attributes()
+
+	if len(ruleMatches) > 0 {
+		for _, ruleMatch := range ruleMatches {
+			c.appendToSlice(attributes, translate.CardinalFieldDropForVendor, ruleMatch.VendorId)
+			c.appendToSlice(attributes, translate.CardinalFieldRulesMatched, ruleMatch.RuleId)
+		}
+	}
 }
 
 func (c *chqDecorator) updateTracesSampling(sc sampler.SamplerConfig) {
 	c.Lock()
 	defer c.Unlock()
-	c.logger.Info("Updating trace sampling config", zap.String("vendor", c.vendor))
-	c.traceSampler.UpdateConfig(sc.Traces.Sampling, c.vendor, c.telemetrySettings)
-	// ok to ignore the parse error here, because we expect the config to be valid because it got validated
-	// before it was saved by the UI.
-	transformations, _ := ottl.ParseTransformations(sc.Traces.Transformations, c.logger)
-	c.traceTransformations = transformations
+	c.logger.Info("Updating trace sampling config")
+	c.traceSampler.UpdateConfig(sc.Traces.SamplingRules, c.telemetrySettings)
+	for _, decorator := range sc.Traces.Decorators {
+		transformations, err := ottl.ParseTransformations(decorator, c.logger)
+		if err != nil {
+			c.logger.Error("Error parsing traces transformation", zap.Error(err))
+		} else {
+			c.traceTransformations = ottl.MergeWith(c.traceTransformations, transformations)
+		}
+	}
 }

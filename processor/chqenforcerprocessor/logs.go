@@ -18,6 +18,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
 	"net/http"
 	"strings"
 	"time"
@@ -52,10 +55,21 @@ func getFingerprint(l pcommon.Map) int64 {
 	return 0
 }
 
-func (e *chqEnforcer) shouldDropLog(l pcommon.Map) bool {
-	fnk := translate.CardinalFieldDrop
-	if fingerprintField, found := l.Get(fnk); found {
-		return fingerprintField.Bool()
+func (e *chqEnforcer) getSlice(l pcommon.Map, key string) pcommon.Slice {
+	if field, found := l.Get(key); found {
+		return field.Slice()
+	}
+	return pcommon.NewSlice()
+}
+
+func (e *chqEnforcer) sliceContains(l pcommon.Map, key string, value string) bool {
+	if field, found := l.Get(key); found {
+		slice := field.Slice()
+		for i := 0; i < slice.Len(); i++ {
+			if slice.At(i).AsString() == value {
+				return true
+			}
+		}
 	}
 	return false
 }
@@ -71,25 +85,44 @@ func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, e
 	now := time.Now()
 
 	ld.ResourceLogs().RemoveIf(func(rl plog.ResourceLogs) bool {
-		e.logTransformations.ExecuteResourceLogTransforms(rl)
+		resourceRulesMatched := e.getSlice(rl.Resource().Attributes(), translate.CardinalFieldRulesMatched)
+		if resourceRulesMatched.Len() > 0 {
+			transformCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
+			e.logTransformations.ExecuteResourceTransforms(transformCtx, e.vendor, resourceRulesMatched)
+		}
+
+		if e.sliceContains(rl.Resource().Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
+			return true
+		}
 
 		serviceName := getServiceName(rl.Resource().Attributes())
 		rl.ScopeLogs().RemoveIf(func(sl plog.ScopeLogs) bool {
-			e.logTransformations.ExecuteScopeLogTransforms(sl, rl)
+			scopeRulesMatched := e.getSlice(sl.Scope().Attributes(), translate.CardinalFieldRulesMatched)
+			if scopeRulesMatched.Len() > 0 {
+				transformCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), rl)
+				e.logTransformations.ExecuteScopeTransforms(transformCtx, e.vendor, scopeRulesMatched)
+			}
+
+			if e.sliceContains(sl.Scope().Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
+				return true
+			}
 
 			sl.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
-				e.logTransformations.ExecuteLogTransforms(lr, sl, rl)
+				logRulesMatched := e.getSlice(lr.Attributes(), translate.CardinalFieldRulesMatched)
+				if logRulesMatched.Len() > 0 {
+					transformCtx := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
+					e.logTransformations.ExecuteLogTransforms(transformCtx, e.vendor, logRulesMatched)
+				}
 
-				fingerprint := getFingerprint(lr.Attributes())
 				if e.pbPhase == chqpb.Phase_POST {
-					shouldDrop := e.shouldDropLog(lr.Attributes())
-					if shouldDrop {
+					if e.sliceContains(lr.Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
 						return true
 					}
 				}
 				if e.config.DropDecorationAttributes {
 					removeAllCardinalFields(lr.Attributes())
 				}
+				fingerprint := getFingerprint(lr.Attributes())
 				if err := e.recordLog(now, serviceName, fingerprint, rl, sl, lr); err != nil {
 					e.logger.Error("Failed to record log", zap.Error(err))
 				}
@@ -205,13 +238,18 @@ func (e *chqEnforcer) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsR
 }
 
 func (c *chqEnforcer) updateLogTransformations(sc sampler.SamplerConfig) {
-	c.logger.Info("Updating log transformations config", zap.String("vendor", c.vendor))
-	transformations, err := ottl.ParseTransformations(sc.Logs.Transformations, c.logger)
-	if err != nil {
-		c.logger.Error("Failed to parse log transformations, keeping old rules", zap.Error(err))
-		return
-	}
 	c.Lock()
 	defer c.Unlock()
-	c.logTransformations = transformations
+
+	c.logger.Info("Updating log transformations config", zap.String("vendor", c.vendor))
+	for _, decorator := range sc.Logs.Enforcers {
+		if decorator.VendorId == c.vendor {
+			transformations, err := ottl.ParseTransformations(decorator, c.logger)
+			if err != nil {
+				c.logger.Error("Error parsing log transformation", zap.Error(err))
+			} else {
+				c.logTransformations = ottl.MergeWith(c.logTransformations, transformations)
+			}
+		}
+	}
 }

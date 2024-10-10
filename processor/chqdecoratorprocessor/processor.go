@@ -20,6 +20,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/fingerprinter"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"sync"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
@@ -47,15 +48,16 @@ type chqDecorator struct {
 	configExtension    *chqconfigextension.CHQConfigExtension
 	configCallbackID   int
 	podName            string
-	vendor             string
 
-	logFingerprinter       fingerprinter.Fingerprinter
-	logSampler             sampler.EventSampler
+	logFingerprinter fingerprinter.Fingerprinter
+	logSampler       sampler.EventSampler
+
 	logTransformations     ottl.Transformations
 	metricsTransformations ottl.Transformations
 	traceTransformations   ottl.Transformations
-	traceSampler           sampler.EventSampler
-	traceFingerprinter     fingerprinter.Fingerprinter
+
+	traceSampler       sampler.EventSampler
+	traceFingerprinter fingerprinter.Fingerprinter
 
 	// estimators for spans
 	estimators map[uint64]*SlidingEstimatorStat
@@ -73,7 +75,6 @@ func newCHQDecorator(config *Config, ttype string, set processor.Settings) (*chq
 		telemetrySettings:  set.TelemetrySettings,
 		logger:             set.Logger,
 		podName:            os.Getenv("POD_NAME"),
-		vendor:             config.Statistics.Vendor,
 	}
 
 	switch ttype {
@@ -145,4 +146,15 @@ func (c *chqDecorator) configUpdateCallback(sc sampler.SamplerConfig) {
 		c.updateMetricsTransformation(sc)
 	}
 	c.logger.Info("Configuration updated")
+}
+
+func (c *chqDecorator) appendToSlice(attributes pcommon.Map, tagName string, tagValue string) {
+	var value, exists = attributes.Get(tagName)
+	var slice pcommon.Slice
+	if !exists {
+		slice = attributes.PutEmptySlice(tagName)
+	} else {
+		slice = value.Slice()
+	}
+	slice.AppendEmpty().SetStr(tagValue)
 }

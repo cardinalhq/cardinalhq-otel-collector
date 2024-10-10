@@ -65,7 +65,7 @@ type chqEnforcer struct {
 
 	// for metrics
 	metricstats           *stats.StatsCombiner[*MetricStat]
-	metricTransformations map[string]ottl.Transformations
+	metricTransformations ottl.Transformations
 
 	nextMetricReceiver   consumer.Metrics
 	aggregationInterval  time.Duration
@@ -104,9 +104,9 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextCo
 		statsExporter.logger.Info("sending metric statistics", zap.Duration("interval", config.Statistics.Interval))
 		statsExporter.lastEmitCheck = time.Now()
 		interval := config.MetricAggregation.Interval.Milliseconds()
-		statsExporter.aggregatorI = sampler.NewMetricAggregatorImpl[int64](interval, nil)
-		statsExporter.aggregatorF = sampler.NewMetricAggregatorImpl[float64](interval, nil)
-		statsExporter.metricTransformations = make(map[string]ottl.Transformations)
+		statsExporter.aggregatorI = sampler.NewMetricAggregatorImpl[int64](interval)
+		statsExporter.aggregatorF = sampler.NewMetricAggregatorImpl[float64](interval)
+		statsExporter.metricTransformations = ottl.Transformations{}
 		err := statsExporter.setupMetricTelemetry()
 		if err != nil {
 			return nil, err

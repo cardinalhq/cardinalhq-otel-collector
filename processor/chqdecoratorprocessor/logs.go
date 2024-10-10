@@ -17,6 +17,9 @@ package chqdecoratorprocessor
 import (
 	"context"
 	"fmt"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
@@ -40,17 +43,21 @@ func (c *chqDecorator) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, 
 	defer c.Unlock()
 
 	environment := translate.EnvironmentFromEnv()
+	transformations := c.logTransformations
+
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
 		serviceName := getServiceName(rl.Resource().Attributes())
-
 		// Evaluate resource transformations
-		c.logTransformations.ExecuteResourceLogTransforms(rl)
+		resourceCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
+		transformations.ExecuteResourceTransforms(resourceCtx, "", pcommon.Slice{})
 
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
 			sl := rl.ScopeLogs().At(j)
 			// Evaluate scope transformations
-			c.logTransformations.ExecuteScopeLogTransforms(sl, rl)
+			scopeCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), rl)
+			transformations.ExecuteScopeTransforms(scopeCtx, "", pcommon.Slice{})
+
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				log := sl.LogRecords().At(k)
 				fingerprint, level, err := c.logFingerprinter.Fingerprint(log.Body().AsString())
@@ -60,12 +67,12 @@ func (c *chqDecorator) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, 
 				}
 
 				// Evaluate log scope transformations
-				c.logTransformations.ExecuteLogTransforms(log, sl, rl)
+				logCtx := ottllog.NewTransformContext(log, sl.Scope(), rl.Resource(), sl, rl)
+				transformations.ExecuteLogTransforms(logCtx, "", pcommon.Slice{})
 
-				// Evaluate if we should drop this log
-				shouldDrop := c.shouldDropLog(serviceName, fingerprint, rl, sl, log)
+				// Evaluate Log sampling Rules
+				c.evaluateLogSamplingRules(serviceName, fingerprint, rl, sl, log)
 
-				log.Attributes().PutBool(translate.CardinalFieldDrop, shouldDrop)
 				log.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)
 				log.Attributes().PutStr(translate.CardinalFieldLevel, level)
 				log.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, c.podName)
@@ -77,19 +84,30 @@ func (c *chqDecorator) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, 
 
 	return ld, nil
 }
-
-func (c *chqDecorator) shouldDropLog(serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) bool {
+func (c *chqDecorator) evaluateLogSamplingRules(serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) {
 	fingerprintString := fmt.Sprintf("%d", fingerprint)
-	return c.logSampler.SampleLogs(serviceName, fingerprintString, rl, sl, lr) != ""
+	ruleMatches := c.logSampler.SampleLogs(serviceName, fingerprintString, rl, sl, lr)
+	attributes := lr.Attributes()
+
+	if len(ruleMatches) > 0 {
+		for _, ruleMatch := range ruleMatches {
+			c.appendToSlice(attributes, translate.CardinalFieldDropForVendor, ruleMatch.VendorId)
+			c.appendToSlice(attributes, translate.CardinalFieldRulesMatched, ruleMatch.RuleId)
+		}
+	}
 }
 
 func (c *chqDecorator) updateLogsSampling(sc sampler.SamplerConfig) {
 	c.Lock()
 	defer c.Unlock()
-	c.logger.Info("Updating log sampling config", zap.String("vendor", c.vendor))
-	c.logSampler.UpdateConfig(sc.Logs.Sampling, c.vendor, c.telemetrySettings)
-	// ok to ignore the parse error here, because we expect the config to be valid because it got validated
-	// before it was saved by the UI.
-	transformations, _ := ottl.ParseTransformations(sc.Logs.Transformations, c.logger)
-	c.logTransformations = transformations
+	c.logger.Info("Updating logs transformation config...")
+	c.logSampler.UpdateConfig(sc.Logs.SamplingRules, c.telemetrySettings)
+	for _, decorator := range sc.Logs.Decorators {
+		transformations, err := ottl.ParseTransformations(decorator, c.logger)
+		if err != nil {
+			c.logger.Error("Error parsing log transformation", zap.Error(err))
+		} else {
+			c.logTransformations = ottl.MergeWith(c.logTransformations, transformations)
+		}
+	}
 }

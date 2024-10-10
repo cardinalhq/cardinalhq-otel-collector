@@ -19,6 +19,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlmetric"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
 	"net/http"
 	"strings"
 	"time"
@@ -42,18 +46,47 @@ func (e *chqEnforcer) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (p
 	md.ResourceMetrics().RemoveIf(func(rm pmetric.ResourceMetrics) bool {
 		serviceName := getServiceName(rm.Resource().Attributes())
 		rattr := rm.Resource().Attributes()
+		resourceRulesMatched := e.getSlice(rattr, translate.CardinalFieldRulesMatched)
+		if resourceRulesMatched.Len() > 0 {
+			transformCtx := ottlresource.NewTransformContext(rm.Resource(), rm)
+			e.metricTransformations.ExecuteResourceTransforms(transformCtx, e.vendor, resourceRulesMatched)
+		}
+		if e.sliceContains(rattr, translate.CardinalFieldDropForVendor, e.vendor) {
+			return true
+		}
+
 		rm.ScopeMetrics().RemoveIf(func(ilm pmetric.ScopeMetrics) bool {
 			sattr := ilm.Scope().Attributes()
+			scopeRulesMatched := e.getSlice(ilm.Scope().Attributes(), translate.CardinalFieldRulesMatched)
+			if scopeRulesMatched.Len() > 0 {
+				transformCtx := ottlscope.NewTransformContext(ilm.Scope(), rm.Resource(), rm)
+				e.metricTransformations.ExecuteScopeTransforms(transformCtx, e.vendor, scopeRulesMatched)
+			}
+
+			if e.sliceContains(ilm.Scope().Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
+				return true
+			}
+
 			ilm.Metrics().RemoveIf(func(m pmetric.Metric) bool {
 				metricName := m.Name()
+				metricRulesMatched := e.getSlice(m.Metadata(), translate.CardinalFieldRulesMatched)
+				if metricRulesMatched.Len() > 0 {
+					transformCtx := ottlmetric.NewTransformContext(m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
+					e.metricTransformations.ExecuteMetricTransforms(transformCtx, e.vendor, metricRulesMatched)
+				}
+
+				if e.sliceContains(m.Metadata(), translate.CardinalFieldDropForVendor, e.vendor) {
+					return true
+				}
+
 				switch m.Type() {
 				case pmetric.MetricTypeGauge:
 					m.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
+						dataPointRulesMatched := e.getSlice(dp.Attributes(), translate.CardinalFieldRulesMatched)
+						if e.checkDataPointRules(dp, dataPointRulesMatched, m, ilm, rm) {
+							return true
+						}
 						if e.pbPhase == chqpb.Phase_POST {
-							// check if metricTransformations exist for this metric
-							if transformations, ok := e.metricTransformations[metricName]; ok {
-								transformations.ExecuteAllMetricsTransforms(dp, m, ilm, rm)
-							}
 							agg := e.aggregate(rm, ilm, m, dp)
 							if agg {
 								e.aggregatedDatapoints.Add(ctx, 1, metric.WithAttributes(
@@ -69,6 +102,11 @@ func (e *chqEnforcer) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (p
 					})
 				case pmetric.MetricTypeSum:
 					m.Sum().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
+						dataPointRulesMatched := e.getSlice(dp.Attributes(), translate.CardinalFieldRulesMatched)
+						if e.checkDataPointRules(dp, dataPointRulesMatched, m, ilm, rm) {
+							return true
+						}
+
 						if e.pbPhase == chqpb.Phase_POST {
 							agg := e.aggregate(rm, ilm, m, dp)
 							if agg {
@@ -85,16 +123,30 @@ func (e *chqEnforcer) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (p
 					})
 				case pmetric.MetricTypeHistogram:
 					m.Histogram().DataPoints().RemoveIf(func(dp pmetric.HistogramDataPoint) bool {
+						dataPointRulesMatched := e.getSlice(dp.Attributes(), translate.CardinalFieldRulesMatched)
+						if e.checkDataPointRules(dp, dataPointRulesMatched, m, ilm, rm) {
+							return true
+						}
+
 						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
 						return false
 					})
 				case pmetric.MetricTypeSummary:
 					m.Summary().DataPoints().RemoveIf(func(dp pmetric.SummaryDataPoint) bool {
+						dataPointRulesMatched := e.getSlice(dp.Attributes(), translate.CardinalFieldRulesMatched)
+						if e.checkDataPointRules(dp, dataPointRulesMatched, m, ilm, rm) {
+							return true
+						}
+
 						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
 						return false
 					})
 				case pmetric.MetricTypeExponentialHistogram:
 					m.ExponentialHistogram().DataPoints().RemoveIf(func(dp pmetric.ExponentialHistogramDataPoint) bool {
+						dataPointRulesMatched := e.getSlice(dp.Attributes(), translate.CardinalFieldRulesMatched)
+						if e.checkDataPointRules(dp, dataPointRulesMatched, m, ilm, rm) {
+							return true
+						}
 						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
 						return false
 					})
@@ -113,6 +165,14 @@ func (e *chqEnforcer) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (p
 		return md, processorhelper.ErrSkipProcessingData
 	}
 	return md, nil
+}
+
+func (e *chqEnforcer) checkDataPointRules(dp any, dataPointRulesMatched pcommon.Slice, m pmetric.Metric, ilm pmetric.ScopeMetrics, rm pmetric.ResourceMetrics) bool {
+	if dataPointRulesMatched.Len() > 0 {
+		transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
+		e.metricTransformations.ExecuteDataPointTransforms(transformCtx, e.vendor, dataPointRulesMatched)
+	}
+	return e.sliceContains(m.Metadata(), translate.CardinalFieldDropForVendor, e.vendor)
 }
 
 func (e *chqEnforcer) processDatapoint(now time.Time, metricName, serviceName string, rattr, sattr, dattr pcommon.Map) {
@@ -244,14 +304,15 @@ func (e *chqEnforcer) updateMetricSamplingConfig(sc sampler.SamplerConfig) {
 	defer e.Unlock()
 
 	e.logger.Info("Updating metric sampling config", zap.String("vendor", e.vendor))
-	e.aggregatorF.Configure(sc, e.vendor)
-	e.aggregatorI.Configure(sc, e.vendor)
 
-	for _, agg := range sc.Metrics.Aggregators {
-		if agg.Vendor == e.vendor {
-			metricName := agg.MetricName
-			transformations, _ := ottl.ParseTransformations(agg.Transformations, e.logger)
-			e.metricTransformations[metricName] = transformations
+	for _, decorator := range sc.Metrics.Enforcers {
+		if decorator.VendorId == e.vendor {
+			transformations, err := ottl.ParseTransformations(decorator, e.logger)
+			if err != nil {
+				e.logger.Error("Error parsing log transformation", zap.Error(err))
+			} else {
+				e.metricTransformations = ottl.MergeWith(e.metricTransformations, transformations)
+			}
 		}
 	}
 }

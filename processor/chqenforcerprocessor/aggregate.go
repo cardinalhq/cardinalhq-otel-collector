@@ -191,9 +191,6 @@ func setMetricMetadata(metric pmetric.Metric, tagname string, v string) {
 }
 
 func (e *chqEnforcer) aggregate(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint) bool {
-	if !e.aggregatorF.HasRules() && !e.aggregatorI.HasRules() {
-		return false
-	}
 	switch metric.Type() {
 	case pmetric.MetricTypeGauge:
 		return e.aggregateGaugeDatapoint(rms, ils, metric, dp)
@@ -214,8 +211,7 @@ func (e *chqEnforcer) aggregateGaugeDatapoint(rms pmetric.ResourceMetrics, ils p
 		"metric.description":        metric.Description(),
 		"metric.unit":               metric.Unit(),
 	}
-	rulematch := e.aggregateDatapoint(sampler.AggregationTypeAvg, rms, ils, metric, dp, metadata)
-	return rulematch != nil
+	return e.aggregateDatapoint(sampler.AggregationTypeAvg, rms, ils, metric, dp, metadata)
 }
 
 func (e *chqEnforcer) aggregateSumDatapoint(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint) bool {
@@ -230,8 +226,7 @@ func (e *chqEnforcer) aggregateSumDatapoint(rms pmetric.ResourceMetrics, ils pme
 		"metric.ismonotonic":            fmt.Sprintf("%t", metric.Sum().IsMonotonic()),
 		"metric.unit":                   metric.Unit(),
 	}
-	rulematch := e.aggregateDatapoint(sampler.AggregationTypeSum, rms, ils, metric, dp, metadata)
-	return rulematch != nil
+	return e.aggregateDatapoint(sampler.AggregationTypeSum, rms, ils, metric, dp, metadata)
 }
 
 func (e *chqEnforcer) aggregateDatapoint(
@@ -241,12 +236,12 @@ func (e *chqEnforcer) aggregateDatapoint(
 	metric pmetric.Metric,
 	dp pmetric.NumberDataPoint,
 	metadata map[string]string,
-) *sampler.AggregatorConfigV1 {
+) bool {
 	t := dp.Timestamp().AsTime()
 	switch dp.ValueType() {
 	case pmetric.NumberDataPointValueTypeInt:
 		v := dp.IntValue()
-		rmatch, err := e.aggregatorI.MatchAndAdd(
+		matched, err := e.aggregatorI.MatchAndAdd(
 			&t,
 			[]int64{1},
 			[]int64{v},
@@ -258,12 +253,13 @@ func (e *chqEnforcer) aggregateDatapoint(
 			dp.Attributes())
 		if err != nil {
 			e.logger.Error("Error matching and adding int datapoint", zap.Error(err))
-			return nil
+			return false
 		}
-		return rmatch
+		return matched
+
 	case pmetric.NumberDataPointValueTypeDouble:
 		v := dp.DoubleValue()
-		rmatch, err := e.aggregatorF.MatchAndAdd(&t,
+		matched, err := e.aggregatorF.MatchAndAdd(&t,
 			[]float64{1},
 			[]float64{v},
 			ty,
@@ -274,12 +270,10 @@ func (e *chqEnforcer) aggregateDatapoint(
 			dp.Attributes())
 		if err != nil {
 			e.logger.Error("Error matching and adding float64 datapoint", zap.Error(err))
-			return nil
+			return false
 		}
-		return rmatch
-	case pmetric.NumberDataPointValueTypeEmpty:
-		return nil
+		return matched
 	default:
-		return nil
+		return false
 	}
 }

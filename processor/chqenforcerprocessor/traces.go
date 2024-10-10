@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
 	"net/http"
 	"time"
 
@@ -42,7 +43,9 @@ func (e *chqEnforcer) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptra
 
 	now := time.Now()
 	td.ResourceSpans().RemoveIf(func(rs ptrace.ResourceSpans) bool {
-		e.traceTransformations.ExecuteResourceSpanTransformations(rs)
+		resourceCtx := ottlresource.NewTransformContext(rs.Resource(), rs)
+		transformations.ExecuteResourceTransforms(resourceCtx, "", pcommon.Slice{})
+
 		serviceName := getServiceName(rs.Resource().Attributes())
 		rs.ScopeSpans().RemoveIf(func(iss ptrace.ScopeSpans) bool {
 			e.traceTransformations.ExecuteScopeSpanTransformations(iss, rs)
@@ -88,7 +91,7 @@ func (e *chqEnforcer) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptra
 }
 
 func (e *chqEnforcer) shouldDropSpan(l pcommon.Map) bool {
-	fnk := translate.CardinalFieldDrop
+	fnk := translate.CardinalFieldDropForVendor
 	if fingerprintField, found := l.Get(fnk); found {
 		return fingerprintField.Bool()
 	}
@@ -240,6 +243,14 @@ func (c *chqEnforcer) updateTraceTransformations(sc sampler.SamplerConfig) {
 	defer c.Unlock()
 
 	c.logger.Info("Updating trace transformations config", zap.String("vendor", c.vendor))
-	transformations, _ := ottl.ParseTransformations(sc.Traces.Transformations, c.logger)
-	c.traceTransformations = transformations
+	for _, decorator := range sc.Traces.Enforcers {
+		if decorator.VendorId == c.vendor {
+			transformations, err := ottl.ParseTransformations(decorator, c.logger)
+			if err != nil {
+				c.logger.Error("Error parsing log transformation", zap.Error(err))
+			} else {
+				c.traceTransformations = ottl.MergeWith(c.traceTransformations, transformations)
+			}
+		}
+	}
 }

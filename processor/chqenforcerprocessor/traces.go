@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlspan"
 	"net/http"
 	"time"
 
@@ -42,23 +44,40 @@ func (e *chqEnforcer) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptra
 	}
 
 	now := time.Now()
+	transformations := e.traceTransformations
+
 	td.ResourceSpans().RemoveIf(func(rs ptrace.ResourceSpans) bool {
-		resourceCtx := ottlresource.NewTransformContext(rs.Resource(), rs)
-		transformations.ExecuteResourceTransforms(resourceCtx, "", pcommon.Slice{})
+		resourceRulesMatched := e.getSlice(rs.Resource().Attributes(), translate.CardinalFieldRulesMatched)
+		if resourceRulesMatched.Len() > 0 {
+			transformCtx := ottlresource.NewTransformContext(rs.Resource(), rs)
+			transformations.ExecuteResourceTransforms(transformCtx, e.vendor, resourceRulesMatched)
+		}
+
+		if e.sliceContains(rs.Resource().Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
+			return true
+		}
 
 		serviceName := getServiceName(rs.Resource().Attributes())
 		rs.ScopeSpans().RemoveIf(func(iss ptrace.ScopeSpans) bool {
-			e.traceTransformations.ExecuteScopeSpanTransformations(iss, rs)
+			scopeRulesMatched := e.getSlice(iss.Scope().Attributes(), translate.CardinalFieldRulesMatched)
+			if scopeRulesMatched.Len() > 0 {
+				transformCtx := ottlscope.NewTransformContext(iss.Scope(), rs.Resource(), rs)
+				e.logTransformations.ExecuteScopeTransforms(transformCtx, e.vendor, scopeRulesMatched)
+			}
+
+			if e.sliceContains(iss.Scope().Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
+				return true
+			}
 
 			iss.Spans().RemoveIf(func(sr ptrace.Span) bool {
 				fingerprint := getSpanFingerprint(sr.Attributes())
-				e.traceTransformations.ExecuteSpanTransformations(sr, iss, rs)
-
-				if e.pbPhase == chqpb.Phase_POST {
-					shouldDrop := e.shouldDropSpan(sr.Attributes())
-					if shouldDrop {
-						return true
-					}
+				logRulesMatched := e.getSlice(sr.Attributes(), translate.CardinalFieldRulesMatched)
+				if logRulesMatched.Len() > 0 {
+					transformCtx := ottlspan.NewTransformContext(sr, iss.Scope(), rs.Resource(), iss, rs)
+					e.logTransformations.ExecuteSpanTransforms(transformCtx, e.vendor, logRulesMatched)
+				}
+				if e.sliceContains(sr.Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
+					return true
 				}
 
 				// isSlow is an attribute of the span, but is a cardinal field so will be removed at this point.

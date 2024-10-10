@@ -55,25 +55,6 @@ func getFingerprint(l pcommon.Map) int64 {
 	return 0
 }
 
-func (e *chqEnforcer) getSlice(l pcommon.Map, key string) pcommon.Slice {
-	if field, found := l.Get(key); found {
-		return field.Slice()
-	}
-	return pcommon.NewSlice()
-}
-
-func (e *chqEnforcer) sliceContains(l pcommon.Map, key string, value string) bool {
-	if field, found := l.Get(key); found {
-		slice := field.Slice()
-		for i := 0; i < slice.Len(); i++ {
-			if slice.At(i).AsString() == value {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
 	e.Lock()
 	defer e.Unlock()
@@ -113,12 +94,10 @@ func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, e
 					transformCtx := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
 					e.logTransformations.ExecuteLogTransforms(transformCtx, e.vendor, logRulesMatched)
 				}
-
-				if e.pbPhase == chqpb.Phase_POST {
-					if e.sliceContains(lr.Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
-						return true
-					}
+				if e.sliceContains(lr.Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
+					return true
 				}
+
 				if e.config.DropDecorationAttributes {
 					removeAllCardinalFields(lr.Attributes())
 				}

@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"net/http"
 	"os"
 	"sync"
@@ -174,4 +175,23 @@ func (e *chqEnforcer) configUpdateCallback(sc sampler.SamplerConfig) {
 		e.updateMetricSamplingConfig(sc)
 	}
 	e.logger.Info("Configuration updated")
+}
+
+func (e *chqEnforcer) getSlice(l pcommon.Map, key string) pcommon.Slice {
+	if field, found := l.Get(key); found {
+		return field.Slice()
+	}
+	return pcommon.NewSlice()
+}
+
+func (e *chqEnforcer) sliceContains(l pcommon.Map, key string, value string) bool {
+	if field, found := l.Get(key); found {
+		slice := field.Slice()
+		for i := 0; i < slice.Len(); i++ {
+			if slice.At(i).AsString() == value {
+				return true
+			}
+		}
+	}
+	return false
 }

@@ -100,7 +100,7 @@ func (m *MetricAggregatorImpl[T]) MatchAndAdd(
 	m.rulesLock.RLock()
 	defer m.rulesLock.RUnlock()
 	t = nowtime(t)
-	attrs, transformed := attrsToMap(map[string]pcommon.Map{
+	attrs, shouldAggregate := attrsToMap(map[string]pcommon.Map{
 		"resource":        rattr,
 		"instrumentation": iattr,
 		"metric":          mattr,
@@ -108,7 +108,7 @@ func (m *MetricAggregatorImpl[T]) MatchAndAdd(
 	for k, v := range metadata {
 		attrs["metadata."+k] = v
 	}
-	if transformed {
+	if shouldAggregate {
 		err := m.add(*t, name, buckets, values, aggregationType, attrs)
 		return true, err
 	}
@@ -117,15 +117,15 @@ func (m *MetricAggregatorImpl[T]) MatchAndAdd(
 
 func attrsToMap(attrs map[string]pcommon.Map) (map[string]string, bool) {
 	ret := map[string]string{}
-	var transformed bool
+	var shouldAggregate bool
 	for scope, attr := range attrs {
 		attr.Range(func(k string, v pcommon.Value) bool {
-			transformed = transformed || k == translate.CardinalFieldAggregated && v.Bool()
+			shouldAggregate = shouldAggregate || k == translate.CardinalFieldAggregated && v.Bool()
 			ret[scope+"."+k] = v.AsString()
 			return true
 		})
 	}
-	return ret, transformed
+	return ret, shouldAggregate
 }
 
 func RemoveTags(attrs map[string]string, tags []string) {

@@ -194,28 +194,33 @@ func computeStatsOnField(k string) bool {
 func (e *chqEnforcer) recordDatapoint(now time.Time, metricName, serviceName string, rattr, sattr, dpAttr pcommon.Map) error {
 	var errs error
 
+	tags := e.processEnrichments(e.config.MetricsConfig.StatsEnrichments, map[string]pcommon.Map{
+		"resource": rattr,
+		"scope":    sattr,
+		"metric":   dpAttr,
+	})
 	rattr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "resource."+k, v.AsString(), 1))
+			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "resource."+k, v.AsString(), tags, 1))
 		}
 		return true
 	})
 	sattr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "scope."+k, v.AsString(), 1))
+			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "scope."+k, v.AsString(), tags, 1))
 		}
 		return true
 	})
 	dpAttr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "metric."+k, v.AsString(), 1))
+			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "metric."+k, v.AsString(), tags, 1))
 		}
 		return true
 	})
 	return errs
 }
 
-func (e *chqEnforcer) recordMetric(now time.Time, metricName, serviceName, tagName, tagValue string, count int) error {
+func (e *chqEnforcer) recordMetric(now time.Time, metricName, serviceName, tagName, tagValue string, tags map[string]string, count int) error {
 	rec := &MetricStat{
 		MetricName:  metricName,
 		TagName:     tagName,
@@ -223,6 +228,7 @@ func (e *chqEnforcer) recordMetric(now time.Time, metricName, serviceName, tagNa
 		Phase:       e.pbPhase,
 		VendorID:    e.config.Statistics.Vendor,
 		Count:       int64(count),
+		Tags:        tags,
 	}
 
 	bucketpile, err := e.metricstats.Record(now, rec, tagValue, count, 0)

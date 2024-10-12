@@ -129,31 +129,12 @@ func (e *chqEnforcer) recordLog(now time.Time, serviceName string, fingerprint i
 	logSize := int64(len(message))
 
 	// Derive tags from e.config.LogsConfig.StatsEnrichments based on the contextId, and then add tags to the LogStats.Tags Map
-	tags := make(map[string]string)
-	for _, enrichment := range e.config.LogsConfig.StatsEnrichments {
-		if enrichment.Context == "log" {
-			for _, tag := range enrichment.Tags {
-				if tagValue, found := lr.Attributes().Get(tag); found {
-					key := fmt.Sprintf("log.%s", tag)
-					tags[key] = tagValue.AsString()
-				}
-			}
-		} else if enrichment.Context == "resource" {
-			for _, tag := range enrichment.Tags {
-				if tagValue, found := rl.Resource().Attributes().Get(tag); found {
-					key := fmt.Sprintf("resource.%s", tag)
-					tags[key] = tagValue.AsString()
-				}
-			}
-		} else if enrichment.Context == "scope" {
-			for _, tag := range enrichment.Tags {
-				if tagValue, found := sl.Scope().Attributes().Get(tag); found {
-					key := fmt.Sprintf("scope.%s", tag)
-					tags[key] = tagValue.AsString()
-				}
-			}
-		}
-	}
+
+	tags := e.processEnrichments(e.config.LogsConfig.StatsEnrichments, map[string]pcommon.Map{
+		"resource": rl.Resource().Attributes(),
+		"scope":    sl.Scope().Attributes(),
+		"log":      lr.Attributes(),
+	})
 
 	rec := &chqpb.LogStats{
 		ServiceName: serviceName,
@@ -162,8 +143,13 @@ func (e *chqEnforcer) recordLog(now time.Time, serviceName string, fingerprint i
 		VendorId:    e.config.Statistics.Vendor,
 		Count:       1,
 		LogSize:     logSize,
-		Exemplar:    message,
-		Tags:        tags,
+		Exemplar: &chqpb.LogExemplar{
+			ResourceTags: ToMap(rl.Resource().Attributes()),
+			ScopeTags:    ToMap(sl.Scope().Attributes()),
+			LogTags:      ToMap(lr.Attributes()),
+			Exemplar:     message,
+		},
+		Tags: tags,
 	}
 	bucketpile, err := e.logstats.Record(now, rec, "", 1, logSize)
 	if err != nil {

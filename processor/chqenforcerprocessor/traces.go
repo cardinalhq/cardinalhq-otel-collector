@@ -166,29 +166,15 @@ func (e *chqEnforcer) recordSpan(now time.Time,
 		"span.kind":        span.Kind().String(),
 	}
 
-	for _, enrichment := range e.config.TracesConfig.StatsEnrichments {
-		if enrichment.Context == "span" {
-			for _, tag := range enrichment.Tags {
-				if tagValue, found := span.Attributes().Get(tag); found {
-					key := fmt.Sprintf("log.%s", tag)
-					tagsToEnrich[key] = tagValue.AsString()
-				}
-			}
-		} else if enrichment.Context == "resource" {
-			for _, tag := range enrichment.Tags {
-				if tagValue, found := rs.Resource().Attributes().Get(tag); found {
-					key := fmt.Sprintf("resource.%s", tag)
-					tagsToEnrich[key] = tagValue.AsString()
-				}
-			}
-		} else if enrichment.Context == "scope" {
-			for _, tag := range enrichment.Tags {
-				if tagValue, found := iss.Scope().Attributes().Get(tag); found {
-					key := fmt.Sprintf("scope.%s", tag)
-					tagsToEnrich[key] = tagValue.AsString()
-				}
-			}
-		}
+	otherTags := e.processEnrichments(e.config.TracesConfig.StatsEnrichments, map[string]pcommon.Map{
+		"resource": rs.Resource().Attributes(),
+		"scope":    iss.Scope().Attributes(),
+		"span":     span.Attributes(),
+	})
+
+	// append enrichedTags to tagsToEnrich
+	for key, value := range otherTags {
+		tagsToEnrich[key] = value
 	}
 
 	rec := &chqpb.SpanStats{
@@ -199,11 +185,13 @@ func (e *chqEnforcer) recordSpan(now time.Time,
 		Count:       1,
 		Tags:        tagsToEnrich,
 		Exemplar: &chqpb.SpanExemplar{
-			TraceId:  span.TraceID().String(),
-			SpanName: span.Name(),
-			SpanKind: span.Kind().String(),
-			Resource: getOrElse(stringAttributes, translate.CardinalFieldResourceName, ""),
-			SpanTags: stringAttributes,
+			TraceId:      span.TraceID().String(),
+			SpanName:     span.Name(),
+			SpanKind:     span.Kind().String(),
+			Resource:     getOrElse(stringAttributes, translate.CardinalFieldResourceName, ""),
+			ResourceTags: ToMap(rs.Resource().Attributes()),
+			ScopeTags:    ToMap(iss.Scope().Attributes()),
+			SpanTags:     ToMap(span.Attributes()),
 		},
 	}
 	bucketpile, err := e.spanStats.Record(now, rec, "", 1, spanSize)

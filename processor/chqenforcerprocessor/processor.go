@@ -17,6 +17,7 @@ package chqenforcerprocessor
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"net/http"
@@ -194,4 +195,28 @@ func (e *chqEnforcer) sliceContains(l pcommon.Map, key string, value string) boo
 		}
 	}
 	return false
+}
+
+func (e *chqEnforcer) processEnrichments(enrichments []StatsEnrichment, attributesByScope map[string]pcommon.Map) map[string]string {
+	tags := make(map[string]string)
+	for _, enrichment := range enrichments {
+		for scope, attributes := range attributesByScope {
+			for _, tag := range enrichment.Tags {
+				if tagValue, found := attributes.Get(tag); found {
+					key := fmt.Sprintf("%s.%s", scope, tag)
+					tags[key] = tagValue.AsString()
+				}
+			}
+		}
+	}
+	return tags
+}
+
+func ToMap(attributes pcommon.Map) map[string]string {
+	result := make(map[string]string)
+	attributes.Range(func(k string, v pcommon.Value) bool {
+		result[k] = v.AsString()
+		return true
+	})
+	return result
 }

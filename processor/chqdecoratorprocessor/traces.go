@@ -121,12 +121,13 @@ func (c *chqDecorator) decorateTraces(td ptrace.Traces) (ptrace.Traces, error) {
 	environment := translate.EnvironmentFromEnv()
 	rss := td.ResourceSpans()
 	transformations := c.traceTransformations
+	emptySlice := pcommon.NewSlice()
 
 	for i := 0; i < rss.Len(); i++ {
 		rs := rss.At(i)
 		// Evaluate resource transformations
 		resourceCtx := ottlresource.NewTransformContext(rs.Resource(), rs)
-		transformations.ExecuteResourceTransforms(resourceCtx, "", pcommon.Slice{})
+		transformations.ExecuteResourceTransforms(resourceCtx, "", emptySlice)
 
 		snk := string(semconv.ServiceNameKey)
 		serviceName, serviceNameExists := rs.Resource().Attributes().Get(snk)
@@ -137,14 +138,14 @@ func (c *chqDecorator) decorateTraces(td ptrace.Traces) (ptrace.Traces, error) {
 			ils := ilss.At(j)
 			// Evaluate scope transformations
 			scopeCtx := ottlscope.NewTransformContext(ils.Scope(), rs.Resource(), rs)
-			transformations.ExecuteScopeTransforms(scopeCtx, "", pcommon.Slice{})
+			transformations.ExecuteScopeTransforms(scopeCtx, "", emptySlice)
 
 			spans := ils.Spans()
 			for k := 0; k < spans.Len(); k++ {
 				span := spans.At(k)
 				// Evaluate scope transformations
 				spanCtx := ottlspan.NewTransformContext(span, ils.Scope(), rs.Resource(), ils, rs)
-				transformations.ExecuteSpanTransforms(spanCtx, "", pcommon.Slice{})
+				transformations.ExecuteSpanTransforms(spanCtx, "", emptySlice)
 
 				httpResource := c.getHttpResource(span)
 				if httpResource != "" {
@@ -177,7 +178,7 @@ func (c *chqDecorator) decorateTraces(td ptrace.Traces) (ptrace.Traces, error) {
 
 func (c *chqDecorator) evaluateTraceSamplingRules(serviceName string, fingerprint int64, rl ptrace.ResourceSpans, sl ptrace.ScopeSpans, lr ptrace.Span) {
 	fingerprintString := fmt.Sprintf("%d", fingerprint)
-	ruleMatches := c.logSampler.SampleSpans(serviceName, fingerprintString, rl, sl, lr)
+	ruleMatches := c.traceSampler.SampleSpans(serviceName, fingerprintString, rl, sl, lr)
 	attributes := lr.Attributes()
 
 	if len(ruleMatches) > 0 {

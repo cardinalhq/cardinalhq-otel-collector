@@ -125,6 +125,7 @@ func (ls *EventSamplerImpl) shouldFilterLog(serviceName string,
 	}
 
 	var ret []SamplingRuleMatch
+
 	matchedByVendorId := make(map[string]bool)
 	key := fmt.Sprintf("%s:%s", serviceName, fingerprint)
 	randval := rand.Float64()

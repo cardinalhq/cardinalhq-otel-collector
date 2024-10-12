@@ -29,13 +29,13 @@ import (
 func TestSamplerForType(t *testing.T) {
 	cases := []struct {
 		name         string
-		config       EventSamplingConfigV1
+		config       SamplingRule
 		expectedType EventSamplingRuleType
 		expected     Sampler
 	}{
 		{
 			name: "random rule type",
-			config: EventSamplingConfigV1{
+			config: SamplingRule{
 				RuleType:   "random",
 				SampleRate: 0.5,
 			},
@@ -44,7 +44,7 @@ func TestSamplerForType(t *testing.T) {
 		},
 		{
 			name: "rps rule type",
-			config: EventSamplingConfigV1{
+			config: SamplingRule{
 				RuleType: "rps",
 				RPS:      100,
 			},
@@ -53,7 +53,7 @@ func TestSamplerForType(t *testing.T) {
 		},
 		{
 			name: "unknown rule type",
-			config: EventSamplingConfigV1{
+			config: SamplingRule{
 				RuleType: "unknown",
 			},
 			expectedType: EventSamplingRuleTypeUnknown,
@@ -202,8 +202,8 @@ func makeConstantSampler() Sampler {
 }
 
 func TestShouldFilterLog(t *testing.T) {
-	rule1, err := newFilterRule(EventSamplingConfigV1{
-		Filter: []Filter{
+	rule1, err := newFilterRule(SamplingRule{
+		Conditions: []Filter{
 			{ContextId: "resource", Condition: `attributes["service.name"] == "other-service"`},
 		},
 	},
@@ -211,13 +211,13 @@ func TestShouldFilterLog(t *testing.T) {
 	)
 	assert.NoError(t, err)
 
-	matchingRule, err := newFilterRule(EventSamplingConfigV1{
-		Id:         "matchingRule",
+	matchingRule, err := newFilterRule(SamplingRule{
+		RuleId:     "matchingRule",
 		RuleType:   "rps",
 		SampleRate: 0.5,
 		RPS:        100,
-		Vendor:     "test-vendor",
-		Filter: []Filter{
+		VendorId:   "test-vendor",
+		Conditions: []Filter{
 			{ContextId: "resource", Condition: `attributes["service.name"] == "my-service"`},
 		},
 	},
@@ -228,39 +228,48 @@ func TestShouldFilterLog(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		rules    map[string]*filterRule
+		rules    map[string]map[string]*filterRule
 		rattr    map[string]string
 		iattr    map[string]string
 		lattr    map[string]string
-		expected []string
+		expected []SamplingRuleMatch
 	}{
 		{
 			"no rules",
-			map[string]*filterRule{},
+			map[string]map[string]*filterRule{},
 			map[string]string{"service.name": "my-service"},
 			map[string]string{},
 			map[string]string{},
-			[]string{""},
+			[]SamplingRuleMatch{},
 		},
 		{
 			"no matching rules",
-			map[string]*filterRule{
-				"rule1": rule1,
+			map[string]map[string]*filterRule{
+				"datadog": {
+					"rule1": rule1,
+				},
 			},
 			map[string]string{"service.name": "my-service"},
 			map[string]string{},
 			map[string]string{},
-			[]string{""},
+			nil,
 		},
 		{
 			"matching rule",
-			map[string]*filterRule{
-				"matchingRule": matchingRule,
+			map[string]map[string]*filterRule{
+				"datadog": {
+					"matchingRule": matchingRule,
+				},
 			},
 			map[string]string{"service.name": "my-service"},
 			map[string]string{},
 			map[string]string{},
-			[]string{"matchingRule"},
+			[]SamplingRuleMatch{
+				{
+					RuleId:   "matchingRule",
+					VendorId: "datadog",
+				},
+			},
 		},
 	}
 
@@ -295,7 +304,7 @@ func TestShouldFilterLog(t *testing.T) {
 			actual := ls.shouldFilterLog("", "", rl, sl, ll)
 
 			// Check if the actual result matches any of the expected rules
-			assert.Contains(t, tt.expected, actual)
+			assert.Equal(t, tt.expected, actual)
 		})
 	}
 }

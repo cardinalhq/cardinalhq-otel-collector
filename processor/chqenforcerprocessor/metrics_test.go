@@ -113,8 +113,8 @@ func (m *MockAggregator[T]) Emit(t time.Time) map[int64]*sampler.AggregationSet[
 	return nil
 }
 
-func (m *MockAggregator[T]) MatchAndAdd(t *time.Time, buckets []T, values []T, ty sampler.AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (*sampler.AggregatorConfigV1, error) {
-	return &sampler.AggregatorConfigV1{Id: "bob"}, nil
+func (m *MockAggregator[T]) MatchAndAdd(t *time.Time, buckets []T, values []T, ty sampler.AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (bool, error) {
+	return true, nil
 }
 
 func (m *MockAggregator[T]) HasRules() bool {

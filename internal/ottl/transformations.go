@@ -16,7 +16,6 @@ package ottl
 
 import (
 	"context"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
@@ -33,6 +32,11 @@ import (
 )
 
 type ContextID string
+
+type Instruction struct {
+	VendorId   string             `json:"vendorId,omitempty" yaml:"vendorId,omitempty"`
+	Statements []ContextStatement `json:"statements,omitempty" yaml:"statements,omitempty"`
+}
 
 type ContextStatement struct {
 	Context    ContextID `mapstructure:"context"`
@@ -140,7 +144,7 @@ func mkFactory[T any]() map[string]ottl.Factory[T] {
 	return factoryMap
 }
 
-func ParseTransformations(statement sampler.Instruction, logger *zap.Logger) (Transformations, error) {
+func ParseTransformations(statement Instruction, logger *zap.Logger) (Transformations, error) {
 	var errors error
 
 	contextStatements := statement.Statements

@@ -25,13 +25,13 @@ import (
 )
 
 // Helper function to create a test EventSamplingConfigV1
-func createTestConfig(contextId string, condition string) EventSamplingConfigV1 {
-	return EventSamplingConfigV1{
-		Id:         "test-id",
+func createTestConfig(contextId string, condition string) SamplingRule {
+	return SamplingRule{
+		RuleId:     "test-id",
 		RuleType:   "random",
-		Filter:     []Filter{{ContextId: contextId, Condition: condition}},
+		Conditions: []Filter{{ContextId: contextId, Condition: condition}},
 		SampleRate: 0.5,
-		Vendor:     "test-vendor",
+		VendorId:   "test-vendor",
 	}
 }
 

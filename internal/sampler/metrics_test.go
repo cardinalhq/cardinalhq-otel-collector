@@ -16,6 +16,7 @@ package sampler
 
 import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
 	"testing"
@@ -241,25 +242,6 @@ func TestTimebox(t *testing.T) {
 	}
 }
 
-func TestConfigure(t *testing.T) {
-	m := NewMetricAggregatorImpl[float64](10, nil)
-	rules := []AggregatorConfigV1{
-		{
-			Id:         "rule1",
-			MetricName: "metric1",
-		},
-	}
-	config := SamplerConfig{
-		Metrics: MetricConfigV1{
-			Aggregators: rules,
-		},
-	}
-
-	assert.Empty(t, m.rules)
-	m.Configure(config, "")
-	assert.Equal(t, rules, m.rules)
-}
-
 func TestMatchAndAdd_AverageAfterDroppingDimension(t *testing.T) {
 	statements := []ottl.ContextStatement{
 		{
@@ -267,24 +249,22 @@ func TestMatchAndAdd_AverageAfterDroppingDimension(t *testing.T) {
 			Conditions: []string{},
 			Statements: []string{
 				`delete_key(attributes, "movieId")`, // Drop the movieId key
+				`set(attributes["_cardinalhq.aggregated"], true)`,
 			},
-		},
-	}
-	conf := []AggregatorConfigV1{
-		{
-			Id:              "rule1",
-			MetricName:      "metric1",
-			Transformations: statements,
 		},
 	}
 
 	// Parse transformations
-	transformations, err := ottl.ParseTransformations(statements, zap.NewNop())
+	instruction := ottl.Instruction{
+		VendorId:   "vendor1",
+		Statements: statements,
+	}
+	transformations, err := ottl.ParseTransformations(instruction, zap.NewNop())
 	assert.NoError(t, err)
 	assert.NotNil(t, transformations)
 
 	// Initialize metric aggregator
-	m := NewMetricAggregatorImpl[float64](10, conf)
+	m := NewMetricAggregatorImpl[float64](10)
 
 	// Create ResourceMetrics
 	rm := pmetric.NewResourceMetrics()
@@ -308,8 +288,10 @@ func TestMatchAndAdd_AverageAfterDroppingDimension(t *testing.T) {
 	dp1.SetDoubleValue(2.0)
 
 	// Apply transformations to both data points
-	transformations.ExecuteDataPointTransforms(dp1, metric, scopeMetrics, rm)
-	transformations.ExecuteDataPointTransforms(dp2, metric, scopeMetrics, rm)
+	tc1 := ottldatapoint.NewTransformContext(dp1, metric, scopeMetrics.Metrics(), scopeMetrics.Scope(), rm.Resource(), scopeMetrics, rm)
+	tc2 := ottldatapoint.NewTransformContext(dp2, metric, scopeMetrics.Metrics(), scopeMetrics.Scope(), rm.Resource(), scopeMetrics, rm)
+	transformations.ExecuteDataPointTransforms(tc1, "vendorId", pcommon.NewSlice())
+	transformations.ExecuteDataPointTransforms(tc2, "vendorId", pcommon.NewSlice())
 
 	// At this point, both data points should have their "movieId" attribute dropped.
 
@@ -351,36 +333,4 @@ func TestNowTime(t *testing.T) {
 
 	actual = nowtime(nil)
 	assert.True(t, time.Since(*actual) < time.Second)
-}
-
-func TestRulesForVendor(t *testing.T) {
-	rules := []AggregatorConfigV1{
-		{
-			Id:         "rule1",
-			MetricName: "metric1",
-			Vendor:     "vendor1",
-		},
-		{
-			Id:         "rule2",
-			MetricName: "metric2",
-			Vendor:     "vendor2",
-		},
-		{
-			Id:         "rule3",
-			MetricName: "metric3",
-			Vendor:     "vendor1",
-		},
-	}
-
-	vendor1Rules := rulesForVendor(rules, "vendor1")
-	assert.Equal(t, 2, len(vendor1Rules))
-	assert.Equal(t, "rule1", vendor1Rules[0].Id)
-	assert.Equal(t, "rule3", vendor1Rules[1].Id)
-
-	vendor2Rules := rulesForVendor(rules, "vendor2")
-	assert.Equal(t, 1, len(vendor2Rules))
-	assert.Equal(t, "rule2", vendor2Rules[0].Id)
-
-	nonExistentVendorRules := rulesForVendor(rules, "vendor3")
-	assert.Equal(t, 0, len(nonExistentVendorRules))
 }

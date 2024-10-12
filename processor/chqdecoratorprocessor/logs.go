@@ -44,19 +44,20 @@ func (c *chqDecorator) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, 
 
 	environment := translate.EnvironmentFromEnv()
 	transformations := c.logTransformations
+	emptySlice := pcommon.NewSlice()
 
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
 		serviceName := getServiceName(rl.Resource().Attributes())
 		// Evaluate resource transformations
 		resourceCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
-		transformations.ExecuteResourceTransforms(resourceCtx, "", pcommon.Slice{})
+		transformations.ExecuteResourceTransforms(resourceCtx, "", emptySlice)
 
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
 			sl := rl.ScopeLogs().At(j)
 			// Evaluate scope transformations
 			scopeCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), rl)
-			transformations.ExecuteScopeTransforms(scopeCtx, "", pcommon.Slice{})
+			transformations.ExecuteScopeTransforms(scopeCtx, "", emptySlice)
 
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				log := sl.LogRecords().At(k)
@@ -68,7 +69,7 @@ func (c *chqDecorator) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, 
 
 				// Evaluate log scope transformations
 				logCtx := ottllog.NewTransformContext(log, sl.Scope(), rl.Resource(), sl, rl)
-				transformations.ExecuteLogTransforms(logCtx, "", pcommon.Slice{})
+				transformations.ExecuteLogTransforms(logCtx, "", emptySlice)
 
 				// Evaluate Log sampling Rules
 				c.evaluateLogSamplingRules(serviceName, fingerprint, rl, sl, log)

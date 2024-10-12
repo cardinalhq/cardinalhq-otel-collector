@@ -25,19 +25,14 @@ type SamplerConfig struct {
 }
 
 type EventConfigV1 struct {
-	Decorators    []Instruction  `json:"decorators,omitempty" yaml:"decorators,omitempty"`
-	Enforcers     []Instruction  `json:"enforcers,omitempty" yaml:"enforcers,omitempty"`
-	SamplingRules []SamplingRule `json:"samplingRules,omitempty" yaml:"samplingRules,omitempty"`
+	Decorators    []ottl.Instruction `json:"decorators,omitempty" yaml:"decorators,omitempty"`
+	Enforcers     []ottl.Instruction `json:"enforcers,omitempty" yaml:"enforcers,omitempty"`
+	SamplingRules []SamplingRule     `json:"samplingRules,omitempty" yaml:"samplingRules,omitempty"`
 }
 
 type MetricConfigV1 struct {
-	Decorators []Instruction `json:"decorators,omitempty" yaml:"decorators,omitempty"`
-	Enforcers  []Instruction `json:"enforcers,omitempty" yaml:"enforcers,omitempty"`
-}
-
-type Instruction struct {
-	VendorId   string                  `json:"vendorId,omitempty" yaml:"vendorId,omitempty"`
-	Statements []ottl.ContextStatement `json:"statements,omitempty" yaml:"statements,omitempty"`
+	Decorators []ottl.Instruction `json:"decorators,omitempty" yaml:"decorators,omitempty"`
+	Enforcers  []ottl.Instruction `json:"enforcers,omitempty" yaml:"enforcers,omitempty"`
 }
 
 type Filter struct {

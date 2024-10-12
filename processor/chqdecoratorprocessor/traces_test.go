@@ -48,26 +48,31 @@ func createSpansProcessorWithTransformations(t *testing.T) *chqDecorator {
 
 	c, err := newCHQDecorator(config, "traces", processorSettings)
 
+	instruction := ottl.Instruction{
+		Statements: []ottl.ContextStatement{
+			{
+				Context:    "resource",
+				Conditions: []string{`attributes["service.name"] == "test-service"`},
+				Statements: []string{`set(attributes["environment"], "test-env")`},
+			},
+			// Scope level transformations
+			{
+				Context:    "scope",
+				Conditions: []string{`name == "test-scope"`},
+				Statements: []string{`set(attributes["level"], "transformed")`},
+			},
+			// Span level transformations
+			{
+				Context:    "span",
+				Conditions: []string{`attributes["kind"] == "internal"`},
+				Statements: []string{`set(attributes["transformed"], true)`},
+			}},
+		VendorId: "vendorId",
+	}
+
 	c.updateTracesSampling(sampler.SamplerConfig{
-		Traces: sampler.TraceConfigV1{
-			Transformations: []ottl.ContextStatement{
-				{
-					Context:    "resource",
-					Conditions: []string{`attributes["service.name"] == "test-service"`},
-					Statements: []string{`set(attributes["environment"], "test-env")`},
-				},
-				// Scope level transformations
-				{
-					Context:    "scope",
-					Conditions: []string{`name == "test-scope"`},
-					Statements: []string{`set(attributes["level"], "transformed")`},
-				},
-				// Span level transformations
-				{
-					Context:    "span",
-					Conditions: []string{`attributes["kind"] == "internal"`},
-					Statements: []string{`set(attributes["transformed"], true)`},
-				}},
+		Traces: sampler.EventConfigV1{
+			Decorators: []ottl.Instruction{instruction},
 		},
 	})
 	require.NoError(t, err)

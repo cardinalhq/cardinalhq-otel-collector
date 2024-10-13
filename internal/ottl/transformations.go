@@ -16,6 +16,8 @@ package ottl
 
 import (
 	"context"
+	"sort"
+
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
@@ -28,7 +30,6 @@ import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
-	"sort"
 )
 
 type ContextID string

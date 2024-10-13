@@ -71,7 +71,7 @@ func createLogsProcessor(ctx context.Context, set processor.Settings, cfg compon
 	if err != nil {
 		return nil, err
 	}
-	return processorhelper.NewLogsProcessor(
+	return processorhelper.NewLogs(
 		ctx, set, cfg, nextConsumer,
 		e.ConsumeLogs,
 		processorhelper.WithStart(e.Start),
@@ -84,7 +84,7 @@ func createMetricsProcessor(ctx context.Context, set processor.Settings, cfg com
 	if err != nil {
 		return nil, err
 	}
-	return processorhelper.NewMetricsProcessor(
+	return processorhelper.NewMetrics(
 		ctx, set, cfg, nextConsumer,
 		e.ConsumeMetrics,
 		processorhelper.WithStart(e.Start),
@@ -97,7 +97,7 @@ func createSpansProcessor(ctx context.Context, set processor.Settings, cfg compo
 	if err != nil {
 		return nil, err
 	}
-	return processorhelper.NewTracesProcessor(
+	return processorhelper.NewTraces(
 		ctx, set, cfg, nextConsumer,
 		e.ConsumeTraces,
 		processorhelper.WithStart(e.Start),

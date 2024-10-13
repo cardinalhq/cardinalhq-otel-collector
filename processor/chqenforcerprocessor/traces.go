@@ -18,12 +18,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlspan"
-	"net/http"
-	"time"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
@@ -107,14 +108,6 @@ func (e *chqEnforcer) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptra
 	}
 
 	return td, nil
-}
-
-func (e *chqEnforcer) shouldDropSpan(l pcommon.Map) bool {
-	fnk := translate.CardinalFieldDropForVendor
-	if fingerprintField, found := l.Get(fnk); found {
-		return fingerprintField.Bool()
-	}
-	return false
 }
 
 func getSpanFingerprint(l pcommon.Map) int64 {

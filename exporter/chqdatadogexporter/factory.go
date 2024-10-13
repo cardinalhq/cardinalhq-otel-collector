@@ -45,9 +45,9 @@ const userAgent = "cardinalhq-otel-collector-chqdatadogexporter"
 
 func createDefaultConfig() component.Config {
 	return &Config{
-		TimeoutSettings: exporterhelper.NewDefaultTimeoutSettings(),
-		RetryConfig:     configretry.NewDefaultBackOffConfig(),
-		QueueConfig:     exporterhelper.NewDefaultQueueSettings(),
+		TimeoutConfig: exporterhelper.NewDefaultTimeoutConfig(),
+		RetryConfig:   configretry.NewDefaultBackOffConfig(),
+		QueueConfig:   exporterhelper.NewDefaultQueueConfig(),
 		Metrics: MetricsConfig{
 			ClientConfig: confighttp.ClientConfig{
 				Timeout:  defaultClientTimeout,
@@ -87,7 +87,7 @@ func createLogsExporter(ctx context.Context, params exporter.Settings, config co
 	exp, err := exporterhelper.NewLogsExporter(
 		ctx, params, config,
 		e.ConsumeLogs,
-		exporterhelper.WithTimeout(exporterhelper.TimeoutSettings{Timeout: 0}),
+		exporterhelper.WithTimeout(exporterhelper.TimeoutConfig{Timeout: 0}),
 		exporterhelper.WithRetry(cfg.RetryConfig),
 		exporterhelper.WithQueue(cfg.QueueConfig),
 		exporterhelper.WithStart(e.Start),
@@ -106,7 +106,7 @@ func createMetricsExporter(ctx context.Context, params exporter.Settings, config
 	exp, err := exporterhelper.NewMetricsExporter(
 		ctx, params, config,
 		e.ConsumeMetrics,
-		exporterhelper.WithTimeout(exporterhelper.TimeoutSettings{Timeout: 0}),
+		exporterhelper.WithTimeout(exporterhelper.TimeoutConfig{Timeout: 0}),
 		exporterhelper.WithRetry(cfg.RetryConfig),
 		exporterhelper.WithQueue(cfg.QueueConfig),
 		exporterhelper.WithStart(e.Start),
@@ -125,7 +125,7 @@ func createTracesExporter(ctx context.Context, params exporter.Settings, config 
 	exp, err := exporterhelper.NewTracesExporter(
 		ctx, params, config,
 		e.ConsumeTraces,
-		exporterhelper.WithTimeout(exporterhelper.TimeoutSettings{Timeout: 0}),
+		exporterhelper.WithTimeout(exporterhelper.TimeoutConfig{Timeout: 0}),
 		exporterhelper.WithRetry(cfg.RetryConfig),
 		exporterhelper.WithQueue(cfg.QueueConfig),
 		exporterhelper.WithStart(e.Start),

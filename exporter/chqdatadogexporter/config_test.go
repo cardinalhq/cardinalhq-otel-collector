@@ -70,10 +70,10 @@ func TestConfig(t *testing.T) {
 
 	e := cfg.Exporters[component.MustNewID("chqdatadog")].(*Config)
 	expected := &Config{
-		TimeoutSettings: exporterhelper.NewDefaultTimeoutSettings(),
-		RetryConfig:     configretry.NewDefaultBackOffConfig(),
-		QueueConfig:     exporterhelper.NewDefaultQueueSettings(),
-		APIKey:          configopaque.String("1234567890abcdef1234567890abcdef"),
+		TimeoutConfig: exporterhelper.NewDefaultTimeoutConfig(),
+		RetryConfig:   configretry.NewDefaultBackOffConfig(),
+		QueueConfig:   exporterhelper.NewDefaultQueueConfig(),
+		APIKey:        configopaque.String("1234567890abcdef1234567890abcdef"),
 		Metrics: MetricsConfig{
 			ClientConfig: confighttp.ClientConfig{
 				Timeout:     500 * time.Millisecond,

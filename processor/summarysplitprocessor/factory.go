@@ -42,7 +42,7 @@ func createMetricsProcessor(ctx context.Context, set processor.Settings, cfg com
 	if err != nil {
 		return nil, err
 	}
-	return processorhelper.NewMetricsProcessor(
+	return processorhelper.NewMetrics(
 		ctx, set, cfg, nextConsumer,
 		e.ConsumeMetrics,
 		processorhelper.WithCapabilities(e.Capabilities()))

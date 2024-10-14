@@ -37,11 +37,46 @@ import (
 	"go.uber.org/zap"
 )
 
+type ContextType interface {
+	ottlresource.TransformContext | ottlscope.TransformContext | ottllog.TransformContext | ottlspan.TransformContext | ottlmetric.TransformContext | ottldatapoint.TransformContext
+}
+
+type Transform[T ContextType] interface {
+	Execute(T, string, pcommon.Slice, *zap.Logger)
+	GetContext() ContextID
+}
+
+type TransformSampler[T any] interface {
+	GetSampler() Sampler
+}
+
 type resourceTransform struct {
 	context    ContextID
 	conditions []*ottl.Condition[ottlresource.TransformContext]
 	statements []*ottl.Statement[ottlresource.TransformContext]
 }
+
+func (r resourceTransform) Execute(tCtx ottlresource.TransformContext, vendorId string, ruleIds pcommon.Slice, logger *zap.Logger) {
+	allConditionsTrue := true
+	for _, condition := range r.conditions {
+		conditionMet, _ := condition.Eval(context.Background(), tCtx)
+		allConditionsTrue = allConditionsTrue && conditionMet
+	}
+	if allConditionsTrue {
+		for _, statement := range r.statements {
+			_, _, err := statement.Execute(context.Background(), tCtx)
+			if err != nil {
+				logger.Error("Error executing resource transformation", zap.Error(err))
+			}
+		}
+	}
+}
+
+func (r resourceTransform) GetContext() ContextID {
+	return r.context
+}
+
+var _ Transform[ottlresource.TransformContext] = resourceTransform{}
 
 type scopeTransform struct {
 	context    ContextID
@@ -88,20 +123,6 @@ type Transformations struct {
 }
 
 func MergeWith(this Transformations, other Transformations) Transformations {
-	for _, v := range other.logTransformsByRuleId {
-		for _, transform := range v {
-			if transform.sampler != nil {
-				_ = transform.sampler.Stop()
-			}
-		}
-	}
-	for _, v := range other.spanTransformsByRuleId {
-		for _, transform := range v {
-			if transform.sampler != nil {
-				_ = transform.sampler.Stop()
-			}
-		}
-	}
 	return Transformations{
 		resourceTransformsByRuleId:  merge(this.resourceTransformsByRuleId, other.resourceTransformsByRuleId),
 		scopeTransformsByRuleId:     merge(this.scopeTransformsByRuleId, other.scopeTransformsByRuleId),

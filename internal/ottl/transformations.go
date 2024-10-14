@@ -50,19 +50,19 @@ type scopeTransform struct {
 }
 
 type logTransform struct {
-	context       ContextID
-	conditions    []*ottl.Condition[ottllog.TransformContext]
-	statements    []*ottl.Statement[ottllog.TransformContext]
-	samplerConfig SamplingConfig
-	sampler       Sampler
+	context    ContextID
+	conditions []*ottl.Condition[ottllog.TransformContext]
+	statements []*ottl.Statement[ottllog.TransformContext]
+	//samplerConfig SamplingConfig
+	sampler Sampler
 }
 
 type spanTransform struct {
-	context       ContextID
-	conditions    []*ottl.Condition[ottlspan.TransformContext]
-	statements    []*ottl.Statement[ottlspan.TransformContext]
-	samplerConfig SamplingConfig
-	sampler       Sampler
+	context    ContextID
+	conditions []*ottl.Condition[ottlspan.TransformContext]
+	statements []*ottl.Statement[ottlspan.TransformContext]
+	//samplerConfig SamplingConfig
+	sampler Sampler
 }
 
 type metricTransform struct {
@@ -88,44 +88,28 @@ type Transformations struct {
 }
 
 func MergeWith(this Transformations, other Transformations) Transformations {
+	for _, v := range other.logTransformsByRuleId {
+		for _, transform := range v {
+			if transform.sampler != nil {
+				_ = transform.sampler.Stop()
+			}
+		}
+	}
+	for _, v := range other.spanTransformsByRuleId {
+		for _, transform := range v {
+			if transform.sampler != nil {
+				_ = transform.sampler.Stop()
+			}
+		}
+	}
 	return Transformations{
-		resourceTransformsByRuleId:  merge(this.resourceTransformsByRuleId, other.resourceTransformsByRuleId),
-		scopeTransformsByRuleId:     merge(this.scopeTransformsByRuleId, other.scopeTransformsByRuleId),
-		logTransformsByRuleId:       merge(this.logTransformsByRuleId, other.logTransformsByRuleId),
-		spanTransformsByRuleId:      merge(this.spanTransformsByRuleId, other.spanTransformsByRuleId),
-		metricTransformsByRuleId:    merge(this.metricTransformsByRuleId, other.metricTransformsByRuleId),
-		dataPointTransformsByRuleId: merge(this.dataPointTransformsByRuleId, other.dataPointTransformsByRuleId),
+		resourceTransformsByRuleId:  this.resourceTransformsByRuleId,
+		scopeTransformsByRuleId:     this.scopeTransformsByRuleId,
+		logTransformsByRuleId:       this.logTransformsByRuleId,
+		spanTransformsByRuleId:      this.spanTransformsByRuleId,
+		metricTransformsByRuleId:    this.metricTransformsByRuleId,
+		dataPointTransformsByRuleId: this.dataPointTransformsByRuleId,
 	}
-}
-
-func merge[T any](map1, map2 map[string]map[string]T) map[string]map[string]T {
-	result := make(map[string]map[string]T, len(map1))
-
-	// Copy all entries from map1
-	for outerKey, innerMap := range map1 {
-		result[outerKey] = make(map[string]T, len(innerMap))
-		for innerKey, value := range innerMap {
-			result[outerKey][innerKey] = value
-		}
-	}
-
-	// Merge map2 into the result
-	for outerKey, innerMap := range map2 {
-		// If outerKey already exists, merge the inner maps
-		if _, exists := result[outerKey]; exists {
-			for innerKey, value := range innerMap {
-				result[outerKey][innerKey] = value
-			}
-		} else {
-			// If outerKey does not exist, add the entire inner map
-			result[outerKey] = make(map[string]T, len(innerMap))
-			for innerKey, value := range innerMap {
-				result[outerKey][innerKey] = value
-			}
-		}
-	}
-
-	return result
 }
 
 func mkFactory[T any]() map[string]ottl.Factory[T] {
@@ -142,9 +126,11 @@ func mkFactory[T any]() map[string]ottl.Factory[T] {
 func createSampler(c SamplingConfig) Sampler {
 	if c.RPS > 0 {
 		return NewRPSSampler(WithMaxRPS(c.RPS))
-	} else {
+	}
+	if c.SampleRate > 0 {
 		return NewStaticSampler(int(1 / c.SampleRate))
 	}
+	return nil
 }
 
 func GetServiceName(resource pcommon.Resource) string {
@@ -281,11 +267,13 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (Transforma
 				transformations.spanTransformsByRuleId[statement.VendorId] = make(map[string]spanTransform)
 			}
 			s := createSampler(cs.SamplingConfig)
-			err = s.Start()
-			if err != nil {
-				logger.Error("Error starting sampler", zap.Error(err))
-				errors = multierr.Append(errors, err)
-				continue
+			if s != nil {
+				err = s.Start()
+				if err != nil {
+					logger.Error("Error starting sampler", zap.Error(err))
+					errors = multierr.Append(errors, err)
+					continue
+				}
 			}
 
 			transformations.spanTransformsByRuleId[statement.VendorId][cs.RuleId] = spanTransform{

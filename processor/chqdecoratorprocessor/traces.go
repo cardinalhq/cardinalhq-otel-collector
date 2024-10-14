@@ -168,7 +168,7 @@ func (c *chqDecorator) updateTracesSampling(sc ottl.SamplerConfig) {
 	c.logger.Info("Updating trace sampling config")
 	newTransformations := ottl.NewTransformations(c.logger)
 
-	for _, decorator := range sc.Traces.Decorators {
+	for _, decorator := range sc.Spans.Decorators {
 		transformations, err := ottl.ParseTransformations(decorator, c.logger)
 		if err != nil {
 			c.logger.Error("Error parsing traces transformation", zap.Error(err))

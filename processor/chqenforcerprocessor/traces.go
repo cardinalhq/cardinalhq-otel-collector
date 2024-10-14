@@ -242,7 +242,7 @@ func (e *chqEnforcer) updateTraceTransformations(sc ottl.SamplerConfig) {
 	defer e.Unlock()
 
 	e.logger.Info("Updating trace transformations config", zap.String("vendor", e.vendor))
-	for _, decorator := range sc.Traces.Enforcers {
+	for _, decorator := range sc.Spans.Enforcers {
 		if decorator.VendorId == ottl.VendorID(e.vendor) {
 			transformations, err := ottl.ParseTransformations(decorator, e.logger)
 			if err != nil {

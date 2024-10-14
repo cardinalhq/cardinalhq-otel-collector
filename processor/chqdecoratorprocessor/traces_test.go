@@ -72,7 +72,7 @@ func createSpansProcessorWithTransformations(t *testing.T) *chqDecorator {
 	}
 
 	c.updateTracesSampling(ottl.SamplerConfig{
-		Traces: ottl.EventConfigV1{
+		Spans: ottl.EventConfigV1{
 			Decorators: []ottl.Instruction{instruction},
 		},
 	})

@@ -37,46 +37,11 @@ import (
 	"go.uber.org/zap"
 )
 
-type ContextType interface {
-	ottlresource.TransformContext | ottlscope.TransformContext | ottllog.TransformContext | ottlspan.TransformContext | ottlmetric.TransformContext | ottldatapoint.TransformContext
-}
-
-type Transform[T ContextType] interface {
-	Execute(T, string, pcommon.Slice, *zap.Logger)
-	GetContext() ContextID
-}
-
-type TransformSampler[T any] interface {
-	GetSampler() Sampler
-}
-
 type resourceTransform struct {
 	context    ContextID
 	conditions []*ottl.Condition[ottlresource.TransformContext]
 	statements []*ottl.Statement[ottlresource.TransformContext]
 }
-
-func (r resourceTransform) Execute(tCtx ottlresource.TransformContext, vendorId string, ruleIds pcommon.Slice, logger *zap.Logger) {
-	allConditionsTrue := true
-	for _, condition := range r.conditions {
-		conditionMet, _ := condition.Eval(context.Background(), tCtx)
-		allConditionsTrue = allConditionsTrue && conditionMet
-	}
-	if allConditionsTrue {
-		for _, statement := range r.statements {
-			_, _, err := statement.Execute(context.Background(), tCtx)
-			if err != nil {
-				logger.Error("Error executing resource transformation", zap.Error(err))
-			}
-		}
-	}
-}
-
-func (r resourceTransform) GetContext() ContextID {
-	return r.context
-}
-
-var _ Transform[ottlresource.TransformContext] = resourceTransform{}
 
 type scopeTransform struct {
 	context    ContextID

@@ -17,7 +17,6 @@ package chqdecoratorprocessor
 import (
 	"context"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
@@ -71,7 +70,7 @@ func (c *chqDecorator) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, 
 	return ld, nil
 }
 
-func (c *chqDecorator) updateLogsSampling(sc sampler.SamplerConfig) {
+func (c *chqDecorator) updateLogsSampling(sc ottl.SamplerConfig) {
 	c.Lock()
 	defer c.Unlock()
 	c.logger.Info("Updating logs transformation config...")

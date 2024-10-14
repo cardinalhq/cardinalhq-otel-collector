@@ -17,7 +17,6 @@ package chqdecoratorprocessor
 import (
 	"context"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlmetric"
@@ -119,7 +118,7 @@ func (c *chqDecorator) processMetrics(ctx context.Context, md pmetric.Metrics) (
 	return md, nil
 }
 
-func (c *chqDecorator) updateMetricsTransformation(sc sampler.SamplerConfig) {
+func (c *chqDecorator) updateMetricsTransformation(sc ottl.SamplerConfig) {
 	c.Lock()
 	defer c.Unlock()
 	c.logger.Info("Updating metrics transformations config...")

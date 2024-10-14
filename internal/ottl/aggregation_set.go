@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sampler
+package ottl
 
 type AggregationSet[T int64 | float64] struct {
 	Aggregations map[uint64]*AggregationImpl[T]

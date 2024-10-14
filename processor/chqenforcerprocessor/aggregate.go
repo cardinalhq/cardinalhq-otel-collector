@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
@@ -42,7 +42,7 @@ func (e *chqEnforcer) emit() {
 	}
 }
 
-func (e *chqEnforcer) emitSetI(set *sampler.AggregationSet[int64]) {
+func (e *chqEnforcer) emitSetI(set *ottl.AggregationSet[int64]) {
 	now := time.Now()
 	for _, agg := range set.Aggregations {
 		mmetrics := pmetric.NewMetrics()
@@ -52,7 +52,7 @@ func (e *chqEnforcer) emitSetI(set *sampler.AggregationSet[int64]) {
 		m.SetName(agg.Name())
 
 		var dp pmetric.NumberDataPoint
-		if agg.AggregationType() == sampler.AggregationTypeSum {
+		if agg.AggregationType() == ottl.AggregationTypeSum {
 			m.SetEmptySum()
 			dp = m.Sum().DataPoints().AppendEmpty()
 			m.Sum().SetIsMonotonic(false)
@@ -78,7 +78,7 @@ func (e *chqEnforcer) emitSetI(set *sampler.AggregationSet[int64]) {
 	}
 }
 
-func (e *chqEnforcer) emitSetF(set *sampler.AggregationSet[float64]) {
+func (e *chqEnforcer) emitSetF(set *ottl.AggregationSet[float64]) {
 	now := time.Now()
 	for _, agg := range set.Aggregations {
 		mmetrics := pmetric.NewMetrics()
@@ -88,7 +88,7 @@ func (e *chqEnforcer) emitSetF(set *sampler.AggregationSet[float64]) {
 		m.SetName(agg.Name())
 
 		var dp pmetric.NumberDataPoint
-		if agg.AggregationType() == sampler.AggregationTypeSum {
+		if agg.AggregationType() == ottl.AggregationTypeSum {
 			m.SetEmptySum()
 			dp = m.Sum().DataPoints().AppendEmpty()
 			m.Sum().SetIsMonotonic(false)
@@ -116,7 +116,7 @@ func (e *chqEnforcer) emitSetF(set *sampler.AggregationSet[float64]) {
 
 func setTags(metricName string, res pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint, tags map[string]string, podName string) {
 	for k, v := range tags {
-		section, tagname := sampler.SplitTag(k)
+		section, tagname := ottl.SplitTag(k)
 		switch section {
 		case "resource":
 			res.Resource().Attributes().PutStr(tagname, v)
@@ -135,7 +135,7 @@ func setTags(metricName string, res pmetric.ResourceMetrics, sm pmetric.ScopeMet
 }
 
 func setMetadata(res pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, metric pmetric.Metric, tagname string, v string) {
-	area, mname := sampler.SplitTag(tagname)
+	area, mname := ottl.SplitTag(tagname)
 	switch area {
 	case "resource":
 		setResourceMetadata(res, mname, v)
@@ -211,7 +211,7 @@ func (e *chqEnforcer) aggregateGaugeDatapoint(rms pmetric.ResourceMetrics, ils p
 		"metric.description":        metric.Description(),
 		"metric.unit":               metric.Unit(),
 	}
-	return e.aggregateDatapoint(sampler.AggregationTypeAvg, rms, ils, metric, dp, metadata)
+	return e.aggregateDatapoint(ottl.AggregationTypeAvg, rms, ils, metric, dp, metadata)
 }
 
 func (e *chqEnforcer) aggregateSumDatapoint(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint) bool {
@@ -226,11 +226,11 @@ func (e *chqEnforcer) aggregateSumDatapoint(rms pmetric.ResourceMetrics, ils pme
 		"metric.ismonotonic":            fmt.Sprintf("%t", metric.Sum().IsMonotonic()),
 		"metric.unit":                   metric.Unit(),
 	}
-	return e.aggregateDatapoint(sampler.AggregationTypeSum, rms, ils, metric, dp, metadata)
+	return e.aggregateDatapoint(ottl.AggregationTypeSum, rms, ils, metric, dp, metadata)
 }
 
 func (e *chqEnforcer) aggregateDatapoint(
-	ty sampler.AggregationType,
+	ty ottl.AggregationType,
 	rms pmetric.ResourceMetrics,
 	ils pmetric.ScopeMetrics,
 	metric pmetric.Metric,

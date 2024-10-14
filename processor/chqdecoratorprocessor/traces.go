@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 	"github.com/cespare/xxhash/v2"
 	semconv "go.opentelemetry.io/otel/semconv/v1.22.0"
 
@@ -171,7 +170,7 @@ func (c *chqDecorator) decorateTraces(td ptrace.Traces) (ptrace.Traces, error) {
 	return td, nil
 }
 
-func (c *chqDecorator) updateTracesSampling(sc sampler.SamplerConfig) {
+func (c *chqDecorator) updateTracesSampling(sc ottl.SamplerConfig) {
 	c.Lock()
 	defer c.Unlock()
 	c.logger.Info("Updating trace sampling config")

@@ -30,7 +30,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 )
 
 func TestPostMetricStats(t *testing.T) {
@@ -97,23 +97,23 @@ func TestPostMetricStats(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-var _ sampler.MetricAggregator[float64] = &MockAggregator[float64]{}
+var _ ottl.MetricAggregator[float64] = &MockAggregator[float64]{}
 
 type MockAggregator[T float64] struct {
 }
 
-func (m *MockAggregator[T]) Configure(config sampler.SamplerConfig, vendor string) {
+func (m *MockAggregator[T]) Configure(config ottl.SamplerConfig, vendor string) {
 }
 
 func (m *MockAggregator[T]) Aggregate(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric) float64 {
 	return 0
 }
 
-func (m *MockAggregator[T]) Emit(t time.Time) map[int64]*sampler.AggregationSet[T] {
+func (m *MockAggregator[T]) Emit(t time.Time) map[int64]*ottl.AggregationSet[T] {
 	return nil
 }
 
-func (m *MockAggregator[T]) MatchAndAdd(t *time.Time, buckets []T, values []T, ty sampler.AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (bool, error) {
+func (m *MockAggregator[T]) MatchAndAdd(t *time.Time, buckets []T, values []T, ty ottl.AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (bool, error) {
 	return true, nil
 }
 

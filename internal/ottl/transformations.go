@@ -18,7 +18,9 @@ import (
 	"context"
 
 	"fmt"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
+	"math/rand"
+	"sort"
+
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
@@ -33,31 +35,7 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.22.0"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
-	"math/rand"
-	"sort"
 )
-
-type ContextID string
-
-type SamplingConfig struct {
-	RuleType   int     `json:"ruleType,omitempty" yaml:"ruleType,omitempty"`
-	SampleRate float64 `json:"sampleRate,omitempty" yaml:"sampleRate,omitempty"`
-	RPS        int     `json:"rps,omitempty" yaml:"rps,omitempty"`
-}
-
-type Instruction struct {
-	VendorId   string             `json:"vendorId,omitempty" yaml:"vendorId,omitempty"`
-	Statements []ContextStatement `json:"statements,omitempty" yaml:"statements,omitempty"`
-}
-
-type ContextStatement struct {
-	Context        ContextID      `mapstructure:"context"`
-	RuleId         string         `mapstructure:"ruleId"`
-	Priority       int            `mapstructure:"priority"`
-	Conditions     []string       `mapstructure:"conditions"`
-	Statements     []string       `mapstructure:"statements"`
-	SamplingConfig SamplingConfig `mapstructure:"samplingConfig"`
-}
 
 type resourceTransform struct {
 	context    ContextID
@@ -72,17 +50,19 @@ type scopeTransform struct {
 }
 
 type logTransform struct {
-	context    ContextID
-	conditions []*ottl.Condition[ottllog.TransformContext]
-	statements []*ottl.Statement[ottllog.TransformContext]
-	sampler    sampler.Sampler
+	context       ContextID
+	conditions    []*ottl.Condition[ottllog.TransformContext]
+	statements    []*ottl.Statement[ottllog.TransformContext]
+	samplerConfig SamplingConfig
+	sampler       Sampler
 }
 
 type spanTransform struct {
-	context    ContextID
-	conditions []*ottl.Condition[ottlspan.TransformContext]
-	statements []*ottl.Statement[ottlspan.TransformContext]
-	sampler    sampler.Sampler
+	context       ContextID
+	conditions    []*ottl.Condition[ottlspan.TransformContext]
+	statements    []*ottl.Statement[ottlspan.TransformContext]
+	samplerConfig SamplingConfig
+	sampler       Sampler
 }
 
 type metricTransform struct {
@@ -159,11 +139,11 @@ func mkFactory[T any]() map[string]ottl.Factory[T] {
 	return factoryMap
 }
 
-func createSampler(c SamplingConfig) sampler.Sampler {
+func createSampler(c SamplingConfig) Sampler {
 	if c.RPS > 0 {
-		return sampler.NewRPSSampler(sampler.WithMaxRPS(c.RPS))
+		return NewRPSSampler(WithMaxRPS(c.RPS))
 	} else {
-		return sampler.NewStaticSampler(int(1 / c.SampleRate))
+		return NewStaticSampler(int(1 / c.SampleRate))
 	}
 }
 

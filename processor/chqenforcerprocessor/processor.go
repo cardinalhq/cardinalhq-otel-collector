@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"net/http"
 	"os"
@@ -34,7 +33,7 @@ import (
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqenforcerprocessor/internal/metadata"
 	"github.com/hashicorp/go-multierror"
@@ -71,8 +70,8 @@ type chqEnforcer struct {
 
 	nextMetricReceiver   consumer.Metrics
 	aggregationInterval  time.Duration
-	aggregatorI          sampler.MetricAggregator[int64]
-	aggregatorF          sampler.MetricAggregator[float64]
+	aggregatorI          ottl.MetricAggregator[int64]
+	aggregatorF          ottl.MetricAggregator[float64]
 	lastEmitCheck        time.Time
 	aggregatedDatapoints metric.Int64Counter
 }
@@ -106,8 +105,8 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextCo
 		statsExporter.logger.Info("sending metric statistics", zap.Duration("interval", config.Statistics.Interval))
 		statsExporter.lastEmitCheck = time.Now()
 		interval := config.MetricAggregation.Interval.Milliseconds()
-		statsExporter.aggregatorI = sampler.NewMetricAggregatorImpl[int64](interval)
-		statsExporter.aggregatorF = sampler.NewMetricAggregatorImpl[float64](interval)
+		statsExporter.aggregatorI = ottl.NewMetricAggregatorImpl[int64](interval)
+		statsExporter.aggregatorF = ottl.NewMetricAggregatorImpl[float64](interval)
 		statsExporter.metricTransformations = ottl.Transformations{}
 		err := statsExporter.setupMetricTelemetry()
 		if err != nil {
@@ -166,7 +165,7 @@ func (e *chqEnforcer) setupMetricTelemetry() error {
 	return nil
 }
 
-func (e *chqEnforcer) configUpdateCallback(sc sampler.SamplerConfig) {
+func (e *chqEnforcer) configUpdateCallback(sc ottl.SamplerConfig) {
 	switch e.ttype {
 	case "logs":
 		e.updateLogTransformations(sc)

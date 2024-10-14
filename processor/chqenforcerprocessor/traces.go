@@ -21,13 +21,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlspan"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
@@ -238,7 +237,7 @@ func (e *chqEnforcer) postSpanStats(ctx context.Context, wrapper *chqpb.SpanStat
 	return nil
 }
 
-func (c *chqEnforcer) updateTraceTransformations(sc sampler.SamplerConfig) {
+func (c *chqEnforcer) updateTraceTransformations(sc ottl.SamplerConfig) {
 	c.Lock()
 	defer c.Unlock()
 

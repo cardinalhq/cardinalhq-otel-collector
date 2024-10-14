@@ -12,32 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sampler
+package ottl
 
-type StaticSampler struct {
-	fixedRate int
-}
+type EventSamplingRuleType int
 
-var _ Sampler = (*StaticSampler)(nil)
+const (
+	EventSamplingRuleTypeUnknown EventSamplingRuleType = iota
+	EventSamplingRuleTypeRandom
+	EventSamplingRuleTypeRPS
+)
 
-func NewStaticSampler(rate int) *StaticSampler {
-	return &StaticSampler{
-		fixedRate: rate,
+func samplingRuleTypeToInt(ruleType string) EventSamplingRuleType {
+	switch ruleType {
+	case "random":
+		return EventSamplingRuleTypeRandom
+	case "rps":
+		return EventSamplingRuleTypeRPS
+	default:
+		return EventSamplingRuleTypeUnknown
 	}
-}
-
-func (s *StaticSampler) Start() error {
-	return nil
-}
-
-func (s *StaticSampler) Stop() error {
-	return nil
-}
-
-func (s *StaticSampler) GetSampleRate(_ string) int {
-	return s.fixedRate
-}
-
-func (s *StaticSampler) GetSampleRateMulti(_ string, _ int) int {
-	return s.fixedRate
 }

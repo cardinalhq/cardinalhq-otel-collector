@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlmetric"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
@@ -37,7 +36,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
@@ -305,7 +304,7 @@ func (e *chqEnforcer) postMetricStats(ctx context.Context, wrapper *chqpb.Metric
 	return nil
 }
 
-func (e *chqEnforcer) updateMetricSamplingConfig(sc sampler.SamplerConfig) {
+func (e *chqEnforcer) updateMetricSamplingConfig(sc ottl.SamplerConfig) {
 	e.Lock()
 	defer e.Unlock()
 

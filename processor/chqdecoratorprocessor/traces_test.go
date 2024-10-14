@@ -24,7 +24,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -70,8 +69,8 @@ func createSpansProcessorWithTransformations(t *testing.T) *chqDecorator {
 		VendorId: "vendorId",
 	}
 
-	c.updateTracesSampling(sampler.SamplerConfig{
-		Traces: sampler.EventConfigV1{
+	c.updateTracesSampling(ottl.SamplerConfig{
+		Traces: ottl.EventConfigV1{
 			Decorators: []ottl.Instruction{instruction},
 		},
 	})

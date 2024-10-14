@@ -17,13 +17,14 @@ package chqdecoratorprocessor
 import (
 	"context"
 	"errors"
+	"sync"
+
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/fingerprinter"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
-	"go.opentelemetry.io/collector/pdata/pcommon"
-	"sync"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
+	"net/http"
+	"os"
 
 	"github.com/hashicorp/go-multierror"
 	"go.opentelemetry.io/collector/component"
@@ -31,8 +32,6 @@ import (
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
-	"net/http"
-	"os"
 )
 
 type chqDecorator struct {
@@ -132,7 +131,7 @@ func (c *chqDecorator) Shutdown(ctx context.Context) error {
 	return errors.ErrorOrNil()
 }
 
-func (c *chqDecorator) configUpdateCallback(sc sampler.SamplerConfig) {
+func (c *chqDecorator) configUpdateCallback(sc ottl.SamplerConfig) {
 	switch c.ttype {
 	case "logs":
 		c.updateLogsSampling(sc)
@@ -142,15 +141,4 @@ func (c *chqDecorator) configUpdateCallback(sc sampler.SamplerConfig) {
 		c.updateMetricsTransformation(sc)
 	}
 	c.logger.Info("Configuration updated")
-}
-
-func (c *chqDecorator) appendToSlice(attributes pcommon.Map, tagName string, tagValue string) {
-	var value, exists = attributes.Get(tagName)
-	var slice pcommon.Slice
-	if !exists {
-		slice = attributes.PutEmptySlice(tagName)
-	} else {
-		slice = value.Slice()
-	}
-	slice.AppendEmpty().SetStr(tagValue)
 }

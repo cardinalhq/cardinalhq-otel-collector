@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sampler
+package ottl
 
 import (
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
@@ -243,7 +242,7 @@ func TestTimebox(t *testing.T) {
 }
 
 func TestMatchAndAdd_AverageAfterDroppingDimension(t *testing.T) {
-	statements := []ottl.ContextStatement{
+	statements := []ContextStatement{
 		{
 			Context:    "datapoint",
 			Conditions: []string{},
@@ -255,11 +254,11 @@ func TestMatchAndAdd_AverageAfterDroppingDimension(t *testing.T) {
 	}
 
 	// Parse transformations
-	instruction := ottl.Instruction{
+	instruction := Instruction{
 		VendorId:   "vendor1",
 		Statements: statements,
 	}
-	transformations, err := ottl.ParseTransformations(instruction, zap.NewNop())
+	transformations, err := ParseTransformations(instruction, zap.NewNop())
 	assert.NoError(t, err)
 	assert.NotNil(t, transformations)
 

@@ -19,7 +19,6 @@ import (
 
 	"fmt"
 	"math/rand"
-	"sort"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl"
@@ -91,6 +90,18 @@ type Transformations struct {
 	logger                      *zap.Logger
 }
 
+func NewTransformations(logger *zap.Logger) Transformations {
+	return Transformations{
+		resourceTransformsByRuleId:  make(map[VendorID]map[RuleID]resourceTransform),
+		scopeTransformsByRuleId:     make(map[VendorID]map[RuleID]scopeTransform),
+		logTransformsByRuleId:       make(map[VendorID]map[RuleID]logTransform),
+		spanTransformsByRuleId:      make(map[VendorID]map[RuleID]spanTransform),
+		metricTransformsByRuleId:    make(map[VendorID]map[RuleID]metricTransform),
+		dataPointTransformsByRuleId: make(map[VendorID]map[RuleID]dataPointTransform),
+		logger:                      logger,
+	}
+}
+
 func MergeWith(this Transformations, other Transformations) Transformations {
 	return Transformations{
 		resourceTransformsByRuleId:  merge(this.resourceTransformsByRuleId, other.resourceTransformsByRuleId),
@@ -130,6 +141,23 @@ func merge[T any](map1, map2 map[VendorID]map[RuleID]T) map[VendorID]map[RuleID]
 	}
 
 	return result
+}
+
+func (t *Transformations) Stop() {
+	for _, logTransforms := range t.logTransformsByRuleId {
+		for _, logTransform := range logTransforms {
+			if logTransform.sampler != nil {
+				_ = logTransform.sampler.Stop()
+			}
+		}
+	}
+	for _, spanTransforms := range t.spanTransformsByRuleId {
+		for _, spanTransform := range spanTransforms {
+			if spanTransform.sampler != nil {
+				_ = spanTransform.sampler.Stop()
+			}
+		}
+	}
 }
 
 func mkFactory[T any]() map[string]ottl.Factory[T] {
@@ -173,20 +201,7 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (Transforma
 	metricParser, _ := ottlmetric.NewParser(mkFactory[ottlmetric.TransformContext](), component.TelemetrySettings{Logger: logger})
 	dataPointParser, _ := ottldatapoint.NewParser(mkFactory[ottldatapoint.TransformContext](), component.TelemetrySettings{Logger: logger})
 
-	transformations := Transformations{
-		resourceTransformsByRuleId:  map[VendorID]map[RuleID]resourceTransform{},
-		scopeTransformsByRuleId:     map[VendorID]map[RuleID]scopeTransform{},
-		logTransformsByRuleId:       map[VendorID]map[RuleID]logTransform{},
-		spanTransformsByRuleId:      map[VendorID]map[RuleID]spanTransform{},
-		metricTransformsByRuleId:    map[VendorID]map[RuleID]metricTransform{},
-		dataPointTransformsByRuleId: map[VendorID]map[RuleID]dataPointTransform{},
-		logger:                      logger,
-	}
-
-	// Sort contextStatements by priority
-	sort.Slice(contextStatements, func(i, j int) bool {
-		return contextStatements[i].Priority < contextStatements[j].Priority
-	})
+	transformations := NewTransformations(logger)
 
 	for _, cs := range contextStatements {
 		switch cs.Context {

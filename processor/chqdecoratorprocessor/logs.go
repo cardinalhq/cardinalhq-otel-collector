@@ -16,6 +16,7 @@ package chqdecoratorprocessor
 
 import (
 	"context"
+
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
@@ -74,12 +75,18 @@ func (c *chqDecorator) updateLogsSampling(sc ottl.SamplerConfig) {
 	c.Lock()
 	defer c.Unlock()
 	c.logger.Info("Updating logs transformation config...")
+	newTransformations := ottl.NewTransformations(c.logger)
+
 	for _, decorator := range sc.Logs.Decorators {
 		transformations, err := ottl.ParseTransformations(decorator, c.logger)
 		if err != nil {
 			c.logger.Error("Error parsing log transformation", zap.Error(err))
 		} else {
-			c.logTransformations = ottl.MergeWith(c.logTransformations, transformations)
+			newTransformations = ottl.MergeWith(newTransformations, transformations)
 		}
 	}
+
+	oldTransformation := c.traceTransformations
+	c.traceTransformations = newTransformations
+	oldTransformation.Stop()
 }

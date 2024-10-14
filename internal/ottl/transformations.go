@@ -16,8 +16,10 @@ package ottl
 
 import (
 	"context"
-	"sort"
 
+	"fmt"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
@@ -28,11 +30,20 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/ottlfuncs"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/pdata/pcommon"
+	semconv "go.opentelemetry.io/otel/semconv/v1.22.0"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
+	"math/rand"
+	"sort"
 )
 
 type ContextID string
+
+type SamplingConfig struct {
+	RuleType   int     `json:"ruleType,omitempty" yaml:"ruleType,omitempty"`
+	SampleRate float64 `json:"sampleRate,omitempty" yaml:"sampleRate,omitempty"`
+	RPS        int     `json:"rps,omitempty" yaml:"rps,omitempty"`
+}
 
 type Instruction struct {
 	VendorId   string             `json:"vendorId,omitempty" yaml:"vendorId,omitempty"`
@@ -40,11 +51,12 @@ type Instruction struct {
 }
 
 type ContextStatement struct {
-	Context    ContextID `mapstructure:"context"`
-	RuleId     string    `mapstructure:"ruleId"`
-	Priority   int       `mapstructure:"priority"`
-	Conditions []string  `mapstructure:"conditions"`
-	Statements []string  `mapstructure:"statements"`
+	Context        ContextID      `mapstructure:"context"`
+	RuleId         string         `mapstructure:"ruleId"`
+	Priority       int            `mapstructure:"priority"`
+	Conditions     []string       `mapstructure:"conditions"`
+	Statements     []string       `mapstructure:"statements"`
+	SamplingConfig SamplingConfig `mapstructure:"samplingConfig"`
 }
 
 type resourceTransform struct {
@@ -63,12 +75,14 @@ type logTransform struct {
 	context    ContextID
 	conditions []*ottl.Condition[ottllog.TransformContext]
 	statements []*ottl.Statement[ottllog.TransformContext]
+	sampler    sampler.Sampler
 }
 
 type spanTransform struct {
 	context    ContextID
 	conditions []*ottl.Condition[ottlspan.TransformContext]
 	statements []*ottl.Statement[ottlspan.TransformContext]
+	sampler    sampler.Sampler
 }
 
 type metricTransform struct {
@@ -143,6 +157,23 @@ func mkFactory[T any]() map[string]ottl.Factory[T] {
 		factoryMap[factoryName] = factory
 	}
 	return factoryMap
+}
+
+func createSampler(c SamplingConfig) sampler.Sampler {
+	if c.RPS > 0 {
+		return sampler.NewRPSSampler(sampler.WithMaxRPS(c.RPS))
+	} else {
+		return sampler.NewStaticSampler(int(1 / c.SampleRate))
+	}
+}
+
+func GetServiceName(resource pcommon.Resource) string {
+	r := resource.Attributes()
+	snk := string(semconv.ServiceNameKey)
+	if serviceNameField, found := r.Get(snk); found {
+		return serviceNameField.AsString()
+	}
+	return "unknown"
 }
 
 func ParseTransformations(statement Instruction, logger *zap.Logger) (Transformations, error) {
@@ -236,10 +267,20 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (Transforma
 			if _, exists := transformations.logTransformsByRuleId[statement.VendorId]; !exists {
 				transformations.logTransformsByRuleId[statement.VendorId] = make(map[string]logTransform)
 			}
+
+			s := createSampler(cs.SamplingConfig)
+			err = s.Start()
+			if err != nil {
+				logger.Error("Error starting sampler", zap.Error(err))
+				errors = multierr.Append(errors, err)
+				continue
+			}
+
 			transformations.logTransformsByRuleId[statement.VendorId][cs.RuleId] = logTransform{
 				context:    cs.Context,
 				conditions: conditions,
 				statements: statements,
+				sampler:    s,
 			}
 
 		case "span":
@@ -259,10 +300,19 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (Transforma
 			if _, exists := transformations.spanTransformsByRuleId[statement.VendorId]; !exists {
 				transformations.spanTransformsByRuleId[statement.VendorId] = make(map[string]spanTransform)
 			}
+			s := createSampler(cs.SamplingConfig)
+			err = s.Start()
+			if err != nil {
+				logger.Error("Error starting sampler", zap.Error(err))
+				errors = multierr.Append(errors, err)
+				continue
+			}
+
 			transformations.spanTransformsByRuleId[statement.VendorId][cs.RuleId] = spanTransform{
 				context:    cs.Context,
 				conditions: conditions,
 				statements: statements,
+				sampler:    s,
 			}
 
 		case "metric":
@@ -379,6 +429,17 @@ func (t *Transformations) ExecuteLogTransforms(transformCtx ottllog.TransformCon
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
+		if allConditionsTrue && logTransform.sampler != nil {
+			randval := rand.Float64()
+			serviceName := GetServiceName(transformCtx.GetResource())
+			fingerprint, exists := transformCtx.GetLogRecord().Attributes().Get(translate.CardinalFieldFingerprint)
+			if !exists {
+				return
+			}
+			key := fmt.Sprintf("%s:%s", serviceName, fingerprint.AsString())
+			sampleRate := logTransform.sampler.GetSampleRate(key)
+			allConditionsTrue = allConditionsTrue && shouldFilter(sampleRate, randval)
+		}
 		if allConditionsTrue {
 			for _, statement := range logTransform.statements {
 				_, _, err := statement.Execute(context.Background(), transformCtx)
@@ -390,6 +451,17 @@ func (t *Transformations) ExecuteLogTransforms(transformCtx ottllog.TransformCon
 	}, t.logTransformsByRuleId, vendorId, ruleIds)
 }
 
+func shouldFilter(rate int, randval float64) bool {
+	switch rate {
+	case 0:
+		return true
+	case 1:
+		return false
+	default:
+		return randval > 1/float64(rate)
+	}
+}
+
 func (t *Transformations) ExecuteSpanTransforms(transformCtx ottlspan.TransformContext, vendorId string, ruleIds pcommon.Slice) {
 	evaluateTransform[spanTransform](func(spanTransform spanTransform) {
 		allConditionsTrue := true
@@ -397,6 +469,19 @@ func (t *Transformations) ExecuteSpanTransforms(transformCtx ottlspan.TransformC
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
+
+		if allConditionsTrue && spanTransform.sampler != nil {
+			randval := rand.Float64()
+			serviceName := GetServiceName(transformCtx.GetResource())
+			fingerprint, exists := transformCtx.GetSpan().Attributes().Get(translate.CardinalFieldFingerprint)
+			if !exists {
+				return
+			}
+			key := fmt.Sprintf("%s:%s", serviceName, fingerprint.AsString())
+			sampleRate := spanTransform.sampler.GetSampleRate(key)
+			allConditionsTrue = allConditionsTrue && shouldFilter(sampleRate, randval)
+		}
+
 		if allConditionsTrue {
 			for _, statement := range spanTransform.statements {
 				_, _, err := statement.Execute(context.Background(), transformCtx)

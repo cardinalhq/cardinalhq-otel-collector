@@ -25,9 +25,8 @@ type SamplerConfig struct {
 }
 
 type EventConfigV1 struct {
-	Decorators    []ottl.Instruction `json:"decorators,omitempty" yaml:"decorators,omitempty"`
-	Enforcers     []ottl.Instruction `json:"enforcers,omitempty" yaml:"enforcers,omitempty"`
-	SamplingRules []SamplingRule     `json:"samplingRules,omitempty" yaml:"samplingRules,omitempty"`
+	Decorators []ottl.Instruction `json:"decorators,omitempty" yaml:"decorators,omitempty"`
+	Enforcers  []ottl.Instruction `json:"enforcers,omitempty" yaml:"enforcers,omitempty"`
 }
 
 type MetricConfigV1 struct {
@@ -42,41 +41,4 @@ type Filter struct {
 
 func (f Filter) Equals(other Filter) bool {
 	return f.ContextId == other.ContextId && f.Condition == other.Condition
-}
-
-type SamplingRule struct {
-	RuleId     string   `json:"ruleId,omitempty" yaml:"ruleId,omitempty"`
-	Priority   int      `json:"priority,omitempty" yaml:"priority,omitempty"`
-	VendorId   string   `json:"vendorId,omitempty" yaml:"vendorId,omitempty"`
-	Conditions []Filter `json:"filter,omitempty" yaml:"filter,omitempty"`
-	SampleRate float64  `json:"sampleRate,omitempty" yaml:"sampleRate,omitempty"`
-	RPS        int      `json:"rps,omitempty" yaml:"rps,omitempty"`
-	RuleType   string   `json:"ruleType,omitempty" yaml:"ruleType,omitempty"`
-}
-
-func (sr SamplingRule) Equals(other SamplingRule) bool {
-	// Compare simple fields
-	if sr.RuleId != other.RuleId ||
-		sr.Priority != other.Priority ||
-		sr.VendorId != other.VendorId ||
-		sr.SampleRate != other.SampleRate ||
-		sr.RPS != other.RPS ||
-		sr.RuleType != other.RuleType {
-		return false
-	}
-
-	// Compare Conditions slices length
-	if len(sr.Conditions) != len(other.Conditions) {
-		return false
-	}
-
-	// Compare Conditions slice content
-	for i, condition := range sr.Conditions {
-		if !condition.Equals(other.Conditions[i]) {
-			return false
-		}
-	}
-
-	// All fields are equal
-	return true
 }

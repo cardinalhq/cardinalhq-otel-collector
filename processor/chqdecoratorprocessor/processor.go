@@ -50,13 +50,11 @@ type chqDecorator struct {
 	podName            string
 
 	logFingerprinter fingerprinter.Fingerprinter
-	logSampler       sampler.EventSampler
 
 	logTransformations     ottl.Transformations
 	metricsTransformations ottl.Transformations
 	traceTransformations   ottl.Transformations
 
-	traceSampler       sampler.EventSampler
 	traceFingerprinter fingerprinter.Fingerprinter
 
 	// estimators for spans
@@ -83,12 +81,10 @@ func newCHQDecorator(config *Config, ttype string, set processor.Settings) (*chq
 		// Config Validation has already happened in Config.Validate, so we can safely ignore the error
 		decorator.logFingerprinter = fingerprinter.NewFingerprinter()
 		decorator.logTransformations = ottl.Transformations{}
-		decorator.logSampler = sampler.NewEventSamplerImpl(context.Background(), decorator.logger)
 
 	case "traces":
 		decorator.logger.Info("sending span statistics", zap.Duration("interval", config.Statistics.Interval))
 		decorator.traceFingerprinter = fingerprinter.NewFingerprinter()
-		decorator.traceSampler = sampler.NewEventSamplerImpl(context.Background(), decorator.logger)
 		decorator.estimators = make(map[uint64]*SlidingEstimatorStat)
 		decorator.traceTransformations = ottl.Transformations{}
 		decorator.estimatorWindowSize = config.TracesConfig.EstimatorWindowSize

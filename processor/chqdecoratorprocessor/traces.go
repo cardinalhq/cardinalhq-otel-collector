@@ -16,7 +16,6 @@ package chqdecoratorprocessor
 
 import (
 	"context"
-	"fmt"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlspan"
@@ -143,10 +142,6 @@ func (c *chqDecorator) decorateTraces(td ptrace.Traces) (ptrace.Traces, error) {
 			spans := ils.Spans()
 			for k := 0; k < spans.Len(); k++ {
 				span := spans.At(k)
-				// Evaluate scope transformations
-				spanCtx := ottlspan.NewTransformContext(span, ils.Scope(), rs.Resource(), ils, rs)
-				transformations.ExecuteSpanTransforms(spanCtx, "", emptySlice)
-
 				httpResource := c.getHttpResource(span)
 				if httpResource != "" {
 					span.Attributes().PutStr(translate.CardinalFieldResourceName, httpResource)
@@ -161,14 +156,14 @@ func (c *chqDecorator) decorateTraces(td ptrace.Traces) (ptrace.Traces, error) {
 				isSlow := c.isSpanSlow(span, uint64(spanFingerprint))
 				span.Attributes().PutBool(translate.CardinalFieldSpanIsSlow, isSlow)
 
-				// Evaluate if we should drop this span, if yes add it to the attributes
-				// for the downstream enforcers to drop it.
-				c.evaluateTraceSamplingRules(serviceName.Str(), spanFingerprint, rs, ils, span)
-
 				span.Attributes().PutInt(translate.CardinalFieldFingerprint, spanFingerprint)
 				span.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, c.podName)
 				span.Attributes().PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
 				span.Attributes().PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
+
+				// Evaluate scope transformations
+				spanCtx := ottlspan.NewTransformContext(span, ils.Scope(), rs.Resource(), ils, rs)
+				transformations.ExecuteSpanTransforms(spanCtx, "", emptySlice)
 			}
 		}
 	}
@@ -176,24 +171,10 @@ func (c *chqDecorator) decorateTraces(td ptrace.Traces) (ptrace.Traces, error) {
 	return td, nil
 }
 
-func (c *chqDecorator) evaluateTraceSamplingRules(serviceName string, fingerprint int64, rl ptrace.ResourceSpans, sl ptrace.ScopeSpans, lr ptrace.Span) {
-	fingerprintString := fmt.Sprintf("%d", fingerprint)
-	ruleMatches := c.traceSampler.SampleSpans(serviceName, fingerprintString, rl, sl, lr)
-	attributes := lr.Attributes()
-
-	if len(ruleMatches) > 0 {
-		for _, ruleMatch := range ruleMatches {
-			c.appendToSlice(attributes, translate.CardinalFieldDropForVendor, ruleMatch.VendorId)
-			c.appendToSlice(attributes, translate.CardinalFieldRulesMatched, ruleMatch.RuleId)
-		}
-	}
-}
-
 func (c *chqDecorator) updateTracesSampling(sc sampler.SamplerConfig) {
 	c.Lock()
 	defer c.Unlock()
 	c.logger.Info("Updating trace sampling config")
-	c.traceSampler.UpdateConfig(sc.Traces.SamplingRules, c.telemetrySettings)
 	for _, decorator := range sc.Traces.Decorators {
 		transformations, err := ottl.ParseTransformations(decorator, c.logger)
 		if err != nil {

@@ -41,13 +41,13 @@ type SamplingConfig struct {
 }
 
 type Instruction struct {
-	VendorId   string             `json:"vendorId,omitempty" yaml:"vendorId,omitempty"`
+	VendorId   VendorID           `json:"vendorId,omitempty" yaml:"vendorId,omitempty"`
 	Statements []ContextStatement `json:"statements,omitempty" yaml:"statements,omitempty"`
 }
 
 type ContextStatement struct {
 	Context        ContextID      `mapstructure:"context"`
-	RuleId         string         `mapstructure:"ruleId"`
+	RuleId         RuleID         `mapstructure:"ruleId"`
 	Priority       int            `mapstructure:"priority"`
 	Conditions     []string       `mapstructure:"conditions"`
 	Statements     []string       `mapstructure:"statements"`

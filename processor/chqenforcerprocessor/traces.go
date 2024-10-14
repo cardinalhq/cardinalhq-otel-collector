@@ -50,7 +50,7 @@ func (e *chqEnforcer) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptra
 		resourceRulesMatched := e.getSlice(rs.Resource().Attributes(), translate.CardinalFieldRulesMatched)
 		if resourceRulesMatched.Len() > 0 {
 			transformCtx := ottlresource.NewTransformContext(rs.Resource(), rs)
-			transformations.ExecuteResourceTransforms(transformCtx, e.vendor, resourceRulesMatched)
+			transformations.ExecuteResourceTransforms(transformCtx, ottl.VendorID(e.vendor), resourceRulesMatched)
 		}
 
 		if e.sliceContains(rs.Resource().Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
@@ -62,7 +62,7 @@ func (e *chqEnforcer) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptra
 			scopeRulesMatched := e.getSlice(iss.Scope().Attributes(), translate.CardinalFieldRulesMatched)
 			if scopeRulesMatched.Len() > 0 {
 				transformCtx := ottlscope.NewTransformContext(iss.Scope(), rs.Resource(), rs)
-				e.logTransformations.ExecuteScopeTransforms(transformCtx, e.vendor, scopeRulesMatched)
+				e.logTransformations.ExecuteScopeTransforms(transformCtx, ottl.VendorID(e.vendor), scopeRulesMatched)
 			}
 
 			if e.sliceContains(iss.Scope().Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
@@ -74,7 +74,7 @@ func (e *chqEnforcer) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptra
 				logRulesMatched := e.getSlice(sr.Attributes(), translate.CardinalFieldRulesMatched)
 				if logRulesMatched.Len() > 0 {
 					transformCtx := ottlspan.NewTransformContext(sr, iss.Scope(), rs.Resource(), iss, rs)
-					e.logTransformations.ExecuteSpanTransforms(transformCtx, e.vendor, logRulesMatched)
+					e.logTransformations.ExecuteSpanTransforms(transformCtx, ottl.VendorID(e.vendor), logRulesMatched)
 				}
 				if e.sliceContains(sr.Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
 					return true
@@ -237,18 +237,18 @@ func (e *chqEnforcer) postSpanStats(ctx context.Context, wrapper *chqpb.SpanStat
 	return nil
 }
 
-func (c *chqEnforcer) updateTraceTransformations(sc ottl.SamplerConfig) {
-	c.Lock()
-	defer c.Unlock()
+func (e *chqEnforcer) updateTraceTransformations(sc ottl.SamplerConfig) {
+	e.Lock()
+	defer e.Unlock()
 
-	c.logger.Info("Updating trace transformations config", zap.String("vendor", c.vendor))
+	e.logger.Info("Updating trace transformations config", zap.String("vendor", e.vendor))
 	for _, decorator := range sc.Traces.Enforcers {
-		if decorator.VendorId == c.vendor {
-			transformations, err := ottl.ParseTransformations(decorator, c.logger)
+		if decorator.VendorId == ottl.VendorID(e.vendor) {
+			transformations, err := ottl.ParseTransformations(decorator, e.logger)
 			if err != nil {
-				c.logger.Error("Error parsing log transformation", zap.Error(err))
+				e.logger.Error("Error parsing log transformation", zap.Error(err))
 			} else {
-				c.traceTransformations = ottl.MergeWith(c.traceTransformations, transformations)
+				e.traceTransformations = ottl.MergeWith(e.traceTransformations, transformations)
 			}
 		}
 	}

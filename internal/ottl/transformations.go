@@ -77,13 +77,17 @@ type dataPointTransform struct {
 	statements []*ottl.Statement[ottldatapoint.TransformContext]
 }
 
+type VendorID string
+
+type RuleID string
+
 type Transformations struct {
-	resourceTransformsByRuleId  map[string]map[string]resourceTransform
-	scopeTransformsByRuleId     map[string]map[string]scopeTransform
-	logTransformsByRuleId       map[string]map[string]logTransform
-	spanTransformsByRuleId      map[string]map[string]spanTransform
-	metricTransformsByRuleId    map[string]map[string]metricTransform
-	dataPointTransformsByRuleId map[string]map[string]dataPointTransform
+	resourceTransformsByRuleId  map[VendorID]map[RuleID]resourceTransform
+	scopeTransformsByRuleId     map[VendorID]map[RuleID]scopeTransform
+	logTransformsByRuleId       map[VendorID]map[RuleID]logTransform
+	spanTransformsByRuleId      map[VendorID]map[RuleID]spanTransform
+	metricTransformsByRuleId    map[VendorID]map[RuleID]metricTransform
+	dataPointTransformsByRuleId map[VendorID]map[RuleID]dataPointTransform
 	logger                      *zap.Logger
 }
 
@@ -98,12 +102,12 @@ func MergeWith(this Transformations, other Transformations) Transformations {
 	}
 }
 
-func merge[T any](map1, map2 map[string]map[string]T) map[string]map[string]T {
-	result := make(map[string]map[string]T, len(map1))
+func merge[T any](map1, map2 map[VendorID]map[RuleID]T) map[VendorID]map[RuleID]T {
+	result := make(map[VendorID]map[RuleID]T, len(map1))
 
 	// Copy all entries from map1
 	for outerKey, innerMap := range map1 {
-		result[outerKey] = make(map[string]T, len(innerMap))
+		result[outerKey] = make(map[RuleID]T, len(innerMap))
 		for innerKey, value := range innerMap {
 			result[outerKey][innerKey] = value
 		}
@@ -118,7 +122,7 @@ func merge[T any](map1, map2 map[string]map[string]T) map[string]map[string]T {
 			}
 		} else {
 			// If outerKey does not exist, add the entire inner map
-			result[outerKey] = make(map[string]T, len(innerMap))
+			result[outerKey] = make(map[RuleID]T, len(innerMap))
 			for innerKey, value := range innerMap {
 				result[outerKey][innerKey] = value
 			}
@@ -170,12 +174,12 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (Transforma
 	dataPointParser, _ := ottldatapoint.NewParser(mkFactory[ottldatapoint.TransformContext](), component.TelemetrySettings{Logger: logger})
 
 	transformations := Transformations{
-		resourceTransformsByRuleId:  map[string]map[string]resourceTransform{},
-		scopeTransformsByRuleId:     map[string]map[string]scopeTransform{},
-		logTransformsByRuleId:       map[string]map[string]logTransform{},
-		spanTransformsByRuleId:      map[string]map[string]spanTransform{},
-		metricTransformsByRuleId:    map[string]map[string]metricTransform{},
-		dataPointTransformsByRuleId: map[string]map[string]dataPointTransform{},
+		resourceTransformsByRuleId:  map[VendorID]map[RuleID]resourceTransform{},
+		scopeTransformsByRuleId:     map[VendorID]map[RuleID]scopeTransform{},
+		logTransformsByRuleId:       map[VendorID]map[RuleID]logTransform{},
+		spanTransformsByRuleId:      map[VendorID]map[RuleID]spanTransform{},
+		metricTransformsByRuleId:    map[VendorID]map[RuleID]metricTransform{},
+		dataPointTransformsByRuleId: map[VendorID]map[RuleID]dataPointTransform{},
 		logger:                      logger,
 	}
 
@@ -201,7 +205,7 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (Transforma
 			}
 
 			if _, exists := transformations.resourceTransformsByRuleId[statement.VendorId]; !exists {
-				transformations.resourceTransformsByRuleId[statement.VendorId] = make(map[string]resourceTransform)
+				transformations.resourceTransformsByRuleId[statement.VendorId] = make(map[RuleID]resourceTransform)
 			}
 			transformations.resourceTransformsByRuleId[statement.VendorId][cs.RuleId] = resourceTransform{
 				context:    cs.Context,
@@ -224,7 +228,7 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (Transforma
 			}
 
 			if _, exists := transformations.scopeTransformsByRuleId[statement.VendorId]; !exists {
-				transformations.scopeTransformsByRuleId[statement.VendorId] = make(map[string]scopeTransform)
+				transformations.scopeTransformsByRuleId[statement.VendorId] = make(map[RuleID]scopeTransform)
 			}
 			transformations.scopeTransformsByRuleId[statement.VendorId][cs.RuleId] = scopeTransform{
 				context:    cs.Context,
@@ -247,7 +251,7 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (Transforma
 			}
 
 			if _, exists := transformations.logTransformsByRuleId[statement.VendorId]; !exists {
-				transformations.logTransformsByRuleId[statement.VendorId] = make(map[string]logTransform)
+				transformations.logTransformsByRuleId[statement.VendorId] = make(map[RuleID]logTransform)
 			}
 
 			s := createSampler(cs.SamplingConfig)
@@ -282,7 +286,7 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (Transforma
 			}
 
 			if _, exists := transformations.spanTransformsByRuleId[statement.VendorId]; !exists {
-				transformations.spanTransformsByRuleId[statement.VendorId] = make(map[string]spanTransform)
+				transformations.spanTransformsByRuleId[statement.VendorId] = make(map[RuleID]spanTransform)
 			}
 			s := createSampler(cs.SamplingConfig)
 			if s != nil {
@@ -316,7 +320,7 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (Transforma
 			}
 
 			if _, exists := transformations.metricTransformsByRuleId[statement.VendorId]; !exists {
-				transformations.metricTransformsByRuleId[statement.VendorId] = make(map[string]metricTransform)
+				transformations.metricTransformsByRuleId[statement.VendorId] = make(map[RuleID]metricTransform)
 			}
 			transformations.metricTransformsByRuleId[statement.VendorId][cs.RuleId] = metricTransform{
 				context:    cs.Context,
@@ -339,7 +343,7 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (Transforma
 			}
 
 			if _, exists := transformations.dataPointTransformsByRuleId[statement.VendorId]; !exists {
-				transformations.dataPointTransformsByRuleId[statement.VendorId] = make(map[string]dataPointTransform)
+				transformations.dataPointTransformsByRuleId[statement.VendorId] = make(map[RuleID]dataPointTransform)
 			}
 			transformations.dataPointTransformsByRuleId[statement.VendorId][cs.RuleId] = dataPointTransform{
 				context:    cs.Context,
@@ -355,7 +359,7 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (Transforma
 	return transformations, errors
 }
 
-func evaluateTransform[T any](eval func(T), rulesByRuleIdByVendorId map[string]map[string]T, vendorId string, ruleIds pcommon.Slice) {
+func evaluateTransform[T any](eval func(T), rulesByRuleIdByVendorId map[VendorID]map[RuleID]T, vendorId VendorID, ruleIds pcommon.Slice) {
 	if ruleIds.Len() == 0 || vendorId == "" {
 		for _, transformsByRuleId := range rulesByRuleIdByVendorId {
 			for _, transform := range transformsByRuleId {
@@ -365,14 +369,14 @@ func evaluateTransform[T any](eval func(T), rulesByRuleIdByVendorId map[string]m
 	} else {
 		for i := 0; i < ruleIds.Len(); i++ {
 			ruleId := ruleIds.At(i)
-			if transform, ok := rulesByRuleIdByVendorId[vendorId][ruleId.Str()]; ok {
+			if transform, ok := rulesByRuleIdByVendorId[vendorId][RuleID(ruleId.Str())]; ok {
 				eval(transform)
 			}
 		}
 	}
 }
 
-func (t *Transformations) ExecuteResourceTransforms(transformCtx ottlresource.TransformContext, vendorId string, ruleIds pcommon.Slice) {
+func (t *Transformations) ExecuteResourceTransforms(transformCtx ottlresource.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
 	evaluateTransform[resourceTransform](func(resourceTransform resourceTransform) {
 		allConditionsTrue := true
 		for _, condition := range resourceTransform.conditions {
@@ -390,7 +394,7 @@ func (t *Transformations) ExecuteResourceTransforms(transformCtx ottlresource.Tr
 	}, t.resourceTransformsByRuleId, vendorId, ruleIds)
 }
 
-func (t *Transformations) ExecuteScopeTransforms(transformCtx ottlscope.TransformContext, vendorId string, ruleIds pcommon.Slice) {
+func (t *Transformations) ExecuteScopeTransforms(transformCtx ottlscope.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
 	evaluateTransform[scopeTransform](func(scopeTransform scopeTransform) {
 		allConditionsTrue := true
 		for _, condition := range scopeTransform.conditions {
@@ -408,7 +412,7 @@ func (t *Transformations) ExecuteScopeTransforms(transformCtx ottlscope.Transfor
 	}, t.scopeTransformsByRuleId, vendorId, ruleIds)
 }
 
-func (t *Transformations) ExecuteLogTransforms(transformCtx ottllog.TransformContext, vendorId string, ruleIds pcommon.Slice) {
+func (t *Transformations) ExecuteLogTransforms(transformCtx ottllog.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
 	evaluateTransform[logTransform](func(logTransform logTransform) {
 		allConditionsTrue := true
 		for _, condition := range logTransform.conditions {
@@ -448,7 +452,7 @@ func shouldFilter(rate int, randval float64) bool {
 	}
 }
 
-func (t *Transformations) ExecuteSpanTransforms(transformCtx ottlspan.TransformContext, vendorId string, ruleIds pcommon.Slice) {
+func (t *Transformations) ExecuteSpanTransforms(transformCtx ottlspan.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
 	evaluateTransform[spanTransform](func(spanTransform spanTransform) {
 		allConditionsTrue := true
 		for _, condition := range spanTransform.conditions {
@@ -479,7 +483,7 @@ func (t *Transformations) ExecuteSpanTransforms(transformCtx ottlspan.TransformC
 	}, t.spanTransformsByRuleId, vendorId, ruleIds)
 }
 
-func (t *Transformations) ExecuteMetricTransforms(transformCtx ottlmetric.TransformContext, vendorId string, ruleIds pcommon.Slice) {
+func (t *Transformations) ExecuteMetricTransforms(transformCtx ottlmetric.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
 	evaluateTransform[metricTransform](func(metricTransform metricTransform) {
 		allConditionsTrue := true
 		for _, condition := range metricTransform.conditions {
@@ -497,7 +501,7 @@ func (t *Transformations) ExecuteMetricTransforms(transformCtx ottlmetric.Transf
 	}, t.metricTransformsByRuleId, vendorId, ruleIds)
 }
 
-func (t *Transformations) ExecuteDataPointTransforms(transformCtx ottldatapoint.TransformContext, vendorId string, ruleIds pcommon.Slice) {
+func (t *Transformations) ExecuteDataPointTransforms(transformCtx ottldatapoint.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
 	evaluateTransform[dataPointTransform](func(dataPointTransform dataPointTransform) {
 		allConditionsTrue := true
 		for _, condition := range dataPointTransform.conditions {

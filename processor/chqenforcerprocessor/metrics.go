@@ -48,7 +48,7 @@ func (e *chqEnforcer) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (p
 		resourceRulesMatched := e.getSlice(rattr, translate.CardinalFieldRulesMatched)
 		if resourceRulesMatched.Len() > 0 {
 			transformCtx := ottlresource.NewTransformContext(rm.Resource(), rm)
-			e.metricTransformations.ExecuteResourceTransforms(transformCtx, e.vendor, resourceRulesMatched)
+			e.metricTransformations.ExecuteResourceTransforms(transformCtx, ottl.VendorID(e.vendor), resourceRulesMatched)
 		}
 		if e.sliceContains(rattr, translate.CardinalFieldDropForVendor, e.vendor) {
 			return true
@@ -59,7 +59,7 @@ func (e *chqEnforcer) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (p
 			scopeRulesMatched := e.getSlice(ilm.Scope().Attributes(), translate.CardinalFieldRulesMatched)
 			if scopeRulesMatched.Len() > 0 {
 				transformCtx := ottlscope.NewTransformContext(ilm.Scope(), rm.Resource(), rm)
-				e.metricTransformations.ExecuteScopeTransforms(transformCtx, e.vendor, scopeRulesMatched)
+				e.metricTransformations.ExecuteScopeTransforms(transformCtx, ottl.VendorID(e.vendor), scopeRulesMatched)
 			}
 
 			if e.sliceContains(ilm.Scope().Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
@@ -71,7 +71,7 @@ func (e *chqEnforcer) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (p
 				metricRulesMatched := e.getSlice(m.Metadata(), translate.CardinalFieldRulesMatched)
 				if metricRulesMatched.Len() > 0 {
 					transformCtx := ottlmetric.NewTransformContext(m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
-					e.metricTransformations.ExecuteMetricTransforms(transformCtx, e.vendor, metricRulesMatched)
+					e.metricTransformations.ExecuteMetricTransforms(transformCtx, ottl.VendorID(e.vendor), metricRulesMatched)
 				}
 
 				if e.sliceContains(m.Metadata(), translate.CardinalFieldDropForVendor, e.vendor) {
@@ -169,7 +169,7 @@ func (e *chqEnforcer) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (p
 func (e *chqEnforcer) checkDataPointRules(dp any, dataPointRulesMatched pcommon.Slice, m pmetric.Metric, ilm pmetric.ScopeMetrics, rm pmetric.ResourceMetrics) bool {
 	if dataPointRulesMatched.Len() > 0 {
 		transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
-		e.metricTransformations.ExecuteDataPointTransforms(transformCtx, e.vendor, dataPointRulesMatched)
+		e.metricTransformations.ExecuteDataPointTransforms(transformCtx, ottl.VendorID(e.vendor), dataPointRulesMatched)
 	}
 	return e.sliceContains(m.Metadata(), translate.CardinalFieldDropForVendor, e.vendor)
 }
@@ -311,7 +311,7 @@ func (e *chqEnforcer) updateMetricSamplingConfig(sc ottl.SamplerConfig) {
 	e.logger.Info("Updating metric sampling config", zap.String("vendor", e.vendor))
 
 	for _, decorator := range sc.Metrics.Enforcers {
-		if decorator.VendorId == e.vendor {
+		if decorator.VendorId == ottl.VendorID(e.vendor) {
 			transformations, err := ottl.ParseTransformations(decorator, e.logger)
 			if err != nil {
 				e.logger.Error("Error parsing log transformation", zap.Error(err))

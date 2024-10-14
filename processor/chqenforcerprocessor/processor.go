@@ -18,11 +18,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.opentelemetry.io/collector/pdata/pcommon"
 	"net/http"
 	"os"
 	"sync"
 	"time"
+
+	"go.opentelemetry.io/collector/pdata/pcommon"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"

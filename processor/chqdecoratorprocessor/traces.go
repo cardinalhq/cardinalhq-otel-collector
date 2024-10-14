@@ -16,12 +16,13 @@ package chqdecoratorprocessor
 
 import (
 	"context"
+	"strings"
+	"time"
+
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlspan"
 	"go.opentelemetry.io/collector/pdata/pcommon"
-	"strings"
-	"time"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/cespare/xxhash/v2"
@@ -94,21 +95,13 @@ func getSpanFingerprint(sr ptrace.Span, httpResource string, serviceName string)
 	attrs := sr.Attributes()
 	var fingerprintAttributes []string
 
-	// Add serviceName
 	fingerprintAttributes = append(fingerprintAttributes, serviceName)
-
-	// Add spanName
 	if spanNameAttr, exists := attrs.Get(translate.CardinalFieldSpanName); exists {
 		fingerprintAttributes = append(fingerprintAttributes, spanNameAttr.Str())
 	}
-
-	// Add spanKind
 	fingerprintAttributes = append(fingerprintAttributes, sr.Kind().String())
-
-	// Add resource
 	fingerprintAttributes = append(fingerprintAttributes, httpResource)
 
-	// Compute hash on parts
 	return int64(xxhash.Sum64String(strings.Join(fingerprintAttributes, "##")))
 }
 
@@ -160,7 +153,6 @@ func (c *chqDecorator) decorateTraces(td ptrace.Traces) (ptrace.Traces, error) {
 				span.Attributes().PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
 				span.Attributes().PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 
-				// Evaluate scope transformations
 				spanCtx := ottlspan.NewTransformContext(span, ils.Scope(), rs.Resource(), ils, rs)
 				transformations.ExecuteSpanTransforms(spanCtx, "", emptySlice)
 			}
@@ -178,8 +170,8 @@ func (c *chqDecorator) updateTracesSampling(sc ottl.SamplerConfig) {
 		transformations, err := ottl.ParseTransformations(decorator, c.logger)
 		if err != nil {
 			c.logger.Error("Error parsing traces transformation", zap.Error(err))
-		} else {
-			c.traceTransformations = ottl.MergeWith(c.traceTransformations, transformations)
+			continue
 		}
+		c.traceTransformations = ottl.MergeWith(c.traceTransformations, transformations)
 	}
 }

@@ -103,13 +103,43 @@ func MergeWith(this Transformations, other Transformations) Transformations {
 		}
 	}
 	return Transformations{
-		resourceTransformsByRuleId:  this.resourceTransformsByRuleId,
-		scopeTransformsByRuleId:     this.scopeTransformsByRuleId,
-		logTransformsByRuleId:       this.logTransformsByRuleId,
-		spanTransformsByRuleId:      this.spanTransformsByRuleId,
-		metricTransformsByRuleId:    this.metricTransformsByRuleId,
-		dataPointTransformsByRuleId: this.dataPointTransformsByRuleId,
+		resourceTransformsByRuleId:  merge(this.resourceTransformsByRuleId, other.resourceTransformsByRuleId),
+		scopeTransformsByRuleId:     merge(this.scopeTransformsByRuleId, other.scopeTransformsByRuleId),
+		logTransformsByRuleId:       merge(this.logTransformsByRuleId, other.logTransformsByRuleId),
+		spanTransformsByRuleId:      merge(this.spanTransformsByRuleId, other.spanTransformsByRuleId),
+		metricTransformsByRuleId:    merge(this.metricTransformsByRuleId, other.metricTransformsByRuleId),
+		dataPointTransformsByRuleId: merge(this.dataPointTransformsByRuleId, other.dataPointTransformsByRuleId),
 	}
+}
+
+func merge[T any](map1, map2 map[string]map[string]T) map[string]map[string]T {
+	result := make(map[string]map[string]T, len(map1))
+
+	// Copy all entries from map1
+	for outerKey, innerMap := range map1 {
+		result[outerKey] = make(map[string]T, len(innerMap))
+		for innerKey, value := range innerMap {
+			result[outerKey][innerKey] = value
+		}
+	}
+
+	// Merge map2 into the result
+	for outerKey, innerMap := range map2 {
+		// If outerKey already exists, merge the inner maps
+		if _, exists := result[outerKey]; exists {
+			for innerKey, value := range innerMap {
+				result[outerKey][innerKey] = value
+			}
+		} else {
+			// If outerKey does not exist, add the entire inner map
+			result[outerKey] = make(map[string]T, len(innerMap))
+			for innerKey, value := range innerMap {
+				result[outerKey][innerKey] = value
+			}
+		}
+	}
+
+	return result
 }
 
 func mkFactory[T any]() map[string]ottl.Factory[T] {
@@ -146,12 +176,12 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (Transforma
 	var errors error
 
 	contextStatements := statement.Statements
-	resourceParser, _ := ottlresource.NewParser(mkFactory[ottlresource.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
-	scopeParser, _ := ottlscope.NewParser(mkFactory[ottlscope.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
-	logParser, _ := ottllog.NewParser(mkFactory[ottllog.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
-	spanParser, _ := ottlspan.NewParser(mkFactory[ottlspan.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
-	metricParser, _ := ottlmetric.NewParser(mkFactory[ottlmetric.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
-	dataPointParser, _ := ottldatapoint.NewParser(mkFactory[ottldatapoint.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
+	resourceParser, _ := ottlresource.NewParser(mkFactory[ottlresource.TransformContext](), component.TelemetrySettings{Logger: logger})
+	scopeParser, _ := ottlscope.NewParser(mkFactory[ottlscope.TransformContext](), component.TelemetrySettings{Logger: logger})
+	logParser, _ := ottllog.NewParser(mkFactory[ottllog.TransformContext](), component.TelemetrySettings{Logger: logger})
+	spanParser, _ := ottlspan.NewParser(mkFactory[ottlspan.TransformContext](), component.TelemetrySettings{Logger: logger})
+	metricParser, _ := ottlmetric.NewParser(mkFactory[ottlmetric.TransformContext](), component.TelemetrySettings{Logger: logger})
+	dataPointParser, _ := ottldatapoint.NewParser(mkFactory[ottldatapoint.TransformContext](), component.TelemetrySettings{Logger: logger})
 
 	transformations := Transformations{
 		resourceTransformsByRuleId:  map[string]map[string]resourceTransform{},
@@ -235,11 +265,13 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (Transforma
 			}
 
 			s := createSampler(cs.SamplingConfig)
-			err = s.Start()
-			if err != nil {
-				logger.Error("Error starting sampler", zap.Error(err))
-				errors = multierr.Append(errors, err)
-				continue
+			if s != nil {
+				err = s.Start()
+				if err != nil {
+					logger.Error("Error starting sampler", zap.Error(err))
+					errors = multierr.Append(errors, err)
+					continue
+				}
 			}
 
 			transformations.logTransformsByRuleId[statement.VendorId][cs.RuleId] = logTransform{

@@ -35,8 +35,10 @@ import (
 func createSpansProcessorWithTransformations(t *testing.T) *chqDecorator {
 	// Mock processor settings and config
 
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err)
 	processorSettings := processor.Settings{
-		TelemetrySettings: component.TelemetrySettings{Logger: zap.NewNop()},
+		TelemetrySettings: component.TelemetrySettings{Logger: logger},
 	}
 	config := &Config{
 		TracesConfig: TracesConfig{
@@ -106,7 +108,7 @@ func TestSpansProcessor_Transformations(t *testing.T) {
 
 	// Process the traces with the spansProcessor
 	processedTraces, err := sp.processTraces(context.Background(), td)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify the resource-level transformation
 	rs := processedTraces.ResourceSpans().At(0)

@@ -376,7 +376,7 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (Transforma
 	return transformations, errors
 }
 
-func evaluateTransform[T any](counter metric.Int64Counter, rulesByRuleIdByVendorId map[VendorID]map[RuleID]T, vendorId VendorID, ruleIds pcommon.Slice, eval func(metric.Int64Counter, T)) {
+func evaluateTransform[T any](counter DeferrableCounter, rulesByRuleIdByVendorId map[VendorID]map[RuleID]T, vendorId VendorID, ruleIds pcommon.Slice, eval func(DeferrableCounter, T)) {
 	if ruleIds.Len() == 0 || vendorId == "" {
 		for _, transformsByRuleId := range rulesByRuleIdByVendorId {
 			for _, transform := range transformsByRuleId {
@@ -393,27 +393,24 @@ func evaluateTransform[T any](counter metric.Int64Counter, rulesByRuleIdByVendor
 	}
 }
 
-func (t *Transformations) ExecuteResourceTransforms(counter metric.Int64Counter, transformCtx ottlresource.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
-	vid := string(vendorId)
-	if vid == "" {
-		vid = "_unset"
+func usableVendorId(vendorId VendorID) string {
+	if vendorId == "" {
+		return "_unset"
 	}
-	attrset := attribute.NewSet(attribute.String("signal", "scope"), attribute.String("vendor_id", vid))
-	if counter != nil {
-		counter.Add(context.Background(), 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("phase", "pre-resource")))
-	}
-	evaluateTransform[resourceTransform](counter, t.resourceTransformsByRuleId, vendorId, ruleIds, func(counter metric.Int64Counter, resourceTransform resourceTransform) {
+	return string(vendorId)
+}
+
+func (t *Transformations) ExecuteResourceTransforms(counter DeferrableCounter, transformCtx ottlresource.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
+	attrset := attribute.NewSet(attribute.String("context", "resource"), attribute.String("vendor_id", usableVendorId(vendorId)))
+	CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("phase", "resource")))
+	evaluateTransform[resourceTransform](counter, t.resourceTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, resourceTransform resourceTransform) {
 		allConditionsTrue := true
-		if counter != nil {
-			counter.Add(context.Background(), 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition")))
-		}
+		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition")))
 		for _, condition := range resourceTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
-		if counter != nil {
-			counter.Add(context.Background(), 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements")))
-		}
+		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements")))
 		if allConditionsTrue {
 			for _, statement := range resourceTransform.statements {
 				_, _, err := statement.Execute(context.Background(), transformCtx)
@@ -425,27 +422,17 @@ func (t *Transformations) ExecuteResourceTransforms(counter metric.Int64Counter,
 	})
 }
 
-func (t *Transformations) ExecuteScopeTransforms(counter metric.Int64Counter, transformCtx ottlscope.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
-	vid := string(vendorId)
-	if vid == "" {
-		vid = "_unset"
-	}
-	attrset := attribute.NewSet(attribute.String("signal", "scope"), attribute.String("vendor_id", vid))
-	if counter != nil {
-		counter.Add(context.Background(), 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("phase", "pre-scope")))
-	}
-	evaluateTransform[scopeTransform](counter, t.scopeTransformsByRuleId, vendorId, ruleIds, func(counter metric.Int64Counter, scopeTransform scopeTransform) {
+func (t *Transformations) ExecuteScopeTransforms(counter DeferrableCounter, transformCtx ottlscope.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
+	attrset := attribute.NewSet(attribute.String("context", "scope"), attribute.String("vendor_id", usableVendorId(vendorId)))
+	CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("phase", "scope")))
+	evaluateTransform[scopeTransform](counter, t.scopeTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, scopeTransform scopeTransform) {
 		allConditionsTrue := true
-		if counter != nil {
-			counter.Add(context.Background(), 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition")))
-		}
+		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition")))
 		for _, condition := range scopeTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
-		if counter != nil {
-			counter.Add(context.Background(), 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements")))
-		}
+		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements")))
 		if allConditionsTrue {
 			for _, statement := range scopeTransform.statements {
 				_, _, err := statement.Execute(context.Background(), transformCtx)
@@ -457,27 +444,17 @@ func (t *Transformations) ExecuteScopeTransforms(counter metric.Int64Counter, tr
 	})
 }
 
-func (t *Transformations) ExecuteLogTransforms(counter metric.Int64Counter, transformCtx ottllog.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
-	vid := string(vendorId)
-	if vid == "" {
-		vid = "_unset"
-	}
-	attrset := attribute.NewSet(attribute.String("signal", "log"), attribute.String("vendor_id", vid))
-	if counter != nil {
-		counter.Add(context.Background(), 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("phase", "pre-log")))
-	}
-	evaluateTransform[logTransform](counter, t.logTransformsByRuleId, vendorId, ruleIds, func(counter metric.Int64Counter, logTransform logTransform) {
+func (t *Transformations) ExecuteLogTransforms(counter DeferrableCounter, transformCtx ottllog.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
+	attrset := attribute.NewSet(attribute.String("context", "log"), attribute.String("vendor_id", usableVendorId(vendorId)))
+	CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("phase", "log")))
+	evaluateTransform[logTransform](counter, t.logTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, logTransform logTransform) {
 		allConditionsTrue := true
-		if counter != nil {
-			counter.Add(context.Background(), 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition")))
-		}
+		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition")))
 		for _, condition := range logTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
-		if counter != nil {
-			counter.Add(context.Background(), 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-sampler")))
-		}
+		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-sampler")))
 		if allConditionsTrue && logTransform.sampler != nil {
 			serviceName := GetServiceName(transformCtx.GetResource())
 			fingerprint, exists := transformCtx.GetLogRecord().Attributes().Get(translate.CardinalFieldFingerprint)
@@ -488,9 +465,7 @@ func (t *Transformations) ExecuteLogTransforms(counter metric.Int64Counter, tran
 			sampleRate := logTransform.sampler.GetSampleRate(key)
 			allConditionsTrue = allConditionsTrue && shouldFilter(sampleRate, rand.Float64())
 		}
-		if counter != nil {
-			counter.Add(context.Background(), 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements")))
-		}
+		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements")))
 		if allConditionsTrue {
 			for _, statement := range logTransform.statements {
 				_, _, err := statement.Execute(context.Background(), transformCtx)
@@ -513,8 +488,8 @@ func shouldFilter(rate int, randval float64) bool {
 	}
 }
 
-func (t *Transformations) ExecuteSpanTransforms(counter metric.Int64Counter, transformCtx ottlspan.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
-	evaluateTransform[spanTransform](counter, t.spanTransformsByRuleId, vendorId, ruleIds, func(counter metric.Int64Counter, spanTransform spanTransform) {
+func (t *Transformations) ExecuteSpanTransforms(counter DeferrableCounter, transformCtx ottlspan.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
+	evaluateTransform[spanTransform](counter, t.spanTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, spanTransform spanTransform) {
 		allConditionsTrue := true
 		for _, condition := range spanTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
@@ -544,8 +519,8 @@ func (t *Transformations) ExecuteSpanTransforms(counter metric.Int64Counter, tra
 	})
 }
 
-func (t *Transformations) ExecuteMetricTransforms(counter metric.Int64Counter, transformCtx ottlmetric.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
-	evaluateTransform[metricTransform](counter, t.metricTransformsByRuleId, vendorId, ruleIds, func(counter metric.Int64Counter, metricTransform metricTransform) {
+func (t *Transformations) ExecuteMetricTransforms(counter DeferrableCounter, transformCtx ottlmetric.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
+	evaluateTransform[metricTransform](counter, t.metricTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, metricTransform metricTransform) {
 		allConditionsTrue := true
 		for _, condition := range metricTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
@@ -562,8 +537,8 @@ func (t *Transformations) ExecuteMetricTransforms(counter metric.Int64Counter, t
 	})
 }
 
-func (t *Transformations) ExecuteDataPointTransforms(counter metric.Int64Counter, transformCtx ottldatapoint.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
-	evaluateTransform[dataPointTransform](counter, t.dataPointTransformsByRuleId, vendorId, ruleIds, func(counter metric.Int64Counter, dataPointTransform dataPointTransform) {
+func (t *Transformations) ExecuteDataPointTransforms(counter DeferrableCounter, transformCtx ottldatapoint.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
+	evaluateTransform[dataPointTransform](counter, t.dataPointTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, dataPointTransform dataPointTransform) {
 		allConditionsTrue := true
 		for _, condition := range dataPointTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)

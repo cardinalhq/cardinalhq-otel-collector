@@ -15,14 +15,14 @@
 package ottl
 
 import (
+	"testing"
+
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
-	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/otel/metric"
 	embeddedmetric "go.opentelemetry.io/otel/metric/embedded"
 	noopmetric "go.opentelemetry.io/otel/metric/noop"
 	"go.uber.org/zap"
-	"testing"
 
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/pdata/plog"
@@ -86,14 +86,7 @@ func TestFilterRule_ResourceConditionLog(t *testing.T) {
 
 	transformCtx := ottllog.NewTransformContext(ll, sl.Scope(), rl.Resource(), sl, rl)
 
-	set := component.TelemetrySettings{
-		MeterProvider: mockMeterProvider{},
-	}
-
-	counter, err := set.MeterProvider.Meter("testCounter").Int64Counter("testCounter", metric.WithDescription("testCounter"), metric.WithUnit("1"))
-	require.NoError(t, err)
-
-	transformations.ExecuteLogTransforms(counter, transformCtx, "", pcommon.NewSlice())
+	transformations.ExecuteLogTransforms(nil, transformCtx, "", pcommon.NewSlice())
 
 	dropped, exists := ll.Attributes().Get("dropped")
 	require.True(t, exists)

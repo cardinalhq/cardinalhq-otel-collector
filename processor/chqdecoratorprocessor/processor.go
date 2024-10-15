@@ -31,6 +31,7 @@ import (
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/processor"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
 )
@@ -63,7 +64,7 @@ type chqDecorator struct {
 	estimatorWindowSize int
 	estimatorInterval   int64
 
-	ottlProcessed metric.Int64Counter
+	ottlProcessed ottl.DeferrableCounter
 }
 
 func newCHQDecorator(config *Config, ttype string, set processor.Settings) (*chqDecorator, error) {
@@ -77,10 +78,19 @@ func newCHQDecorator(config *Config, ttype string, set processor.Settings) (*chq
 		podName:            os.Getenv("POD_NAME"),
 	}
 
-	counter, err := metadata.Meter(set.TelemetrySettings).Int64Counter(
+	attrset := attribute.NewSet(
+		attribute.String("processor", "chqdecorator"),
+		attribute.String("signal", ttype),
+	)
+	counter, err := newTransformCounter(metadata.Meter(set.TelemetrySettings),
 		"ottl_processed",
-		metric.WithDescription("The results of OTTL processing"),
-		metric.WithUnit("1"),
+		[]metric.Int64CounterOption{
+			metric.WithDescription("The results of OTTL processing"),
+			metric.WithUnit("1"),
+		},
+		[]metric.AddOption{
+			metric.WithAttributeSet(attrset),
+		},
 	)
 	if err != nil {
 		return nil, err

@@ -55,7 +55,7 @@ func NewConfigManagerImpl(logger *zap.Logger, CheckInterval time.Duration, fr fi
 	}
 	return &ConfigManagerImpl{
 		done:                  make(chan struct{}),
-		logger:                logger.Named("sampler_config_manager"),
+		logger:                logger,
 		callbacks:             map[int]ConfigUpdateCallbackFunc{},
 		callbackNames:         map[int]string{},
 		registerCallbackChan:  make(chan registerRequest),

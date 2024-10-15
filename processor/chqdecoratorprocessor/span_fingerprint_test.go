@@ -24,6 +24,7 @@ import (
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor"
+	"go.opentelemetry.io/otel/metric/noop"
 	semconv "go.opentelemetry.io/otel/semconv/v1.22.0"
 )
 
@@ -40,7 +41,10 @@ func TestSpansProcessor_FingerprintWithHttpResource(t *testing.T) {
 		},
 	}
 	processorSettings := processor.Settings{
-		TelemetrySettings: component.TelemetrySettings{Logger: zap.NewNop()},
+		TelemetrySettings: component.TelemetrySettings{
+			Logger:        zap.NewNop(),
+			MeterProvider: noop.NewMeterProvider(),
+		},
 	}
 	sp, err := newCHQDecorator(config, "traces", processorSettings)
 	assert.NoError(t, err)

@@ -118,7 +118,7 @@ func (c *chqDecorator) decorateTraces(td ptrace.Traces) (ptrace.Traces, error) {
 		rs := rss.At(i)
 		// Evaluate resource transformations
 		resourceCtx := ottlresource.NewTransformContext(rs.Resource(), rs)
-		transformations.ExecuteResourceTransforms(resourceCtx, "", emptySlice)
+		transformations.ExecuteResourceTransforms(c.ottlProcessed, resourceCtx, "", emptySlice)
 
 		snk := string(semconv.ServiceNameKey)
 		serviceName, serviceNameExists := rs.Resource().Attributes().Get(snk)
@@ -129,7 +129,7 @@ func (c *chqDecorator) decorateTraces(td ptrace.Traces) (ptrace.Traces, error) {
 			ils := ilss.At(j)
 			// Evaluate scope transformations
 			scopeCtx := ottlscope.NewTransformContext(ils.Scope(), rs.Resource(), rs)
-			transformations.ExecuteScopeTransforms(scopeCtx, "", emptySlice)
+			transformations.ExecuteScopeTransforms(c.ottlProcessed, scopeCtx, "", emptySlice)
 
 			spans := ils.Spans()
 			for k := 0; k < spans.Len(); k++ {
@@ -154,7 +154,7 @@ func (c *chqDecorator) decorateTraces(td ptrace.Traces) (ptrace.Traces, error) {
 				span.Attributes().PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 
 				spanCtx := ottlspan.NewTransformContext(span, ils.Scope(), rs.Resource(), ils, rs)
-				transformations.ExecuteSpanTransforms(spanCtx, "", emptySlice)
+				transformations.ExecuteSpanTransforms(c.ottlProcessed, spanCtx, "", emptySlice)
 			}
 		}
 	}

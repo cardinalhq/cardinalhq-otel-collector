@@ -39,13 +39,13 @@ func (c *chqDecorator) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, 
 		rl := ld.ResourceLogs().At(i)
 		// Evaluate resource transformations
 		resourceCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
-		transformations.ExecuteResourceTransforms(resourceCtx, "", emptySlice)
+		transformations.ExecuteResourceTransforms(c.ottlProcessed, resourceCtx, "", emptySlice)
 
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
 			sl := rl.ScopeLogs().At(j)
 			// Evaluate scope transformations
 			scopeCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), rl)
-			transformations.ExecuteScopeTransforms(scopeCtx, "", emptySlice)
+			transformations.ExecuteScopeTransforms(c.ottlProcessed, scopeCtx, "", emptySlice)
 
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				log := sl.LogRecords().At(k)
@@ -63,7 +63,7 @@ func (c *chqDecorator) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, 
 
 				// Evaluate log scope transformations
 				logCtx := ottllog.NewTransformContext(log, sl.Scope(), rl.Resource(), sl, rl)
-				transformations.ExecuteLogTransforms(logCtx, "", emptySlice)
+				transformations.ExecuteLogTransforms(c.ottlProcessed, logCtx, "", emptySlice)
 			}
 		}
 	}

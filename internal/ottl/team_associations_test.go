@@ -15,12 +15,13 @@
 package ottl
 
 import (
+	"testing"
+
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
-	"testing"
 )
 
 func TestTeamAssociations(t *testing.T) {
@@ -47,7 +48,7 @@ func TestTeamAssociations(t *testing.T) {
 	rm1 := pmetric.NewResourceMetrics()
 	rm1.Resource().Attributes().PutStr("service.name", "service1")
 	tc := ottlresource.NewTransformContext(rm1.Resource(), rm1)
-	transformations.ExecuteResourceTransforms(tc, "vendorId", pcommon.NewSlice())
+	transformations.ExecuteResourceTransforms(nil, tc, "vendorId", pcommon.NewSlice())
 
 	// check if rm1 attributes have been updated with team = "cardinal"
 	team, found := rm1.Resource().Attributes().Get("team")

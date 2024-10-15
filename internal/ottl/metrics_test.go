@@ -15,11 +15,12 @@
 package ottl
 
 import (
+	"testing"
+	"time"
+
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
-	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -289,8 +290,8 @@ func TestMatchAndAdd_AverageAfterDroppingDimension(t *testing.T) {
 	// Apply transformations to both data points
 	tc1 := ottldatapoint.NewTransformContext(dp1, metric, scopeMetrics.Metrics(), scopeMetrics.Scope(), rm.Resource(), scopeMetrics, rm)
 	tc2 := ottldatapoint.NewTransformContext(dp2, metric, scopeMetrics.Metrics(), scopeMetrics.Scope(), rm.Resource(), scopeMetrics, rm)
-	transformations.ExecuteDataPointTransforms(tc1, "vendorId", pcommon.NewSlice())
-	transformations.ExecuteDataPointTransforms(tc2, "vendorId", pcommon.NewSlice())
+	transformations.ExecuteDataPointTransforms(nil, tc1, "vendorId", pcommon.NewSlice())
+	transformations.ExecuteDataPointTransforms(nil, tc2, "vendorId", pcommon.NewSlice())
 
 	// At this point, both data points should have their "movieId" attribute dropped.
 

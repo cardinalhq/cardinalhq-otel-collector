@@ -21,6 +21,7 @@ import (
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/processor"
+	"go.opentelemetry.io/otel/metric/noop"
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
@@ -35,10 +36,11 @@ import (
 func createSpansProcessorWithTransformations(t *testing.T) *chqDecorator {
 	// Mock processor settings and config
 
-	logger, err := zap.NewDevelopment()
-	require.NoError(t, err)
 	processorSettings := processor.Settings{
-		TelemetrySettings: component.TelemetrySettings{Logger: logger},
+		TelemetrySettings: component.TelemetrySettings{
+			Logger:        zap.NewNop(),
+			MeterProvider: noop.NewMeterProvider(),
+		},
 	}
 	config := &Config{
 		TracesConfig: TracesConfig{

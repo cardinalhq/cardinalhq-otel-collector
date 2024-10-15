@@ -22,6 +22,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/fingerprinter"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/metadata"
 
 	"net/http"
 	"os"
@@ -31,6 +32,7 @@ import (
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/processor"
+	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
 )
 
@@ -61,6 +63,8 @@ type chqDecorator struct {
 
 	estimatorWindowSize int
 	estimatorInterval   int64
+
+	ottlProcessed metric.Int64Counter
 }
 
 func newCHQDecorator(config *Config, ttype string, set processor.Settings) (*chqDecorator, error) {
@@ -73,6 +77,16 @@ func newCHQDecorator(config *Config, ttype string, set processor.Settings) (*chq
 		logger:             set.Logger,
 		podName:            os.Getenv("POD_NAME"),
 	}
+
+	counter, err := metadata.Meter(set.TelemetrySettings).Int64Counter(
+		"ottl_processed",
+		metric.WithDescription("The results of OTTL processing"),
+		metric.WithUnit("1"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	decorator.ottlProcessed = counter
 
 	switch ttype {
 	case "logs":

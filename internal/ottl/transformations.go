@@ -31,6 +31,8 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/ottlfuncs"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/pdata/pcommon"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	semconv "go.opentelemetry.io/otel/semconv/v1.22.0"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
@@ -374,25 +376,25 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (Transforma
 	return transformations, errors
 }
 
-func evaluateTransform[T any](eval func(T), rulesByRuleIdByVendorId map[VendorID]map[RuleID]T, vendorId VendorID, ruleIds pcommon.Slice) {
+func evaluateTransform[T any](counter metric.Int64Counter, rulesByRuleIdByVendorId map[VendorID]map[RuleID]T, vendorId VendorID, ruleIds pcommon.Slice, eval func(metric.Int64Counter, T)) {
 	if ruleIds.Len() == 0 || vendorId == "" {
 		for _, transformsByRuleId := range rulesByRuleIdByVendorId {
 			for _, transform := range transformsByRuleId {
-				eval(transform)
+				eval(counter, transform)
 			}
 		}
 	} else {
 		for i := 0; i < ruleIds.Len(); i++ {
 			ruleId := ruleIds.At(i)
 			if transform, ok := rulesByRuleIdByVendorId[vendorId][RuleID(ruleId.Str())]; ok {
-				eval(transform)
+				eval(counter, transform)
 			}
 		}
 	}
 }
 
-func (t *Transformations) ExecuteResourceTransforms(transformCtx ottlresource.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
-	evaluateTransform[resourceTransform](func(resourceTransform resourceTransform) {
+func (t *Transformations) ExecuteResourceTransforms(counter metric.Int64Counter, transformCtx ottlresource.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
+	evaluateTransform[resourceTransform](counter, t.resourceTransformsByRuleId, vendorId, ruleIds, func(counter metric.Int64Counter, resourceTransform resourceTransform) {
 		allConditionsTrue := true
 		for _, condition := range resourceTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
@@ -406,11 +408,11 @@ func (t *Transformations) ExecuteResourceTransforms(transformCtx ottlresource.Tr
 				}
 			}
 		}
-	}, t.resourceTransformsByRuleId, vendorId, ruleIds)
+	})
 }
 
-func (t *Transformations) ExecuteScopeTransforms(transformCtx ottlscope.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
-	evaluateTransform[scopeTransform](func(scopeTransform scopeTransform) {
+func (t *Transformations) ExecuteScopeTransforms(counter metric.Int64Counter, transformCtx ottlscope.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
+	evaluateTransform[scopeTransform](counter, t.scopeTransformsByRuleId, vendorId, ruleIds, func(counter metric.Int64Counter, scopeTransform scopeTransform) {
 		allConditionsTrue := true
 		for _, condition := range scopeTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
@@ -424,18 +426,28 @@ func (t *Transformations) ExecuteScopeTransforms(transformCtx ottlscope.Transfor
 				}
 			}
 		}
-	}, t.scopeTransformsByRuleId, vendorId, ruleIds)
+	})
 }
 
-func (t *Transformations) ExecuteLogTransforms(transformCtx ottllog.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
-	evaluateTransform[logTransform](func(logTransform logTransform) {
+func (t *Transformations) ExecuteLogTransforms(counter metric.Int64Counter, transformCtx ottllog.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
+	vid := string(vendorId)
+	if vid == "" {
+		vid = "_unset"
+	}
+	attrset := attribute.NewSet(attribute.String("signal", "log"), attribute.String("vendor_id", vid))
+	evaluateTransform[logTransform](counter, t.logTransformsByRuleId, vendorId, ruleIds, func(counter metric.Int64Counter, logTransform logTransform) {
 		allConditionsTrue := true
+		if counter != nil {
+			counter.Add(context.Background(), 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition")))
+		}
 		for _, condition := range logTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
+		if counter != nil {
+			counter.Add(context.Background(), 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-sampler")))
+		}
 		if allConditionsTrue && logTransform.sampler != nil {
-			randval := rand.Float64()
 			serviceName := GetServiceName(transformCtx.GetResource())
 			fingerprint, exists := transformCtx.GetLogRecord().Attributes().Get(translate.CardinalFieldFingerprint)
 			if !exists {
@@ -443,7 +455,10 @@ func (t *Transformations) ExecuteLogTransforms(transformCtx ottllog.TransformCon
 			}
 			key := fmt.Sprintf("%s:%s", serviceName, fingerprint.AsString())
 			sampleRate := logTransform.sampler.GetSampleRate(key)
-			allConditionsTrue = allConditionsTrue && shouldFilter(sampleRate, randval)
+			allConditionsTrue = allConditionsTrue && shouldFilter(sampleRate, rand.Float64())
+		}
+		if counter != nil {
+			counter.Add(context.Background(), 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements")))
 		}
 		if allConditionsTrue {
 			for _, statement := range logTransform.statements {
@@ -453,7 +468,7 @@ func (t *Transformations) ExecuteLogTransforms(transformCtx ottllog.TransformCon
 				}
 			}
 		}
-	}, t.logTransformsByRuleId, vendorId, ruleIds)
+	})
 }
 
 func shouldFilter(rate int, randval float64) bool {
@@ -467,8 +482,8 @@ func shouldFilter(rate int, randval float64) bool {
 	}
 }
 
-func (t *Transformations) ExecuteSpanTransforms(transformCtx ottlspan.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
-	evaluateTransform[spanTransform](func(spanTransform spanTransform) {
+func (t *Transformations) ExecuteSpanTransforms(counter metric.Int64Counter, transformCtx ottlspan.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
+	evaluateTransform[spanTransform](counter, t.spanTransformsByRuleId, vendorId, ruleIds, func(counter metric.Int64Counter, spanTransform spanTransform) {
 		allConditionsTrue := true
 		for _, condition := range spanTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
@@ -495,11 +510,11 @@ func (t *Transformations) ExecuteSpanTransforms(transformCtx ottlspan.TransformC
 				}
 			}
 		}
-	}, t.spanTransformsByRuleId, vendorId, ruleIds)
+	})
 }
 
-func (t *Transformations) ExecuteMetricTransforms(transformCtx ottlmetric.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
-	evaluateTransform[metricTransform](func(metricTransform metricTransform) {
+func (t *Transformations) ExecuteMetricTransforms(counter metric.Int64Counter, transformCtx ottlmetric.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
+	evaluateTransform[metricTransform](counter, t.metricTransformsByRuleId, vendorId, ruleIds, func(counter metric.Int64Counter, metricTransform metricTransform) {
 		allConditionsTrue := true
 		for _, condition := range metricTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
@@ -513,11 +528,11 @@ func (t *Transformations) ExecuteMetricTransforms(transformCtx ottlmetric.Transf
 				}
 			}
 		}
-	}, t.metricTransformsByRuleId, vendorId, ruleIds)
+	})
 }
 
-func (t *Transformations) ExecuteDataPointTransforms(transformCtx ottldatapoint.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
-	evaluateTransform[dataPointTransform](func(dataPointTransform dataPointTransform) {
+func (t *Transformations) ExecuteDataPointTransforms(counter metric.Int64Counter, transformCtx ottldatapoint.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
+	evaluateTransform[dataPointTransform](counter, t.dataPointTransformsByRuleId, vendorId, ruleIds, func(counter metric.Int64Counter, dataPointTransform dataPointTransform) {
 		allConditionsTrue := true
 		for _, condition := range dataPointTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
@@ -531,5 +546,5 @@ func (t *Transformations) ExecuteDataPointTransforms(transformCtx ottldatapoint.
 				}
 			}
 		}
-	}, t.dataPointTransformsByRuleId, vendorId, ruleIds)
+	})
 }

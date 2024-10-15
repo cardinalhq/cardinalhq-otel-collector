@@ -86,7 +86,7 @@ func (c *chqDecorator) updateLogsSampling(sc ottl.SamplerConfig) {
 		}
 	}
 
-	oldTransformation := c.traceTransformations
-	c.traceTransformations = newTransformations
+	oldTransformation := c.logTransformations
+	c.logTransformations = newTransformations
 	oldTransformation.Stop()
 }

@@ -79,7 +79,7 @@ func newCHQDecorator(config *Config, ttype string, set processor.Settings) (*chq
 	}
 
 	attrset := attribute.NewSet(
-		attribute.String("processor", "chqdecorator"),
+		attribute.String("processor", set.ID.String()),
 		attribute.String("signal", ttype),
 	)
 	counter, err := newTransformCounter(metadata.Meter(set.TelemetrySettings),
@@ -102,18 +102,18 @@ func newCHQDecorator(config *Config, ttype string, set processor.Settings) (*chq
 		decorator.logger.Info("sending log statistics", zap.Duration("interval", config.Statistics.Interval))
 		// Config Validation has already happened in Config.Validate, so we can safely ignore the error
 		decorator.logFingerprinter = fingerprinter.NewFingerprinter()
-		decorator.logTransformations = ottl.Transformations{}
+		decorator.logTransformations = ottl.NewTransformations(set.Logger)
 
 	case "traces":
 		decorator.logger.Info("sending span statistics", zap.Duration("interval", config.Statistics.Interval))
 		decorator.traceFingerprinter = fingerprinter.NewFingerprinter()
 		decorator.estimators = make(map[uint64]*SlidingEstimatorStat)
-		decorator.traceTransformations = ottl.Transformations{}
+		decorator.traceTransformations = ottl.NewTransformations(set.Logger)
 		decorator.estimatorWindowSize = config.TracesConfig.EstimatorWindowSize
 		decorator.estimatorInterval = config.TracesConfig.EstimatorInterval
 
 	case "metrics":
-		decorator.metricsTransformations = ottl.Transformations{}
+		decorator.metricsTransformations = ottl.NewTransformations(set.Logger)
 
 	default:
 		return nil, errors.New("unknown decorator type " + ttype)

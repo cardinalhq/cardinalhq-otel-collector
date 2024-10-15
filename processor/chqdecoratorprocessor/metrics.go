@@ -122,7 +122,7 @@ func (c *chqDecorator) processMetrics(ctx context.Context, md pmetric.Metrics) (
 func (c *chqDecorator) updateMetricsTransformation(sc ottl.SamplerConfig) {
 	c.Lock()
 	defer c.Unlock()
-	c.logger.Info("Updating metrics transformations config...")
+	c.logger.Info("Updating metrics transformations", zap.Int("num_decorators", len(sc.Metrics.Decorators)))
 	newTransformations := ottl.NewTransformations(c.logger)
 
 	for _, decorator := range sc.Metrics.Decorators {

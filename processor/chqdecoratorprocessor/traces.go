@@ -165,7 +165,7 @@ func (c *chqDecorator) decorateTraces(td ptrace.Traces) (ptrace.Traces, error) {
 func (c *chqDecorator) updateTracesSampling(sc ottl.SamplerConfig) {
 	c.Lock()
 	defer c.Unlock()
-	c.logger.Info("Updating trace sampling config")
+	c.logger.Info("Updating trace transformations", zap.Int("num_decorators", len(sc.Spans.Decorators)))
 	newTransformations := ottl.NewTransformations(c.logger)
 
 	for _, decorator := range sc.Spans.Decorators {

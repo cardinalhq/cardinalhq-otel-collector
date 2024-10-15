@@ -33,7 +33,8 @@ func NewFactory() processor.Factory {
 		createDefaultConfig,
 		processor.WithTraces(createTracesProcessor, metadata.TracesStability),
 		processor.WithMetrics(createMetricsProcessor, metadata.MetricsStability),
-		processor.WithLogs(createLogsProcessor, metadata.LogsStability))
+		processor.WithLogs(createLogsProcessor, metadata.LogsStability),
+	)
 }
 
 func createDefaultConfig() component.Config {
@@ -59,6 +60,7 @@ func createMetricsProcessor(
 		ctx, set, cfg, nextConsumer,
 		c.processMetrics,
 		processorhelper.WithCapabilities(processorCapabilities),
+		processorhelper.WithStart(c.Start),
 		processorhelper.WithShutdown(c.Shutdown),
 	)
 }
@@ -77,6 +79,7 @@ func createLogsProcessor(
 		ctx, set, cfg, nextConsumer,
 		c.processLogs,
 		processorhelper.WithCapabilities(processorCapabilities),
+		processorhelper.WithStart(c.Start),
 		processorhelper.WithShutdown(c.Shutdown),
 	)
 }
@@ -95,6 +98,7 @@ func createTracesProcessor(
 		ctx, set, cfg, nextConsumer,
 		c.processTraces,
 		processorhelper.WithCapabilities(processorCapabilities),
+		processorhelper.WithStart(c.Start),
 		processorhelper.WithShutdown(c.Shutdown),
 	)
 }

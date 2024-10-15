@@ -394,11 +394,22 @@ func evaluateTransform[T any](counter metric.Int64Counter, rulesByRuleIdByVendor
 }
 
 func (t *Transformations) ExecuteResourceTransforms(counter metric.Int64Counter, transformCtx ottlresource.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
+	vid := string(vendorId)
+	if vid == "" {
+		vid = "_unset"
+	}
+	attrset := attribute.NewSet(attribute.String("signal", "scope"), attribute.String("vendor_id", vid))
 	evaluateTransform[resourceTransform](counter, t.resourceTransformsByRuleId, vendorId, ruleIds, func(counter metric.Int64Counter, resourceTransform resourceTransform) {
 		allConditionsTrue := true
+		if counter != nil {
+			counter.Add(context.Background(), 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition")))
+		}
 		for _, condition := range resourceTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
+		}
+		if counter != nil {
+			counter.Add(context.Background(), 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements")))
 		}
 		if allConditionsTrue {
 			for _, statement := range resourceTransform.statements {
@@ -412,11 +423,22 @@ func (t *Transformations) ExecuteResourceTransforms(counter metric.Int64Counter,
 }
 
 func (t *Transformations) ExecuteScopeTransforms(counter metric.Int64Counter, transformCtx ottlscope.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
+	vid := string(vendorId)
+	if vid == "" {
+		vid = "_unset"
+	}
+	attrset := attribute.NewSet(attribute.String("signal", "scope"), attribute.String("vendor_id", vid))
 	evaluateTransform[scopeTransform](counter, t.scopeTransformsByRuleId, vendorId, ruleIds, func(counter metric.Int64Counter, scopeTransform scopeTransform) {
 		allConditionsTrue := true
+		if counter != nil {
+			counter.Add(context.Background(), 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition")))
+		}
 		for _, condition := range scopeTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
+		}
+		if counter != nil {
+			counter.Add(context.Background(), 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements")))
 		}
 		if allConditionsTrue {
 			for _, statement := range scopeTransform.statements {

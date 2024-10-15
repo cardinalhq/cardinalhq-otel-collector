@@ -15,9 +15,11 @@
 package chqdecoratorprocessor
 
 import (
+	"errors"
 	"fmt"
-	"go.opentelemetry.io/collector/config/confighttp"
 	"time"
+
+	"go.opentelemetry.io/collector/config/confighttp"
 
 	"go.opentelemetry.io/collector/component"
 	"go.uber.org/multierr"
@@ -45,9 +47,15 @@ var _ component.Config = (*Config)(nil)
 
 // Validate function for your custom processor's Config
 func (c *Config) Validate() error {
-	var errors error
-	errors = multierr.Append(errors, validateTracesConfig(c.TracesConfig))
-	return errors
+	var errs error
+
+	if c.ConfigurationExtension == nil {
+		errs = multierr.Append(errs, errors.New("configuration_extension is required"))
+	}
+
+	errs = multierr.Append(errs, validateTracesConfig(c.TracesConfig))
+
+	return errs
 }
 
 func validateTracesConfig(tc TracesConfig) error {

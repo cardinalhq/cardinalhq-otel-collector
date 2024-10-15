@@ -27,7 +27,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/hashicorp/go-multierror"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
@@ -140,9 +139,10 @@ func (c *chqDecorator) Start(ctx context.Context, host component.Host) error {
 }
 
 func (c *chqDecorator) Shutdown(ctx context.Context) error {
-	var errors *multierror.Error
-	c.configExtension.UnregisterCallback(c.configCallbackID)
-	return errors.ErrorOrNil()
+	if c.configExtension != nil {
+		c.configExtension.UnregisterCallback(c.configCallbackID)
+	}
+	return nil
 }
 
 func (c *chqDecorator) configUpdateCallback(sc ottl.SamplerConfig) {

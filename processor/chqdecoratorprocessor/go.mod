@@ -37,7 +37,6 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
 	github.com/iancoleman/strcase v0.3.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -75,7 +74,6 @@ require (
 
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.0.0
-	github.com/hashicorp/go-multierror v1.1.1
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl v0.111.0
 	go.opentelemetry.io/collector/config/confighttp v0.111.0
 )

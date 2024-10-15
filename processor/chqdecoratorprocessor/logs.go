@@ -24,8 +24,6 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
 )
 
@@ -40,14 +38,12 @@ func (c *chqDecorator) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, 
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
 		// Evaluate resource transformations
-		c.ottlProcessed.Add(context.Background(), 1, metric.WithAttributes(attribute.String("phase", "pre-resource")))
 		resourceCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
 		transformations.ExecuteResourceTransforms(c.ottlProcessed, resourceCtx, "", emptySlice)
 
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
 			sl := rl.ScopeLogs().At(j)
 			// Evaluate scope transformations
-			c.ottlProcessed.Add(context.Background(), 1, metric.WithAttributes(attribute.String("phase", "pre-scope")))
 			scopeCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), rl)
 			transformations.ExecuteScopeTransforms(c.ottlProcessed, scopeCtx, "", emptySlice)
 
@@ -66,7 +62,6 @@ func (c *chqDecorator) processLogs(_ context.Context, ld plog.Logs) (plog.Logs, 
 				log.Attributes().PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 
 				// Evaluate log scope transformations
-				c.ottlProcessed.Add(context.Background(), 1, metric.WithAttributes(attribute.String("phase", "pre-log-record")))
 				logCtx := ottllog.NewTransformContext(log, sl.Scope(), rl.Resource(), sl, rl)
 				transformations.ExecuteLogTransforms(c.ottlProcessed, logCtx, "", emptySlice)
 			}

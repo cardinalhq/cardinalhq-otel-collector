@@ -399,6 +399,9 @@ func (t *Transformations) ExecuteResourceTransforms(counter metric.Int64Counter,
 		vid = "_unset"
 	}
 	attrset := attribute.NewSet(attribute.String("signal", "scope"), attribute.String("vendor_id", vid))
+	if counter != nil {
+		counter.Add(context.Background(), 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("phase", "pre-resource")))
+	}
 	evaluateTransform[resourceTransform](counter, t.resourceTransformsByRuleId, vendorId, ruleIds, func(counter metric.Int64Counter, resourceTransform resourceTransform) {
 		allConditionsTrue := true
 		if counter != nil {
@@ -428,6 +431,9 @@ func (t *Transformations) ExecuteScopeTransforms(counter metric.Int64Counter, tr
 		vid = "_unset"
 	}
 	attrset := attribute.NewSet(attribute.String("signal", "scope"), attribute.String("vendor_id", vid))
+	if counter != nil {
+		counter.Add(context.Background(), 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("phase", "pre-scope")))
+	}
 	evaluateTransform[scopeTransform](counter, t.scopeTransformsByRuleId, vendorId, ruleIds, func(counter metric.Int64Counter, scopeTransform scopeTransform) {
 		allConditionsTrue := true
 		if counter != nil {
@@ -457,6 +463,9 @@ func (t *Transformations) ExecuteLogTransforms(counter metric.Int64Counter, tran
 		vid = "_unset"
 	}
 	attrset := attribute.NewSet(attribute.String("signal", "log"), attribute.String("vendor_id", vid))
+	if counter != nil {
+		counter.Add(context.Background(), 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("phase", "pre-log")))
+	}
 	evaluateTransform[logTransform](counter, t.logTransformsByRuleId, vendorId, ruleIds, func(counter metric.Int64Counter, logTransform logTransform) {
 		allConditionsTrue := true
 		if counter != nil {

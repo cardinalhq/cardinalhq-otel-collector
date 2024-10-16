@@ -467,11 +467,12 @@ func (t *transformations) ExecuteLogTransforms(counter DeferrableCounter, transf
 			serviceName := GetServiceName(transformCtx.GetResource())
 			fingerprint, exists := transformCtx.GetLogRecord().Attributes().Get(translate.CardinalFieldFingerprint)
 			if !exists {
+				CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "sampler-error"), attribute.String("rule_id", string(ruleID))))
 				return
 			}
 			key := fmt.Sprintf("%s:%s", serviceName, fingerprint.AsString())
 			sampleRate := logTransform.sampler.GetSampleRate(key)
-			allConditionsTrue = allConditionsTrue && shouldFilter(sampleRate, rand.Float64())
+			allConditionsTrue = shouldFilter(sampleRate, rand.Float64())
 		}
 		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.String("rule_id", string(ruleID)), attribute.Bool("all_conditions_true", allConditionsTrue)))
 		if !allConditionsTrue {

@@ -18,32 +18,40 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGobEncoding(t *testing.T) {
 	// Test that we can encode and decode a map[string]any using gob
 	// This is used for encoding the tags map in the s3Exporter
 	tags := map[string]any{
-		"k_string":  "value1",
-		"k_int8":    int8(2),
-		"k_int16":   int16(3),
-		"k_int32":   int32(4),
-		"k_int64":   int64(123),
-		"k_float64": float64(123.456),
-		"k_bool":    true,
+		"k_string":          "value1",
+		"k_int8":            int8(2),
+		"k_int16":           int16(3),
+		"k_int32":           int32(4),
+		"k_int64":           int64(123),
+		"k_float64":         float64(123.456),
+		"k_bool":            true,
+		"k_int_slice":       []int{1, 2, 3},
+		"k_string_slice":    []string{"a", "b", "c"},
+		"k_interface_slice": []interface{}{},
 	}
 
 	b, err := gobEncode(tags)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	var decoded map[string]any
 	err = gobDecode(b, &decoded)
-	assert.NoError(t, err)
-	assert.Equal(t, tags, decoded)
+	require.NoError(t, err)
 
-	// Confirm that k_int8 and others are decoded as their original types
+	assert.Equal(t, "value1", decoded["k_string"])
 	assert.Equal(t, int8(2), decoded["k_int8"])
 	assert.Equal(t, int16(3), decoded["k_int16"])
 	assert.Equal(t, int32(4), decoded["k_int32"])
 	assert.Equal(t, int64(123), decoded["k_int64"])
+	assert.Equal(t, float64(123.456), decoded["k_float64"])
+	assert.Equal(t, true, decoded["k_bool"])
+	assert.Equal(t, []int{1, 2, 3}, decoded["k_int_slice"])
+	assert.Equal(t, []string{"a", "b", "c"}, decoded["k_string_slice"])
+	assert.Equal(t, []interface{}(nil), decoded["k_interface_slice"])
 }

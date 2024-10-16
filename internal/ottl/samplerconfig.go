@@ -35,7 +35,6 @@ type MetricConfigV1 struct {
 type ContextID string
 
 type SamplingConfig struct {
-	RuleType   int     `json:"ruleType,omitempty" yaml:"ruleType,omitempty"`
 	SampleRate float64 `json:"sampleRate,omitempty" yaml:"sampleRate,omitempty"`
 	RPS        int     `json:"rps,omitempty" yaml:"rps,omitempty"`
 }
@@ -46,10 +45,10 @@ type Instruction struct {
 }
 
 type ContextStatement struct {
-	Context        ContextID      `mapstructure:"context"`
-	RuleId         RuleID         `mapstructure:"ruleId"`
-	Priority       int            `mapstructure:"priority"`
-	Conditions     []string       `mapstructure:"conditions"`
-	Statements     []string       `mapstructure:"statements"`
-	SamplingConfig SamplingConfig `mapstructure:"samplingConfig"`
+	Context        ContextID      `json:"context,omitempty" yaml:"context,omitempty"`
+	RuleId         RuleID         `json:"ruleId,omitempty" yaml:"ruleId,omitempty"`
+	Priority       int            `json:"priority,omitempty" yaml:"priority,omitempty"`
+	Conditions     []string       `json:"conditions,omitempty" yaml:"conditions,omitempty"`
+	Statements     []string       `json:"statements,omitempty" yaml:"statements,omitempty"`
+	SamplingConfig SamplingConfig `json:"samplingConfig,omitempty" yaml:"samplingConfig,omitempty"`
 }

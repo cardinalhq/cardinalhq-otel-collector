@@ -77,6 +77,8 @@ func (c *chqDecorator) updateLogsSampling(sc ottl.SamplerConfig) {
 	c.logger.Info("Updating log transformations", zap.Int("num_decorators", len(sc.Logs.Decorators)))
 	newTransformations := ottl.NewTransformations(c.logger)
 
+	c.logger.Info("json log config", zap.Any("logDecorators", sc.Logs))
+
 	for _, decorator := range sc.Logs.Decorators {
 		transformations, err := ottl.ParseTransformations(decorator, c.logger)
 		if err != nil {

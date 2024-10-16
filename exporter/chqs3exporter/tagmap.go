@@ -29,13 +29,14 @@ func (e *s3Exporter) updateTagMap(customerID string, interval int64, tags map[st
 		e.tags[customerID][interval] = map[string]any{}
 	}
 	for k, v := range tags {
+		v = handleValue(v)
 		current, ok := e.tags[customerID][interval][k]
 		if ok {
 			if fmt.Sprintf("%T", current) != fmt.Sprintf("%T", v) {
 				return fmt.Errorf("Mismatched types: key = %s: %T %T", k, current, v)
 			}
 		} else {
-			e.tags[customerID][interval][k] = handleValue(v)
+			e.tags[customerID][interval][k] = v
 		}
 	}
 	return nil

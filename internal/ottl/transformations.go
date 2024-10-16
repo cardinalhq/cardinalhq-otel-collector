@@ -413,12 +413,13 @@ func (t *transformations) ExecuteResourceTransforms(counter DeferrableCounter, t
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
 		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.Bool("all_conditions_true", allConditionsTrue)))
-		if allConditionsTrue {
-			for _, statement := range resourceTransform.statements {
-				_, _, err := statement.Execute(context.Background(), transformCtx)
-				if err != nil {
-					t.logger.Error("Error executing resource transformation", zap.Error(err))
-				}
+		if !allConditionsTrue {
+			return
+		}
+		for _, statement := range resourceTransform.statements {
+			_, _, err := statement.Execute(context.Background(), transformCtx)
+			if err != nil {
+				t.logger.Error("Error executing resource transformation", zap.Error(err))
 			}
 		}
 	})
@@ -435,14 +436,16 @@ func (t *transformations) ExecuteScopeTransforms(counter DeferrableCounter, tran
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
 		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.Bool("all_conditions_true", allConditionsTrue)))
-		if allConditionsTrue {
-			for _, statement := range scopeTransform.statements {
-				_, _, err := statement.Execute(context.Background(), transformCtx)
-				if err != nil {
-					t.logger.Error("Error executing scope transformation", zap.Error(err))
-				}
+		if !allConditionsTrue {
+			return
+		}
+		for _, statement := range scopeTransform.statements {
+			_, _, err := statement.Execute(context.Background(), transformCtx)
+			if err != nil {
+				t.logger.Error("Error executing scope transformation", zap.Error(err))
 			}
 		}
+
 	})
 }
 
@@ -457,7 +460,10 @@ func (t *transformations) ExecuteLogTransforms(counter DeferrableCounter, transf
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
 		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-sampler"), attribute.Bool("all_conditions_true", allConditionsTrue)))
-		if allConditionsTrue && logTransform.sampler != nil {
+		if !allConditionsTrue {
+			return
+		}
+		if logTransform.sampler != nil {
 			serviceName := GetServiceName(transformCtx.GetResource())
 			fingerprint, exists := transformCtx.GetLogRecord().Attributes().Get(translate.CardinalFieldFingerprint)
 			if !exists {
@@ -468,12 +474,13 @@ func (t *transformations) ExecuteLogTransforms(counter DeferrableCounter, transf
 			allConditionsTrue = allConditionsTrue && shouldFilter(sampleRate, rand.Float64())
 		}
 		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.Bool("all_conditions_true", allConditionsTrue)))
-		if allConditionsTrue {
-			for _, statement := range logTransform.statements {
-				_, _, err := statement.Execute(context.Background(), transformCtx)
-				if err != nil {
-					t.logger.Error("Error executing log transformation", zap.Error(err))
-				}
+		if !allConditionsTrue {
+			return
+		}
+		for _, statement := range logTransform.statements {
+			_, _, err := statement.Execute(context.Background(), transformCtx)
+			if err != nil {
+				t.logger.Error("Error executing log transformation", zap.Error(err))
 			}
 		}
 	})
@@ -501,7 +508,10 @@ func (t *transformations) ExecuteSpanTransforms(counter DeferrableCounter, trans
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
 		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-sampler"), attribute.Bool("all_conditions_true", allConditionsTrue)))
-		if allConditionsTrue && spanTransform.sampler != nil {
+		if !allConditionsTrue {
+			return
+		}
+		if spanTransform.sampler != nil {
 			randval := rand.Float64()
 			serviceName := GetServiceName(transformCtx.GetResource())
 			fingerprint, exists := transformCtx.GetSpan().Attributes().Get(translate.CardinalFieldFingerprint)
@@ -513,12 +523,13 @@ func (t *transformations) ExecuteSpanTransforms(counter DeferrableCounter, trans
 			allConditionsTrue = allConditionsTrue && shouldFilter(sampleRate, randval)
 		}
 		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.Bool("all_conditions_true", allConditionsTrue)))
-		if allConditionsTrue {
-			for _, statement := range spanTransform.statements {
-				_, _, err := statement.Execute(context.Background(), transformCtx)
-				if err != nil {
-					t.logger.Error("Error executing span transformation", zap.Error(err))
-				}
+		if !allConditionsTrue {
+			return
+		}
+		for _, statement := range spanTransform.statements {
+			_, _, err := statement.Execute(context.Background(), transformCtx)
+			if err != nil {
+				t.logger.Error("Error executing span transformation", zap.Error(err))
 			}
 		}
 	})
@@ -535,12 +546,13 @@ func (t *transformations) ExecuteMetricTransforms(counter DeferrableCounter, tra
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
 		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.Bool("all_conditions_true", allConditionsTrue)))
-		if allConditionsTrue {
-			for _, statement := range metricTransform.statements {
-				_, _, err := statement.Execute(context.Background(), transformCtx)
-				if err != nil {
-					t.logger.Error("Error executing metric transformation", zap.Error(err))
-				}
+		if !allConditionsTrue {
+			return
+		}
+		for _, statement := range metricTransform.statements {
+			_, _, err := statement.Execute(context.Background(), transformCtx)
+			if err != nil {
+				t.logger.Error("Error executing metric transformation", zap.Error(err))
 			}
 		}
 	})
@@ -557,13 +569,15 @@ func (t *transformations) ExecuteDataPointTransforms(counter DeferrableCounter, 
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
 		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.Bool("all_conditions_true", allConditionsTrue)))
-		if allConditionsTrue {
-			for _, statement := range dataPointTransform.statements {
-				_, _, err := statement.Execute(context.Background(), transformCtx)
-				if err != nil {
-					t.logger.Error("Error executing datapoint transformation", zap.Error(err))
-				}
+		if !allConditionsTrue {
+			return
+		}
+		for _, statement := range dataPointTransform.statements {
+			_, _, err := statement.Execute(context.Background(), transformCtx)
+			if err != nil {
+				t.logger.Error("Error executing datapoint transformation", zap.Error(err))
 			}
+
 		}
 	})
 }

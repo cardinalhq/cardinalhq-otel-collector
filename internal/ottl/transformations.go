@@ -378,18 +378,18 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (transforma
 	return transformations, errors
 }
 
-func evaluateTransform[T any](counter DeferrableCounter, rulesByRuleIdByVendorId map[VendorID]map[RuleID]T, vendorId VendorID, ruleIds pcommon.Slice, eval func(DeferrableCounter, T)) {
+func evaluateTransform[T any](counter DeferrableCounter, rulesByRuleIdByVendorId map[VendorID]map[RuleID]T, vendorId VendorID, ruleIds pcommon.Slice, eval func(DeferrableCounter, T, RuleID)) {
 	if ruleIds.Len() == 0 || vendorId == "" {
 		for _, transformsByRuleId := range rulesByRuleIdByVendorId {
-			for _, transform := range transformsByRuleId {
-				eval(counter, transform)
+			for ruleID, transform := range transformsByRuleId {
+				eval(counter, transform, ruleID)
 			}
 		}
 	} else {
 		for i := 0; i < ruleIds.Len(); i++ {
 			ruleId := ruleIds.At(i)
 			if transform, ok := rulesByRuleIdByVendorId[vendorId][RuleID(ruleId.Str())]; ok {
-				eval(counter, transform)
+				eval(counter, transform, RuleID(ruleId.Str()))
 			}
 		}
 	}
@@ -405,14 +405,14 @@ func usableVendorId(vendorId VendorID) string {
 func (t *transformations) ExecuteResourceTransforms(counter DeferrableCounter, transformCtx ottlresource.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
 	attrset := attribute.NewSet(attribute.String("context", "resource"), attribute.String("vendor_id", usableVendorId(vendorId)))
 	CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "resource")))
-	evaluateTransform[resourceTransform](counter, t.resourceTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, resourceTransform resourceTransform) {
+	evaluateTransform[resourceTransform](counter, t.resourceTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, resourceTransform resourceTransform, ruleID RuleID) {
 		allConditionsTrue := true
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition")))
+		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", string(ruleID))))
 		for _, condition := range resourceTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.Bool("all_conditions_true", allConditionsTrue)))
+		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.String("rule_id", string(ruleID)), attribute.Bool("all_conditions_true", allConditionsTrue)))
 		if !allConditionsTrue {
 			return
 		}
@@ -428,14 +428,14 @@ func (t *transformations) ExecuteResourceTransforms(counter DeferrableCounter, t
 func (t *transformations) ExecuteScopeTransforms(counter DeferrableCounter, transformCtx ottlscope.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
 	attrset := attribute.NewSet(attribute.String("context", "scope"), attribute.String("vendor_id", usableVendorId(vendorId)))
 	CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "scope")))
-	evaluateTransform[scopeTransform](counter, t.scopeTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, scopeTransform scopeTransform) {
+	evaluateTransform[scopeTransform](counter, t.scopeTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, scopeTransform scopeTransform, ruleID RuleID) {
 		allConditionsTrue := true
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition")))
+		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", string(ruleID))))
 		for _, condition := range scopeTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.Bool("all_conditions_true", allConditionsTrue)))
+		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.String("rule_id", string(ruleID)), attribute.Bool("all_conditions_true", allConditionsTrue)))
 		if !allConditionsTrue {
 			return
 		}
@@ -452,14 +452,14 @@ func (t *transformations) ExecuteScopeTransforms(counter DeferrableCounter, tran
 func (t *transformations) ExecuteLogTransforms(counter DeferrableCounter, transformCtx ottllog.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
 	attrset := attribute.NewSet(attribute.String("context", "log"), attribute.String("vendor_id", usableVendorId(vendorId)))
 	CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "log")))
-	evaluateTransform[logTransform](counter, t.logTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, logTransform logTransform) {
+	evaluateTransform[logTransform](counter, t.logTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, logTransform logTransform, ruleID RuleID) {
 		allConditionsTrue := true
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition")))
+		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", string(ruleID))))
 		for _, condition := range logTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-sampler"), attribute.Bool("all_conditions_true", allConditionsTrue)))
+		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-sampler"), attribute.String("rule_id", string(ruleID)), attribute.Bool("all_conditions_true", allConditionsTrue)))
 		if !allConditionsTrue {
 			return
 		}
@@ -473,7 +473,7 @@ func (t *transformations) ExecuteLogTransforms(counter DeferrableCounter, transf
 			sampleRate := logTransform.sampler.GetSampleRate(key)
 			allConditionsTrue = allConditionsTrue && shouldFilter(sampleRate, rand.Float64())
 		}
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.Bool("all_conditions_true", allConditionsTrue)))
+		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.String("rule_id", string(ruleID)), attribute.Bool("all_conditions_true", allConditionsTrue)))
 		if !allConditionsTrue {
 			return
 		}
@@ -500,14 +500,14 @@ func shouldFilter(rate int, randval float64) bool {
 func (t *transformations) ExecuteSpanTransforms(counter DeferrableCounter, transformCtx ottlspan.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
 	attrset := attribute.NewSet(attribute.String("context", "span"), attribute.String("vendor_id", usableVendorId(vendorId)))
 	CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "span")))
-	evaluateTransform[spanTransform](counter, t.spanTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, spanTransform spanTransform) {
+	evaluateTransform[spanTransform](counter, t.spanTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, spanTransform spanTransform, ruleID RuleID) {
 		allConditionsTrue := true
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition")))
+		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", string(ruleID))))
 		for _, condition := range spanTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-sampler"), attribute.Bool("all_conditions_true", allConditionsTrue)))
+		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-sampler"), attribute.String("rule_id", string(ruleID)), attribute.Bool("all_conditions_true", allConditionsTrue)))
 		if !allConditionsTrue {
 			return
 		}
@@ -522,7 +522,7 @@ func (t *transformations) ExecuteSpanTransforms(counter DeferrableCounter, trans
 			sampleRate := spanTransform.sampler.GetSampleRate(key)
 			allConditionsTrue = allConditionsTrue && shouldFilter(sampleRate, randval)
 		}
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.Bool("all_conditions_true", allConditionsTrue)))
+		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.String("rule_id", string(ruleID)), attribute.Bool("all_conditions_true", allConditionsTrue)))
 		if !allConditionsTrue {
 			return
 		}
@@ -538,14 +538,14 @@ func (t *transformations) ExecuteSpanTransforms(counter DeferrableCounter, trans
 func (t *transformations) ExecuteMetricTransforms(counter DeferrableCounter, transformCtx ottlmetric.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
 	attrset := attribute.NewSet(attribute.String("context", "metric"), attribute.String("vendor_id", usableVendorId(vendorId)))
 	CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "metric")))
-	evaluateTransform[metricTransform](counter, t.metricTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, metricTransform metricTransform) {
+	evaluateTransform[metricTransform](counter, t.metricTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, metricTransform metricTransform, ruleID RuleID) {
 		allConditionsTrue := true
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition")))
+		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", string(ruleID))))
 		for _, condition := range metricTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.Bool("all_conditions_true", allConditionsTrue)))
+		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.String("rule_id", string(ruleID)), attribute.Bool("all_conditions_true", allConditionsTrue)))
 		if !allConditionsTrue {
 			return
 		}
@@ -561,14 +561,14 @@ func (t *transformations) ExecuteMetricTransforms(counter DeferrableCounter, tra
 func (t *transformations) ExecuteDataPointTransforms(counter DeferrableCounter, transformCtx ottldatapoint.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
 	attrset := attribute.NewSet(attribute.String("context", "datapoint"), attribute.String("vendor_id", usableVendorId(vendorId)))
 	CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "datapoint")))
-	evaluateTransform[dataPointTransform](counter, t.dataPointTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, dataPointTransform dataPointTransform) {
+	evaluateTransform[dataPointTransform](counter, t.dataPointTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, dataPointTransform dataPointTransform, ruleID RuleID) {
 		allConditionsTrue := true
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition")))
+		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", string(ruleID))))
 		for _, condition := range dataPointTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.Bool("all_conditions_true", allConditionsTrue)))
+		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.String("rule_id", string(ruleID)), attribute.Bool("all_conditions_true", allConditionsTrue)))
 		if !allConditionsTrue {
 			return
 		}
@@ -577,7 +577,6 @@ func (t *transformations) ExecuteDataPointTransforms(counter DeferrableCounter, 
 			if err != nil {
 				t.logger.Error("Error executing datapoint transformation", zap.Error(err))
 			}
-
 		}
 	})
 }

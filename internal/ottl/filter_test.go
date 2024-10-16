@@ -19,9 +19,6 @@ import (
 
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
 	"go.opentelemetry.io/collector/pdata/pcommon"
-	"go.opentelemetry.io/otel/metric"
-	embeddedmetric "go.opentelemetry.io/otel/metric/embedded"
-	noopmetric "go.opentelemetry.io/otel/metric/noop"
 	"go.uber.org/zap"
 
 	"github.com/stretchr/testify/require"
@@ -44,18 +41,6 @@ func createTestLogRecord() plog.LogRecord {
 	ll := plog.NewLogRecord()
 	ll.Attributes().PutStr("log.level", "INFO")
 	return ll
-}
-
-type mockMeter struct {
-	noopmetric.Meter
-	name string
-}
-type mockMeterProvider struct {
-	embeddedmetric.MeterProvider
-}
-
-func (m mockMeterProvider) Meter(name string, opts ...metric.MeterOption) metric.Meter {
-	return mockMeter{name: name}
 }
 
 // TestFilterRule_ResourceConditionLog Test resource-based condition for logs

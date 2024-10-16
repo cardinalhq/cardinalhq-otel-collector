@@ -187,10 +187,12 @@ func (e *chqEnforcer) getSlice(l pcommon.Map, key string) pcommon.Slice {
 
 func (e *chqEnforcer) sliceContains(l pcommon.Map, key string, value string) bool {
 	if field, found := l.Get(key); found {
-		slice := field.Slice()
-		for i := 0; i < slice.Len(); i++ {
-			if slice.At(i).AsString() == value {
-				return true
+		if field.Type() == pcommon.ValueTypeSlice {
+			slice := field.Slice()
+			for i := 0; i < slice.Len(); i++ {
+				if slice.At(i).AsString() == value {
+					return true
+				}
 			}
 		}
 	}

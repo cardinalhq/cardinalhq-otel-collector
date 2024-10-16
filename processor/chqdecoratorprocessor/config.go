@@ -15,7 +15,6 @@
 package chqdecoratorprocessor
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -47,15 +46,7 @@ var _ component.Config = (*Config)(nil)
 
 // Validate function for your custom processor's Config
 func (c *Config) Validate() error {
-	var errs error
-
-	if c.ConfigurationExtension == nil {
-		errs = multierr.Append(errs, errors.New("configuration_extension is required"))
-	}
-
-	errs = multierr.Append(errs, validateTracesConfig(c.TracesConfig))
-
-	return errs
+	return validateTracesConfig(c.TracesConfig)
 }
 
 func validateTracesConfig(tc TracesConfig) error {

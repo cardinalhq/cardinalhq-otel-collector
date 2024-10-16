@@ -133,6 +133,11 @@ func (c *chqDecorator) Start(ctx context.Context, host component.Host) error {
 	}
 	c.httpClient = httpClient
 
+	if c.config.ConfigurationExtension == nil {
+		c.logger.Warn("Configuration extension not set, no configuration for filtering will be enabled")
+		return nil
+	}
+
 	ext, found := host.GetExtensions()[*c.config.ConfigurationExtension]
 	if !found {
 		return errors.New("configuration extension " + c.config.ConfigurationExtension.String() + " not found")
@@ -142,7 +147,6 @@ func (c *chqDecorator) Start(ctx context.Context, host component.Host) error {
 		return errors.New("configuration extension " + c.config.ConfigurationExtension.String() + " is not a chqconfig extension")
 	}
 	c.configExtension = cext
-
 	c.configCallbackID = c.configExtension.RegisterCallback(c.id.String()+"/"+c.ttype, c.configUpdateCallback)
 
 	return nil

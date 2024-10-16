@@ -180,7 +180,9 @@ func (e *chqEnforcer) configUpdateCallback(sc ottl.SamplerConfig) {
 
 func (e *chqEnforcer) getSlice(l pcommon.Map, key string) pcommon.Slice {
 	if field, found := l.Get(key); found {
-		return field.Slice()
+		if field.Type() == pcommon.ValueTypeSlice {
+			return field.Slice()
+		}
 	}
 	return pcommon.NewSlice()
 }

@@ -15,11 +15,12 @@
 package ottl
 
 import (
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"slices"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 )
@@ -120,7 +121,7 @@ func attrsToMap(attrs map[string]pcommon.Map) (map[string]string, bool) {
 	var shouldAggregate bool
 	for scope, attr := range attrs {
 		attr.Range(func(k string, v pcommon.Value) bool {
-			shouldAggregate = shouldAggregate || k == translate.CardinalFieldAggregated && v.Bool()
+			shouldAggregate = shouldAggregate || k == translate.CardinalFieldAggregate && v.Bool()
 			ret[scope+"."+k] = v.AsString()
 			return true
 		})

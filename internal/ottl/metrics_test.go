@@ -23,6 +23,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 )
 
@@ -249,7 +250,7 @@ func TestMatchAndAdd_AverageAfterDroppingDimension(t *testing.T) {
 			Conditions: []string{},
 			Statements: []string{
 				`delete_key(attributes, "movieId")`, // Drop the movieId key
-				`set(attributes["_cardinalhq.aggregated"], true)`,
+				`set(attributes["_cardinalhq.aggregate"], true)`,
 			},
 		},
 	}
@@ -260,8 +261,8 @@ func TestMatchAndAdd_AverageAfterDroppingDimension(t *testing.T) {
 		Statements: statements,
 	}
 	transformations, err := ParseTransformations(instruction, zap.NewNop())
-	assert.NoError(t, err)
-	assert.NotNil(t, transformations)
+	require.NoError(t, err)
+	require.NotNil(t, transformations)
 
 	// Initialize metric aggregator
 	m := NewMetricAggregatorImpl[float64](10)
@@ -307,14 +308,16 @@ func TestMatchAndAdd_AverageAfterDroppingDimension(t *testing.T) {
 	buckets := []float64{1}
 
 	_, err = m.MatchAndAdd(&ttime, buckets, []float64{1.0}, AggregationTypeAvg, "metric1", nil, rattr, sattr, dp1Attributes)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	_, err = m.MatchAndAdd(&ttime, buckets, []float64{2.0}, AggregationTypeAvg, "metric1", nil, rattr, sattr, dp2Attributes)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	expectedAverage := 1.5
 
 	assert.Equal(t, 1, len(m.sets))
+	_, found := m.sets[tbox]
+	require.True(t, found)
 	aggregations := m.sets[tbox].Aggregations
 	assert.Equal(t, 1, len(aggregations))
 

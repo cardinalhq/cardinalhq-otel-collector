@@ -13,7 +13,7 @@
 # limitations under the License.
 
 TARGETS=bin/cardinalhq-otel-collector
-PLATFORM=linux/amd64,linux/arm64
+PLATFORM=linux/amd64 #,linux/arm64
 BUILDX=docker buildx build --pull --platform ${PLATFORM}
 IMAGE_PREFIX=public.ecr.aws/cardinalhq.io/
 ODEL_VERSION=v0.111.0

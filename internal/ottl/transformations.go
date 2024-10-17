@@ -568,7 +568,7 @@ func (t *transformations) ExecuteMetricTransforms(counter DeferrableCounter, tra
 	})
 }
 
-func (t *transformations) ExecuteDataPointTransforms(counter DeferrableCounter, transformCtx ottldatapoint.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
+func (t *transformations) ExecuteDatapointTransforms(counter DeferrableCounter, transformCtx ottldatapoint.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
 	attrset := attribute.NewSet(attribute.String("context", "datapoint"), attribute.String("vendor_id", usableVendorId(vendorId)))
 	CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "datapoint")))
 	evaluateTransform[dataPointTransform](counter, t.dataPointTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, dataPointTransform dataPointTransform, ruleID string) {

@@ -29,6 +29,7 @@ import (
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/processor"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
 
@@ -75,11 +76,13 @@ type chqEnforcer struct {
 	aggregatorF          ottl.MetricAggregator[float64]
 	lastEmitCheck        time.Time
 	aggregatedDatapoints metric.Int64Counter
+
+	ottlProcessed *ottl.TransformCounter
 }
 
 func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextConsumer consumer.Metrics) (*chqEnforcer, error) {
 	now := time.Now()
-	statsExporter := &chqEnforcer{
+	enforcer := &chqEnforcer{
 		id:                 set.ID,
 		ttype:              ttype,
 		config:             config,
@@ -91,35 +94,56 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextCo
 		vendor:             config.Statistics.Vendor,
 	}
 	if config.Statistics.Phase == "presample" {
-		statsExporter.pbPhase = chqpb.Phase_PRE
+		enforcer.pbPhase = chqpb.Phase_PRE
 	} else {
-		statsExporter.pbPhase = chqpb.Phase_POST
+		enforcer.pbPhase = chqpb.Phase_POST
 	}
+
+	attrset := attribute.NewSet(
+		attribute.String("processor", set.ID.String()),
+		attribute.String("signal", ttype),
+		attribute.String("statsPhase", config.Statistics.Phase),
+	)
+	counter, err := ottl.NewTransformCounter(metadata.Meter(set.TelemetrySettings),
+		"ottl_processed",
+		[]metric.Int64CounterOption{
+			metric.WithDescription("The results of OTTL processing"),
+			metric.WithUnit("1"),
+		},
+		[]metric.AddOption{
+			metric.WithAttributeSet(attrset),
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	enforcer.ottlProcessed = counter
+
 	switch ttype {
 	case "logs":
-		statsExporter.logstats = stats.NewStatsCombiner[*chqpb.LogStats](now, config.Statistics.Interval)
-		statsExporter.logger.Info("sending log statistics", zap.Duration("interval", config.Statistics.Interval))
-		statsExporter.logTransformations = ottl.Transformations{}
+		enforcer.logstats = stats.NewStatsCombiner[*chqpb.LogStats](now, config.Statistics.Interval)
+		enforcer.logger.Info("sending log statistics", zap.Duration("interval", config.Statistics.Interval))
+		enforcer.logTransformations = ottl.Transformations{}
 
 	case "metrics":
-		statsExporter.metricstats = stats.NewStatsCombiner[*MetricStat](now, config.Statistics.Interval)
-		statsExporter.logger.Info("sending metric statistics", zap.Duration("interval", config.Statistics.Interval))
-		statsExporter.lastEmitCheck = time.Now()
+		enforcer.metricstats = stats.NewStatsCombiner[*MetricStat](now, config.Statistics.Interval)
+		enforcer.logger.Info("sending metric statistics", zap.Duration("interval", config.Statistics.Interval))
+		enforcer.lastEmitCheck = time.Now()
 		interval := config.MetricAggregation.Interval.Milliseconds()
-		statsExporter.aggregatorI = ottl.NewMetricAggregatorImpl[int64](interval)
-		statsExporter.aggregatorF = ottl.NewMetricAggregatorImpl[float64](interval)
-		statsExporter.metricTransformations = ottl.Transformations{}
-		err := statsExporter.setupMetricTelemetry()
+		enforcer.aggregatorI = ottl.NewMetricAggregatorImpl[int64](interval)
+		enforcer.aggregatorF = ottl.NewMetricAggregatorImpl[float64](interval)
+		enforcer.metricTransformations = ottl.Transformations{}
+		err := enforcer.setupMetricTelemetry()
 		if err != nil {
 			return nil, err
 		}
 	case "traces":
-		statsExporter.spanStats = stats.NewStatsCombiner[*chqpb.SpanStats](now, config.Statistics.Interval)
-		statsExporter.logger.Info("sending span statistics", zap.Duration("interval", config.Statistics.Interval))
-		statsExporter.traceTransformations = ottl.Transformations{}
+		enforcer.spanStats = stats.NewStatsCombiner[*chqpb.SpanStats](now, config.Statistics.Interval)
+		enforcer.logger.Info("sending span statistics", zap.Duration("interval", config.Statistics.Interval))
+		enforcer.traceTransformations = ottl.Transformations{}
 	}
 
-	return statsExporter, nil
+	return enforcer, nil
 }
 
 func (e *chqEnforcer) Capabilities() consumer.Capabilities {

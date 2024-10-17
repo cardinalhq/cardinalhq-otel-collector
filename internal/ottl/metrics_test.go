@@ -53,131 +53,6 @@ func TestSplitTag(t *testing.T) {
 	}
 }
 
-func TestRemoveTags(t *testing.T) {
-	type args struct {
-		attrs map[string]string
-		tags  []string
-	}
-	tests := []struct {
-		name     string
-		args     args
-		expected map[string]string
-	}{
-		{
-			name: "remove all tags",
-			args: args{
-				attrs: map[string]string{
-					"scope1.name1": "value1",
-					"scope1.name2": "value2",
-					"scope2.name3": "value3",
-				},
-				tags: []string{"scope1.name1", "scope1.name2", "scope2.name3"},
-			},
-			expected: map[string]string{},
-		},
-		{
-			name: "remove some tags",
-			args: args{
-				attrs: map[string]string{
-					"scope1.name1": "value1",
-					"scope1.name2": "value2",
-					"scope2.name3": "value3",
-				},
-				tags: []string{"scope1.name1", "scope2.name3"},
-			},
-			expected: map[string]string{
-				"scope1.name2": "value2",
-			},
-		},
-		{
-			name: "remove no tags",
-			args: args{
-				attrs: map[string]string{
-					"scope1.name1": "value1",
-					"scope1.name2": "value2",
-					"scope2.name3": "value3",
-				},
-				tags: []string{},
-			},
-			expected: map[string]string{
-				"scope1.name1": "value1",
-				"scope1.name2": "value2",
-				"scope2.name3": "value3",
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			RemoveTags(tt.args.attrs, tt.args.tags)
-			assert.Equal(t, tt.expected, tt.args.attrs)
-		})
-	}
-}
-
-func TestKeepTags(t *testing.T) {
-	type args struct {
-		attrs map[string]string
-		tags  []string
-	}
-	tests := []struct {
-		name     string
-		args     args
-		expected map[string]string
-	}{
-		{
-			name: "keep all tags",
-			args: args{
-				attrs: map[string]string{
-					"scope1.name1": "value1",
-					"scope1.name2": "value2",
-					"scope2.name3": "value3",
-				},
-				tags: []string{"scope1.name1", "scope1.name2", "scope2.name3"},
-			},
-			expected: map[string]string{
-				"scope1.name1": "value1",
-				"scope1.name2": "value2",
-				"scope2.name3": "value3",
-			},
-		},
-		{
-			name: "keep some tags",
-			args: args{
-				attrs: map[string]string{
-					"scope1.name1": "value1",
-					"scope1.name2": "value2",
-					"scope2.name3": "value3",
-				},
-				tags: []string{"scope1.name1", "scope2.name3"},
-			},
-			expected: map[string]string{
-				"scope1.name1": "value1",
-				"scope2.name3": "value3",
-			},
-		},
-		{
-			name: "keep no tags",
-			args: args{
-				attrs: map[string]string{
-					"scope1.name1": "value1",
-					"scope1.name2": "value2",
-					"scope2.name3": "value3",
-				},
-				tags: []string{},
-			},
-			expected: map[string]string{},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			KeepTags(tt.args.attrs, tt.args.tags)
-			assert.Equal(t, tt.expected, tt.args.attrs)
-		})
-	}
-}
-
 func TestAttrsToMap(t *testing.T) {
 	attrs := map[string]pcommon.Map{
 		"scope1": pcommon.NewMap(),
@@ -194,8 +69,7 @@ func TestAttrsToMap(t *testing.T) {
 		"scope2.name3": "true",
 	}
 
-	result, transformed := attrsToMap(attrs)
-	assert.Equal(t, transformed, false)
+	result := attrsToMap(attrs)
 
 	if len(result) != len(expected) {
 		t.Errorf("Expected %d attributes, but got %d", len(expected), len(result))
@@ -291,8 +165,8 @@ func TestMatchAndAdd_AverageAfterDroppingDimension(t *testing.T) {
 	// Apply transformations to both data points
 	tc1 := ottldatapoint.NewTransformContext(dp1, metric, scopeMetrics.Metrics(), scopeMetrics.Scope(), rm.Resource(), scopeMetrics, rm)
 	tc2 := ottldatapoint.NewTransformContext(dp2, metric, scopeMetrics.Metrics(), scopeMetrics.Scope(), rm.Resource(), scopeMetrics, rm)
-	transformations.ExecuteDataPointTransforms(nil, tc1, "vendorId", pcommon.NewSlice())
-	transformations.ExecuteDataPointTransforms(nil, tc2, "vendorId", pcommon.NewSlice())
+	transformations.ExecuteDatapointTransforms(nil, tc1, "vendorId", pcommon.NewSlice())
+	transformations.ExecuteDatapointTransforms(nil, tc2, "vendorId", pcommon.NewSlice())
 
 	// At this point, both data points should have their "movieId" attribute dropped.
 

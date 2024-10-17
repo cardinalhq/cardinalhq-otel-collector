@@ -64,7 +64,7 @@ type chqDecorator struct {
 	estimatorWindowSize int
 	estimatorInterval   int64
 
-	ottlProcessed ottl.DeferrableCounter
+	ottlProcessed *ottl.TransformCounter
 }
 
 func newCHQDecorator(config *Config, ttype string, set processor.Settings) (*chqDecorator, error) {
@@ -82,7 +82,7 @@ func newCHQDecorator(config *Config, ttype string, set processor.Settings) (*chq
 		attribute.String("processor", set.ID.String()),
 		attribute.String("signal", ttype),
 	)
-	counter, err := newTransformCounter(metadata.Meter(set.TelemetrySettings),
+	counter, err := ottl.NewTransformCounter(metadata.Meter(set.TelemetrySettings),
 		"ottl_processed",
 		[]metric.Int64CounterOption{
 			metric.WithDescription("The results of OTTL processing"),

@@ -69,7 +69,7 @@ func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, e
 		resourceRulesMatched := e.getSlice(rl.Resource().Attributes(), translate.CardinalFieldRulesMatched)
 		if resourceRulesMatched.Len() > 0 {
 			transformCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
-			e.logTransformations.ExecuteResourceTransforms(nil, transformCtx, ottl.VendorID(e.vendor), resourceRulesMatched)
+			e.logTransformations.ExecuteResourceTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), resourceRulesMatched)
 		}
 
 		if e.sliceContains(rl.Resource().Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
@@ -81,7 +81,7 @@ func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, e
 			scopeRulesMatched := e.getSlice(sl.Scope().Attributes(), translate.CardinalFieldRulesMatched)
 			if scopeRulesMatched.Len() > 0 {
 				transformCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), rl)
-				e.logTransformations.ExecuteScopeTransforms(nil, transformCtx, ottl.VendorID(e.vendor), scopeRulesMatched)
+				e.logTransformations.ExecuteScopeTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), scopeRulesMatched)
 			}
 
 			if e.sliceContains(sl.Scope().Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
@@ -92,7 +92,7 @@ func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, e
 				logRulesMatched := e.getSlice(lr.Attributes(), translate.CardinalFieldRulesMatched)
 				if logRulesMatched.Len() > 0 {
 					transformCtx := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
-					e.logTransformations.ExecuteLogTransforms(nil, transformCtx, ottl.VendorID(e.vendor), logRulesMatched)
+					e.logTransformations.ExecuteLogTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), logRulesMatched)
 				}
 				if e.sliceContains(lr.Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
 					return true

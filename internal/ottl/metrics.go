@@ -15,7 +15,6 @@
 package ottl
 
 import (
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -101,46 +100,33 @@ func (m *MetricAggregatorImpl[T]) MatchAndAdd(
 	m.rulesLock.RLock()
 	defer m.rulesLock.RUnlock()
 	t = nowtime(t)
-	attrs, shouldAggregate := attrsToMap(map[string]pcommon.Map{
-		"resource":        rattr,
-		"instrumentation": iattr,
-		"metric":          mattr,
-	})
-	for k, v := range metadata {
-		attrs["metadata."+k] = v
-	}
+
+	// If the aggregation marker exists, it doesn't matter what the value is.
+	_, shouldAggregate := mattr.Get(translate.CardinalFieldAggregate)
 	if shouldAggregate {
+		attrs := attrsToMap(map[string]pcommon.Map{
+			"resource":        rattr,
+			"instrumentation": iattr,
+			"metric":          mattr,
+		})
+		for k, v := range metadata {
+			attrs["metadata."+k] = v
+		}
 		err := m.add(*t, name, buckets, values, aggregationType, attrs)
 		return true, err
 	}
 	return false, nil
 }
 
-func attrsToMap(attrs map[string]pcommon.Map) (map[string]string, bool) {
+func attrsToMap(attrs map[string]pcommon.Map) map[string]string {
 	ret := map[string]string{}
-	var shouldAggregate bool
 	for scope, attr := range attrs {
 		attr.Range(func(k string, v pcommon.Value) bool {
-			shouldAggregate = shouldAggregate || k == translate.CardinalFieldAggregate && v.Bool()
 			ret[scope+"."+k] = v.AsString()
 			return true
 		})
 	}
-	return ret, shouldAggregate
-}
-
-func RemoveTags(attrs map[string]string, tags []string) {
-	for _, tag := range tags {
-		delete(attrs, tag)
-	}
-}
-
-func KeepTags(attrs map[string]string, tags []string) {
-	for k := range attrs {
-		if !slices.Contains(tags, k) {
-			delete(attrs, k)
-		}
-	}
+	return ret
 }
 
 func SplitTag(tag string) (scope string, name string) {

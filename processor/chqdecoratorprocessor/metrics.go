@@ -59,7 +59,7 @@ func (c *chqDecorator) processMetrics(ctx context.Context, md pmetric.Metrics) (
 					for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
 						dp := m.Gauge().DataPoints().At(l)
 						dataPointCtx := ottldatapoint.NewTransformContext(dp, m, sm.Metrics(), sm.Scope(), rm.Resource(), sm, rm)
-						transformations.ExecuteDataPointTransforms(c.ottlProcessed, dataPointCtx, "", emptySlice)
+						transformations.ExecuteDatapointTransforms(c.ottlProcessed, dataPointCtx, "", emptySlice)
 						dattr := dp.Attributes()
 						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 						dattr.PutInt(translate.CardinalFieldTID, tid)
@@ -70,7 +70,7 @@ func (c *chqDecorator) processMetrics(ctx context.Context, md pmetric.Metrics) (
 					for l := 0; l < m.Sum().DataPoints().Len(); l++ {
 						dp := m.Sum().DataPoints().At(l)
 						dataPointCtx := ottldatapoint.NewTransformContext(dp, m, sm.Metrics(), sm.Scope(), rm.Resource(), sm, rm)
-						transformations.ExecuteDataPointTransforms(c.ottlProcessed, dataPointCtx, "", emptySlice)
+						transformations.ExecuteDatapointTransforms(c.ottlProcessed, dataPointCtx, "", emptySlice)
 						dattr := dp.Attributes()
 						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 						dattr.PutInt(translate.CardinalFieldTID, tid)
@@ -81,7 +81,7 @@ func (c *chqDecorator) processMetrics(ctx context.Context, md pmetric.Metrics) (
 					for l := 0; l < m.Histogram().DataPoints().Len(); l++ {
 						dp := m.Histogram().DataPoints().At(l)
 						dataPointCtx := ottldatapoint.NewTransformContext(dp, m, sm.Metrics(), sm.Scope(), rm.Resource(), sm, rm)
-						transformations.ExecuteDataPointTransforms(c.ottlProcessed, dataPointCtx, "", emptySlice)
+						transformations.ExecuteDatapointTransforms(c.ottlProcessed, dataPointCtx, "", emptySlice)
 						dattr := dp.Attributes()
 						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 						dattr.PutInt(translate.CardinalFieldTID, tid)
@@ -92,7 +92,7 @@ func (c *chqDecorator) processMetrics(ctx context.Context, md pmetric.Metrics) (
 					for l := 0; l < m.Summary().DataPoints().Len(); l++ {
 						dp := m.Summary().DataPoints().At(l)
 						dataPointCtx := ottldatapoint.NewTransformContext(dp, m, sm.Metrics(), sm.Scope(), rm.Resource(), sm, rm)
-						transformations.ExecuteDataPointTransforms(c.ottlProcessed, dataPointCtx, "", emptySlice)
+						transformations.ExecuteDatapointTransforms(c.ottlProcessed, dataPointCtx, "", emptySlice)
 						dattr := dp.Attributes()
 						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 						dattr.PutInt(translate.CardinalFieldTID, tid)
@@ -103,7 +103,7 @@ func (c *chqDecorator) processMetrics(ctx context.Context, md pmetric.Metrics) (
 					for l := 0; l < m.ExponentialHistogram().DataPoints().Len(); l++ {
 						dp := m.ExponentialHistogram().DataPoints().At(l)
 						dataPointCtx := ottldatapoint.NewTransformContext(dp, m, sm.Metrics(), sm.Scope(), rm.Resource(), sm, rm)
-						transformations.ExecuteDataPointTransforms(c.ottlProcessed, dataPointCtx, "", emptySlice)
+						transformations.ExecuteDatapointTransforms(c.ottlProcessed, dataPointCtx, "", emptySlice)
 						dattr := dp.Attributes()
 						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 						dattr.PutInt(translate.CardinalFieldTID, tid)

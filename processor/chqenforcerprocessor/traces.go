@@ -51,7 +51,7 @@ func (e *chqEnforcer) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptra
 		resourceRulesMatched := e.getSlice(rs.Resource().Attributes(), translate.CardinalFieldRulesMatched)
 		if resourceRulesMatched.Len() > 0 {
 			transformCtx := ottlresource.NewTransformContext(rs.Resource(), rs)
-			transformations.ExecuteResourceTransforms(nil, transformCtx, ottl.VendorID(e.vendor), resourceRulesMatched)
+			transformations.ExecuteResourceTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), resourceRulesMatched)
 		}
 
 		if e.sliceContains(rs.Resource().Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
@@ -63,7 +63,7 @@ func (e *chqEnforcer) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptra
 			scopeRulesMatched := e.getSlice(iss.Scope().Attributes(), translate.CardinalFieldRulesMatched)
 			if scopeRulesMatched.Len() > 0 {
 				transformCtx := ottlscope.NewTransformContext(iss.Scope(), rs.Resource(), rs)
-				e.logTransformations.ExecuteScopeTransforms(nil, transformCtx, ottl.VendorID(e.vendor), scopeRulesMatched)
+				e.logTransformations.ExecuteScopeTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), scopeRulesMatched)
 			}
 
 			if e.sliceContains(iss.Scope().Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
@@ -75,7 +75,7 @@ func (e *chqEnforcer) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptra
 				logRulesMatched := e.getSlice(sr.Attributes(), translate.CardinalFieldRulesMatched)
 				if logRulesMatched.Len() > 0 {
 					transformCtx := ottlspan.NewTransformContext(sr, iss.Scope(), rs.Resource(), iss, rs)
-					e.logTransformations.ExecuteSpanTransforms(nil, transformCtx, ottl.VendorID(e.vendor), logRulesMatched)
+					e.logTransformations.ExecuteSpanTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), logRulesMatched)
 				}
 				if e.sliceContains(sr.Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
 					return true

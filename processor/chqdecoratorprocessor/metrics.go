@@ -71,7 +71,6 @@ func (c *chqDecorator) processMetrics(ctx context.Context, md pmetric.Metrics) (
 						dp := m.Sum().DataPoints().At(l)
 						dataPointCtx := ottldatapoint.NewTransformContext(dp, m, sm.Metrics(), sm.Scope(), rm.Resource(), sm, rm)
 						transformations.ExecuteDataPointTransforms(c.ottlProcessed, dataPointCtx, "", emptySlice)
-
 						dattr := dp.Attributes()
 						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 						dattr.PutInt(translate.CardinalFieldTID, tid)

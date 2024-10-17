@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
-	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlmetric"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
 
@@ -70,16 +69,6 @@ func (e *chqEnforcer) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (p
 
 			ilm.Metrics().RemoveIf(func(m pmetric.Metric) bool {
 				metricName := m.Name()
-				metricRulesMatched := e.getSlice(m.Metadata(), translate.CardinalFieldRulesMatched)
-				if metricRulesMatched.Len() > 0 {
-					transformCtx := ottlmetric.NewTransformContext(m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
-					e.metricTransformations.ExecuteMetricTransforms(nil, transformCtx, ottl.VendorID(e.vendor), metricRulesMatched)
-				}
-
-				if e.sliceContains(m.Metadata(), translate.CardinalFieldDropForVendor, e.vendor) {
-					return true
-				}
-
 				switch m.Type() {
 				case pmetric.MetricTypeGauge:
 					m.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
@@ -107,7 +96,6 @@ func (e *chqEnforcer) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (p
 						if e.checkDataPointRules(dp, dataPointRulesMatched, m, ilm, rm) {
 							return true
 						}
-
 						if e.pbPhase == chqpb.Phase_POST {
 							agg := e.aggregate(rm, ilm, m, dp)
 							if agg {

@@ -20,25 +20,17 @@ import (
 	"time"
 
 	"go.opentelemetry.io/collector/component"
-	"go.opentelemetry.io/collector/config/confighttp"
 	"go.uber.org/multierr"
 )
 
 type Config struct {
-	Statistics               StatisticsConfig        `mapstructure:"statistics"`
 	MetricAggregation        MetricAggregationConfig `mapstructure:"metric_aggregation"`
 	LogsConfig               LogsConfig              `mapstructure:"logs"`
 	TracesConfig             TracesConfig            `mapstructure:"traces"`
 	MetricsConfig            MetricsConfig           `mapstructure:"metrics"`
 	ConfigurationExtension   *component.ID           `mapstructure:"configuration_extension"`
 	DropDecorationAttributes bool                    `mapstructure:"drop_decoration_attributes"`
-}
-
-type StatisticsConfig struct {
-	confighttp.ClientConfig `mapstructure:",squash"`
-	Interval                time.Duration `mapstructure:"interval"`
-	Phase                   string        `mapstructure:"phase"`
-	Vendor                  string        `mapstructure:"vendor"`
+	Vendor                   string                  `mapstructure:"vendor"`
 }
 
 type MetricAggregationConfig struct {
@@ -72,27 +64,9 @@ func (c *Config) Validate() error {
 	if c.ConfigurationExtension == nil {
 		errs = multierr.Append(errs, errors.New("configuration_extension is required"))
 	}
-	errs = multierr.Append(errs, c.Statistics.Validate())
 	errs = multierr.Append(errs, c.MetricAggregation.Validate())
 	errs = multierr.Append(errs, c.LogsConfig.Validate())
 	errs = multierr.Append(errs, c.TracesConfig.Validate())
-
-	return errs
-}
-
-func (c *StatisticsConfig) Validate() error {
-	var errs error
-	if c.Interval == 0 {
-		c.Interval = 5 * time.Minute
-	}
-
-	if c.Interval < 0 {
-		errs = multierr.Append(errs, errors.New("interval must be greater than or equal to 0"))
-	}
-
-	if c.Phase != "presample" && c.Phase != "postsample" {
-		errs = multierr.Append(errs, errors.New("phase must be either presample or postsample, not "+c.Phase))
-	}
 
 	return errs
 }

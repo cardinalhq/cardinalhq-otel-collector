@@ -15,11 +15,8 @@
 package pitbullprocessor
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 	"time"
 
@@ -31,9 +28,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor/processorhelper"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
@@ -53,53 +48,41 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 	}
 
 	environment := translate.EnvironmentFromEnv()
-
-	now := time.Now()
 	transformations := e.traceTransformations
 	emptySlice := pcommon.NewSlice() // TODO remove when we fully remove chq(decorator|enforcer) processor
 
 	td.ResourceSpans().RemoveIf(func(rs ptrace.ResourceSpans) bool {
 		transformCtx := ottlresource.NewTransformContext(rs.Resource(), rs)
-		transformations.ExecuteResourceTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), emptySlice)
+		transformations.ExecuteResourceTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)
 		if _, found := rs.Resource().Attributes().Get(translate.CardinalFieldDropMarker); found {
 			return true
 		}
-
 		serviceName := getServiceName(rs.Resource().Attributes())
 		rs.ScopeSpans().RemoveIf(func(iss ptrace.ScopeSpans) bool {
 			transformCtx := ottlscope.NewTransformContext(iss.Scope(), rs.Resource(), rs)
-			e.logTransformations.ExecuteScopeTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), emptySlice)
+			e.logTransformations.ExecuteScopeTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)
 			if _, found := iss.Scope().Attributes().Get(translate.CardinalFieldDropMarker); found {
 				return true
 			}
-
 			iss.Spans().RemoveIf(func(sr ptrace.Span) bool {
 				httpResource := e.getHttpResource(sr)
 				if httpResource != "" {
 					sr.Attributes().PutStr(translate.CardinalFieldResourceName, httpResource)
 				}
-
 				spanFingerprint := getSpanFingerprint(sr, httpResource, serviceName)
 				isSlow := e.isSpanSlow(sr, uint64(spanFingerprint))
 				sr.Attributes().PutBool(translate.CardinalFieldSpanIsSlow, isSlow)
-
 				sr.Attributes().PutInt(translate.CardinalFieldFingerprint, spanFingerprint)
 				sr.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, e.podName)
 				sr.Attributes().PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
 				sr.Attributes().PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
-
 				transformCtx := ottlspan.NewTransformContext(sr, iss.Scope(), rs.Resource(), iss, rs)
-				e.logTransformations.ExecuteSpanTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), emptySlice)
+				e.logTransformations.ExecuteSpanTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)
 				if _, found := sr.Attributes().Get(translate.CardinalFieldDropMarker); found {
 					return true
 				}
-
 				if e.config.DropDecorationAttributes {
 					removeAllCardinalFields(sr.Attributes())
-				}
-
-				if err := e.recordSpan(now, serviceName, spanFingerprint, isSlow, sr, iss, rs); err != nil {
-					e.logger.Error("Failed to record span", zap.Error(err))
 				}
 				return false
 			})
@@ -193,109 +176,6 @@ func getOrElse(m map[string]string, key string, defaultValue string) string {
 	}
 	// If the key does not exist, return the default value
 	return defaultValue
-}
-
-func (e *pitbull) recordSpan(now time.Time,
-	serviceName string,
-	fingerprint int64,
-	isSlow bool,
-	span ptrace.Span,
-	iss ptrace.ScopeSpans,
-	rs ptrace.ResourceSpans,
-) error {
-	// spanSize = (size of attributes + top level fields)
-	var stringAttributes, spanSize = toAttributesAndSize(span.Attributes().AsRaw())
-	spanSize += int64(len(span.TraceID().String()))
-	spanSize += int64(len(span.Name()))
-	spanSize += int64(len(span.Kind().String()))
-	spanSize += int64(len(span.SpanID().String()))
-
-	// Derive tags from e.config.LogsConfig.StatsEnrichments based on the contextId, and then add tags to the SpanStats Tags Map
-	tagsToEnrich := map[string]string{
-		"span.status_code": span.Status().Code().String(),
-		"span.is_slow":     fmt.Sprintf("%v", isSlow),
-		"span.kind":        span.Kind().String(),
-	}
-
-	otherTags := e.processEnrichments(e.config.TracesConfig.StatsEnrichments, map[string]pcommon.Map{
-		"resource": rs.Resource().Attributes(),
-		"scope":    iss.Scope().Attributes(),
-		"span":     span.Attributes(),
-	})
-
-	// append enrichedTags to tagsToEnrich
-	for key, value := range otherTags {
-		tagsToEnrich[key] = value
-	}
-
-	rec := &chqpb.SpanStats{
-		ServiceName: serviceName,
-		Fingerprint: fingerprint,
-		Phase:       e.pbPhase,
-		VendorId:    e.config.Statistics.Vendor,
-		Count:       1,
-		Tags:        tagsToEnrich,
-		Exemplar: &chqpb.SpanExemplar{
-			TraceId:      span.TraceID().String(),
-			SpanName:     span.Name(),
-			SpanKind:     span.Kind().String(),
-			Resource:     getOrElse(stringAttributes, translate.CardinalFieldResourceName, ""),
-			ResourceTags: ToMap(rs.Resource().Attributes()),
-			ScopeTags:    ToMap(iss.Scope().Attributes()),
-			SpanTags:     ToMap(span.Attributes()),
-		},
-	}
-	bucketpile, err := e.spanStats.Record(now, rec, "", 1, spanSize)
-	if err != nil {
-		return err
-	}
-	if bucketpile != nil {
-		// TODO should send this to a channel and have a separate goroutine send it
-		go e.sendSpanStats(context.Background(), now, bucketpile)
-	}
-	return nil
-}
-
-func (e *pitbull) sendSpanStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*chqpb.SpanStats) {
-	wrapper := &chqpb.SpanStatsReport{
-		SubmittedAt: now.UnixMilli(),
-		Stats:       []*chqpb.SpanStats{},
-	}
-	for _, items := range *bucketpile {
-		wrapper.Stats = append(wrapper.Stats, items...)
-	}
-
-	if err := e.postSpanStats(ctx, wrapper); err != nil {
-		e.logger.Error("Failed to send span stats", zap.Error(err))
-	}
-	e.logger.Info("Sent log stats", zap.Int("count", len(wrapper.Stats)))
-}
-
-func (e *pitbull) postSpanStats(ctx context.Context, wrapper *chqpb.SpanStatsReport) error {
-	b, err := proto.Marshal(wrapper)
-	if err != nil {
-		return err
-	}
-	e.logger.Info("Sending span stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
-	endpoint := e.config.Statistics.Endpoint + "/api/v1/spanstats"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/x-protobuf")
-
-	resp, err := e.httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		e.logger.Error("Failed to send span stats", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-	return nil
 }
 
 func (e *pitbull) updateTraceTransformations(sc ottl.SamplerConfig) {

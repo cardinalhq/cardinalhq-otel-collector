@@ -17,7 +17,6 @@ package pitbullprocessor
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"go.uber.org/zap"
@@ -35,9 +34,6 @@ func TestSpansProcessor_FingerprintWithHttpResource(t *testing.T) {
 	interval := int64(10000)
 
 	config := &Config{
-		Statistics: StatisticsConfig{
-			Interval: 10 * time.Hour, // effectively disable stats
-		},
 		TracesConfig: TracesConfig{
 			EstimatorWindowSize: windowSize,
 			EstimatorInterval:   interval,

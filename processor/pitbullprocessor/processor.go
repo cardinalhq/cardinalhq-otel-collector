@@ -25,7 +25,6 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"go.opentelemetry.io/collector/component"
-	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/processor"
@@ -34,10 +33,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/fingerprinter"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor/internal/metadata"
 )
 
@@ -48,23 +45,18 @@ type pitbull struct {
 	httpClient *http.Client
 	logger     *zap.Logger
 
-	id                 component.ID
-	ttype              string
-	httpClientSettings confighttp.ClientConfig
-	telemetrySettings  component.TelemetrySettings
-	configExtension    *chqconfigextension.CHQConfigExtension
-	configCallbackID   int
-	pbPhase            chqpb.Phase
-	podName            string
-	vendor             string
+	id                component.ID
+	ttype             string
+	telemetrySettings component.TelemetrySettings
+	configExtension   *chqconfigextension.CHQConfigExtension
+	configCallbackID  int
+	podName           string
 
 	// for logs
-	logstats           *stats.StatsCombiner[*chqpb.LogStats]
 	logTransformations ottl.Transformations
 	logFingerprinter   fingerprinter.Fingerprinter
 
 	// for spans
-	spanStats            *stats.StatsCombiner[*chqpb.SpanStats]
 	traceTransformations ottl.Transformations
 	traceFingerprinter   fingerprinter.Fingerprinter
 	estimators           map[uint64]*SlidingEstimatorStat
@@ -72,7 +64,6 @@ type pitbull struct {
 	estimatorInterval    int64
 
 	// for metrics
-	metricstats           *stats.StatsCombiner[*MetricStat]
 	metricTransformations ottl.Transformations
 
 	nextMetricReceiver   consumer.Metrics
@@ -86,28 +77,19 @@ type pitbull struct {
 }
 
 func newPitbull(config *Config, ttype string, set processor.Settings, nextConsumer consumer.Metrics) (*pitbull, error) {
-	now := time.Now()
 	dog := &pitbull{
 		id:                 set.ID,
 		ttype:              ttype,
 		config:             config,
-		httpClientSettings: config.Statistics.ClientConfig,
 		telemetrySettings:  set.TelemetrySettings,
 		logger:             set.Logger,
 		nextMetricReceiver: nextConsumer,
 		podName:            os.Getenv("POD_NAME"),
-		vendor:             config.Statistics.Vendor,
-	}
-	if config.Statistics.Phase == "presample" {
-		dog.pbPhase = chqpb.Phase_PRE
-	} else {
-		dog.pbPhase = chqpb.Phase_POST
 	}
 
 	attrset := attribute.NewSet(
 		attribute.String("processor", set.ID.String()),
 		attribute.String("signal", ttype),
-		attribute.String("statsPhase", config.Statistics.Phase),
 	)
 	counter, err := ottl.NewTransformCounter(metadata.Meter(set.TelemetrySettings),
 		"ottl_processed",
@@ -126,14 +108,10 @@ func newPitbull(config *Config, ttype string, set processor.Settings, nextConsum
 
 	switch ttype {
 	case "logs":
-		dog.logstats = stats.NewStatsCombiner[*chqpb.LogStats](now, config.Statistics.Interval)
-		dog.logger.Info("sending log statistics", zap.Duration("interval", config.Statistics.Interval))
 		dog.logTransformations = ottl.Transformations{}
 		dog.logFingerprinter = fingerprinter.NewFingerprinter()
 
 	case "metrics":
-		dog.metricstats = stats.NewStatsCombiner[*MetricStat](now, config.Statistics.Interval)
-		dog.logger.Info("sending metric statistics", zap.Duration("interval", config.Statistics.Interval))
 		dog.lastEmitCheck = time.Now()
 		interval := config.MetricAggregation.Interval.Milliseconds()
 		dog.aggregatorI = ottl.NewMetricAggregatorImpl[int64](interval)
@@ -144,8 +122,6 @@ func newPitbull(config *Config, ttype string, set processor.Settings, nextConsum
 			return nil, err
 		}
 	case "traces":
-		dog.spanStats = stats.NewStatsCombiner[*chqpb.SpanStats](now, config.Statistics.Interval)
-		dog.logger.Info("sending span statistics", zap.Duration("interval", config.Statistics.Interval))
 		dog.traceTransformations = ottl.Transformations{}
 		dog.traceFingerprinter = fingerprinter.NewFingerprinter()
 		dog.estimators = make(map[uint64]*SlidingEstimatorStat)
@@ -161,12 +137,6 @@ func (e *pitbull) Capabilities() consumer.Capabilities {
 }
 
 func (e *pitbull) Start(ctx context.Context, host component.Host) error {
-	httpClient, err := e.httpClientSettings.ToClient(ctx, host, e.telemetrySettings)
-	if err != nil {
-		return err
-	}
-	e.httpClient = httpClient
-
 	ext, found := host.GetExtensions()[*e.config.ConfigurationExtension]
 	if !found {
 		return errors.New("configuration extension " + e.config.ConfigurationExtension.String() + " not found")

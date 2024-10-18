@@ -24,9 +24,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/component"
-	"go.opentelemetry.io/collector/config/configcompression"
-	"go.opentelemetry.io/collector/config/confighttp"
-	"go.opentelemetry.io/collector/config/configopaque"
 	"go.opentelemetry.io/collector/otelcol/otelcoltest"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor/internal/metadata"
@@ -48,7 +45,6 @@ func TestLoadConfig(t *testing.T) {
 	e := cfg.Processors[component.MustNewID("pitbull")].(*Config)
 	assert.NoError(t, e.Validate())
 	assert.NotNil(t, e.ConfigurationExtension)
-	assert.NotNil(t, e.Statistics)
 	e.ConfigurationExtension = nil
 	assert.Equal(t, createDefaultConfig(), e)
 }
@@ -69,23 +65,8 @@ func TestConfig(t *testing.T) {
 	e := cfg.Processors[component.MustNewID("pitbull")].(*Config)
 	assert.NoError(t, e.Validate())
 	assert.NotNil(t, e.ConfigurationExtension)
-	assert.NotNil(t, e.Statistics)
 	e.ConfigurationExtension = nil
 	expected := &Config{
-		Statistics: StatisticsConfig{
-			ClientConfig: confighttp.ClientConfig{
-				Timeout:     500 * time.Millisecond,
-				Endpoint:    "http://localhost:8080",
-				Compression: configcompression.TypeZstd,
-				Headers: map[string]configopaque.String{
-					"Alice":      "Bob",
-					"User-Agent": "cardinalhq-otel-collector",
-				},
-			},
-			Interval: 100 * time.Second,
-			Phase:    "presample",
-			Vendor:   "alice",
-		},
 		MetricAggregation: MetricAggregationConfig{
 			Interval: 10 * time.Second,
 		},

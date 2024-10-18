@@ -23,7 +23,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension/internal/metadata"
 	"go.opentelemetry.io/collector/client"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
@@ -32,6 +31,8 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension/internal/metadata"
 )
 
 type chqServerAuth struct {

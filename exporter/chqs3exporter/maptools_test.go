@@ -18,9 +18,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/boxer"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestCustomerIDFromMap(t *testing.T) {

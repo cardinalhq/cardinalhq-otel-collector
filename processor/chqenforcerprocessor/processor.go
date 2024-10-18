@@ -23,11 +23,11 @@ import (
 	"sync"
 	"time"
 
-	"go.opentelemetry.io/collector/pdata/pcommon"
-
+	"github.com/hashicorp/go-multierror"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -39,7 +39,6 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqenforcerprocessor/internal/metadata"
-	"github.com/hashicorp/go-multierror"
 )
 
 type chqEnforcer struct {

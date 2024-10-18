@@ -18,9 +18,8 @@ import (
 	"fmt"
 	"time"
 
-	"go.opentelemetry.io/collector/config/confighttp"
-
 	"go.opentelemetry.io/collector/component"
+	"go.opentelemetry.io/collector/config/confighttp"
 	"go.uber.org/multierr"
 )
 

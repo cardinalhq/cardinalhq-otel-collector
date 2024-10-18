@@ -56,6 +56,12 @@ generate:
 		(echo ============ generating $$i ... ; cd $$i && go generate ./...) || exit 1; \
 	done
 
+.PHONY: fmt
+fmt:
+	for i in $(MODULE_SOURCE_PATHS); do \
+		(echo ============ formatting $$i ... ; cd $$i && gci write . --skip-generated -s standard -s default -s 'Prefix(github.com/cardinalhq/cardinalhq-otel-collector)') || exit 1; \
+	done
+
 #
 # Run pre-commit checks
 #

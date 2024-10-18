@@ -17,10 +17,11 @@ package pitbullprocessor
 import (
 	"testing"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 func TestRemoveAllCardinalFields(t *testing.T) {

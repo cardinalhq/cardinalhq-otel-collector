@@ -18,15 +18,15 @@ import (
 	"context"
 	"testing"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
-	"go.uber.org/zap"
-
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/otel/metric/noop"
 	semconv "go.opentelemetry.io/otel/semconv/v1.22.0"
+	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 func TestSpansProcessor_FingerprintWithHttpResource(t *testing.T) {

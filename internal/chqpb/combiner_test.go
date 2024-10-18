@@ -17,8 +17,9 @@ package chqpb
 import (
 	"testing"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
 )
 
 type mockStatsObject struct{}

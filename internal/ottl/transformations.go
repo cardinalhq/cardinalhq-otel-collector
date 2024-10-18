@@ -16,12 +16,9 @@ package ottl
 
 import (
 	"context"
-
 	"fmt"
 	"math/rand"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
@@ -37,6 +34,9 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 type resourceTransform struct {

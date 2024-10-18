@@ -18,14 +18,15 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension/internal/metadata"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/filereader"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/extension"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension/internal/metadata"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/filereader"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 )
 
 type CHQConfigExtension struct {

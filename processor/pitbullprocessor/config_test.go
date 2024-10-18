@@ -19,12 +19,11 @@ import (
 	"testing"
 	"time"
 
-	"go.uber.org/multierr"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/otelcol/otelcoltest"
+	"go.uber.org/multierr"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor/internal/metadata"
 )

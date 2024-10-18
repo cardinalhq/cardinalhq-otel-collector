@@ -18,13 +18,14 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension/internal/metadata"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/wtcache"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/extension"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension/internal/metadata"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/wtcache"
 )
 
 type CHQTagcacheExtension struct {

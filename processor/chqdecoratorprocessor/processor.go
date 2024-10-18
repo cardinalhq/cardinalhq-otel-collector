@@ -17,16 +17,9 @@ package chqdecoratorprocessor
 import (
 	"context"
 	"errors"
-	"sync"
-
-	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/fingerprinter"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
-	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/metadata"
-
 	"net/http"
 	"os"
+	"sync"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
@@ -35,6 +28,12 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/fingerprinter"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/metadata"
 )
 
 type chqDecorator struct {

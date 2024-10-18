@@ -17,8 +17,9 @@ package chqs3exporter
 import (
 	"context"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"go.opentelemetry.io/collector/client"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 type AuthEnv struct {

@@ -19,9 +19,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
-
 	"go.opentelemetry.io/collector/pdata/pcommon"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 type MetricAggregator[T int64 | float64] interface {

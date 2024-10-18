@@ -17,11 +17,12 @@ package githubeventsreceiver
 import (
 	"context"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver/internal/metadata"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/receiver"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver/internal/metadata"
 )
 
 const (

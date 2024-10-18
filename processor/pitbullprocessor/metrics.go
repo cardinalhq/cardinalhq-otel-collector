@@ -16,8 +16,6 @@ package pitbullprocessor
 
 import (
 	"context"
-	"strings"
-	"time"
 
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
@@ -40,7 +38,6 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 	}
 
 	environment := translate.EnvironmentFromEnv()
-	now := time.Now()
 	emptySlice := pcommon.NewSlice()
 
 	md.ResourceMetrics().RemoveIf(func(rm pmetric.ResourceMetrics) bool {
@@ -83,7 +80,9 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 								attribute.String("service_name", serviceName)))
 							return agg
 						}
-						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
+						if e.config.DropDecorationAttributes {
+							removeAllCardinalFields(dattr)
+						}
 						return false
 					})
 				case pmetric.MetricTypeSum:
@@ -106,7 +105,9 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 								attribute.String("vendor", e.config.Vendor)))
 							return agg
 						}
-						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
+						if e.config.DropDecorationAttributes {
+							removeAllCardinalFields(dattr)
+						}
 						return false
 					})
 				case pmetric.MetricTypeHistogram:
@@ -121,7 +122,9 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						dattr.PutInt(translate.CardinalFieldTID, tid)
 						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
 						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
-						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
+						if e.config.DropDecorationAttributes {
+							removeAllCardinalFields(dattr)
+						}
 						return false
 					})
 				case pmetric.MetricTypeSummary:
@@ -136,7 +139,9 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						dattr.PutInt(translate.CardinalFieldTID, tid)
 						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
 						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
-						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
+						if e.config.DropDecorationAttributes {
+							removeAllCardinalFields(dattr)
+						}
 						return false
 					})
 				case pmetric.MetricTypeExponentialHistogram:
@@ -151,7 +156,9 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						dattr.PutInt(translate.CardinalFieldTID, tid)
 						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
 						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
-						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
+						if e.config.DropDecorationAttributes {
+							removeAllCardinalFields(dattr)
+						}
 						return false
 					})
 				}
@@ -169,19 +176,6 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 		return md, processorhelper.ErrSkipProcessingData
 	}
 	return md, nil
-}
-
-func (e *pitbull) processDatapoint(now time.Time, metricName, serviceName string, rattr, sattr, dattr pcommon.Map) {
-	if e.config.DropDecorationAttributes {
-		removeAllCardinalFields(dattr)
-	}
-}
-
-func computeStatsOnField(k string) bool {
-	if strings.HasPrefix(k, translate.CardinalFieldTID) {
-		return true
-	}
-	return !strings.HasPrefix(k, translate.CardinalFieldPrefixDot)
 }
 
 func (c *pitbull) updateMetricTransformation(sc ottl.SamplerConfig) {

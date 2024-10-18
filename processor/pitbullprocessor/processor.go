@@ -17,8 +17,6 @@ package pitbullprocessor
 import (
 	"context"
 	"errors"
-	"fmt"
-	"net/http"
 	"os"
 	"sync"
 	"time"
@@ -41,9 +39,8 @@ import (
 type pitbull struct {
 	sync.RWMutex
 
-	config     *Config
-	httpClient *http.Client
-	logger     *zap.Logger
+	config *Config
+	logger *zap.Logger
 
 	id                component.ID
 	ttype             string
@@ -186,21 +183,6 @@ func (e *pitbull) configUpdateCallback(sc ottl.SamplerConfig) {
 		e.updateMetricTransformation(sc)
 	}
 	e.logger.Info("Configuration updated")
-}
-
-func (e *pitbull) processEnrichments(enrichments []StatsEnrichment, attributesByScope map[string]pcommon.Map) map[string]string {
-	tags := make(map[string]string)
-	for _, enrichment := range enrichments {
-		for scope, attributes := range attributesByScope {
-			for _, tag := range enrichment.Tags {
-				if tagValue, found := attributes.Get(tag); found {
-					key := fmt.Sprintf("%s.%s", scope, tag)
-					tags[key] = tagValue.AsString()
-				}
-			}
-		}
-	}
-	return tags
 }
 
 func ToMap(attributes pcommon.Map) map[string]string {

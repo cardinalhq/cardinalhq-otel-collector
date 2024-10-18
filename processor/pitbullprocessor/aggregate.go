@@ -67,8 +67,9 @@ func (e *pitbull) emitSetI(set *ottl.AggregationSet[int64]) {
 		dp.SetIntValue(agg.Value()[0])
 
 		setTags(m.Name(), res, sm, m, dp, agg.Tags(), e.podName)
-		serviceName := getServiceName(res.Resource().Attributes())
-		e.processDatapoint(now, m.Name(), serviceName, res.Resource().Attributes(), sm.Scope().Attributes(), dp.Attributes())
+		if e.config.DropDecorationAttributes {
+			removeAllCardinalFields(dp.Attributes())
+		}
 		e.emit()
 
 		err := e.nextMetricReceiver.ConsumeMetrics(context.Background(), mmetrics)
@@ -103,8 +104,9 @@ func (e *pitbull) emitSetF(set *ottl.AggregationSet[float64]) {
 		dp.SetDoubleValue(agg.Value()[0])
 
 		setTags(m.Name(), res, sm, m, dp, agg.Tags(), e.podName)
-		serviceName := getServiceName(res.Resource().Attributes())
-		e.processDatapoint(now, m.Name(), serviceName, res.Resource().Attributes(), sm.Scope().Attributes(), dp.Attributes())
+		if e.config.DropDecorationAttributes {
+			removeAllCardinalFields(dp.Attributes())
+		}
 		e.emit()
 
 		err := e.nextMetricReceiver.ConsumeMetrics(context.Background(), mmetrics)

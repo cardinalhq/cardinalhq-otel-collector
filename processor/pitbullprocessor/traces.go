@@ -16,7 +16,6 @@ package pitbullprocessor
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -157,25 +156,6 @@ func getSpanFingerprint(sr ptrace.Span, httpResource string, serviceName string)
 	fingerprintAttributes = append(fingerprintAttributes, httpResource)
 
 	return int64(xxhash.Sum64String(strings.Join(fingerprintAttributes, "##")))
-}
-
-func toAttributesAndSize(attributes map[string]interface{}) (map[string]string, int64) {
-	result := make(map[string]string)
-	var size int64 = 0
-	for key, value := range attributes {
-		size += int64(len(key) + len(fmt.Sprintf("%v", value)))
-		result[key] = fmt.Sprintf("%v", value)
-	}
-	return result, size
-}
-
-func getOrElse(m map[string]string, key string, defaultValue string) string {
-	// Check if the key exists in the map
-	if value, ok := m[key]; ok {
-		return value
-	}
-	// If the key does not exist, return the default value
-	return defaultValue
 }
 
 func (e *pitbull) updateTraceTransformations(sc ottl.SamplerConfig) {

@@ -17,9 +17,10 @@ package chqs3exporter
 import (
 	"context"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 func (e *s3Exporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {

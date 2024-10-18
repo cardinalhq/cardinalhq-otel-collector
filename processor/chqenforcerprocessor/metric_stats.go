@@ -30,12 +30,15 @@ type MetricStat struct {
 	VendorID    string
 	Count       int64
 	HLL         hll.HllSketch
+	Tags        map[string]string
 }
 
 var _ stats.StatsObject = (*MetricStat)(nil)
 
 func (m *MetricStat) Key() uint64 {
-	return xxhash.Sum64String(m.MetricName + ":" + m.TagName + ":" + m.ServiceName + ":" + m.Phase.String() + ":" + m.VendorID)
+	key := m.MetricName + ":" + m.TagName + ":" + m.ServiceName + ":" + m.Phase.String() + ":" + m.VendorID
+	key = chqpb.AppendTagsToKey(m.Tags, key)
+	return xxhash.Sum64String(key)
 }
 
 func (m *MetricStat) Increment(tag string, count int, _ int64) error {
@@ -56,13 +59,9 @@ func (m *MetricStat) Initialize() error {
 }
 
 func (m *MetricStat) Matches(other stats.StatsObject) bool {
-	o, ok := other.(*MetricStat)
+	_, ok := other.(*MetricStat)
 	if !ok {
 		return false
 	}
-	return m.MetricName == o.MetricName &&
-		m.TagName == o.TagName &&
-		m.ServiceName == o.ServiceName &&
-		m.Phase == o.Phase &&
-		m.VendorID == o.VendorID
+	return m.Key() == other.Key()
 }

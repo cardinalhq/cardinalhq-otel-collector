@@ -18,36 +18,67 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlspan"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor/processorhelper"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 func (e *chqEnforcer) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
+	e.Lock()
+	defer e.Unlock()
+
 	if td.ResourceSpans().Len() == 0 {
 		return td, nil
 	}
 
 	now := time.Now()
+	transformations := e.traceTransformations
+
 	td.ResourceSpans().RemoveIf(func(rs ptrace.ResourceSpans) bool {
+		resourceRulesMatched := e.getSlice(rs.Resource().Attributes(), translate.CardinalFieldRulesMatched)
+		if resourceRulesMatched.Len() > 0 {
+			transformCtx := ottlresource.NewTransformContext(rs.Resource(), rs)
+			transformations.ExecuteResourceTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), resourceRulesMatched)
+		}
+
+		if e.sliceContains(rs.Resource().Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
+			return true
+		}
+
 		serviceName := getServiceName(rs.Resource().Attributes())
 		rs.ScopeSpans().RemoveIf(func(iss ptrace.ScopeSpans) bool {
+			scopeRulesMatched := e.getSlice(iss.Scope().Attributes(), translate.CardinalFieldRulesMatched)
+			if scopeRulesMatched.Len() > 0 {
+				transformCtx := ottlscope.NewTransformContext(iss.Scope(), rs.Resource(), rs)
+				e.logTransformations.ExecuteScopeTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), scopeRulesMatched)
+			}
+
+			if e.sliceContains(iss.Scope().Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
+				return true
+			}
+
 			iss.Spans().RemoveIf(func(sr ptrace.Span) bool {
 				fingerprint := getSpanFingerprint(sr.Attributes())
-
-				if e.pbPhase == chqpb.Phase_POST {
-					shouldDrop := e.shouldDropSpan(serviceName, fingerprint, sr, iss, rs)
-					if shouldDrop {
-						return true
-					}
+				logRulesMatched := e.getSlice(sr.Attributes(), translate.CardinalFieldRulesMatched)
+				if logRulesMatched.Len() > 0 {
+					transformCtx := ottlspan.NewTransformContext(sr, iss.Scope(), rs.Resource(), iss, rs)
+					e.logTransformations.ExecuteSpanTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), logRulesMatched)
+				}
+				if e.sliceContains(sr.Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
+					return true
 				}
 
 				// isSlow is an attribute of the span, but is a cardinal field so will be removed at this point.
@@ -77,12 +108,6 @@ func (e *chqEnforcer) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptra
 	}
 
 	return td, nil
-}
-
-func (e *chqEnforcer) shouldDropSpan(service string, fingerprint int64, span ptrace.Span, iss ptrace.ScopeSpans, rs ptrace.ResourceSpans) bool {
-	fingerprintString := fmt.Sprintf("%d", fingerprint)
-	ruleMatch := e.spanSampler.SampleSpans(service, fingerprintString, rs, iss, span)
-	return ruleMatch != ""
 }
 
 func getSpanFingerprint(l pcommon.Map) int64 {
@@ -134,29 +159,15 @@ func (e *chqEnforcer) recordSpan(now time.Time,
 		"span.kind":        span.Kind().String(),
 	}
 
-	for _, enrichment := range e.config.TracesConfig.StatsEnrichments {
-		if enrichment.Context == "span" {
-			for _, tag := range enrichment.Tags {
-				if tagValue, found := span.Attributes().Get(tag); found {
-					key := fmt.Sprintf("log.%s", tag)
-					tagsToEnrich[key] = tagValue.AsString()
-				}
-			}
-		} else if enrichment.Context == "resource" {
-			for _, tag := range enrichment.Tags {
-				if tagValue, found := rs.Resource().Attributes().Get(tag); found {
-					key := fmt.Sprintf("resource.%s", tag)
-					tagsToEnrich[key] = tagValue.AsString()
-				}
-			}
-		} else if enrichment.Context == "scope" {
-			for _, tag := range enrichment.Tags {
-				if tagValue, found := iss.Scope().Attributes().Get(tag); found {
-					key := fmt.Sprintf("scope.%s", tag)
-					tagsToEnrich[key] = tagValue.AsString()
-				}
-			}
-		}
+	otherTags := e.processEnrichments(e.config.TracesConfig.StatsEnrichments, map[string]pcommon.Map{
+		"resource": rs.Resource().Attributes(),
+		"scope":    iss.Scope().Attributes(),
+		"span":     span.Attributes(),
+	})
+
+	// append enrichedTags to tagsToEnrich
+	for key, value := range otherTags {
+		tagsToEnrich[key] = value
 	}
 
 	rec := &chqpb.SpanStats{
@@ -167,11 +178,13 @@ func (e *chqEnforcer) recordSpan(now time.Time,
 		Count:       1,
 		Tags:        tagsToEnrich,
 		Exemplar: &chqpb.SpanExemplar{
-			TraceId:  span.TraceID().String(),
-			SpanName: span.Name(),
-			SpanKind: span.Kind().String(),
-			Resource: getOrElse(stringAttributes, translate.CardinalFieldResourceName, ""),
-			SpanTags: stringAttributes,
+			TraceId:      span.TraceID().String(),
+			SpanName:     span.Name(),
+			SpanKind:     span.Kind().String(),
+			Resource:     getOrElse(stringAttributes, translate.CardinalFieldResourceName, ""),
+			ResourceTags: ToMap(rs.Resource().Attributes()),
+			ScopeTags:    ToMap(iss.Scope().Attributes()),
+			SpanTags:     ToMap(span.Attributes()),
 		},
 	}
 	bucketpile, err := e.spanStats.Record(now, rec, "", 1, spanSize)
@@ -218,14 +231,28 @@ func (e *chqEnforcer) postSpanStats(ctx context.Context, wrapper *chqpb.SpanStat
 		return err
 	}
 	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		e.logger.Error("Failed to send span stats", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 	return nil
 }
 
-func (e *chqEnforcer) updateTracesSampling(sc sampler.SamplerConfig) {
-	e.logger.Info("Updating traces sampling config", zap.String("vendor", e.vendor))
-	e.spanSampler.UpdateConfig(sc.Traces.Sampling, e.vendor, e.telemetrySettings)
+func (e *chqEnforcer) updateTraceTransformations(sc ottl.SamplerConfig) {
+	e.Lock()
+	defer e.Unlock()
+
+	e.logger.Info("Updating trace transformations config", zap.String("vendor", e.vendor))
+	for _, decorator := range sc.Spans.Enforcers {
+		if decorator.VendorId == ottl.VendorID(e.vendor) {
+			transformations, err := ottl.ParseTransformations(decorator, e.logger)
+			if err != nil {
+				e.logger.Error("Error parsing log transformation", zap.Error(err))
+			} else {
+				e.traceTransformations = ottl.MergeWith(e.traceTransformations, transformations)
+			}
+		}
+	}
 }

@@ -29,6 +29,7 @@ type Config struct {
 	MetricAggregation        MetricAggregationConfig `mapstructure:"metric_aggregation"`
 	LogsConfig               LogsConfig              `mapstructure:"logs"`
 	TracesConfig             TracesConfig            `mapstructure:"traces"`
+	MetricsConfig            MetricsConfig           `mapstructure:"metrics"`
 	ConfigurationExtension   *component.ID           `mapstructure:"configuration_extension"`
 	DropDecorationAttributes bool                    `mapstructure:"drop_decoration_attributes"`
 }
@@ -52,11 +53,15 @@ type StatsEnrichment struct {
 }
 
 type LogsConfig struct {
-	StatsEnrichments []StatsEnrichment `mapstructure:"stats_enrichment"`
+	StatsEnrichments []StatsEnrichment `mapstructure:"statsEnrichments"`
+}
+
+type MetricsConfig struct {
+	StatsEnrichments []StatsEnrichment `mapstructure:"statsEnrichments"`
 }
 
 type TracesConfig struct {
-	StatsEnrichments []StatsEnrichment `mapstructure:"stats_enrichment"`
+	StatsEnrichments []StatsEnrichment `mapstructure:"statsEnrichments"`
 }
 
 func (c *Config) Validate() error {

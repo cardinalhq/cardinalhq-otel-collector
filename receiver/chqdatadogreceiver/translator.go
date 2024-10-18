@@ -14,11 +14,12 @@ import (
 	"strings"
 
 	pb "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
-	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	semconv "go.opentelemetry.io/collector/semconv/v1.27.0"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension"
 )
 
 const (

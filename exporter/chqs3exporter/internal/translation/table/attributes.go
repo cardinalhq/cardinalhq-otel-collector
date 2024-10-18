@@ -15,6 +15,7 @@
 package table
 
 import (
+	"encoding/json"
 	"strings"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -25,11 +26,26 @@ import (
 func addAttributes(m map[string]any, attrs pcommon.Map, prefix string) {
 	attrs.Range(func(name string, v pcommon.Value) bool {
 		if strings.HasPrefix(name, translate.CardinalFieldPrefixDot) {
-			m[name] = v.AsRaw()
+			m[name] = handleValue(v.AsRaw())
 		} else {
 			m[prefix+"."+sanitizeAttribute(name)] = v.AsString()
 		}
 
 		return true
 	})
+}
+
+func handleValue(v any) any {
+	switch v.(type) {
+	case string, int, int8, int16, int32, int64,
+		uint, uint8, uint16, uint32, uint64,
+		float32, float64, bool:
+		return v
+	default:
+		bytes, err := json.Marshal(v)
+		if err != nil {
+			return "[]"
+		}
+		return string(bytes)
+	}
 }

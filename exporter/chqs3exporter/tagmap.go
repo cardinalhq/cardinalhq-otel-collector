@@ -14,7 +14,10 @@
 
 package chqs3exporter
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 func (e *s3Exporter) updateTagMap(customerID string, interval int64, tags map[string]any) error {
 	e.taglock.Lock()
@@ -26,6 +29,7 @@ func (e *s3Exporter) updateTagMap(customerID string, interval int64, tags map[st
 		e.tags[customerID][interval] = map[string]any{}
 	}
 	for k, v := range tags {
+		v = handleValue(v)
 		current, ok := e.tags[customerID][interval][k]
 		if ok {
 			if fmt.Sprintf("%T", current) != fmt.Sprintf("%T", v) {
@@ -36,4 +40,19 @@ func (e *s3Exporter) updateTagMap(customerID string, interval int64, tags map[st
 		}
 	}
 	return nil
+}
+
+func handleValue(v any) any {
+	switch v.(type) {
+	case string, int, int8, int16, int32, int64,
+		uint, uint8, uint16, uint32, uint64,
+		float32, float64, bool:
+		return v
+	default:
+		bytes, err := json.Marshal(v)
+		if err != nil {
+			return "[]"
+		}
+		return string(bytes)
+	}
 }

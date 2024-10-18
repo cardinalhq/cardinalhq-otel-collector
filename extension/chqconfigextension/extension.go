@@ -18,14 +18,15 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension/internal/metadata"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/filereader"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/extension"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension/internal/metadata"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/filereader"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 )
 
 type CHQConfigExtension struct {
@@ -35,7 +36,7 @@ type CHQConfigExtension struct {
 	telemetrySettings  component.TelemetrySettings
 	fetches            metric.Int64Counter
 	logger             *zap.Logger
-	configManager      sampler.ConfigManager
+	configManager      ottl.ConfigManager
 }
 
 func (chq *CHQConfigExtension) setupTelemetry(params extension.Settings) error {
@@ -74,7 +75,7 @@ func (chq *CHQConfigExtension) Start(_ context.Context, host component.Host) err
 	} else {
 		fr = filereader.NewLocalFileReader(chq.config.Source.Endpoint)
 	}
-	chq.configManager = sampler.NewConfigManagerImpl(chq.logger, chq.config.CheckInterval, fr)
+	chq.configManager = ottl.NewConfigManagerImpl(chq.logger, chq.config.CheckInterval, fr)
 	chq.logger.Info("Starting configuration manager", zap.String("check_interval", chq.config.CheckInterval.String()))
 	go chq.configManager.Run()
 	return nil
@@ -87,7 +88,7 @@ func (chq *CHQConfigExtension) Shutdown(context.Context) error {
 	return nil
 }
 
-func (chq *CHQConfigExtension) RegisterCallback(name string, cb sampler.ConfigUpdateCallbackFunc) int {
+func (chq *CHQConfigExtension) RegisterCallback(name string, cb ottl.ConfigUpdateCallbackFunc) int {
 	return chq.configManager.RegisterCallback(name, cb)
 }
 

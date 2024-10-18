@@ -16,50 +16,69 @@ package chqdecoratorprocessor
 
 import (
 	"context"
-	"go.opentelemetry.io/collector/processor"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
+	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
+	"go.opentelemetry.io/collector/processor"
+	"go.opentelemetry.io/otel/metric/noop"
+	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 )
 
 // Helper function to create a spansProcessor with mock transformations
-func createSpansProcessorWithTransformations() *spansProcessor {
+func createSpansProcessorWithTransformations(t *testing.T) *chqDecorator {
 	// Mock processor settings and config
 
-	settings := processor.Settings{}
+	processorSettings := processor.Settings{
+		TelemetrySettings: component.TelemetrySettings{
+			Logger:        zap.NewNop(),
+			MeterProvider: noop.NewMeterProvider(),
+		},
+	}
 	config := &Config{
 		TracesConfig: TracesConfig{
 			EstimatorWindowSize: 5,
 			EstimatorInterval:   1000,
-			Transforms: []ContextStatement{
-				// Resource level transformations
-				{
-					Context:    "resource",
-					Conditions: []string{`attributes["service.name"] == "test-service"`},
-					Statements: []string{`set(attributes["environment"], "test-env")`},
-				},
-				// Scope level transformations
-				{
-					Context:    "scope",
-					Conditions: []string{`name == "test-scope"`},
-					Statements: []string{`set(attributes["level"], "transformed")`},
-				},
-				// Span level transformations
-				{
-					Context:    "span",
-					Conditions: []string{`attributes["kind"] == "internal"`},
-					Statements: []string{`set(attributes["transformed"], true)`},
-				},
-			},
 		},
 	}
 
-	sp, _ := newSpansProcessor(settings, config)
-	return sp
+	c, err := newCHQDecorator(config, "traces", processorSettings)
+
+	instruction := ottl.Instruction{
+		Statements: []ottl.ContextStatement{
+			{
+				Context:    "resource",
+				Conditions: []string{`attributes["service.name"] == "test-service"`},
+				Statements: []string{`set(attributes["environment"], "test-env")`},
+			},
+			// Scope level transformations
+			{
+				Context:    "scope",
+				Conditions: []string{`name == "test-scope"`},
+				Statements: []string{`set(attributes["level"], "transformed")`},
+			},
+			// Span level transformations
+			{
+				Context:    "span",
+				Conditions: []string{`attributes["kind"] == "internal"`},
+				Statements: []string{`set(attributes["transformed"], true)`},
+			}},
+		VendorId: "vendorId",
+	}
+
+	c.updateTracesSampling(ottl.SamplerConfig{
+		Spans: ottl.EventConfigV1{
+			Decorators: []ottl.Instruction{instruction},
+		},
+	})
+	require.NoError(t, err)
+	return c
 }
 
 // Helper function to create test traces
@@ -83,14 +102,14 @@ func createTestTraces() ptrace.Traces {
 // TestSpansProcessor_Transformations tests the application of transformations at all levels
 func TestSpansProcessor_Transformations(t *testing.T) {
 	// Create the spansProcessor with mock transformations
-	sp := createSpansProcessorWithTransformations()
+	sp := createSpansProcessorWithTransformations(t)
 
 	// Create the test traces
 	td := createTestTraces()
 
 	// Process the traces with the spansProcessor
 	processedTraces, err := sp.processTraces(context.Background(), td)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify the resource-level transformation
 	rs := processedTraces.ResourceSpans().At(0)

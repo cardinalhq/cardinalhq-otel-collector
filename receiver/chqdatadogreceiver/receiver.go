@@ -11,8 +11,6 @@ import (
 	"os"
 
 	ddpbtrace "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
-	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension"
-	"github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver/internal/metadata"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/component/componentstatus"
 	"go.opentelemetry.io/collector/consumer"
@@ -21,6 +19,9 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension"
+	"github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver/internal/metadata"
 )
 
 type datadogReceiver struct {

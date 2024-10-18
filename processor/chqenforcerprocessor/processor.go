@@ -17,29 +17,37 @@ package chqenforcerprocessor
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/processor"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqenforcerprocessor/internal/metadata"
-	"github.com/hashicorp/go-multierror"
 )
 
 type chqEnforcer struct {
-	config             *Config
-	httpClient         *http.Client
-	logger             *zap.Logger
+	sync.RWMutex
+
+	config     *Config
+	httpClient *http.Client
+	logger     *zap.Logger
+
 	id                 component.ID
 	ttype              string
 	httpClientSettings confighttp.ClientConfig
@@ -51,26 +59,30 @@ type chqEnforcer struct {
 	vendor             string
 
 	// for logs
-	logstats    *stats.StatsCombiner[*chqpb.LogStats]
-	logSampler  sampler.EventSampler
-	spanSampler sampler.EventSampler
+	logstats           *stats.StatsCombiner[*chqpb.LogStats]
+	logTransformations ottl.Transformations
 
 	// for spans
-	spanStats *stats.StatsCombiner[*chqpb.SpanStats]
+	spanStats            *stats.StatsCombiner[*chqpb.SpanStats]
+	traceTransformations ottl.Transformations
 
 	// for metrics
-	metricstats          *stats.StatsCombiner[*MetricStat]
+	metricstats           *stats.StatsCombiner[*MetricStat]
+	metricTransformations ottl.Transformations
+
 	nextMetricReceiver   consumer.Metrics
 	aggregationInterval  time.Duration
-	aggregatorI          sampler.MetricAggregator[int64]
-	aggregatorF          sampler.MetricAggregator[float64]
+	aggregatorI          ottl.MetricAggregator[int64]
+	aggregatorF          ottl.MetricAggregator[float64]
 	lastEmitCheck        time.Time
 	aggregatedDatapoints metric.Int64Counter
+
+	ottlProcessed *telemetry.DeferrableInt64Counter
 }
 
 func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextConsumer consumer.Metrics) (*chqEnforcer, error) {
 	now := time.Now()
-	statsExporter := &chqEnforcer{
+	enforcer := &chqEnforcer{
 		id:                 set.ID,
 		ttype:              ttype,
 		config:             config,
@@ -82,33 +94,56 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextCo
 		vendor:             config.Statistics.Vendor,
 	}
 	if config.Statistics.Phase == "presample" {
-		statsExporter.pbPhase = chqpb.Phase_PRE
+		enforcer.pbPhase = chqpb.Phase_PRE
 	} else {
-		statsExporter.pbPhase = chqpb.Phase_POST
+		enforcer.pbPhase = chqpb.Phase_POST
 	}
+
+	attrset := attribute.NewSet(
+		attribute.String("processor", set.ID.String()),
+		attribute.String("signal", ttype),
+		attribute.String("statsPhase", config.Statistics.Phase),
+	)
+	counter, err := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
+		"ottl_processed",
+		[]metric.Int64CounterOption{
+			metric.WithDescription("The results of OTTL processing"),
+			metric.WithUnit("1"),
+		},
+		[]metric.AddOption{
+			metric.WithAttributeSet(attrset),
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	enforcer.ottlProcessed = counter
+
 	switch ttype {
 	case "logs":
-		statsExporter.logstats = stats.NewStatsCombiner[*chqpb.LogStats](now, config.Statistics.Interval)
-		statsExporter.logger.Info("sending log statistics", zap.Duration("interval", config.Statistics.Interval))
-		statsExporter.logSampler = sampler.NewEventSamplerImpl(context.Background(), statsExporter.logger)
+		enforcer.logstats = stats.NewStatsCombiner[*chqpb.LogStats](now, config.Statistics.Interval)
+		enforcer.logger.Info("sending log statistics", zap.Duration("interval", config.Statistics.Interval))
+		enforcer.logTransformations = ottl.Transformations{}
+
 	case "metrics":
-		statsExporter.metricstats = stats.NewStatsCombiner[*MetricStat](now, config.Statistics.Interval)
-		statsExporter.logger.Info("sending metric statistics", zap.Duration("interval", config.Statistics.Interval))
-		statsExporter.lastEmitCheck = time.Now()
+		enforcer.metricstats = stats.NewStatsCombiner[*MetricStat](now, config.Statistics.Interval)
+		enforcer.logger.Info("sending metric statistics", zap.Duration("interval", config.Statistics.Interval))
+		enforcer.lastEmitCheck = time.Now()
 		interval := config.MetricAggregation.Interval.Milliseconds()
-		statsExporter.aggregatorI = sampler.NewMetricAggregatorImpl[int64](interval, nil)
-		statsExporter.aggregatorF = sampler.NewMetricAggregatorImpl[float64](interval, nil)
-		err := statsExporter.setupMetricTelemetry()
+		enforcer.aggregatorI = ottl.NewMetricAggregatorImpl[int64](interval)
+		enforcer.aggregatorF = ottl.NewMetricAggregatorImpl[float64](interval)
+		enforcer.metricTransformations = ottl.Transformations{}
+		err := enforcer.setupMetricTelemetry()
 		if err != nil {
 			return nil, err
 		}
 	case "traces":
-		statsExporter.spanStats = stats.NewStatsCombiner[*chqpb.SpanStats](now, config.Statistics.Interval)
-		statsExporter.logger.Info("sending span statistics", zap.Duration("interval", config.Statistics.Interval))
-		statsExporter.spanSampler = sampler.NewEventSamplerImpl(context.Background(), statsExporter.logger)
+		enforcer.spanStats = stats.NewStatsCombiner[*chqpb.SpanStats](now, config.Statistics.Interval)
+		enforcer.logger.Info("sending span statistics", zap.Duration("interval", config.Statistics.Interval))
+		enforcer.traceTransformations = ottl.Transformations{}
 	}
 
-	return statsExporter, nil
+	return enforcer, nil
 }
 
 func (e *chqEnforcer) Capabilities() consumer.Capabilities {
@@ -155,14 +190,61 @@ func (e *chqEnforcer) setupMetricTelemetry() error {
 	return nil
 }
 
-func (e *chqEnforcer) configUpdateCallback(sc sampler.SamplerConfig) {
+func (e *chqEnforcer) configUpdateCallback(sc ottl.SamplerConfig) {
 	switch e.ttype {
 	case "logs":
-		e.updateLogsSampling(sc)
+		e.updateLogTransformations(sc)
 	case "traces":
-		e.updateTracesSampling(sc)
+		e.updateTraceTransformations(sc)
 	case "metrics":
-		e.updateMetricsamplingConfig(sc)
+		e.updateMetricSamplingConfig(sc)
 	}
 	e.logger.Info("Configuration updated")
+}
+
+func (e *chqEnforcer) getSlice(l pcommon.Map, key string) pcommon.Slice {
+	if field, found := l.Get(key); found {
+		if field.Type() == pcommon.ValueTypeSlice {
+			return field.Slice()
+		}
+	}
+	return pcommon.NewSlice()
+}
+
+func (e *chqEnforcer) sliceContains(l pcommon.Map, key string, value string) bool {
+	if field, found := l.Get(key); found {
+		if field.Type() == pcommon.ValueTypeSlice {
+			slice := field.Slice()
+			for i := 0; i < slice.Len(); i++ {
+				if slice.At(i).AsString() == value {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func (e *chqEnforcer) processEnrichments(enrichments []StatsEnrichment, attributesByScope map[string]pcommon.Map) map[string]string {
+	tags := make(map[string]string)
+	for _, enrichment := range enrichments {
+		for scope, attributes := range attributesByScope {
+			for _, tag := range enrichment.Tags {
+				if tagValue, found := attributes.Get(tag); found {
+					key := fmt.Sprintf("%s.%s", scope, tag)
+					tags[key] = tagValue.AsString()
+				}
+			}
+		}
+	}
+	return tags
+}
+
+func ToMap(attributes pcommon.Map) map[string]string {
+	result := make(map[string]string)
+	attributes.Range(func(k string, v pcommon.Value) bool {
+		result[k] = v.AsString()
+		return true
+	})
+	return result
 }

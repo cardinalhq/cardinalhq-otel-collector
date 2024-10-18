@@ -18,8 +18,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"go.opentelemetry.io/collector/pdata/plog"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 func (e *s3Exporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {

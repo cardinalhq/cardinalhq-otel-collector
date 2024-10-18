@@ -23,12 +23,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension"
 	"github.com/mitchellh/mapstructure"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	semconv "go.opentelemetry.io/otel/semconv/v1.25.0"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension"
 )
 
 type datadogIntake struct {

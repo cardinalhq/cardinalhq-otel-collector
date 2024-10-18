@@ -56,4 +56,43 @@ func TestUpdateTagMap(t *testing.T) {
 		"key3": 1234,
 	}
 	assert.Equal(t, newmap, e.tags[customerID][interval])
+
+	// add a list to the map
+	err = e.updateTagMap(customerID, interval, map[string]any{
+		"key4": []int{1, 2, 3},
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 4, len(e.tags[customerID][interval]))
+	newmap["key4"] = `[1,2,3]`
+	assert.Equal(t, newmap, e.tags[customerID][interval])
+}
+
+func TestHandleValue(t *testing.T) {
+	tests := []struct {
+		input    any
+		expected any
+	}{
+		{"string", "string"},
+		{123, 123},
+		{int8(8), int8(8)},
+		{int16(16), int16(16)},
+		{int32(32), int32(32)},
+		{int64(64), int64(64)},
+		{uint(123), uint(123)},
+		{uint8(8), uint8(8)},
+		{uint16(16), uint16(16)},
+		{uint32(32), uint32(32)},
+		{uint64(64), uint64(64)},
+		{float32(1.23), float32(1.23)},
+		{float64(1.23), float64(1.23)},
+		{true, true},
+		{false, false},
+		{[]int{1, 2, 3}, `[1,2,3]`},
+		{map[string]any{"key": "value"}, `{"key":"value"}`},
+	}
+
+	for _, test := range tests {
+		result := handleValue(test.input)
+		assert.Equal(t, test.expected, result)
+	}
 }

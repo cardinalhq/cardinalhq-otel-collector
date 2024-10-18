@@ -1,0 +1,26 @@
+receivers:
+  nop:
+
+processors:
+  chqstats:
+
+exporters:
+  nop:
+
+service:
+  pipelines:
+    traces:
+      receivers: [nop]
+      processors: [chqstats]
+      exporters: [nop]
+    metrics:
+      receivers: [nop]
+      processors: [chqstats]
+      exporters: [nop]
+    logs:
+      receivers: [nop]
+      processors: [chqstats]
+      exporters: [nop]
+
+extensions:
+  nop:

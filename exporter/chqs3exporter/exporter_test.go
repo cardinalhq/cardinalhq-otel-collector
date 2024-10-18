@@ -10,12 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/translation/table"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/boxer"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/translation/table"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/boxer"
 )
 
 // nolint: unused

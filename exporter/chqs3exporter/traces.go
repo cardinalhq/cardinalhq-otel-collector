@@ -18,8 +18,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"go.opentelemetry.io/collector/pdata/ptrace"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 func (e *s3Exporter) ConsumeTraces(ctx context.Context, traces ptrace.Traces) error {

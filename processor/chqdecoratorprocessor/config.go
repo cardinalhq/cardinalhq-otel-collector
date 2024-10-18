@@ -16,79 +16,36 @@ package chqdecoratorprocessor
 
 import (
 	"fmt"
+	"time"
 
-	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
-	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/ottlfuncs"
 	"go.opentelemetry.io/collector/component"
+	"go.opentelemetry.io/collector/config/confighttp"
 	"go.uber.org/multierr"
-	"go.uber.org/zap"
 )
 
 type Config struct {
-	LogsConfig   LogsConfig   `mapstructure:"logs"`
-	TracesConfig TracesConfig `mapstructure:"traces"`
+	Statistics             StatisticsConfig `mapstructure:"statistics"`
+	TracesConfig           TracesConfig     `mapstructure:"traces"`
+	ConfigurationExtension *component.ID    `mapstructure:"configuration_extension"`
 }
 
-type LogsConfig struct {
-	Transforms []ContextStatement `mapstructure:"log_statements"`
+type StatisticsConfig struct {
+	confighttp.ClientConfig `mapstructure:",squash"`
+	Interval                time.Duration `mapstructure:"interval"`
+	Phase                   string        `mapstructure:"phase"`
+	Vendor                  string        `mapstructure:"vendor"`
 }
 
 type TracesConfig struct {
-	Transforms          []ContextStatement `mapstructure:"trace_statements"`
-	EstimatorWindowSize int                `mapstructure:"estimator_window_size"`
-	EstimatorInterval   int64              `mapstructure:"estimator_interval"`
-}
-
-type ContextID string
-
-type ContextStatement struct {
-	Context    ContextID `mapstructure:"context"`
-	Conditions []string  `mapstructure:"conditions"`
-	Statements []string  `mapstructure:"statements"`
+	EstimatorWindowSize int   `mapstructure:"estimator_window_size"`
+	EstimatorInterval   int64 `mapstructure:"estimator_interval"`
 }
 
 var _ component.Config = (*Config)(nil)
 
-var validContexts = map[ContextID]bool{
-	"resource": true,
-	"scope":    true,
-	"log":      true,
-}
-
 // Validate function for your custom processor's Config
 func (c *Config) Validate() error {
-	var errors error
-	if len(c.LogsConfig.Transforms) > 0 {
-		pc, err := ottllog.NewParser(ottlfuncs.StandardFuncs[ottllog.TransformContext](), component.TelemetrySettings{Logger: zap.NewNop()})
-		if err != nil {
-			return err
-		}
-
-		for _, cs := range c.LogsConfig.Transforms {
-			// Check if ContextID is valid (resource, scope, or log)
-			if !validContexts[cs.Context] {
-				err := fmt.Errorf("invalid context: %s. Must be one of: resource, scope, log", cs.Context)
-				errors = multierr.Append(errors, err)
-				continue
-			}
-
-			// Parse the statements if the context is valid
-			_, err = pc.ParseStatements(cs.Statements)
-			if err != nil {
-				errors = multierr.Append(errors, err)
-			}
-
-			// Parse the conditions if the context is valid
-			_, err = pc.ParseConditions(cs.Conditions)
-			if err != nil {
-				errors = multierr.Append(errors, err)
-			}
-		}
-	}
-
-	errors = multierr.Append(errors, validateTracesConfig(c.TracesConfig))
-
-	return errors
+	return validateTracesConfig(c.TracesConfig)
 }
 
 func validateTracesConfig(tc TracesConfig) error {

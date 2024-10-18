@@ -23,13 +23,20 @@ message LogStatsReport {
 	repeated LogStats stats = 2;
 }
 
+message LogExemplar {
+	map<string, string> resourceTags = 1;
+	map<string, string> scopeTags = 2;
+	map<string, string> logTags = 3;
+	string exemplar = 4;
+}
+
 message LogStats {
 	string serviceName = 1;
 	int64 fingerprint = 2;
 	Phase phase = 3;
 	int64 count = 4;
 	int64 logSize = 5;
-	string exemplar = 6;
+	LogExemplar exemplar = 6;
 	string vendorId = 7;
 	map<string, string> tags = 8;
 }
@@ -44,7 +51,9 @@ message SpanExemplar {
 	string spanName = 2;
 	string resource = 3;
 	string spanKind = 4;
-	map<string, string> spanTags = 5;
+	map<string, string> resourceTags = 5;
+	map<string, string> scopeTags = 6;
+	map<string, string> spanTags = 7;
 }
 
 message SpanStats {
@@ -73,6 +82,7 @@ message MetricStats {
 	bytes hll = 6;
 	int64 count = 7;
 	string vendorId = 8;
+	map<string, string> tags = 9;
 }
 
 enum Phase {

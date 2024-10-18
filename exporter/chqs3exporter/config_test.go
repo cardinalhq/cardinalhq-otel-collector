@@ -8,12 +8,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/metadata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/otelcol/otelcoltest"
 	"go.uber.org/multierr"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/metadata"
 )
 
 func TestLoadConfig(t *testing.T) {

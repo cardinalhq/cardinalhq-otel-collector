@@ -18,10 +18,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/processor/processorhelper"
@@ -30,7 +34,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/sampler"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
@@ -51,6 +55,9 @@ func getFingerprint(l pcommon.Map) int64 {
 }
 
 func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
+	e.Lock()
+	defer e.Unlock()
+
 	if ld.ResourceLogs().Len() == 0 {
 		return ld, nil
 	}
@@ -58,19 +65,42 @@ func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, e
 	now := time.Now()
 
 	ld.ResourceLogs().RemoveIf(func(rl plog.ResourceLogs) bool {
+		resourceRulesMatched := e.getSlice(rl.Resource().Attributes(), translate.CardinalFieldRulesMatched)
+		if resourceRulesMatched.Len() > 0 {
+			transformCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
+			e.logTransformations.ExecuteResourceTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), resourceRulesMatched)
+		}
+
+		if e.sliceContains(rl.Resource().Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
+			return true
+		}
+
 		serviceName := getServiceName(rl.Resource().Attributes())
 		rl.ScopeLogs().RemoveIf(func(sl plog.ScopeLogs) bool {
+			scopeRulesMatched := e.getSlice(sl.Scope().Attributes(), translate.CardinalFieldRulesMatched)
+			if scopeRulesMatched.Len() > 0 {
+				transformCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), rl)
+				e.logTransformations.ExecuteScopeTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), scopeRulesMatched)
+			}
+
+			if e.sliceContains(sl.Scope().Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
+				return true
+			}
+
 			sl.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
-				fingerprint := getFingerprint(lr.Attributes())
-				if e.pbPhase == chqpb.Phase_POST {
-					shouldDrop := e.shouldDropLog(serviceName, fingerprint, rl, sl, lr)
-					if shouldDrop {
-						return true
-					}
+				logRulesMatched := e.getSlice(lr.Attributes(), translate.CardinalFieldRulesMatched)
+				if logRulesMatched.Len() > 0 {
+					transformCtx := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
+					e.logTransformations.ExecuteLogTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), logRulesMatched)
 				}
+				if e.sliceContains(lr.Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
+					return true
+				}
+
 				if e.config.DropDecorationAttributes {
 					removeAllCardinalFields(lr.Attributes())
 				}
+				fingerprint := getFingerprint(lr.Attributes())
 				if err := e.recordLog(now, serviceName, fingerprint, rl, sl, lr); err != nil {
 					e.logger.Error("Failed to record log", zap.Error(err))
 				}
@@ -87,12 +117,6 @@ func (e *chqEnforcer) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, e
 	return ld, nil
 }
 
-func (e *chqEnforcer) shouldDropLog(serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) bool {
-	fingerprintString := fmt.Sprintf("%d", fingerprint)
-	rule_match := e.logSampler.SampleLogs(serviceName, fingerprintString, rl, sl, lr)
-	return rule_match != ""
-}
-
 func removeAllCardinalFields(attr pcommon.Map) {
 	attr.RemoveIf(func(k string, _ pcommon.Value) bool {
 		return strings.HasPrefix(k, translate.CardinalFieldPrefix)
@@ -104,31 +128,12 @@ func (e *chqEnforcer) recordLog(now time.Time, serviceName string, fingerprint i
 	logSize := int64(len(message))
 
 	// Derive tags from e.config.LogsConfig.StatsEnrichments based on the contextId, and then add tags to the LogStats.Tags Map
-	tags := make(map[string]string)
-	for _, enrichment := range e.config.LogsConfig.StatsEnrichments {
-		if enrichment.Context == "log" {
-			for _, tag := range enrichment.Tags {
-				if tagValue, found := lr.Attributes().Get(tag); found {
-					key := fmt.Sprintf("log.%s", tag)
-					tags[key] = tagValue.AsString()
-				}
-			}
-		} else if enrichment.Context == "resource" {
-			for _, tag := range enrichment.Tags {
-				if tagValue, found := rl.Resource().Attributes().Get(tag); found {
-					key := fmt.Sprintf("resource.%s", tag)
-					tags[key] = tagValue.AsString()
-				}
-			}
-		} else if enrichment.Context == "scope" {
-			for _, tag := range enrichment.Tags {
-				if tagValue, found := sl.Scope().Attributes().Get(tag); found {
-					key := fmt.Sprintf("scope.%s", tag)
-					tags[key] = tagValue.AsString()
-				}
-			}
-		}
-	}
+
+	tags := e.processEnrichments(e.config.LogsConfig.StatsEnrichments, map[string]pcommon.Map{
+		"resource": rl.Resource().Attributes(),
+		"scope":    sl.Scope().Attributes(),
+		"log":      lr.Attributes(),
+	})
 
 	rec := &chqpb.LogStats{
 		ServiceName: serviceName,
@@ -137,8 +142,13 @@ func (e *chqEnforcer) recordLog(now time.Time, serviceName string, fingerprint i
 		VendorId:    e.config.Statistics.Vendor,
 		Count:       1,
 		LogSize:     logSize,
-		Exemplar:    message,
-		Tags:        tags,
+		Exemplar: &chqpb.LogExemplar{
+			ResourceTags: ToMap(rl.Resource().Attributes()),
+			ScopeTags:    ToMap(sl.Scope().Attributes()),
+			LogTags:      ToMap(lr.Attributes()),
+			Exemplar:     message,
+		},
+		Tags: tags,
 	}
 	bucketpile, err := e.logstats.Record(now, rec, "", 1, logSize)
 	if err != nil {
@@ -184,14 +194,28 @@ func (e *chqEnforcer) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsR
 		return err
 	}
 	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		e.logger.Error("Failed to send log stats", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 	return nil
 }
 
-func (e *chqEnforcer) updateLogsSampling(sc sampler.SamplerConfig) {
-	e.logger.Info("Updating log sampling config", zap.String("vendor", e.vendor))
-	e.logSampler.UpdateConfig(sc.Logs.Sampling, e.vendor, e.telemetrySettings)
+func (e *chqEnforcer) updateLogTransformations(sc ottl.SamplerConfig) {
+	e.Lock()
+	defer e.Unlock()
+
+	e.logger.Info("Updating log transformations config", zap.String("vendor", e.vendor))
+	for _, decorator := range sc.Logs.Enforcers {
+		if decorator.VendorId == ottl.VendorID(e.vendor) {
+			transformations, err := ottl.ParseTransformations(decorator, e.logger)
+			if err != nil {
+				e.logger.Error("Error parsing log transformation", zap.Error(err))
+			} else {
+				e.logTransformations = ottl.MergeWith(e.logTransformations, transformations)
+			}
+		}
+	}
 }

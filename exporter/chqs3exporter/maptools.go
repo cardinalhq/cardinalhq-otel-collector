@@ -19,9 +19,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"github.com/hashicorp/go-multierror"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 // customerIDFromMap extracts a customer ID from a map.

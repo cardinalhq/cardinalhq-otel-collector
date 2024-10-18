@@ -128,6 +128,7 @@ func (e *datadogExporter) convertSumMetric(_ context.Context, metric pmetric.Met
 		if hasInterval {
 			value = value / float64(interval)
 			m.Type = ddpb.MetricPayload_RATE
+			m.Interval = interval
 		}
 		tags, resources := tagStrings(rAttr, sAttr, dp.Attributes())
 		m.Tags = append(m.Tags, tags...)

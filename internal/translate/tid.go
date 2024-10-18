@@ -19,9 +19,8 @@ import (
 	"slices"
 	"strings"
 
-	"go.opentelemetry.io/collector/pdata/pcommon"
-
 	"github.com/cespare/xxhash/v2"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 )
 
 func CalculateTID(extra map[string]string, rattr, sattr, iattr pcommon.Map, prefix string, environment Environment) int64 {

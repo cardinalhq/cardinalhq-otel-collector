@@ -13,10 +13,10 @@
 # limitations under the License.
 
 TARGETS=bin/cardinalhq-otel-collector
-PLATFORM=linux/amd64,linux/arm64
+PLATFORM=linux/amd64 #,linux/arm64
 BUILDX=docker buildx build --pull --platform ${PLATFORM}
 IMAGE_PREFIX=public.ecr.aws/cardinalhq.io/
-ODEL_VERSION=v0.110.0
+ODEL_VERSION=v0.111.0
 
 #
 # Build targets.  Adding to these will cause magic to occur.
@@ -53,7 +53,13 @@ all: ${TARGETS}
 .PHONY: generate
 generate:
 	for i in $(MODULE_SOURCE_PATHS); do \
-		(echo ============ generating $$i ... ; cd $$i && go generate ./...) \
+		(echo ============ generating $$i ... ; cd $$i && go generate ./...) || exit 1; \
+	done
+
+.PHONY: fmt
+fmt:
+	for i in $(MODULE_SOURCE_PATHS); do \
+		(echo ============ formatting $$i ... ; cd $$i && gci write . --skip-generated -s standard -s default -s 'Prefix(github.com/cardinalhq/cardinalhq-otel-collector)') || exit 1; \
 	done
 
 #
@@ -62,17 +68,17 @@ generate:
 check: test
 	license-eye header check
 	for i in $(MODULE_SOURCE_PATHS); do \
-		(echo ============ linting $$i ... ; cd $$i && golangci-lint run) \
+		(echo ============ linting $$i ... ; cd $$i && golangci-lint run) || exit 1; \
 	done
 
 update-deps:
 	for i in $(MODULE_SOURCE_PATHS); do \
-		(echo ============ updating $$i ... ; cd $$i && go get -u -t ./... && go mod tidy) \
+		(echo ============ updating $$i ... ; cd $$i && go get -u -t ./... && go mod tidy) || exit 1; \
 	done
 
 tidy:
 	for i in $(MODULE_SOURCE_PATHS); do \
-		(echo ============ go tidy in $$i ... ; cd $$i && go mod tidy) \
+		(echo ============ go tidy in $$i ... ; cd $$i && go mod tidy) || exit 1; \
 	done
 
 
@@ -128,7 +134,7 @@ image-names:
 .PHONY: test
 test: generate
 	for i in $(MODULE_SOURCE_PATHS); do \
-		(echo ============ testing $$i ... ; cd $$i && go test ./...) \
+		(echo ============ testing $$i ... && cd $$i && go test ./...) || exit 1; \
 	done
 
 #

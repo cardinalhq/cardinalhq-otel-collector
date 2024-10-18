@@ -65,8 +65,12 @@ fmt:
 #
 # Run pre-commit checks
 #
-check: test
+check: test license-check lint
+
+license-check:
 	license-eye header check
+
+lint:
 	for i in $(MODULE_SOURCE_PATHS); do \
 		(echo ============ linting $$i ... ; cd $$i && golangci-lint run) || exit 1; \
 	done

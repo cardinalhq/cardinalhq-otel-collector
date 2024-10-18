@@ -14,4 +14,4 @@
 
 package tokenizer
 
-//go:generate ragel -Z -G2 tokenizer.rl -o tokenizer.go
+//go:generate sh ./runragel.sh

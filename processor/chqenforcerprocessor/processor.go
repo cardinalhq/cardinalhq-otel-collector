@@ -37,6 +37,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqenforcerprocessor/internal/metadata"
 	"github.com/hashicorp/go-multierror"
 )
@@ -77,7 +78,7 @@ type chqEnforcer struct {
 	lastEmitCheck        time.Time
 	aggregatedDatapoints metric.Int64Counter
 
-	ottlProcessed *ottl.TransformCounter
+	ottlProcessed *telemetry.DeferrableInt64Counter
 }
 
 func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextConsumer consumer.Metrics) (*chqEnforcer, error) {
@@ -104,7 +105,7 @@ func newCHQEnforcer(config *Config, ttype string, set processor.Settings, nextCo
 		attribute.String("signal", ttype),
 		attribute.String("statsPhase", config.Statistics.Phase),
 	)
-	counter, err := ottl.NewTransformCounter(metadata.Meter(set.TelemetrySettings),
+	counter, err := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
 		"ottl_processed",
 		[]metric.Int64CounterOption{
 			metric.WithDescription("The results of OTTL processing"),

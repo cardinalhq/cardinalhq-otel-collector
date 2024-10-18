@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math/rand"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
@@ -33,7 +34,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	semconv "go.opentelemetry.io/otel/semconv/v1.22.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 )
@@ -377,7 +378,7 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (transforma
 	return transformations, errors
 }
 
-func evaluateTransform[T any](counter DeferrableCounter, rulesByRuleIdByVendorId map[VendorID]map[RuleID]T, vendorId VendorID, ruleIds pcommon.Slice, eval func(DeferrableCounter, T, string)) {
+func evaluateTransform[T any](counter telemetry.DeferrableCounter, rulesByRuleIdByVendorId map[VendorID]map[RuleID]T, vendorId VendorID, ruleIds pcommon.Slice, eval func(telemetry.DeferrableCounter, T, string)) {
 	if ruleIds.Len() == 0 || vendorId == "" {
 		for _, transformsByRuleId := range rulesByRuleIdByVendorId {
 			for ruleID, transform := range transformsByRuleId {
@@ -401,17 +402,17 @@ func usableVendorId(vendorId VendorID) string {
 	return string(vendorId)
 }
 
-func (t *transformations) ExecuteResourceTransforms(counter DeferrableCounter, transformCtx ottlresource.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
+func (t *transformations) ExecuteResourceTransforms(counter telemetry.DeferrableCounter, transformCtx ottlresource.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
 	attrset := attribute.NewSet(attribute.String("context", "resource"), attribute.String("vendor_id", usableVendorId(vendorId)))
-	CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "resource")))
-	evaluateTransform[resourceTransform](counter, t.resourceTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, resourceTransform resourceTransform, ruleID string) {
+	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "resource")))
+	evaluateTransform[resourceTransform](counter, t.resourceTransformsByRuleId, vendorId, ruleIds, func(counter telemetry.DeferrableCounter, resourceTransform resourceTransform, ruleID string) {
 		allConditionsTrue := true
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", ruleID)))
+		telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", ruleID)))
 		for _, condition := range resourceTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.String("rule_id", ruleID), attribute.Bool("all_conditions_true", allConditionsTrue)))
+		telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.String("rule_id", ruleID), attribute.Bool("all_conditions_true", allConditionsTrue)))
 		if !allConditionsTrue {
 			return
 		}
@@ -424,17 +425,17 @@ func (t *transformations) ExecuteResourceTransforms(counter DeferrableCounter, t
 	})
 }
 
-func (t *transformations) ExecuteScopeTransforms(counter DeferrableCounter, transformCtx ottlscope.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
+func (t *transformations) ExecuteScopeTransforms(counter telemetry.DeferrableCounter, transformCtx ottlscope.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
 	attrset := attribute.NewSet(attribute.String("context", "scope"), attribute.String("vendor_id", usableVendorId(vendorId)))
-	CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "scope")))
-	evaluateTransform[scopeTransform](counter, t.scopeTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, scopeTransform scopeTransform, ruleID string) {
+	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "scope")))
+	evaluateTransform[scopeTransform](counter, t.scopeTransformsByRuleId, vendorId, ruleIds, func(counter telemetry.DeferrableCounter, scopeTransform scopeTransform, ruleID string) {
 		allConditionsTrue := true
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", ruleID)))
+		telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", ruleID)))
 		for _, condition := range scopeTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.String("rule_id", ruleID), attribute.Bool("all_conditions_true", allConditionsTrue)))
+		telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.String("rule_id", ruleID), attribute.Bool("all_conditions_true", allConditionsTrue)))
 		if !allConditionsTrue {
 			return
 		}
@@ -448,17 +449,17 @@ func (t *transformations) ExecuteScopeTransforms(counter DeferrableCounter, tran
 	})
 }
 
-func (t *transformations) ExecuteLogTransforms(counter DeferrableCounter, transformCtx ottllog.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
+func (t *transformations) ExecuteLogTransforms(counter telemetry.DeferrableCounter, transformCtx ottllog.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
 	attrset := attribute.NewSet(attribute.String("context", "log"), attribute.String("vendor_id", usableVendorId(vendorId)))
-	CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "log")))
-	evaluateTransform[logTransform](counter, t.logTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, logTransform logTransform, ruleID string) {
+	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "log")))
+	evaluateTransform[logTransform](counter, t.logTransformsByRuleId, vendorId, ruleIds, func(counter telemetry.DeferrableCounter, logTransform logTransform, ruleID string) {
 		allConditionsTrue := true
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", ruleID)))
+		telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", ruleID)))
 		for _, condition := range logTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(
+		telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(
 			attribute.String("stage", "pre-sampler"),
 			attribute.String("rule_id", ruleID),
 			attribute.Bool("all_conditions_true", allConditionsTrue),
@@ -471,14 +472,14 @@ func (t *transformations) ExecuteLogTransforms(counter DeferrableCounter, transf
 			serviceName := GetServiceName(transformCtx.GetResource())
 			fingerprint, exists := transformCtx.GetLogRecord().Attributes().Get(translate.CardinalFieldFingerprint)
 			if !exists {
-				CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "sampler-error"), attribute.String("rule_id", ruleID)))
+				telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "sampler-error"), attribute.String("rule_id", ruleID)))
 				return
 			}
 			key := fmt.Sprintf("%s:%s", serviceName, fingerprint.AsString())
 			sampleRate := logTransform.sampler.GetSampleRate(key)
 			allConditionsTrue = shouldFilter(sampleRate, rand.Float64())
 		}
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.String("rule_id", ruleID), attribute.Bool("all_conditions_true", allConditionsTrue)))
+		telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.String("rule_id", ruleID), attribute.Bool("all_conditions_true", allConditionsTrue)))
 		if !allConditionsTrue {
 			return
 		}
@@ -502,17 +503,17 @@ func shouldFilter(rate int, randval float64) bool {
 	}
 }
 
-func (t *transformations) ExecuteSpanTransforms(counter DeferrableCounter, transformCtx ottlspan.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
+func (t *transformations) ExecuteSpanTransforms(counter telemetry.DeferrableCounter, transformCtx ottlspan.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
 	attrset := attribute.NewSet(attribute.String("context", "span"), attribute.String("vendor_id", usableVendorId(vendorId)))
-	CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "span")))
-	evaluateTransform[spanTransform](counter, t.spanTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, spanTransform spanTransform, ruleID string) {
+	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "span")))
+	evaluateTransform[spanTransform](counter, t.spanTransformsByRuleId, vendorId, ruleIds, func(counter telemetry.DeferrableCounter, spanTransform spanTransform, ruleID string) {
 		allConditionsTrue := true
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", ruleID)))
+		telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", ruleID)))
 		for _, condition := range spanTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(
+		telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(
 			attribute.String("stage", "pre-sampler"),
 			attribute.String("rule_id", ruleID),
 			attribute.Bool("all_conditions_true", allConditionsTrue),
@@ -532,7 +533,7 @@ func (t *transformations) ExecuteSpanTransforms(counter DeferrableCounter, trans
 			sampleRate := spanTransform.sampler.GetSampleRate(key)
 			allConditionsTrue = allConditionsTrue && shouldFilter(sampleRate, randval)
 		}
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.String("rule_id", ruleID), attribute.Bool("all_conditions_true", allConditionsTrue)))
+		telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.String("rule_id", ruleID), attribute.Bool("all_conditions_true", allConditionsTrue)))
 		if !allConditionsTrue {
 			return
 		}
@@ -545,17 +546,17 @@ func (t *transformations) ExecuteSpanTransforms(counter DeferrableCounter, trans
 	})
 }
 
-func (t *transformations) ExecuteMetricTransforms(counter DeferrableCounter, transformCtx ottlmetric.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
+func (t *transformations) ExecuteMetricTransforms(counter telemetry.DeferrableCounter, transformCtx ottlmetric.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
 	attrset := attribute.NewSet(attribute.String("context", "metric"), attribute.String("vendor_id", usableVendorId(vendorId)))
-	CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "metric")))
-	evaluateTransform[metricTransform](counter, t.metricTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, metricTransform metricTransform, ruleID string) {
+	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "metric")))
+	evaluateTransform[metricTransform](counter, t.metricTransformsByRuleId, vendorId, ruleIds, func(counter telemetry.DeferrableCounter, metricTransform metricTransform, ruleID string) {
 		allConditionsTrue := true
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", ruleID)))
+		telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", ruleID)))
 		for _, condition := range metricTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.String("rule_id", ruleID), attribute.Bool("all_conditions_true", allConditionsTrue)))
+		telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.String("rule_id", ruleID), attribute.Bool("all_conditions_true", allConditionsTrue)))
 		if !allConditionsTrue {
 			return
 		}
@@ -568,17 +569,17 @@ func (t *transformations) ExecuteMetricTransforms(counter DeferrableCounter, tra
 	})
 }
 
-func (t *transformations) ExecuteDatapointTransforms(counter DeferrableCounter, transformCtx ottldatapoint.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
+func (t *transformations) ExecuteDatapointTransforms(counter telemetry.DeferrableCounter, transformCtx ottldatapoint.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
 	attrset := attribute.NewSet(attribute.String("context", "datapoint"), attribute.String("vendor_id", usableVendorId(vendorId)))
-	CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "datapoint")))
-	evaluateTransform[dataPointTransform](counter, t.dataPointTransformsByRuleId, vendorId, ruleIds, func(counter DeferrableCounter, dataPointTransform dataPointTransform, ruleID string) {
+	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "datapoint")))
+	evaluateTransform[dataPointTransform](counter, t.dataPointTransformsByRuleId, vendorId, ruleIds, func(counter telemetry.DeferrableCounter, dataPointTransform dataPointTransform, ruleID string) {
 		allConditionsTrue := true
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", ruleID)))
+		telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", ruleID)))
 		for _, condition := range dataPointTransform.conditions {
 			conditionMet, _ := condition.Eval(context.Background(), transformCtx)
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
-		CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.String("rule_id", ruleID), attribute.Bool("all_conditions_true", allConditionsTrue)))
+		telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.String("rule_id", ruleID), attribute.Bool("all_conditions_true", allConditionsTrue)))
 		if !allConditionsTrue {
 			return
 		}

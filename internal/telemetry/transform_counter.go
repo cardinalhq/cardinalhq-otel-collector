@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ottl
+package telemetry
 
 import (
 	"context"
@@ -20,23 +20,23 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-type TransformCounter struct {
+type DeferrableInt64Counter struct {
 	counter    metric.Int64Counter
 	addOptions []metric.AddOption
 }
 
-var _ DeferrableCounter = (*TransformCounter)(nil)
+var _ DeferrableCounter = (*DeferrableInt64Counter)(nil)
 
-func (tc *TransformCounter) Add(delta int64, options ...metric.AddOption) {
+func (tc *DeferrableInt64Counter) Add(delta int64, options ...metric.AddOption) {
 	tc.counter.Add(context.Background(), delta, append(tc.addOptions, options...)...)
 }
 
-func NewTransformCounter(meter metric.Meter, name string, counterOptions []metric.Int64CounterOption, addOptions []metric.AddOption) (*TransformCounter, error) {
+func NewDeferrableInt64Counter(meter metric.Meter, name string, counterOptions []metric.Int64CounterOption, addOptions []metric.AddOption) (*DeferrableInt64Counter, error) {
 	counter, err := meter.Int64Counter(name, counterOptions...)
 	if err != nil {
 		return nil, err
 	}
-	return &TransformCounter{
+	return &DeferrableInt64Counter{
 		counter:    counter,
 		addOptions: addOptions,
 	}, nil

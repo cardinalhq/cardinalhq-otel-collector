@@ -22,6 +22,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/fingerprinter"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor/internal/metadata"
 
 	"net/http"
@@ -63,7 +64,7 @@ type chqDecorator struct {
 	estimatorWindowSize int
 	estimatorInterval   int64
 
-	ottlProcessed *ottl.TransformCounter
+	ottlProcessed *telemetry.DeferrableInt64Counter
 }
 
 func newCHQDecorator(config *Config, ttype string, set processor.Settings) (*chqDecorator, error) {
@@ -81,7 +82,7 @@ func newCHQDecorator(config *Config, ttype string, set processor.Settings) (*chq
 		attribute.String("processor", set.ID.String()),
 		attribute.String("signal", ttype),
 	)
-	counter, err := ottl.NewTransformCounter(metadata.Meter(set.TelemetrySettings),
+	counter, err := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
 		"ottl_processed",
 		[]metric.Int64CounterOption{
 			metric.WithDescription("The results of OTTL processing"),

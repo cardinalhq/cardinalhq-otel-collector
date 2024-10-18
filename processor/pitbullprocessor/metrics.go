@@ -29,6 +29,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
@@ -75,7 +76,7 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 						agg := e.aggregate(rm, ilm, m, dp)
 						if agg {
-							ottl.CounterAdd(e.aggregatedDatapoints, 1, metric.WithAttributes(
+							telemetry.CounterAdd(e.aggregatedDatapoints, 1, metric.WithAttributes(
 								attribute.String("metric_name", metricName),
 								attribute.String("service_name", serviceName)))
 							return agg
@@ -96,7 +97,7 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 						agg := e.aggregate(rm, ilm, m, dp)
 						if agg {
-							ottl.CounterAdd(e.aggregatedDatapoints, 1, metric.WithAttributes(
+							telemetry.CounterAdd(e.aggregatedDatapoints, 1, metric.WithAttributes(
 								attribute.String("metric_name", metricName),
 								attribute.String("service_name", serviceName),
 								attribute.String("vendor", e.config.Vendor)))

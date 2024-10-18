@@ -33,6 +33,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/fingerprinter"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor/internal/metadata"
 )
 
@@ -68,9 +69,9 @@ type pitbull struct {
 	aggregatorI          ottl.MetricAggregator[int64]
 	aggregatorF          ottl.MetricAggregator[float64]
 	lastEmitCheck        time.Time
-	aggregatedDatapoints *ottl.TransformCounter
+	aggregatedDatapoints *telemetry.DeferrableInt64Counter
 
-	ottlProcessed *ottl.TransformCounter
+	ottlProcessed *telemetry.DeferrableInt64Counter
 }
 
 func newPitbull(config *Config, ttype string, set processor.Settings, nextConsumer consumer.Metrics) (*pitbull, error) {
@@ -88,7 +89,7 @@ func newPitbull(config *Config, ttype string, set processor.Settings, nextConsum
 		attribute.String("processor", set.ID.String()),
 		attribute.String("signal", ttype),
 	)
-	counter, err := ottl.NewTransformCounter(metadata.Meter(set.TelemetrySettings),
+	counter, err := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
 		"ottl_processed",
 		[]metric.Int64CounterOption{
 			metric.WithDescription("The results of OTTL processing"),
@@ -156,7 +157,7 @@ func (e *pitbull) Shutdown(ctx context.Context) error {
 }
 
 func (e *pitbull) setupMetricTelemetry(set processor.Settings, attrset attribute.Set) error {
-	counter, err := ottl.NewTransformCounter(metadata.Meter(set.TelemetrySettings),
+	counter, err := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
 		"cardinalhq.processor.pitbull.ottl_processed",
 		[]metric.Int64CounterOption{
 			metric.WithDescription("The results of OTTL processing"),

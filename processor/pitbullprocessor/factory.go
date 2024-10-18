@@ -38,7 +38,6 @@ func NewFactory() processor.Factory {
 }
 
 const (
-	defaultDropDecorationTags = true
 	defaultMetricAggregation  = 10 * time.Second
 	defaultStatisticsInterval = 1 * time.Minute
 )
@@ -52,7 +51,6 @@ func createDefaultConfig() component.Config {
 			EstimatorWindowSize: 30,
 			EstimatorInterval:   10000,
 		},
-		DropDecorationAttributes: defaultDropDecorationTags,
 	}
 }
 

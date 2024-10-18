@@ -80,9 +80,6 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 								attribute.String("service_name", serviceName)))
 							return agg
 						}
-						if e.config.DropDecorationAttributes {
-							removeAllCardinalFields(dattr)
-						}
 						return false
 					})
 				case pmetric.MetricTypeSum:
@@ -105,9 +102,6 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 								attribute.String("vendor", e.config.Vendor)))
 							return agg
 						}
-						if e.config.DropDecorationAttributes {
-							removeAllCardinalFields(dattr)
-						}
 						return false
 					})
 				case pmetric.MetricTypeHistogram:
@@ -122,9 +116,6 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						dattr.PutInt(translate.CardinalFieldTID, tid)
 						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
 						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
-						if e.config.DropDecorationAttributes {
-							removeAllCardinalFields(dattr)
-						}
 						return false
 					})
 				case pmetric.MetricTypeSummary:
@@ -139,9 +130,6 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						dattr.PutInt(translate.CardinalFieldTID, tid)
 						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
 						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
-						if e.config.DropDecorationAttributes {
-							removeAllCardinalFields(dattr)
-						}
 						return false
 					})
 				case pmetric.MetricTypeExponentialHistogram:
@@ -156,9 +144,6 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						dattr.PutInt(translate.CardinalFieldTID, tid)
 						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
 						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
-						if e.config.DropDecorationAttributes {
-							removeAllCardinalFields(dattr)
-						}
 						return false
 					})
 				}

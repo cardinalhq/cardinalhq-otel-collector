@@ -77,13 +77,8 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 				sr.Attributes().PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 				transformCtx := ottlspan.NewTransformContext(sr, iss.Scope(), rs.Resource(), iss, rs)
 				e.logTransformations.ExecuteSpanTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)
-				if _, found := sr.Attributes().Get(translate.CardinalFieldDropMarker); found {
-					return true
-				}
-				if e.config.DropDecorationAttributes {
-					removeAllCardinalFields(sr.Attributes())
-				}
-				return false
+				_, found := sr.Attributes().Get(translate.CardinalFieldDropMarker)
+				return found
 			})
 			return iss.Spans().Len() == 0
 		})

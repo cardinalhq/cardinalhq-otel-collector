@@ -88,14 +88,8 @@ func (e *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 
 				transformCtx := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
 				e.logTransformations.ExecuteLogTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)
-				if _, found := lr.Attributes().Get(translate.CardinalFieldDropMarker); found {
-					return true
-				}
-
-				if e.config.DropDecorationAttributes {
-					removeAllCardinalFields(lr.Attributes())
-				}
-				return false
+				_, found := lr.Attributes().Get(translate.CardinalFieldDropMarker)
+				return found
 			})
 			return sl.LogRecords().Len() == 0
 		})

@@ -24,13 +24,12 @@ import (
 )
 
 type Config struct {
-	MetricAggregation        MetricAggregationConfig `mapstructure:"metric_aggregation"`
-	LogsConfig               LogsConfig              `mapstructure:"logs"`
-	TracesConfig             TracesConfig            `mapstructure:"traces"`
-	MetricsConfig            MetricsConfig           `mapstructure:"metrics"`
-	ConfigurationExtension   *component.ID           `mapstructure:"configuration_extension"`
-	DropDecorationAttributes bool                    `mapstructure:"drop_decoration_attributes"`
-	Vendor                   string                  `mapstructure:"vendor"`
+	MetricAggregation      MetricAggregationConfig `mapstructure:"metric_aggregation"`
+	LogsConfig             LogsConfig              `mapstructure:"logs"`
+	TracesConfig           TracesConfig            `mapstructure:"traces"`
+	MetricsConfig          MetricsConfig           `mapstructure:"metrics"`
+	ConfigurationExtension *component.ID           `mapstructure:"configuration_extension"`
+	Vendor                 string                  `mapstructure:"vendor"`
 }
 
 type MetricAggregationConfig struct {

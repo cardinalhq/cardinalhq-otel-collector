@@ -74,7 +74,6 @@ func TestConfig(t *testing.T) {
 			EstimatorWindowSize: 30,
 			EstimatorInterval:   10000,
 		},
-		DropDecorationAttributes: defaultDropDecorationTags,
 	}
 	assert.Equal(t, expected, e)
 }

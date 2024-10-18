@@ -62,6 +62,10 @@ func createDefaultConfig() component.Config {
 		MetricAggregation: MetricAggregationConfig{
 			Interval: defaultMetricAggregation,
 		},
+		TracesConfig: TracesConfig{
+			EstimatorWindowSize: 30,
+			EstimatorInterval:   10000,
+		},
 		DropDecorationAttributes: defaultDropDecorationTags,
 	}
 }

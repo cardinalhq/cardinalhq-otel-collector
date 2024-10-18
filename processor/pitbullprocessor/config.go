@@ -53,15 +53,17 @@ type StatsEnrichment struct {
 }
 
 type LogsConfig struct {
-	StatsEnrichments []StatsEnrichment `mapstructure:"statsEnrichments"`
+	StatsEnrichments []StatsEnrichment `mapstructure:"stats_enrichments"`
 }
 
 type MetricsConfig struct {
-	StatsEnrichments []StatsEnrichment `mapstructure:"statsEnrichments"`
+	StatsEnrichments []StatsEnrichment `mapstructure:"stats_enrichments"`
 }
 
 type TracesConfig struct {
-	StatsEnrichments []StatsEnrichment `mapstructure:"statsEnrichments"`
+	StatsEnrichments    []StatsEnrichment `mapstructure:"stats_enrichments"`
+	EstimatorWindowSize int               `mapstructure:"estimator_window_size"`
+	EstimatorInterval   int64             `mapstructure:"estimator_interval"`
 }
 
 func (c *Config) Validate() error {
@@ -72,6 +74,8 @@ func (c *Config) Validate() error {
 	}
 	errs = multierr.Append(errs, c.Statistics.Validate())
 	errs = multierr.Append(errs, c.MetricAggregation.Validate())
+	errs = multierr.Append(errs, c.LogsConfig.Validate())
+	errs = multierr.Append(errs, c.TracesConfig.Validate())
 
 	return errs
 }
@@ -128,6 +132,27 @@ func (cfg *LogsConfig) Validate() error {
 			err := fmt.Errorf("empty tags for context: %s", enrichment.Context)
 			errors = multierr.Append(errors, err)
 		}
+	}
+
+	return errors
+}
+
+func (tc *TracesConfig) Validate() error {
+	var errors error
+	if tc.EstimatorWindowSize == 0 {
+		tc.EstimatorWindowSize = 30
+	}
+	if tc.EstimatorWindowSize < 10 {
+		err := fmt.Errorf("estimator_window_size must be greater than or equal to 10")
+		errors = multierr.Append(errors, err)
+	}
+
+	if tc.EstimatorInterval == 0 {
+		tc.EstimatorInterval = 10_000
+	}
+	if tc.EstimatorInterval < 1000 {
+		err := fmt.Errorf("estimator_interval must be greater than or equal to 1000")
+		errors = multierr.Append(errors, err)
 	}
 
 	return errors

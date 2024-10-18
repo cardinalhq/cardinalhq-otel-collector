@@ -23,11 +23,11 @@ import (
 	"sync"
 	"time"
 
-	"go.opentelemetry.io/collector/pdata/pcommon"
-
+	"github.com/hashicorp/go-multierror"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -35,10 +35,10 @@ import (
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/fingerprinter"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor/internal/metadata"
-	"github.com/hashicorp/go-multierror"
 )
 
 type pitbull struct {
@@ -61,10 +61,15 @@ type pitbull struct {
 	// for logs
 	logstats           *stats.StatsCombiner[*chqpb.LogStats]
 	logTransformations ottl.Transformations
+	logFingerprinter   fingerprinter.Fingerprinter
 
 	// for spans
 	spanStats            *stats.StatsCombiner[*chqpb.SpanStats]
 	traceTransformations ottl.Transformations
+	traceFingerprinter   fingerprinter.Fingerprinter
+	estimators           map[uint64]*SlidingEstimatorStat
+	estimatorWindowSize  int
+	estimatorInterval    int64
 
 	// for metrics
 	metricstats           *stats.StatsCombiner[*MetricStat]
@@ -124,6 +129,7 @@ func newPitbull(config *Config, ttype string, set processor.Settings, nextConsum
 		dog.logstats = stats.NewStatsCombiner[*chqpb.LogStats](now, config.Statistics.Interval)
 		dog.logger.Info("sending log statistics", zap.Duration("interval", config.Statistics.Interval))
 		dog.logTransformations = ottl.Transformations{}
+		dog.logFingerprinter = fingerprinter.NewFingerprinter()
 
 	case "metrics":
 		dog.metricstats = stats.NewStatsCombiner[*MetricStat](now, config.Statistics.Interval)
@@ -141,6 +147,10 @@ func newPitbull(config *Config, ttype string, set processor.Settings, nextConsum
 		dog.spanStats = stats.NewStatsCombiner[*chqpb.SpanStats](now, config.Statistics.Interval)
 		dog.logger.Info("sending span statistics", zap.Duration("interval", config.Statistics.Interval))
 		dog.traceTransformations = ottl.Transformations{}
+		dog.traceFingerprinter = fingerprinter.NewFingerprinter()
+		dog.estimators = make(map[uint64]*SlidingEstimatorStat)
+		dog.estimatorWindowSize = config.TracesConfig.EstimatorWindowSize
+		dog.estimatorInterval = config.TracesConfig.EstimatorInterval
 	}
 
 	return dog, nil
@@ -203,32 +213,9 @@ func (e *pitbull) configUpdateCallback(sc ottl.SamplerConfig) {
 	case "traces":
 		e.updateTraceTransformations(sc)
 	case "metrics":
-		e.updateMetricSamplingConfig(sc)
+		e.updateMetricTransformation(sc)
 	}
 	e.logger.Info("Configuration updated")
-}
-
-func (e *pitbull) getSlice(l pcommon.Map, key string) pcommon.Slice {
-	if field, found := l.Get(key); found {
-		if field.Type() == pcommon.ValueTypeSlice {
-			return field.Slice()
-		}
-	}
-	return pcommon.NewSlice()
-}
-
-func (e *pitbull) sliceContains(l pcommon.Map, key string, value string) bool {
-	if field, found := l.Get(key); found {
-		if field.Type() == pcommon.ValueTypeSlice {
-			slice := field.Slice()
-			for i := 0; i < slice.Len(); i++ {
-				if slice.At(i).AsString() == value {
-					return true
-				}
-			}
-		}
-	}
-	return false
 }
 
 func (e *pitbull) processEnrichments(enrichments []StatsEnrichment, attributesByScope map[string]pcommon.Map) map[string]string {

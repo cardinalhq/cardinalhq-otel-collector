@@ -20,20 +20,28 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlspan"
-
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor/processorhelper"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
+)
+
+const (
+	httpMethod  = "http.request.method"
+	httpRoute   = "http.route"
+	httpUrlPath = "url.path"
 )
 
 func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
@@ -44,56 +52,53 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 		return td, nil
 	}
 
+	environment := translate.EnvironmentFromEnv()
+
 	now := time.Now()
 	transformations := e.traceTransformations
+	emptySlice := pcommon.NewSlice() // TODO remove when we fully remove chq(decorator|enforcer) processor
 
 	td.ResourceSpans().RemoveIf(func(rs ptrace.ResourceSpans) bool {
-		resourceRulesMatched := e.getSlice(rs.Resource().Attributes(), translate.CardinalFieldRulesMatched)
-		if resourceRulesMatched.Len() > 0 {
-			transformCtx := ottlresource.NewTransformContext(rs.Resource(), rs)
-			transformations.ExecuteResourceTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), resourceRulesMatched)
-		}
-
-		if e.sliceContains(rs.Resource().Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
+		transformCtx := ottlresource.NewTransformContext(rs.Resource(), rs)
+		transformations.ExecuteResourceTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), emptySlice)
+		if _, found := rs.Resource().Attributes().Get(translate.CardinalFieldDropMarker); found {
 			return true
 		}
 
 		serviceName := getServiceName(rs.Resource().Attributes())
 		rs.ScopeSpans().RemoveIf(func(iss ptrace.ScopeSpans) bool {
-			scopeRulesMatched := e.getSlice(iss.Scope().Attributes(), translate.CardinalFieldRulesMatched)
-			if scopeRulesMatched.Len() > 0 {
-				transformCtx := ottlscope.NewTransformContext(iss.Scope(), rs.Resource(), rs)
-				e.logTransformations.ExecuteScopeTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), scopeRulesMatched)
-			}
-
-			if e.sliceContains(iss.Scope().Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
+			transformCtx := ottlscope.NewTransformContext(iss.Scope(), rs.Resource(), rs)
+			e.logTransformations.ExecuteScopeTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), emptySlice)
+			if _, found := iss.Scope().Attributes().Get(translate.CardinalFieldDropMarker); found {
 				return true
 			}
 
 			iss.Spans().RemoveIf(func(sr ptrace.Span) bool {
-				fingerprint := getSpanFingerprint(sr.Attributes())
-				logRulesMatched := e.getSlice(sr.Attributes(), translate.CardinalFieldRulesMatched)
-				if logRulesMatched.Len() > 0 {
-					transformCtx := ottlspan.NewTransformContext(sr, iss.Scope(), rs.Resource(), iss, rs)
-					e.logTransformations.ExecuteSpanTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), logRulesMatched)
-				}
-				if e.sliceContains(sr.Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
-					return true
+				httpResource := e.getHttpResource(sr)
+				if httpResource != "" {
+					sr.Attributes().PutStr(translate.CardinalFieldResourceName, httpResource)
 				}
 
-				// isSlow is an attribute of the span, but is a cardinal field so will be removed at this point.
-				// we want cardinal fields to be removed because we don't want to account for them in the size of the span.
-				// being sent to the stats backend.
-				var isSlow = false
-				if isSlowSpan, exists := sr.Attributes().Get(translate.CardinalFieldSpanIsSlow); exists {
-					isSlow = isSlowSpan.Bool()
+				spanFingerprint := getSpanFingerprint(sr, httpResource, serviceName)
+				isSlow := e.isSpanSlow(sr, uint64(spanFingerprint))
+				sr.Attributes().PutBool(translate.CardinalFieldSpanIsSlow, isSlow)
+
+				sr.Attributes().PutInt(translate.CardinalFieldFingerprint, spanFingerprint)
+				sr.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, e.podName)
+				sr.Attributes().PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
+				sr.Attributes().PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
+
+				transformCtx := ottlspan.NewTransformContext(sr, iss.Scope(), rs.Resource(), iss, rs)
+				e.logTransformations.ExecuteSpanTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), emptySlice)
+				if _, found := sr.Attributes().Get(translate.CardinalFieldDropMarker); found {
+					return true
 				}
 
 				if e.config.DropDecorationAttributes {
 					removeAllCardinalFields(sr.Attributes())
 				}
 
-				if err := e.recordSpan(now, serviceName, fingerprint, isSlow, sr, iss, rs); err != nil {
+				if err := e.recordSpan(now, serviceName, spanFingerprint, isSlow, sr, iss, rs); err != nil {
 					e.logger.Error("Failed to record span", zap.Error(err))
 				}
 				return false
@@ -110,12 +115,65 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 	return td, nil
 }
 
-func getSpanFingerprint(l pcommon.Map) int64 {
-	fnk := translate.CardinalFieldFingerprint
-	if fingerprintField, found := l.Get(fnk); found {
-		return fingerprintField.Int()
+func (c *pitbull) isSpanSlow(span ptrace.Span, fingerprint uint64) bool {
+	spanDuration := span.EndTimestamp().AsTime().Sub(span.StartTimestamp().AsTime()).Abs().Milliseconds()
+	return c.slowSpanPercentile(fingerprint, float64(spanDuration))
+}
+
+func (c *pitbull) slowSpanPercentile(fingerprint uint64, duration float64) bool {
+	sketch := c.findSpanSketch(fingerprint)
+	sketch.Update(time.Now().UnixMilli(), duration)
+	return sketch.GreaterThanThreeStdDev(duration)
+}
+
+func (c *pitbull) findSpanSketch(fingerprint uint64) *SlidingEstimatorStat {
+	sketch, ok := c.estimators[fingerprint]
+	if !ok {
+		estimator := NewSlidingEstimatorStat(c.estimatorWindowSize, c.estimatorInterval)
+		c.estimators[fingerprint] = estimator
+		return estimator
 	}
-	return 0
+	return sketch
+}
+
+func (c *pitbull) getHttpResource(span ptrace.Span) string {
+	attrs := span.Attributes()
+	var resourceKeys []string
+
+	//Reference: https://opentelemetry.io/docs/specs/semconv/http/http-spans/
+	if method, methodExists := attrs.Get(httpMethod); methodExists {
+		resourceKeys = append(resourceKeys, method.Str())
+	}
+
+	if route, routeExists := attrs.Get(httpRoute); routeExists {
+		resourceKeys = append(resourceKeys, route.Str())
+	} else {
+		if urlPath, urlPathExists := attrs.Get(httpUrlPath); urlPathExists {
+			urlPathStr, _, err := c.traceFingerprinter.TokenizeInput(urlPath.Str())
+			if err == nil {
+				resourceKeys = append(resourceKeys, urlPathStr)
+			}
+		}
+	}
+
+	if len(resourceKeys) > 0 {
+		return strings.Join(resourceKeys, " ")
+	}
+	return ""
+}
+
+func getSpanFingerprint(sr ptrace.Span, httpResource string, serviceName string) int64 {
+	attrs := sr.Attributes()
+	var fingerprintAttributes []string
+
+	fingerprintAttributes = append(fingerprintAttributes, serviceName)
+	if spanNameAttr, exists := attrs.Get(translate.CardinalFieldSpanName); exists {
+		fingerprintAttributes = append(fingerprintAttributes, spanNameAttr.Str())
+	}
+	fingerprintAttributes = append(fingerprintAttributes, sr.Kind().String())
+	fingerprintAttributes = append(fingerprintAttributes, httpResource)
+
+	return int64(xxhash.Sum64String(strings.Join(fingerprintAttributes, "##")))
 }
 
 func toAttributesAndSize(attributes map[string]interface{}) (map[string]string, int64) {
@@ -243,16 +301,19 @@ func (e *pitbull) postSpanStats(ctx context.Context, wrapper *chqpb.SpanStatsRep
 func (e *pitbull) updateTraceTransformations(sc ottl.SamplerConfig) {
 	e.Lock()
 	defer e.Unlock()
+	e.logger.Info("Updating trace transformations", zap.Int("num_decorators", len(sc.Spans.Decorators)))
+	newTransformations := ottl.NewTransformations(e.logger)
 
-	e.logger.Info("Updating trace transformations config", zap.String("vendor", e.vendor))
-	for _, decorator := range sc.Spans.Enforcers {
-		if decorator.VendorId == ottl.VendorID(e.vendor) {
-			transformations, err := ottl.ParseTransformations(decorator, e.logger)
-			if err != nil {
-				e.logger.Error("Error parsing log transformation", zap.Error(err))
-			} else {
-				e.traceTransformations = ottl.MergeWith(e.traceTransformations, transformations)
-			}
+	for _, decorator := range sc.Spans.Decorators {
+		transformations, err := ottl.ParseTransformations(decorator, e.logger)
+		if err != nil {
+			e.logger.Error("Error parsing traces transformation", zap.Error(err))
+			continue
 		}
+		newTransformations = ottl.MergeWith(newTransformations, transformations)
 	}
+
+	oldTransformation := e.traceTransformations
+	e.traceTransformations = newTransformations
+	oldTransformation.Stop()
 }

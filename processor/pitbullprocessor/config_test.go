@@ -89,6 +89,10 @@ func TestConfig(t *testing.T) {
 		MetricAggregation: MetricAggregationConfig{
 			Interval: 10 * time.Second,
 		},
+		TracesConfig: TracesConfig{
+			EstimatorWindowSize: 30,
+			EstimatorInterval:   10000,
+		},
 		DropDecorationAttributes: defaultDropDecorationTags,
 	}
 	assert.Equal(t, expected, e)

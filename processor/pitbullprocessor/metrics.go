@@ -42,39 +42,47 @@ import (
 )
 
 func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
+	if md.ResourceMetrics().Len() == 0 {
+		return md, nil
+	}
+
+	environment := translate.EnvironmentFromEnv()
 	now := time.Now()
+	emptySlice := pcommon.NewSlice()
+
 	md.ResourceMetrics().RemoveIf(func(rm pmetric.ResourceMetrics) bool {
 		serviceName := getServiceName(rm.Resource().Attributes())
 		rattr := rm.Resource().Attributes()
-		resourceRulesMatched := e.getSlice(rattr, translate.CardinalFieldRulesMatched)
-		if resourceRulesMatched.Len() > 0 {
-			transformCtx := ottlresource.NewTransformContext(rm.Resource(), rm)
-			e.metricTransformations.ExecuteResourceTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), resourceRulesMatched)
-		}
-		if e.sliceContains(rattr, translate.CardinalFieldDropForVendor, e.vendor) {
+		transformCtx := ottlresource.NewTransformContext(rm.Resource(), rm)
+		e.metricTransformations.ExecuteResourceTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), emptySlice)
+		if _, found := rattr.Get(translate.CardinalFieldDropMarker); found {
 			return true
 		}
 
 		rm.ScopeMetrics().RemoveIf(func(ilm pmetric.ScopeMetrics) bool {
 			sattr := ilm.Scope().Attributes()
-			scopeRulesMatched := e.getSlice(ilm.Scope().Attributes(), translate.CardinalFieldRulesMatched)
-			if scopeRulesMatched.Len() > 0 {
-				transformCtx := ottlscope.NewTransformContext(ilm.Scope(), rm.Resource(), rm)
-				e.metricTransformations.ExecuteScopeTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), scopeRulesMatched)
-			}
-			if e.sliceContains(ilm.Scope().Attributes(), translate.CardinalFieldDropForVendor, e.vendor) {
+			transformCtx := ottlscope.NewTransformContext(ilm.Scope(), rm.Resource(), rm)
+			e.metricTransformations.ExecuteScopeTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), emptySlice)
+			if _, found := sattr.Get(translate.CardinalFieldDropMarker); found {
 				return true
 			}
 
 			ilm.Metrics().RemoveIf(func(m pmetric.Metric) bool {
 				metricName := m.Name()
+				extra := map[string]string{"name": m.Name()}
 				switch m.Type() {
 				case pmetric.MetricTypeGauge:
 					m.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
-						dataPointRulesMatched := e.getSlice(dp.Attributes(), translate.CardinalFieldRulesMatched)
-						if e.checkDataPointRules(dp, dataPointRulesMatched, m, ilm, rm) {
+						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
+						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), emptySlice)
+						if _, found := dp.Attributes().Get(translate.CardinalFieldDropMarker); found {
 							return true
 						}
+						dattr := dp.Attributes()
+						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
+						dattr.PutInt(translate.CardinalFieldTID, tid)
+						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
+						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 						if e.pbPhase == chqpb.Phase_POST {
 							agg := e.aggregate(rm, ilm, m, dp)
 							if agg {
@@ -91,10 +99,16 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 					})
 				case pmetric.MetricTypeSum:
 					m.Sum().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
-						dataPointRulesMatched := e.getSlice(dp.Attributes(), translate.CardinalFieldRulesMatched)
-						if e.checkDataPointRules(dp, dataPointRulesMatched, m, ilm, rm) {
+						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
+						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), emptySlice)
+						if _, found := dp.Attributes().Get(translate.CardinalFieldDropMarker); found {
 							return true
 						}
+						dattr := dp.Attributes()
+						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
+						dattr.PutInt(translate.CardinalFieldTID, tid)
+						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
+						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 						if e.pbPhase == chqpb.Phase_POST {
 							agg := e.aggregate(rm, ilm, m, dp)
 							if agg {
@@ -111,28 +125,46 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 					})
 				case pmetric.MetricTypeHistogram:
 					m.Histogram().DataPoints().RemoveIf(func(dp pmetric.HistogramDataPoint) bool {
-						dataPointRulesMatched := e.getSlice(dp.Attributes(), translate.CardinalFieldRulesMatched)
-						if e.checkDataPointRules(dp, dataPointRulesMatched, m, ilm, rm) {
+						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
+						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), emptySlice)
+						if _, found := dp.Attributes().Get(translate.CardinalFieldDropMarker); found {
 							return true
 						}
+						dattr := dp.Attributes()
+						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
+						dattr.PutInt(translate.CardinalFieldTID, tid)
+						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
+						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
 						return false
 					})
 				case pmetric.MetricTypeSummary:
 					m.Summary().DataPoints().RemoveIf(func(dp pmetric.SummaryDataPoint) bool {
-						dataPointRulesMatched := e.getSlice(dp.Attributes(), translate.CardinalFieldRulesMatched)
-						if e.checkDataPointRules(dp, dataPointRulesMatched, m, ilm, rm) {
+						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
+						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), emptySlice)
+						if _, found := dp.Attributes().Get(translate.CardinalFieldDropMarker); found {
 							return true
 						}
+						dattr := dp.Attributes()
+						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
+						dattr.PutInt(translate.CardinalFieldTID, tid)
+						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
+						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
 						return false
 					})
 				case pmetric.MetricTypeExponentialHistogram:
 					m.ExponentialHistogram().DataPoints().RemoveIf(func(dp pmetric.ExponentialHistogramDataPoint) bool {
-						dataPointRulesMatched := e.getSlice(dp.Attributes(), translate.CardinalFieldRulesMatched)
-						if e.checkDataPointRules(dp, dataPointRulesMatched, m, ilm, rm) {
+						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
+						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), emptySlice)
+						if _, found := dp.Attributes().Get(translate.CardinalFieldDropMarker); found {
 							return true
 						}
+						dattr := dp.Attributes()
+						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
+						dattr.PutInt(translate.CardinalFieldTID, tid)
+						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
+						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
 						return false
 					})
@@ -151,17 +183,6 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 		return md, processorhelper.ErrSkipProcessingData
 	}
 	return md, nil
-}
-
-func (e *pitbull) checkDataPointRules(dp any, dataPointRulesMatched pcommon.Slice, m pmetric.Metric, ilm pmetric.ScopeMetrics, rm pmetric.ResourceMetrics) bool {
-	if m.Name() == "api-gateway.movie_play_starts" {
-		e.logger.Info("Checking data point rules", zap.String("metric_name", m.Name()), zap.Int("count", dataPointRulesMatched.Len()), zap.Any("matches", dataPointRulesMatched.AsRaw()))
-	}
-	if dataPointRulesMatched.Len() > 0 {
-		transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
-		e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), dataPointRulesMatched)
-	}
-	return e.sliceContains(m.Metadata(), translate.CardinalFieldDropForVendor, e.vendor)
 }
 
 func (e *pitbull) processDatapoint(now time.Time, metricName, serviceName string, rattr, sattr, dattr pcommon.Map) {
@@ -296,20 +317,23 @@ func (e *pitbull) postMetricStats(ctx context.Context, wrapper *chqpb.MetricStat
 	return nil
 }
 
-func (e *pitbull) updateMetricSamplingConfig(sc ottl.SamplerConfig) {
-	e.Lock()
-	defer e.Unlock()
+func (c *pitbull) updateMetricTransformation(sc ottl.SamplerConfig) {
+	c.Lock()
+	defer c.Unlock()
+	c.logger.Info("Updating metrics transformations", zap.Int("num_decorators", len(sc.Metrics.Decorators)))
+	c.logger.Info("Metrics decorators", zap.Any("decorators", sc.Metrics.Decorators))
+	newTransformations := ottl.NewTransformations(c.logger)
 
-	e.logger.Info("Updating metric sampling config", zap.String("vendor", e.vendor))
-
-	for _, decorator := range sc.Metrics.Enforcers {
-		if decorator.VendorId == ottl.VendorID(e.vendor) {
-			transformations, err := ottl.ParseTransformations(decorator, e.logger)
-			if err != nil {
-				e.logger.Error("Error parsing log transformation", zap.Error(err))
-			} else {
-				e.metricTransformations = ottl.MergeWith(e.metricTransformations, transformations)
-			}
+	for _, decorator := range sc.Metrics.Decorators {
+		transformations, err := ottl.ParseTransformations(decorator, c.logger)
+		if err != nil {
+			c.logger.Error("Error parsing metrics transformation", zap.Error(err))
+		} else {
+			newTransformations = ottl.MergeWith(newTransformations, transformations)
 		}
 	}
+
+	oldTransformation := c.metricTransformations
+	c.metricTransformations = newTransformations
+	oldTransformation.Stop()
 }

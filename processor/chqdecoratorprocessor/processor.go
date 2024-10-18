@@ -59,8 +59,7 @@ type chqDecorator struct {
 	traceFingerprinter fingerprinter.Fingerprinter
 
 	// estimators for spans
-	estimators map[uint64]*SlidingEstimatorStat
-
+	estimators          map[uint64]*SlidingEstimatorStat
 	estimatorWindowSize int
 	estimatorInterval   int64
 

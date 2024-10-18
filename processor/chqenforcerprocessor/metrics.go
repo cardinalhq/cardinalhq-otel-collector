@@ -115,7 +115,6 @@ func (e *chqEnforcer) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (p
 						if e.checkDataPointRules(dp, dataPointRulesMatched, m, ilm, rm) {
 							return true
 						}
-
 						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
 						return false
 					})
@@ -125,7 +124,6 @@ func (e *chqEnforcer) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (p
 						if e.checkDataPointRules(dp, dataPointRulesMatched, m, ilm, rm) {
 							return true
 						}
-
 						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
 						return false
 					})
@@ -156,6 +154,9 @@ func (e *chqEnforcer) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (p
 }
 
 func (e *chqEnforcer) checkDataPointRules(dp any, dataPointRulesMatched pcommon.Slice, m pmetric.Metric, ilm pmetric.ScopeMetrics, rm pmetric.ResourceMetrics) bool {
+	if m.Name() == "api-gateway.movie_play_starts" {
+		e.logger.Info("Checking data point rules", zap.String("metric_name", m.Name()), zap.Int("count", dataPointRulesMatched.Len()), zap.Any("matches", dataPointRulesMatched.AsRaw()))
+	}
 	if dataPointRulesMatched.Len() > 0 {
 		transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
 		e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.vendor), dataPointRulesMatched)

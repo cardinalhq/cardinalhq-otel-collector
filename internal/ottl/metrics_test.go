@@ -123,7 +123,7 @@ func TestMatchAndAdd_AverageAfterDroppingDimension(t *testing.T) {
 			Context:    "datapoint",
 			Conditions: []string{},
 			Statements: []string{
-				`delete_key(attributes, "movieId")`, // Drop the movieId key
+				`set(attributes["movieId"], "_aggregated")`,
 				`set(attributes["_cardinalhq.aggregate"], true)`,
 			},
 		},

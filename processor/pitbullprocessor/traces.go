@@ -47,18 +47,16 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 
 	// TODO add a short-circuit at each level to skip processing if no transformations are defined for that level.
 
-	transformations := e.traceTransformations
-
 	td.ResourceSpans().RemoveIf(func(rs ptrace.ResourceSpans) bool {
 		transformCtx := ottlresource.NewTransformContext(rs.Resource(), rs)
-		transformations.ExecuteResourceTransforms(e.ottlProcessed, transformCtx)
+		e.traceTransformations.ExecuteResourceTransforms(e.ottlProcessed, transformCtx)
 		if _, found := rs.Resource().Attributes().Get(translate.CardinalFieldDropMarker); found {
 			return true
 		}
 		serviceName := getServiceName(rs.Resource().Attributes())
 		rs.ScopeSpans().RemoveIf(func(iss ptrace.ScopeSpans) bool {
 			transformCtx := ottlscope.NewTransformContext(iss.Scope(), rs.Resource(), rs)
-			e.logTransformations.ExecuteScopeTransforms(e.ottlProcessed, transformCtx)
+			e.traceTransformations.ExecuteScopeTransforms(e.ottlProcessed, transformCtx)
 			if _, found := iss.Scope().Attributes().Get(translate.CardinalFieldDropMarker); found {
 				return true
 			}
@@ -72,7 +70,7 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 				sr.Attributes().PutBool(translate.CardinalFieldSpanIsSlow, isSlow)
 				sr.Attributes().PutInt(translate.CardinalFieldFingerprint, spanFingerprint)
 				transformCtx := ottlspan.NewTransformContext(sr, iss.Scope(), rs.Resource(), iss, rs)
-				e.logTransformations.ExecuteSpanTransforms(e.ottlProcessed, transformCtx)
+				e.traceTransformations.ExecuteSpanTransforms(e.ottlProcessed, transformCtx)
 				_, found := sr.Attributes().Get(translate.CardinalFieldDropMarker)
 				return found
 			})

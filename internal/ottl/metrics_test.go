@@ -130,8 +130,8 @@ func TestMatchAndAdd_AverageAfterDroppingDimension(t *testing.T) {
 
 	// Parse transformations
 	instruction := Instruction{
-		VendorId:   "vendor1",
-		Statements: statements,
+		ProcessorID: "foo/one",
+		Statements:  statements,
 	}
 	transformations, err := ParseTransformations(instruction, zap.NewNop())
 	require.NoError(t, err)
@@ -164,8 +164,8 @@ func TestMatchAndAdd_AverageAfterDroppingDimension(t *testing.T) {
 	// Apply transformations to both data points
 	tc1 := ottldatapoint.NewTransformContext(dp1, metric, scopeMetrics.Metrics(), scopeMetrics.Scope(), rm.Resource(), scopeMetrics, rm)
 	tc2 := ottldatapoint.NewTransformContext(dp2, metric, scopeMetrics.Metrics(), scopeMetrics.Scope(), rm.Resource(), scopeMetrics, rm)
-	transformations.ExecuteDatapointTransforms(nil, tc1, "vendorId", pcommon.NewSlice())
-	transformations.ExecuteDatapointTransforms(nil, tc2, "vendorId", pcommon.NewSlice())
+	transformations.ExecuteDatapointTransforms(nil, tc1)
+	transformations.ExecuteDatapointTransforms(nil, tc2)
 
 	// At this point, both data points should have their "movieId" attribute dropped.
 

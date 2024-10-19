@@ -19,7 +19,6 @@ import (
 
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
 	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.uber.org/zap"
 )
@@ -46,7 +45,7 @@ func createTestLogRecord() plog.LogRecord {
 func TestFilterRule_ResourceConditionLog(t *testing.T) {
 	// Create a filterRule with a resource-based condition
 	instruction := Instruction{
-		VendorId: "datadog",
+		ProcessorID: "foo/bar",
 		Statements: []ContextStatement{
 			{
 				Context: "log",
@@ -69,8 +68,7 @@ func TestFilterRule_ResourceConditionLog(t *testing.T) {
 	ll := createTestLogRecord()
 
 	transformCtx := ottllog.NewTransformContext(ll, sl.Scope(), rl.Resource(), sl, rl)
-
-	transformations.ExecuteLogTransforms(nil, transformCtx, "", pcommon.NewSlice())
+	transformations.ExecuteLogTransforms(nil, transformCtx)
 
 	dropped, exists := ll.Attributes().Get("dropped")
 	require.True(t, exists)

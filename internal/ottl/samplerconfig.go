@@ -40,8 +40,8 @@ type SamplingConfig struct {
 }
 
 type Instruction struct {
-	VendorId   VendorID           `json:"vendorId,omitempty" yaml:"vendorId,omitempty"`
-	Statements []ContextStatement `json:"statements,omitempty" yaml:"statements,omitempty"`
+	ProcessorID string             `json:"processorId,omitempty" yaml:"processorId,omitempty"`
+	Statements  []ContextStatement `json:"statements,omitempty" yaml:"statements,omitempty"`
 }
 
 type ContextStatement struct {

@@ -23,7 +23,6 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlspan"
-	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor/processorhelper"
 	"go.uber.org/zap"
@@ -46,19 +45,20 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 		return td, nil
 	}
 
+	// TODO add a short-circuit at each level to skip processing if no transformations are defined for that level.
+
 	transformations := e.traceTransformations
-	emptySlice := pcommon.NewSlice() // TODO remove when we fully remove chq(decorator|enforcer) processor
 
 	td.ResourceSpans().RemoveIf(func(rs ptrace.ResourceSpans) bool {
 		transformCtx := ottlresource.NewTransformContext(rs.Resource(), rs)
-		transformations.ExecuteResourceTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)
+		transformations.ExecuteResourceTransforms(e.ottlProcessed, transformCtx)
 		if _, found := rs.Resource().Attributes().Get(translate.CardinalFieldDropMarker); found {
 			return true
 		}
 		serviceName := getServiceName(rs.Resource().Attributes())
 		rs.ScopeSpans().RemoveIf(func(iss ptrace.ScopeSpans) bool {
 			transformCtx := ottlscope.NewTransformContext(iss.Scope(), rs.Resource(), rs)
-			e.logTransformations.ExecuteScopeTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)
+			e.logTransformations.ExecuteScopeTransforms(e.ottlProcessed, transformCtx)
 			if _, found := iss.Scope().Attributes().Get(translate.CardinalFieldDropMarker); found {
 				return true
 			}
@@ -72,7 +72,7 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 				sr.Attributes().PutBool(translate.CardinalFieldSpanIsSlow, isSlow)
 				sr.Attributes().PutInt(translate.CardinalFieldFingerprint, spanFingerprint)
 				transformCtx := ottlspan.NewTransformContext(sr, iss.Scope(), rs.Resource(), iss, rs)
-				e.logTransformations.ExecuteSpanTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)
+				e.logTransformations.ExecuteSpanTransforms(e.ottlProcessed, transformCtx)
 				_, found := sr.Attributes().Get(translate.CardinalFieldDropMarker)
 				return found
 			})
@@ -156,6 +156,9 @@ func (e *pitbull) updateTraceTransformations(sc ottl.SamplerConfig) {
 	newTransformations := ottl.NewTransformations(e.logger)
 
 	for _, decorator := range sc.Spans.Decorators {
+		if decorator.ProcessorID != e.id.String() {
+			continue
+		}
 		transformations, err := ottl.ParseTransformations(decorator, e.logger)
 		if err != nil {
 			e.logger.Error("Error parsing traces transformation", zap.Error(err))

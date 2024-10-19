@@ -78,10 +78,6 @@ processors:
   - gomod: go.opentelemetry.io/collector/processor/memorylimiterprocessor v0.111.0
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.110.0
     path: ./processor/aggregationprocessor
-  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor v0.110.0
-    path: ./processor/chqdecoratorprocessor
-  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/chqenforcerprocessor v0.110.0
-    path: ./processor/chqenforcerprocessor
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor v0.110.0
     path: ./processor/chqstatsprocessor
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.110.0

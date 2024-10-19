@@ -20,7 +20,6 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
-	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/processor/processorhelper"
 	"go.uber.org/zap"
@@ -34,12 +33,10 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 		return md, nil
 	}
 
-	emptySlice := pcommon.NewSlice()
-
 	md.ResourceMetrics().RemoveIf(func(rm pmetric.ResourceMetrics) bool {
 		rattr := rm.Resource().Attributes()
 		transformCtx := ottlresource.NewTransformContext(rm.Resource(), rm)
-		e.metricTransformations.ExecuteResourceTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)
+		e.metricTransformations.ExecuteResourceTransforms(e.ottlProcessed, transformCtx)
 		if _, found := rattr.Get(translate.CardinalFieldDropMarker); found {
 			return true
 		}
@@ -47,7 +44,7 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 		rm.ScopeMetrics().RemoveIf(func(ilm pmetric.ScopeMetrics) bool {
 			sattr := ilm.Scope().Attributes()
 			transformCtx := ottlscope.NewTransformContext(ilm.Scope(), rm.Resource(), rm)
-			e.metricTransformations.ExecuteScopeTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)
+			e.metricTransformations.ExecuteScopeTransforms(e.ottlProcessed, transformCtx)
 			if _, found := sattr.Get(translate.CardinalFieldDropMarker); found {
 				return true
 			}
@@ -57,35 +54,35 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 				case pmetric.MetricTypeGauge:
 					m.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
 						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
-						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)
+						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
 					})
 				case pmetric.MetricTypeSum:
 					m.Sum().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
 						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
-						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)
+						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
 					})
 				case pmetric.MetricTypeHistogram:
 					m.Histogram().DataPoints().RemoveIf(func(dp pmetric.HistogramDataPoint) bool {
 						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
-						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)
+						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
 					})
 				case pmetric.MetricTypeSummary:
 					m.Summary().DataPoints().RemoveIf(func(dp pmetric.SummaryDataPoint) bool {
 						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
-						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)
+						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
 					})
 				case pmetric.MetricTypeExponentialHistogram:
 					m.ExponentialHistogram().DataPoints().RemoveIf(func(dp pmetric.ExponentialHistogramDataPoint) bool {
 						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
-						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)
+						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
 					})
@@ -104,23 +101,25 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 	return md, nil
 }
 
-func (c *pitbull) updateMetricTransformation(sc ottl.SamplerConfig) {
-	c.Lock()
-	defer c.Unlock()
-	c.logger.Info("Updating metrics transformations", zap.Int("num_decorators", len(sc.Metrics.Decorators)))
-	c.logger.Info("Metrics decorators", zap.Any("decorators", sc.Metrics.Decorators))
-	newTransformations := ottl.NewTransformations(c.logger)
+func (e *pitbull) updateMetricTransformation(sc ottl.SamplerConfig) {
+	e.Lock()
+	defer e.Unlock()
+	e.logger.Info("Updating metrics transformations", zap.Int("num_decorators", len(sc.Metrics.Decorators)))
+	newTransformations := ottl.NewTransformations(e.logger)
 
 	for _, decorator := range sc.Metrics.Decorators {
-		transformations, err := ottl.ParseTransformations(decorator, c.logger)
+		if decorator.ProcessorID != e.id.String() {
+			continue
+		}
+		transformations, err := ottl.ParseTransformations(decorator, e.logger)
 		if err != nil {
-			c.logger.Error("Error parsing metrics transformation", zap.Error(err))
+			e.logger.Error("Error parsing metrics transformation", zap.Error(err))
 		} else {
 			newTransformations = ottl.MergeWith(newTransformations, transformations)
 		}
 	}
 
-	oldTransformation := c.metricTransformations
-	c.metricTransformations = newTransformations
+	oldTransformation := e.metricTransformations
+	e.metricTransformations = newTransformations
 	oldTransformation.Stop()
 }

@@ -45,7 +45,7 @@ func TestSpansProcessor_FingerprintWithHttpResource(t *testing.T) {
 			MeterProvider: noop.NewMeterProvider(),
 		},
 	}
-	sp, err := newPitbull(config, "traces", processorSettings, nil)
+	sp, err := newPitbull(config, "traces", processorSettings)
 	assert.NoError(t, err)
 
 	serviceName := "test-service"

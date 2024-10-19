@@ -76,6 +76,8 @@ processors:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/transformprocessor v0.110.0
   - gomod: go.opentelemetry.io/collector/processor/batchprocessor v0.111.0
   - gomod: go.opentelemetry.io/collector/processor/memorylimiterprocessor v0.111.0
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.110.0
+    path: ./processor/aggregationprocessor
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/chqdecoratorprocessor v0.110.0
     path: ./processor/chqdecoratorprocessor
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/chqenforcerprocessor v0.110.0

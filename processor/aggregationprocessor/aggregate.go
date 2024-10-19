@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pitbullprocessor
+package aggregationprocessor
 
 import (
 	"context"
@@ -24,7 +24,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 func (e *pitbull) emit() {
@@ -67,7 +66,7 @@ func (e *pitbull) emitSetI(set *ottl.AggregationSet[int64]) {
 		dp.SetStartTimestamp(ts)
 		dp.SetIntValue(agg.Value()[0])
 
-		setTags(m.Name(), res, sm, m, dp, agg.Tags(), e.podName)
+		setTags(res, sm, m, dp, agg.Tags())
 		e.emit()
 
 		err := e.nextMetricReceiver.ConsumeMetrics(context.Background(), mmetrics)
@@ -101,7 +100,7 @@ func (e *pitbull) emitSetF(set *ottl.AggregationSet[float64]) {
 		dp.SetStartTimestamp(ts)
 		dp.SetDoubleValue(agg.Value()[0])
 
-		setTags(m.Name(), res, sm, m, dp, agg.Tags(), e.podName)
+		setTags(res, sm, m, dp, agg.Tags())
 		e.emit()
 
 		err := e.nextMetricReceiver.ConsumeMetrics(context.Background(), mmetrics)
@@ -111,7 +110,7 @@ func (e *pitbull) emitSetF(set *ottl.AggregationSet[float64]) {
 	}
 }
 
-func setTags(metricName string, res pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint, tags map[string]string, podName string) {
+func setTags(res pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint, tags map[string]string) {
 	for k, v := range tags {
 		section, tagname := ottl.SplitTag(k)
 		switch section {
@@ -125,10 +124,6 @@ func setTags(metricName string, res pmetric.ResourceMetrics, sm pmetric.ScopeMet
 			setMetadata(res, sm, metric, tagname, v)
 		}
 	}
-
-	dp.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, podName)
-	tid := translate.CalculateTID(map[string]string{"name": metricName}, res.Resource().Attributes(), sm.Scope().Attributes(), dp.Attributes(), "metric", translate.EnvironmentFromEnv())
-	dp.Attributes().PutInt(translate.CardinalFieldTID, tid)
 }
 
 func setMetadata(res pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, metric pmetric.Metric, tagname string, v string) {

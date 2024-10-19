@@ -19,7 +19,6 @@ import (
 	"errors"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"go.opentelemetry.io/collector/component"
@@ -64,25 +63,17 @@ type pitbull struct {
 	// for metrics
 	metricTransformations ottl.Transformations
 
-	nextMetricReceiver   consumer.Metrics
-	aggregationInterval  time.Duration
-	aggregatorI          ottl.MetricAggregator[int64]
-	aggregatorF          ottl.MetricAggregator[float64]
-	lastEmitCheck        time.Time
-	aggregatedDatapoints *telemetry.DeferrableInt64Counter
-
 	ottlProcessed *telemetry.DeferrableInt64Counter
 }
 
-func newPitbull(config *Config, ttype string, set processor.Settings, nextConsumer consumer.Metrics) (*pitbull, error) {
+func newPitbull(config *Config, ttype string, set processor.Settings) (*pitbull, error) {
 	dog := &pitbull{
-		id:                 set.ID,
-		ttype:              ttype,
-		config:             config,
-		telemetrySettings:  set.TelemetrySettings,
-		logger:             set.Logger,
-		nextMetricReceiver: nextConsumer,
-		podName:            os.Getenv("POD_NAME"),
+		id:                set.ID,
+		ttype:             ttype,
+		config:            config,
+		telemetrySettings: set.TelemetrySettings,
+		logger:            set.Logger,
+		podName:           os.Getenv("POD_NAME"),
 	}
 
 	attrset := attribute.NewSet(
@@ -110,15 +101,8 @@ func newPitbull(config *Config, ttype string, set processor.Settings, nextConsum
 		dog.logFingerprinter = fingerprinter.NewFingerprinter()
 
 	case "metrics":
-		dog.lastEmitCheck = time.Now()
-		interval := config.MetricAggregation.Interval.Milliseconds()
-		dog.aggregatorI = ottl.NewMetricAggregatorImpl[int64](interval)
-		dog.aggregatorF = ottl.NewMetricAggregatorImpl[float64](interval)
 		dog.metricTransformations = ottl.Transformations{}
-		err := dog.setupMetricTelemetry(set, attrset)
-		if err != nil {
-			return nil, err
-		}
+
 	case "traces":
 		dog.traceTransformations = ottl.Transformations{}
 		dog.traceFingerprinter = fingerprinter.NewFingerprinter()
@@ -154,24 +138,6 @@ func (e *pitbull) Shutdown(ctx context.Context) error {
 	var errors *multierror.Error
 	e.configExtension.UnregisterCallback(e.configCallbackID)
 	return errors.ErrorOrNil()
-}
-
-func (e *pitbull) setupMetricTelemetry(set processor.Settings, attrset attribute.Set) error {
-	counter, err := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
-		"cardinalhq.processor.pitbull.ottl_processed",
-		[]metric.Int64CounterOption{
-			metric.WithDescription("The results of OTTL processing"),
-			metric.WithUnit("1"),
-		},
-		[]metric.AddOption{
-			metric.WithAttributeSet(attrset),
-		},
-	)
-	if err != nil {
-		return err
-	}
-	e.aggregatedDatapoints = counter
-	return nil
 }
 
 func (e *pitbull) configUpdateCallback(sc ottl.SamplerConfig) {

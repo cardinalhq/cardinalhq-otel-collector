@@ -23,12 +23,9 @@ import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/processor/processorhelper"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
@@ -37,11 +34,9 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 		return md, nil
 	}
 
-	environment := translate.EnvironmentFromEnv()
 	emptySlice := pcommon.NewSlice()
 
 	md.ResourceMetrics().RemoveIf(func(rm pmetric.ResourceMetrics) bool {
-		serviceName := getServiceName(rm.Resource().Attributes())
 		rattr := rm.Resource().Attributes()
 		transformCtx := ottlresource.NewTransformContext(rm.Resource(), rm)
 		e.metricTransformations.ExecuteResourceTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)
@@ -58,93 +53,41 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 			}
 
 			ilm.Metrics().RemoveIf(func(m pmetric.Metric) bool {
-				metricName := m.Name()
-				extra := map[string]string{"name": m.Name()}
 				switch m.Type() {
 				case pmetric.MetricTypeGauge:
 					m.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
 						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
 						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)
-						if _, found := dp.Attributes().Get(translate.CardinalFieldDropMarker); found {
-							return true
-						}
-						dattr := dp.Attributes()
-						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
-						dattr.PutInt(translate.CardinalFieldTID, tid)
-						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
-						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
-						agg := e.aggregate(rm, ilm, m, dp)
-						if agg {
-							telemetry.CounterAdd(e.aggregatedDatapoints, 1, metric.WithAttributes(
-								attribute.String("metric_name", metricName),
-								attribute.String("service_name", serviceName)))
-							return agg
-						}
-						return false
+						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
+						return found
 					})
 				case pmetric.MetricTypeSum:
 					m.Sum().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
 						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
 						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)
-						if _, found := dp.Attributes().Get(translate.CardinalFieldDropMarker); found {
-							return true
-						}
-						dattr := dp.Attributes()
-						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
-						dattr.PutInt(translate.CardinalFieldTID, tid)
-						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
-						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
-						agg := e.aggregate(rm, ilm, m, dp)
-						if agg {
-							telemetry.CounterAdd(e.aggregatedDatapoints, 1, metric.WithAttributes(
-								attribute.String("metric_name", metricName),
-								attribute.String("service_name", serviceName),
-								attribute.String("vendor", e.config.Vendor)))
-							return agg
-						}
-						return false
+						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
+						return found
 					})
 				case pmetric.MetricTypeHistogram:
 					m.Histogram().DataPoints().RemoveIf(func(dp pmetric.HistogramDataPoint) bool {
 						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
 						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)
-						if _, found := dp.Attributes().Get(translate.CardinalFieldDropMarker); found {
-							return true
-						}
-						dattr := dp.Attributes()
-						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
-						dattr.PutInt(translate.CardinalFieldTID, tid)
-						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
-						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
-						return false
+						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
+						return found
 					})
 				case pmetric.MetricTypeSummary:
 					m.Summary().DataPoints().RemoveIf(func(dp pmetric.SummaryDataPoint) bool {
 						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
 						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)
-						if _, found := dp.Attributes().Get(translate.CardinalFieldDropMarker); found {
-							return true
-						}
-						dattr := dp.Attributes()
-						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
-						dattr.PutInt(translate.CardinalFieldTID, tid)
-						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
-						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
-						return false
+						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
+						return found
 					})
 				case pmetric.MetricTypeExponentialHistogram:
 					m.ExponentialHistogram().DataPoints().RemoveIf(func(dp pmetric.ExponentialHistogramDataPoint) bool {
 						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
 						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)
-						if _, found := dp.Attributes().Get(translate.CardinalFieldDropMarker); found {
-							return true
-						}
-						dattr := dp.Attributes()
-						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
-						dattr.PutInt(translate.CardinalFieldTID, tid)
-						dattr.PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
-						dattr.PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
-						return false
+						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
+						return found
 					})
 				}
 
@@ -154,8 +97,6 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 		})
 		return rm.ScopeMetrics().Len() == 0
 	})
-
-	e.emit()
 
 	if md.ResourceMetrics().Len() == 0 {
 		return md, processorhelper.ErrSkipProcessingData

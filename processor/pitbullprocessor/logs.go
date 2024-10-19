@@ -55,7 +55,6 @@ func (e *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 		return ld, nil
 	}
 
-	environment := translate.EnvironmentFromEnv()
 	emptySlice := pcommon.NewSlice()
 
 	ld.ResourceLogs().RemoveIf(func(rl plog.ResourceLogs) bool {
@@ -81,9 +80,6 @@ func (e *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 
 				lr.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)
 				lr.Attributes().PutStr(translate.CardinalFieldLevel, level)
-				lr.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, e.podName)
-				lr.Attributes().PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
-				lr.Attributes().PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 
 				transformCtx := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
 				e.logTransformations.ExecuteLogTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)

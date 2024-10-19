@@ -46,7 +46,6 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 		return td, nil
 	}
 
-	environment := translate.EnvironmentFromEnv()
 	transformations := e.traceTransformations
 	emptySlice := pcommon.NewSlice() // TODO remove when we fully remove chq(decorator|enforcer) processor
 
@@ -72,9 +71,6 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 				isSlow := e.isSpanSlow(sr, uint64(spanFingerprint))
 				sr.Attributes().PutBool(translate.CardinalFieldSpanIsSlow, isSlow)
 				sr.Attributes().PutInt(translate.CardinalFieldFingerprint, spanFingerprint)
-				sr.Attributes().PutStr(translate.CardinalFieldDecoratorPodName, e.podName)
-				sr.Attributes().PutStr(translate.CardinalFieldCustomerID, environment.CustomerID())
-				sr.Attributes().PutStr(translate.CardinalFieldCollectorID, environment.CollectorID())
 				transformCtx := ottlspan.NewTransformContext(sr, iss.Scope(), rs.Resource(), iss, rs)
 				e.logTransformations.ExecuteSpanTransforms(e.ottlProcessed, transformCtx, ottl.VendorID(e.config.Vendor), emptySlice)
 				_, found := sr.Attributes().Get(translate.CardinalFieldDropMarker)

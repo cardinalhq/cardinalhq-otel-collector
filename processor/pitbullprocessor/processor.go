@@ -17,7 +17,6 @@ package pitbullprocessor
 import (
 	"context"
 	"errors"
-	"os"
 	"sync"
 
 	"github.com/hashicorp/go-multierror"
@@ -47,7 +46,6 @@ type pitbull struct {
 	telemetrySettings component.TelemetrySettings
 	configExtension   *chqconfigextension.CHQConfigExtension
 	configCallbackID  int
-	podName           string
 
 	// for logs
 	logTransformations ottl.Transformations
@@ -73,7 +71,6 @@ func newPitbull(config *Config, ttype string, set processor.Settings) (*pitbull,
 		config:            config,
 		telemetrySettings: set.TelemetrySettings,
 		logger:            set.Logger,
-		podName:           os.Getenv("POD_NAME"),
 	}
 
 	attrset := attribute.NewSet(

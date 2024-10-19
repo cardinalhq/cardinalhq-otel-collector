@@ -22,7 +22,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/otel/metric/noop"
-	semconv "go.opentelemetry.io/otel/semconv/v1.22.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"

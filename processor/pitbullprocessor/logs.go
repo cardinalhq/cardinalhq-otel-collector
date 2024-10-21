@@ -70,15 +70,6 @@ func (e *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 			}
 
 			sl.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
-				fingerprint, level, err := e.logFingerprinter.Fingerprint(lr.Body().AsString())
-				if err != nil {
-					e.logger.Debug("Error fingerprinting log", zap.Error(err))
-					return true
-				}
-
-				lr.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)
-				lr.Attributes().PutStr(translate.CardinalFieldLevel, level)
-
 				transformCtx := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
 				e.logTransformations.ExecuteLogTransforms(e.ottlProcessed, transformCtx)
 				_, found := lr.Attributes().Get(translate.CardinalFieldDropMarker)

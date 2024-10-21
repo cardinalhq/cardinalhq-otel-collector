@@ -29,7 +29,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/fingerprinter"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor/internal/metadata"
@@ -49,14 +48,9 @@ type pitbull struct {
 
 	// for logs
 	logTransformations ottl.Transformations
-	logFingerprinter   fingerprinter.Fingerprinter
 
 	// for spans
 	traceTransformations ottl.Transformations
-	traceFingerprinter   fingerprinter.Fingerprinter
-	estimators           map[uint64]*SlidingEstimatorStat
-	estimatorWindowSize  int
-	estimatorInterval    int64
 
 	// for metrics
 	metricTransformations ottl.Transformations
@@ -95,17 +89,12 @@ func newPitbull(config *Config, ttype string, set processor.Settings) (*pitbull,
 	switch ttype {
 	case "logs":
 		dog.logTransformations = ottl.Transformations{}
-		dog.logFingerprinter = fingerprinter.NewFingerprinter()
 
 	case "metrics":
 		dog.metricTransformations = ottl.Transformations{}
 
 	case "traces":
 		dog.traceTransformations = ottl.Transformations{}
-		dog.traceFingerprinter = fingerprinter.NewFingerprinter()
-		dog.estimators = make(map[uint64]*SlidingEstimatorStat)
-		dog.estimatorWindowSize = config.TracesConfig.EstimatorWindowSize
-		dog.estimatorInterval = config.TracesConfig.EstimatorInterval
 	}
 
 	return dog, nil

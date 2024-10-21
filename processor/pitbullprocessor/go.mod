@@ -5,7 +5,6 @@ go 1.22.3
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.0.0
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
-	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl v0.111.0
 	github.com/stretchr/testify v1.9.0
@@ -27,8 +26,8 @@ require (
 	github.com/antchfx/xpath v1.3.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/db47h/ragel/v2 v2.2.4 // indirect
 	github.com/ebitengine/purego v0.8.0 // indirect
 	github.com/elastic/go-grok v0.3.1 // indirect
 	github.com/elastic/lunes v0.1.0 // indirect

@@ -29,7 +29,6 @@ type Config struct {
 	TracesConfig           TracesConfig            `mapstructure:"traces"`
 	MetricsConfig          MetricsConfig           `mapstructure:"metrics"`
 	ConfigurationExtension *component.ID           `mapstructure:"configuration_extension"`
-	Vendor                 string                  `mapstructure:"vendor"`
 }
 
 type MetricAggregationConfig struct {

@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pitbullprocessor
+package fingerprintprocessor
 
 import (
 	"context"
-	"time"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/collector/processor/processorhelper"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor/internal/metadata"
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor/internal/metadata"
 )
 
 // NewFactory creates a factory for S3 exporter.
@@ -33,20 +32,11 @@ func NewFactory() processor.Factory {
 		createDefaultConfig,
 		processor.WithTraces(createSpansProcessor, metadata.TracesStability),
 		processor.WithLogs(createLogsProcessor, metadata.LogsStability),
-		processor.WithMetrics(createMetricsProcessor, metadata.MetricsStability),
 	)
 }
 
-const (
-	defaultMetricAggregation  = 10 * time.Second
-	defaultStatisticsInterval = 1 * time.Minute
-)
-
 func createDefaultConfig() component.Config {
 	return &Config{
-		MetricAggregation: MetricAggregationConfig{
-			Interval: defaultMetricAggregation,
-		},
 		TracesConfig: TracesConfig{
 			EstimatorWindowSize: 30,
 			EstimatorInterval:   10000,
@@ -62,21 +52,6 @@ func createLogsProcessor(ctx context.Context, set processor.Settings, cfg compon
 	return processorhelper.NewLogs(
 		ctx, set, cfg, nextConsumer,
 		e.ConsumeLogs,
-		processorhelper.WithStart(e.Start),
-		processorhelper.WithShutdown(e.Shutdown),
-		processorhelper.WithCapabilities(e.Capabilities()))
-}
-
-func createMetricsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Metrics) (processor.Metrics, error) {
-	e, err := newPitbull(cfg.(*Config), "metrics", set)
-	if err != nil {
-		return nil, err
-	}
-	return processorhelper.NewMetrics(
-		ctx, set, cfg, nextConsumer,
-		e.ConsumeMetrics,
-		processorhelper.WithStart(e.Start),
-		processorhelper.WithShutdown(e.Shutdown),
 		processorhelper.WithCapabilities(e.Capabilities()))
 }
 
@@ -88,7 +63,5 @@ func createSpansProcessor(ctx context.Context, set processor.Settings, cfg compo
 	return processorhelper.NewTraces(
 		ctx, set, cfg, nextConsumer,
 		e.ConsumeTraces,
-		processorhelper.WithStart(e.Start),
-		processorhelper.WithShutdown(e.Shutdown),
 		processorhelper.WithCapabilities(e.Capabilities()))
 }

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pitbullprocessor
+package aggregationprocessor
 
 import (
 	"context"
@@ -23,7 +23,7 @@ import (
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/collector/processor/processorhelper"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor/internal/metadata"
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor/internal/metadata"
 )
 
 // NewFactory creates a factory for S3 exporter.
@@ -31,15 +31,12 @@ func NewFactory() processor.Factory {
 	return processor.NewFactory(
 		metadata.Type,
 		createDefaultConfig,
-		processor.WithTraces(createSpansProcessor, metadata.TracesStability),
-		processor.WithLogs(createLogsProcessor, metadata.LogsStability),
 		processor.WithMetrics(createMetricsProcessor, metadata.MetricsStability),
 	)
 }
 
 const (
-	defaultMetricAggregation  = 10 * time.Second
-	defaultStatisticsInterval = 1 * time.Minute
+	defaultMetricAggregation = 10 * time.Second
 )
 
 func createDefaultConfig() component.Config {
@@ -47,48 +44,16 @@ func createDefaultConfig() component.Config {
 		MetricAggregation: MetricAggregationConfig{
 			Interval: defaultMetricAggregation,
 		},
-		TracesConfig: TracesConfig{
-			EstimatorWindowSize: 30,
-			EstimatorInterval:   10000,
-		},
 	}
-}
-
-func createLogsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Logs) (processor.Logs, error) {
-	e, err := newPitbull(cfg.(*Config), "logs", set)
-	if err != nil {
-		return nil, err
-	}
-	return processorhelper.NewLogs(
-		ctx, set, cfg, nextConsumer,
-		e.ConsumeLogs,
-		processorhelper.WithStart(e.Start),
-		processorhelper.WithShutdown(e.Shutdown),
-		processorhelper.WithCapabilities(e.Capabilities()))
 }
 
 func createMetricsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Metrics) (processor.Metrics, error) {
-	e, err := newPitbull(cfg.(*Config), "metrics", set)
+	e, err := newPitbull(cfg.(*Config), "metrics", set, nextConsumer)
 	if err != nil {
 		return nil, err
 	}
 	return processorhelper.NewMetrics(
 		ctx, set, cfg, nextConsumer,
 		e.ConsumeMetrics,
-		processorhelper.WithStart(e.Start),
-		processorhelper.WithShutdown(e.Shutdown),
-		processorhelper.WithCapabilities(e.Capabilities()))
-}
-
-func createSpansProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Traces) (processor.Traces, error) {
-	e, err := newPitbull(cfg.(*Config), "traces", set)
-	if err != nil {
-		return nil, err
-	}
-	return processorhelper.NewTraces(
-		ctx, set, cfg, nextConsumer,
-		e.ConsumeTraces,
-		processorhelper.WithStart(e.Start),
-		processorhelper.WithShutdown(e.Shutdown),
 		processorhelper.WithCapabilities(e.Capabilities()))
 }

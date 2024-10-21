@@ -79,88 +79,65 @@ type dataPointTransform struct {
 	statements []*ottl.Statement[ottldatapoint.TransformContext]
 }
 
-type VendorID string
-
 type RuleID string
 
 type Transformations = transformations
 
 type transformations struct {
-	resourceTransformsByRuleId  map[VendorID]map[RuleID]resourceTransform
-	scopeTransformsByRuleId     map[VendorID]map[RuleID]scopeTransform
-	logTransformsByRuleId       map[VendorID]map[RuleID]logTransform
-	spanTransformsByRuleId      map[VendorID]map[RuleID]spanTransform
-	metricTransformsByRuleId    map[VendorID]map[RuleID]metricTransform
-	dataPointTransformsByRuleId map[VendorID]map[RuleID]dataPointTransform
-	logger                      *zap.Logger
+	resourceTransforms  map[RuleID]resourceTransform
+	scopeTransforms     map[RuleID]scopeTransform
+	logTransforms       map[RuleID]logTransform
+	spanTransforms      map[RuleID]spanTransform
+	metricTransforms    map[RuleID]metricTransform
+	dataPointTransforms map[RuleID]dataPointTransform
+	logger              *zap.Logger
 }
 
 func NewTransformations(logger *zap.Logger) transformations {
 	return transformations{
-		resourceTransformsByRuleId:  make(map[VendorID]map[RuleID]resourceTransform),
-		scopeTransformsByRuleId:     make(map[VendorID]map[RuleID]scopeTransform),
-		logTransformsByRuleId:       make(map[VendorID]map[RuleID]logTransform),
-		spanTransformsByRuleId:      make(map[VendorID]map[RuleID]spanTransform),
-		metricTransformsByRuleId:    make(map[VendorID]map[RuleID]metricTransform),
-		dataPointTransformsByRuleId: make(map[VendorID]map[RuleID]dataPointTransform),
-		logger:                      logger,
+		resourceTransforms:  make(map[RuleID]resourceTransform),
+		scopeTransforms:     make(map[RuleID]scopeTransform),
+		logTransforms:       make(map[RuleID]logTransform),
+		spanTransforms:      make(map[RuleID]spanTransform),
+		metricTransforms:    make(map[RuleID]metricTransform),
+		dataPointTransforms: make(map[RuleID]dataPointTransform),
+		logger:              logger,
 	}
 }
 
 func MergeWith(this transformations, other transformations) transformations {
 	return transformations{
-		resourceTransformsByRuleId:  merge(this.resourceTransformsByRuleId, other.resourceTransformsByRuleId),
-		scopeTransformsByRuleId:     merge(this.scopeTransformsByRuleId, other.scopeTransformsByRuleId),
-		logTransformsByRuleId:       merge(this.logTransformsByRuleId, other.logTransformsByRuleId),
-		spanTransformsByRuleId:      merge(this.spanTransformsByRuleId, other.spanTransformsByRuleId),
-		metricTransformsByRuleId:    merge(this.metricTransformsByRuleId, other.metricTransformsByRuleId),
-		dataPointTransformsByRuleId: merge(this.dataPointTransformsByRuleId, other.dataPointTransformsByRuleId),
+		resourceTransforms:  merge(this.resourceTransforms, other.resourceTransforms),
+		scopeTransforms:     merge(this.scopeTransforms, other.scopeTransforms),
+		logTransforms:       merge(this.logTransforms, other.logTransforms),
+		spanTransforms:      merge(this.spanTransforms, other.spanTransforms),
+		metricTransforms:    merge(this.metricTransforms, other.metricTransforms),
+		dataPointTransforms: merge(this.dataPointTransforms, other.dataPointTransforms),
 	}
 }
 
-func merge[T any](map1, map2 map[VendorID]map[RuleID]T) map[VendorID]map[RuleID]T {
-	result := make(map[VendorID]map[RuleID]T, len(map1))
+func merge[T any](map1, map2 map[RuleID]T) map[RuleID]T {
+	result := make(map[RuleID]T, len(map1))
 
-	// Copy all entries from map1
-	for outerKey, innerMap := range map1 {
-		result[outerKey] = make(map[RuleID]T, len(innerMap))
-		for innerKey, value := range innerMap {
-			result[outerKey][innerKey] = value
-		}
+	for key, value := range map1 {
+		result[key] = value
 	}
-
-	// Merge map2 into the result
-	for outerKey, innerMap := range map2 {
-		// If outerKey already exists, merge the inner maps
-		if _, exists := result[outerKey]; exists {
-			for innerKey, value := range innerMap {
-				result[outerKey][innerKey] = value
-			}
-		} else {
-			// If outerKey does not exist, add the entire inner map
-			result[outerKey] = make(map[RuleID]T, len(innerMap))
-			for innerKey, value := range innerMap {
-				result[outerKey][innerKey] = value
-			}
-		}
+	for key, value := range map2 {
+		result[key] = value
 	}
 
 	return result
 }
 
 func (t *transformations) Stop() {
-	for _, logTransforms := range t.logTransformsByRuleId {
-		for _, logTransform := range logTransforms {
-			if logTransform.sampler != nil {
-				_ = logTransform.sampler.Stop()
-			}
+	for _, logTransform := range t.logTransforms {
+		if logTransform.sampler != nil {
+			_ = logTransform.sampler.Stop()
 		}
 	}
-	for _, spanTransforms := range t.spanTransformsByRuleId {
-		for _, spanTransform := range spanTransforms {
-			if spanTransform.sampler != nil {
-				_ = spanTransform.sampler.Stop()
-			}
+	for _, spanTransform := range t.spanTransforms {
+		if spanTransform.sampler != nil {
+			_ = spanTransform.sampler.Stop()
 		}
 	}
 }
@@ -224,10 +201,7 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (transforma
 				continue
 			}
 
-			if _, exists := transformations.resourceTransformsByRuleId[statement.VendorId]; !exists {
-				transformations.resourceTransformsByRuleId[statement.VendorId] = make(map[RuleID]resourceTransform)
-			}
-			transformations.resourceTransformsByRuleId[statement.VendorId][cs.RuleId] = resourceTransform{
+			transformations.resourceTransforms[cs.RuleId] = resourceTransform{
 				context:    cs.Context,
 				conditions: conditions,
 				statements: statements,
@@ -247,10 +221,7 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (transforma
 				continue
 			}
 
-			if _, exists := transformations.scopeTransformsByRuleId[statement.VendorId]; !exists {
-				transformations.scopeTransformsByRuleId[statement.VendorId] = make(map[RuleID]scopeTransform)
-			}
-			transformations.scopeTransformsByRuleId[statement.VendorId][cs.RuleId] = scopeTransform{
+			transformations.scopeTransforms[cs.RuleId] = scopeTransform{
 				context:    cs.Context,
 				conditions: conditions,
 				statements: statements,
@@ -280,10 +251,7 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (transforma
 				}
 			}
 
-			if _, exists := transformations.logTransformsByRuleId[statement.VendorId]; !exists {
-				transformations.logTransformsByRuleId[statement.VendorId] = make(map[RuleID]logTransform)
-			}
-			transformations.logTransformsByRuleId[statement.VendorId][cs.RuleId] = logTransform{
+			transformations.logTransforms[cs.RuleId] = logTransform{
 				context:    cs.Context,
 				conditions: conditions,
 				statements: statements,
@@ -314,10 +282,7 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (transforma
 				}
 			}
 
-			if _, exists := transformations.spanTransformsByRuleId[statement.VendorId]; !exists {
-				transformations.spanTransformsByRuleId[statement.VendorId] = make(map[RuleID]spanTransform)
-			}
-			transformations.spanTransformsByRuleId[statement.VendorId][cs.RuleId] = spanTransform{
+			transformations.spanTransforms[cs.RuleId] = spanTransform{
 				context:    cs.Context,
 				conditions: conditions,
 				statements: statements,
@@ -338,10 +303,7 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (transforma
 				continue
 			}
 
-			if _, exists := transformations.metricTransformsByRuleId[statement.VendorId]; !exists {
-				transformations.metricTransformsByRuleId[statement.VendorId] = make(map[RuleID]metricTransform)
-			}
-			transformations.metricTransformsByRuleId[statement.VendorId][cs.RuleId] = metricTransform{
+			transformations.metricTransforms[cs.RuleId] = metricTransform{
 				context:    cs.Context,
 				conditions: conditions,
 				statements: statements,
@@ -361,10 +323,7 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (transforma
 				continue
 			}
 
-			if _, exists := transformations.dataPointTransformsByRuleId[statement.VendorId]; !exists {
-				transformations.dataPointTransformsByRuleId[statement.VendorId] = make(map[RuleID]dataPointTransform)
-			}
-			transformations.dataPointTransformsByRuleId[statement.VendorId][cs.RuleId] = dataPointTransform{
+			transformations.dataPointTransforms[cs.RuleId] = dataPointTransform{
 				context:    cs.Context,
 				conditions: conditions,
 				statements: statements,
@@ -378,34 +337,16 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (transforma
 	return transformations, errors
 }
 
-func evaluateTransform[T any](counter telemetry.DeferrableCounter, rulesByRuleIdByVendorId map[VendorID]map[RuleID]T, vendorId VendorID, ruleIds pcommon.Slice, eval func(telemetry.DeferrableCounter, T, string)) {
-	if ruleIds.Len() == 0 || vendorId == "" {
-		for _, transformsByRuleId := range rulesByRuleIdByVendorId {
-			for ruleID, transform := range transformsByRuleId {
-				eval(counter, transform, string(ruleID))
-			}
-		}
-	} else {
-		for i := 0; i < ruleIds.Len(); i++ {
-			ruleId := ruleIds.At(i)
-			if transform, ok := rulesByRuleIdByVendorId[vendorId][RuleID(ruleId.Str())]; ok {
-				eval(counter, transform, ruleId.AsString())
-			}
-		}
+func evaluateTransform[T any](counter telemetry.DeferrableCounter, rules map[RuleID]T, eval func(telemetry.DeferrableCounter, T, string)) {
+	for ruleID, transform := range rules {
+		eval(counter, transform, string(ruleID))
 	}
 }
 
-func usableVendorId(vendorId VendorID) string {
-	if vendorId == "" {
-		return "_unset"
-	}
-	return string(vendorId)
-}
-
-func (t *transformations) ExecuteResourceTransforms(counter telemetry.DeferrableCounter, transformCtx ottlresource.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
-	attrset := attribute.NewSet(attribute.String("context", "resource"), attribute.String("vendor_id", usableVendorId(vendorId)))
+func (t *transformations) ExecuteResourceTransforms(counter telemetry.DeferrableCounter, transformCtx ottlresource.TransformContext) {
+	attrset := attribute.NewSet(attribute.String("context", "resource"))
 	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "resource")))
-	evaluateTransform[resourceTransform](counter, t.resourceTransformsByRuleId, vendorId, ruleIds, func(counter telemetry.DeferrableCounter, resourceTransform resourceTransform, ruleID string) {
+	evaluateTransform[resourceTransform](counter, t.resourceTransforms, func(counter telemetry.DeferrableCounter, resourceTransform resourceTransform, ruleID string) {
 		allConditionsTrue := true
 		telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", ruleID)))
 		for _, condition := range resourceTransform.conditions {
@@ -425,10 +366,10 @@ func (t *transformations) ExecuteResourceTransforms(counter telemetry.Deferrable
 	})
 }
 
-func (t *transformations) ExecuteScopeTransforms(counter telemetry.DeferrableCounter, transformCtx ottlscope.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
-	attrset := attribute.NewSet(attribute.String("context", "scope"), attribute.String("vendor_id", usableVendorId(vendorId)))
+func (t *transformations) ExecuteScopeTransforms(counter telemetry.DeferrableCounter, transformCtx ottlscope.TransformContext) {
+	attrset := attribute.NewSet(attribute.String("context", "scope"))
 	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "scope")))
-	evaluateTransform[scopeTransform](counter, t.scopeTransformsByRuleId, vendorId, ruleIds, func(counter telemetry.DeferrableCounter, scopeTransform scopeTransform, ruleID string) {
+	evaluateTransform[scopeTransform](counter, t.scopeTransforms, func(counter telemetry.DeferrableCounter, scopeTransform scopeTransform, ruleID string) {
 		allConditionsTrue := true
 		telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", ruleID)))
 		for _, condition := range scopeTransform.conditions {
@@ -449,10 +390,10 @@ func (t *transformations) ExecuteScopeTransforms(counter telemetry.DeferrableCou
 	})
 }
 
-func (t *transformations) ExecuteLogTransforms(counter telemetry.DeferrableCounter, transformCtx ottllog.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
-	attrset := attribute.NewSet(attribute.String("context", "log"), attribute.String("vendor_id", usableVendorId(vendorId)))
+func (t *transformations) ExecuteLogTransforms(counter telemetry.DeferrableCounter, transformCtx ottllog.TransformContext) {
+	attrset := attribute.NewSet(attribute.String("context", "log"))
 	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "log")))
-	evaluateTransform[logTransform](counter, t.logTransformsByRuleId, vendorId, ruleIds, func(counter telemetry.DeferrableCounter, logTransform logTransform, ruleID string) {
+	evaluateTransform[logTransform](counter, t.logTransforms, func(counter telemetry.DeferrableCounter, logTransform logTransform, ruleID string) {
 		allConditionsTrue := true
 		telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", ruleID)))
 		for _, condition := range logTransform.conditions {
@@ -503,10 +444,10 @@ func shouldFilter(rate int, randval float64) bool {
 	}
 }
 
-func (t *transformations) ExecuteSpanTransforms(counter telemetry.DeferrableCounter, transformCtx ottlspan.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
-	attrset := attribute.NewSet(attribute.String("context", "span"), attribute.String("vendor_id", usableVendorId(vendorId)))
+func (t *transformations) ExecuteSpanTransforms(counter telemetry.DeferrableCounter, transformCtx ottlspan.TransformContext) {
+	attrset := attribute.NewSet(attribute.String("context", "span"))
 	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "span")))
-	evaluateTransform[spanTransform](counter, t.spanTransformsByRuleId, vendorId, ruleIds, func(counter telemetry.DeferrableCounter, spanTransform spanTransform, ruleID string) {
+	evaluateTransform[spanTransform](counter, t.spanTransforms, func(counter telemetry.DeferrableCounter, spanTransform spanTransform, ruleID string) {
 		allConditionsTrue := true
 		telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", ruleID)))
 		for _, condition := range spanTransform.conditions {
@@ -546,10 +487,10 @@ func (t *transformations) ExecuteSpanTransforms(counter telemetry.DeferrableCoun
 	})
 }
 
-func (t *transformations) ExecuteMetricTransforms(counter telemetry.DeferrableCounter, transformCtx ottlmetric.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
-	attrset := attribute.NewSet(attribute.String("context", "metric"), attribute.String("vendor_id", usableVendorId(vendorId)))
+func (t *transformations) ExecuteMetricTransforms(counter telemetry.DeferrableCounter, transformCtx ottlmetric.TransformContext) {
+	attrset := attribute.NewSet(attribute.String("context", "metric"))
 	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "metric")))
-	evaluateTransform[metricTransform](counter, t.metricTransformsByRuleId, vendorId, ruleIds, func(counter telemetry.DeferrableCounter, metricTransform metricTransform, ruleID string) {
+	evaluateTransform[metricTransform](counter, t.metricTransforms, func(counter telemetry.DeferrableCounter, metricTransform metricTransform, ruleID string) {
 		allConditionsTrue := true
 		telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", ruleID)))
 		for _, condition := range metricTransform.conditions {
@@ -569,10 +510,10 @@ func (t *transformations) ExecuteMetricTransforms(counter telemetry.DeferrableCo
 	})
 }
 
-func (t *transformations) ExecuteDatapointTransforms(counter telemetry.DeferrableCounter, transformCtx ottldatapoint.TransformContext, vendorId VendorID, ruleIds pcommon.Slice) {
-	attrset := attribute.NewSet(attribute.String("context", "datapoint"), attribute.String("vendor_id", usableVendorId(vendorId)))
+func (t *transformations) ExecuteDatapointTransforms(counter telemetry.DeferrableCounter, transformCtx ottldatapoint.TransformContext) {
+	attrset := attribute.NewSet(attribute.String("context", "datapoint"))
 	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "datapoint")))
-	evaluateTransform[dataPointTransform](counter, t.dataPointTransformsByRuleId, vendorId, ruleIds, func(counter telemetry.DeferrableCounter, dataPointTransform dataPointTransform, ruleID string) {
+	evaluateTransform[dataPointTransform](counter, t.dataPointTransforms, func(counter telemetry.DeferrableCounter, dataPointTransform dataPointTransform, ruleID string) {
 		allConditionsTrue := true
 		telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-condition"), attribute.String("rule_id", ruleID)))
 		for _, condition := range dataPointTransform.conditions {

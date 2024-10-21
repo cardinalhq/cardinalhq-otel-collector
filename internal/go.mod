@@ -8,6 +8,7 @@ require (
 	github.com/db47h/ragel/v2 v2.2.4
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl v0.111.0
+	github.com/oschwald/geoip2-golang v1.11.0
 	github.com/stretchr/testify v1.9.0
 	go.opentelemetry.io/collector/component v0.111.0
 	go.opentelemetry.io/collector/pdata v1.17.0
@@ -40,6 +41,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal v0.111.0 // indirect
+	github.com/oschwald/maxminddb-golang v1.13.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/ua-parser/uap-go v0.0.0-20241012191800-bbb40edc15aa // indirect

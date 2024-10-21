@@ -17,6 +17,7 @@ package ottl
 import (
 	"context"
 	"fmt"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl/functions"
 	"math/rand"
 
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl"
@@ -148,6 +149,9 @@ func mkFactory[T any]() map[string]ottl.Factory[T] {
 		factoryMap[factoryName] = factory
 	}
 	for factoryName, factory := range ottlfuncs.StandardConverters[T]() {
+		factoryMap[factoryName] = factory
+	}
+	for factoryName, factory := range functions.CustomFunctions[T]() {
 		factoryMap[factoryName] = factory
 	}
 	return factoryMap

@@ -86,6 +86,8 @@ func (e *extractor) configUpdateCallback(sc ottl.SamplerConfig) {
 				return
 			}
 			e.spanExtractors = convertToPointerArray(parsedExtractors)
+
+		default:
 		}
 	}
 	e.logger.Info("Configuration updated")

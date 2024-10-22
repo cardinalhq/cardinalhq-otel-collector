@@ -20,6 +20,7 @@ func factories[K any]() []ottl.Factory[K] {
 	return []ottl.Factory[K]{
 		NewCidrMatchFactory[K](),
 		NewIpLocationFactory[K](),
+		NewIsInFactory[K](),
 	}
 }
 

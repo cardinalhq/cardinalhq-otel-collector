@@ -143,7 +143,30 @@ func (t *transformations) Stop() {
 	}
 }
 
-func mkFactory[T any]() map[string]ottl.Factory[T] {
+type valueArguments[K any] struct {
+	Target ottl.Getter[K] `ottlarg:"0"`
+}
+
+func newValueFactory[K any]() ottl.Factory[K] {
+	return ottl.NewFactory("value", &valueArguments[K]{}, createValueFunction[K])
+}
+
+func createValueFunction[K any](_ ottl.FunctionContext, a ottl.Arguments) (ottl.ExprFunc[K], error) {
+	args, ok := a.(*valueArguments[K])
+	if !ok {
+		return nil, fmt.Errorf("valueFactory args must be of type *valueArguments[K]")
+	}
+
+	return valueFn[K](args)
+}
+
+func valueFn[K any](c *valueArguments[K]) (ottl.ExprFunc[K], error) {
+	return func(ctx context.Context, tCtx K) (interface{}, error) {
+		return c.Target.Get(ctx, tCtx)
+	}, nil
+}
+
+func ToFactory[T any]() map[string]ottl.Factory[T] {
 	factoryMap := map[string]ottl.Factory[T]{}
 	for factoryName, factory := range ottlfuncs.StandardFuncs[T]() {
 		factoryMap[factoryName] = factory
@@ -154,6 +177,10 @@ func mkFactory[T any]() map[string]ottl.Factory[T] {
 	for factoryName, factory := range functions.CustomFunctions[T]() {
 		factoryMap[factoryName] = factory
 	}
+
+	valueFactory := newValueFactory[T]()
+	factoryMap[valueFactory.Name()] = valueFactory
+
 	return factoryMap
 }
 
@@ -180,12 +207,12 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (transforma
 	var errors error
 
 	contextStatements := statement.Statements
-	resourceParser, _ := ottlresource.NewParser(mkFactory[ottlresource.TransformContext](), component.TelemetrySettings{Logger: logger})
-	scopeParser, _ := ottlscope.NewParser(mkFactory[ottlscope.TransformContext](), component.TelemetrySettings{Logger: logger})
-	logParser, _ := ottllog.NewParser(mkFactory[ottllog.TransformContext](), component.TelemetrySettings{Logger: logger})
-	spanParser, _ := ottlspan.NewParser(mkFactory[ottlspan.TransformContext](), component.TelemetrySettings{Logger: logger})
-	metricParser, _ := ottlmetric.NewParser(mkFactory[ottlmetric.TransformContext](), component.TelemetrySettings{Logger: logger})
-	dataPointParser, _ := ottldatapoint.NewParser(mkFactory[ottldatapoint.TransformContext](), component.TelemetrySettings{Logger: logger})
+	resourceParser, _ := ottlresource.NewParser(ToFactory[ottlresource.TransformContext](), component.TelemetrySettings{Logger: logger})
+	scopeParser, _ := ottlscope.NewParser(ToFactory[ottlscope.TransformContext](), component.TelemetrySettings{Logger: logger})
+	logParser, _ := ottllog.NewParser(ToFactory[ottllog.TransformContext](), component.TelemetrySettings{Logger: logger})
+	spanParser, _ := ottlspan.NewParser(ToFactory[ottlspan.TransformContext](), component.TelemetrySettings{Logger: logger})
+	metricParser, _ := ottlmetric.NewParser(ToFactory[ottlmetric.TransformContext](), component.TelemetrySettings{Logger: logger})
+	dataPointParser, _ := ottldatapoint.NewParser(ToFactory[ottldatapoint.TransformContext](), component.TelemetrySettings{Logger: logger})
 
 	transformations := NewTransformations(logger)
 

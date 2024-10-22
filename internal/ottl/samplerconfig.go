@@ -15,9 +15,11 @@
 package ottl
 
 type SamplerConfig struct {
-	Logs    EventConfigV1  `json:"logs,omitempty" yaml:"logs,omitempty"`
-	Metrics MetricConfigV1 `json:"metrics,omitempty" yaml:"metrics,omitempty"`
-	Spans   EventConfigV1  `json:"spans,omitempty" yaml:"spans,omitempty"`
+	Logs                 EventConfigV1           `json:"logs,omitempty" yaml:"logs,omitempty"`
+	Metrics              MetricConfigV1          `json:"metrics,omitempty" yaml:"metrics,omitempty"`
+	Spans                EventConfigV1           `json:"spans,omitempty" yaml:"spans,omitempty"`
+	LogMetricExtractors  []MetricExtractorConfig `json:"log_extractors"`
+	SpanMetricExtractors []MetricExtractorConfig `json:"span_extractors"`
 
 	hash uint64
 }

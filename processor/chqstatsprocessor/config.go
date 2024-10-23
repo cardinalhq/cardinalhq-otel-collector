@@ -16,6 +16,7 @@ package chqstatsprocessor
 
 import (
 	"errors"
+	"go.opentelemetry.io/collector/component"
 	"time"
 
 	"go.opentelemetry.io/collector/config/confighttp"
@@ -23,7 +24,8 @@ import (
 )
 
 type Config struct {
-	Statistics StatisticsConfig `mapstructure:"statistics"`
+	Statistics             StatisticsConfig `mapstructure:"statistics"`
+	ConfigurationExtension *component.ID    `mapstructure:"configuration_extension"`
 }
 
 type StatisticsConfig struct {
@@ -32,18 +34,9 @@ type StatisticsConfig struct {
 	Interval time.Duration `mapstructure:"interval"`
 	Phase    string        `mapstructure:"phase"`
 	Vendor   string        `mapstructure:"vendor"`
-
-	LogsEnrichments    []StatsEnrichment `mapstructure:"logs_enrichments"`
-	MetricsEnrichments []StatsEnrichment `mapstructure:"metrics_enrichments"`
-	TracesEnrichments  []StatsEnrichment `mapstructure:"traces_enrichments"`
 }
 
 type ContextID = string
-
-type StatsEnrichment struct {
-	Context ContextID `mapstructure:"context"`
-	Tags    []string  `mapstructure:"tags"`
-}
 
 func (c *Config) Validate() error {
 	var errs error

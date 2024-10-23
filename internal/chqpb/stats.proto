@@ -23,11 +23,18 @@ message LogStatsReport {
 	repeated LogStats stats = 2;
 }
 
+
+message Attribute {
+	int32 type = 1;
+	bool isAttribute = 2;
+	string contextId = 3;
+	string value = 4;
+	string key = 5;
+}
+
 message LogExemplar {
-	map<string, string> resourceTags = 1;
-	map<string, string> scopeTags = 2;
-	map<string, string> logTags = 3;
-	string exemplar = 4;
+	repeated Attribute attributes = 1;
+	string exemplar = 2;
 }
 
 message LogStats {
@@ -38,7 +45,7 @@ message LogStats {
 	int64 logSize = 5;
 	LogExemplar exemplar = 6;
 	string vendorId = 7;
-	map<string, string> tags = 8;
+	repeated Attribute attributes = 8;
 }
 
 message SpanStatsReport {
@@ -48,12 +55,7 @@ message SpanStatsReport {
 
 message SpanExemplar {
 	string traceId = 1;
-	string spanName = 2;
-	string resource = 3;
-	string spanKind = 4;
-	map<string, string> resourceTags = 5;
-	map<string, string> scopeTags = 6;
-	map<string, string> spanTags = 7;
+	repeated Attribute attributes = 2;
 }
 
 message SpanStats {
@@ -64,7 +66,7 @@ message SpanStats {
 	int64 spanSize = 5;
 	SpanExemplar exemplar = 6;
 	string vendorId = 7;
-	map<string, string> tags = 8;
+	repeated Attribute attributes = 8;
 }
 
 
@@ -82,7 +84,7 @@ message MetricStats {
 	bytes hll = 6;
 	int64 count = 7;
 	string vendorId = 8;
-	map<string, string> tags = 9;
+	repeated Attribute attributes = 9;
 }
 
 enum Phase {

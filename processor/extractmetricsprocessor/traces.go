@@ -76,7 +76,7 @@ func (e *extractor) extractMetricsFromSpans(ctx context.Context, pt ptrace.Trace
 						sr := logRecords.At(k)
 						spanCtx := ottlspan.NewTransformContext(sr, scopeSpan.Scope(), resource, scopeSpan, resourceSpan)
 
-						matches, err := spanExtractor.Condition.Eval(ctx, spanCtx)
+						matches, err := spanExtractor.EvalSpanConditions(ctx, spanCtx)
 						if err != nil {
 							e.logger.Error("Failed when executing ottl match statement.", zap.Error(err))
 							continue

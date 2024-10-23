@@ -14,24 +14,28 @@
 
 package ottl
 
-type SamplerConfig struct {
-	Logs                 EventConfigV1           `json:"logs,omitempty" yaml:"logs,omitempty"`
-	Metrics              MetricConfigV1          `json:"metrics,omitempty" yaml:"metrics,omitempty"`
-	Spans                EventConfigV1           `json:"spans,omitempty" yaml:"spans,omitempty"`
+type ControlPlaneConfig struct {
+	Logs    InstructionConfigV1 `json:"logs,omitempty" yaml:"logs,omitempty"`
+	Metrics InstructionConfigV1 `json:"metrics,omitempty" yaml:"metrics,omitempty"`
+	Spans   InstructionConfigV1 `json:"spans,omitempty" yaml:"spans,omitempty"`
+
 	LogMetricExtractors  []MetricExtractorConfig `json:"log_extractors"`
 	SpanMetricExtractors []MetricExtractorConfig `json:"span_extractors"`
+
+	LogsEnrichments    []StatsEnrichment `json:"logs_enrichments,omitempty" mapstructure:"logs_enrichments"`
+	MetricsEnrichments []StatsEnrichment `json:"metrics_enrichments,omitempty" mapstructure:"metrics_enrichments"`
+	TracesEnrichments  []StatsEnrichment `json:"traces_enrichments,omitempty" mapstructure:"traces_enrichments"`
 
 	hash uint64
 }
 
-type EventConfigV1 struct {
-	Decorators []Instruction `json:"decorators,omitempty" yaml:"decorators,omitempty"`
-	Enforcers  []Instruction `json:"enforcers,omitempty" yaml:"enforcers,omitempty"`
+type StatsEnrichment struct {
+	Context string   `json:"context,omitempty" mapstructure:"context"`
+	Tags    []string `json:"tags,omitempty" mapstructure:"tags"`
 }
 
-type MetricConfigV1 struct {
+type InstructionConfigV1 struct {
 	Decorators []Instruction `json:"decorators,omitempty" yaml:"decorators,omitempty"`
-	Enforcers  []Instruction `json:"enforcers,omitempty" yaml:"enforcers,omitempty"`
 }
 
 type ContextID string

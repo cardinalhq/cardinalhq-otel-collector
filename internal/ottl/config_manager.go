@@ -32,7 +32,7 @@ type ConfigManager interface {
 	Stop()
 }
 
-type ConfigUpdateCallbackFunc func(config SamplerConfig)
+type ConfigUpdateCallbackFunc func(config ControlPlaneConfig)
 
 type ConfigManagerImpl struct {
 	done                  chan struct{}
@@ -44,7 +44,7 @@ type ConfigManagerImpl struct {
 	unregisterRequestChan chan unregisterRequest
 	freader               filereader.FileReader
 	interval              time.Duration
-	lastconf              *SamplerConfig
+	lastconf              *ControlPlaneConfig
 }
 
 var _ ConfigManager = (*ConfigManagerImpl)(nil)
@@ -137,7 +137,7 @@ func (c *ConfigManagerImpl) unregister(req unregisterRequest) {
 }
 
 func (c *ConfigManagerImpl) checkUpdates() {
-	var conf SamplerConfig
+	var conf ControlPlaneConfig
 
 	c.logger.Debug("Checking for sampler config updates")
 

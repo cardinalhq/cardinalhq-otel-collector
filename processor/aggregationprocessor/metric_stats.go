@@ -30,14 +30,14 @@ type MetricStat struct {
 	VendorID    string
 	Count       int64
 	HLL         hll.HllSketch
-	Tags        map[string]string
+	Attributes  []*chqpb.Attribute
 }
 
 var _ stats.StatsObject = (*MetricStat)(nil)
 
 func (m *MetricStat) Key() uint64 {
 	key := m.MetricName + ":" + m.TagName + ":" + m.ServiceName + ":" + m.Phase.String() + ":" + m.VendorID
-	key = chqpb.AppendTagsToKey(m.Tags, key)
+	key = chqpb.AppendTagsToKey(m.Attributes, key)
 	return xxhash.Sum64String(key)
 }
 

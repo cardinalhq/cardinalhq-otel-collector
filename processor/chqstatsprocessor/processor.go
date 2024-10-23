@@ -16,7 +16,8 @@ package chqstatsprocessor
 
 import (
 	"context"
-	"fmt"
+	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"net/http"
 	"os"
 	"sync"
@@ -34,12 +35,13 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
 )
 
-type beagle struct {
+type statsProc struct {
 	sync.RWMutex
 
-	config     *Config
-	httpClient *http.Client
-	logger     *zap.Logger
+	config          *Config
+	httpClient      *http.Client
+	logger          *zap.Logger
+	configExtension *chqconfigextension.CHQConfigExtension
 
 	id                 component.ID
 	ttype              string
@@ -49,14 +51,20 @@ type beagle struct {
 	podName            string
 	vendor             string
 
+	configCallbackID int
+
 	logstats    *stats.StatsCombiner[*chqpb.LogStats]
 	spanStats   *stats.StatsCombiner[*chqpb.SpanStats]
 	metricstats *stats.StatsCombiner[*MetricStat]
+
+	logStatsEnrichments     *[]ottl.StatsEnrichment
+	metricsStatsEnrichments *[]ottl.StatsEnrichment
+	tracesStatsEnrichments  *[]ottl.StatsEnrichment
 }
 
-func newBeagle(config *Config, ttype string, set processor.Settings) (*beagle, error) {
+func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsProc, error) {
 	now := time.Now()
-	dog := &beagle{
+	dog := &statsProc{
 		id:                 set.ID,
 		ttype:              ttype,
 		config:             config,
@@ -66,6 +74,8 @@ func newBeagle(config *Config, ttype string, set processor.Settings) (*beagle, e
 		podName:            os.Getenv("POD_NAME"),
 		vendor:             config.Statistics.Vendor,
 	}
+	dog.configCallbackID = dog.configExtension.RegisterCallback(dog.id.String()+"/"+dog.ttype, dog.configUpdateCallback)
+
 	if config.Statistics.Phase == "presample" {
 		dog.pbPhase = chqpb.Phase_PRE
 	} else {
@@ -87,11 +97,22 @@ func newBeagle(config *Config, ttype string, set processor.Settings) (*beagle, e
 	return dog, nil
 }
 
-func (e *beagle) Capabilities() consumer.Capabilities {
+func (e *statsProc) configUpdateCallback(sc ottl.ControlPlaneConfig) {
+	switch e.ttype {
+	case "logs":
+		e.logStatsEnrichments = &sc.LogsEnrichments
+	case "metrics":
+		e.metricsStatsEnrichments = &sc.MetricsEnrichments
+	case "traces":
+		e.tracesStatsEnrichments = &sc.MetricsEnrichments
+	}
+}
+
+func (e *statsProc) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: false}
 }
 
-func (e *beagle) Start(ctx context.Context, host component.Host) error {
+func (e *statsProc) Start(ctx context.Context, host component.Host) error {
 	httpClient, err := e.httpClientSettings.ToClient(ctx, host, e.telemetrySettings)
 	if err != nil {
 		return err
@@ -101,20 +122,32 @@ func (e *beagle) Start(ctx context.Context, host component.Host) error {
 	return nil
 }
 
-func (e *beagle) Shutdown(ctx context.Context) error {
+func (e *statsProc) Shutdown(ctx context.Context) error {
 	var errors *multierror.Error
 	//e.configExtension.UnregisterCallback(e.configCallbackID)
 	return errors.ErrorOrNil()
 }
 
-func (e *beagle) processEnrichments(enrichments []StatsEnrichment, attributesByScope map[string]pcommon.Map) map[string]string {
-	tags := make(map[string]string)
-	for _, enrichment := range enrichments {
-		for scope, attributes := range attributesByScope {
-			for _, tag := range enrichment.Tags {
-				if tagValue, found := attributes.Get(tag); found {
-					key := fmt.Sprintf("%s.%s", scope, tag)
-					tags[key] = tagValue.AsString()
+func (e *statsProc) processEnrichments(attributesByScope map[string]pcommon.Map) []*chqpb.Attribute {
+	tags := make([]*chqpb.Attribute, 0)
+	var enrichmentsPtr *[]ottl.StatsEnrichment
+	switch e.ttype {
+	case "logs":
+		enrichmentsPtr = e.logStatsEnrichments
+	case "metrics":
+		enrichmentsPtr = e.metricsStatsEnrichments
+	case "traces":
+		enrichmentsPtr = e.tracesStatsEnrichments
+	}
+
+	if enrichmentsPtr != nil {
+		for _, enrichment := range *enrichmentsPtr {
+			attributes, found := attributesByScope[enrichment.Context]
+			if found {
+				for _, tag := range enrichment.Tags {
+					if tagValue, found := attributes.Get(tag); found {
+						tags = append(tags, toAttribute(enrichment.Context, tag, tagValue, false))
+					}
 				}
 			}
 		}
@@ -122,11 +155,34 @@ func (e *beagle) processEnrichments(enrichments []StatsEnrichment, attributesByS
 	return tags
 }
 
-func ToMap(attributes pcommon.Map) map[string]string {
-	result := make(map[string]string)
-	attributes.Range(func(k string, v pcommon.Value) bool {
-		result[k] = v.AsString()
+func toAttribute(contextId string, k string, v pcommon.Value, isAttribute bool) *chqpb.Attribute {
+	return &chqpb.Attribute{
+		ContextId:   contextId,
+		IsAttribute: isAttribute,
+		Type:        int32(v.Type()),
+		Key:         k,
+		Value:       v.AsString(),
+	}
+}
+
+func ToAttributes(resource pcommon.Resource, scope pcommon.InstrumentationScope, recordAttrs pcommon.Map) []*chqpb.Attribute {
+	// make an empty slice  that can be appended
+	attributes := make([]*chqpb.Attribute, 0)
+
+	resource.Attributes().Range(func(k string, v pcommon.Value) bool {
+		attributes = append(attributes, toAttribute("resource", k, v, true))
 		return true
 	})
-	return result
+
+	scope.Attributes().Range(func(k string, v pcommon.Value) bool {
+		attributes = append(attributes, toAttribute("scope", k, v, true))
+		return true
+	})
+
+	recordAttrs.Range(func(k string, v pcommon.Value) bool {
+		attributes = append(attributes, toAttribute("log", k, v, true))
+		return true
+	})
+
+	return attributes
 }

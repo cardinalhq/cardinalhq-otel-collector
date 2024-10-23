@@ -48,7 +48,7 @@ func getFingerprint(l pcommon.Map) int64 {
 	return 0
 }
 
-func (e *beagle) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
+func (e *statsProc) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
 	e.Lock()
 	defer e.Unlock()
 
@@ -72,13 +72,13 @@ func (e *beagle) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error)
 	return ld, nil
 }
 
-func (e *beagle) recordLog(now time.Time, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) error {
+func (e *statsProc) recordLog(now time.Time, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) error {
 	message := lr.Body().AsString()
 	logSize := int64(len(message))
 
 	// Derive tags from e.config.LogsConfig.StatsEnrichments based on the contextId, and then add tags to the LogStats.Tags Map
 
-	tags := e.processEnrichments(e.config.Statistics.LogsEnrichments, map[string]pcommon.Map{
+	enrichmentAttributes := e.processEnrichments(map[string]pcommon.Map{
 		"resource": rl.Resource().Attributes(),
 		"scope":    sl.Scope().Attributes(),
 		"log":      lr.Attributes(),
@@ -92,12 +92,10 @@ func (e *beagle) recordLog(now time.Time, serviceName string, fingerprint int64,
 		Count:       1,
 		LogSize:     logSize,
 		Exemplar: &chqpb.LogExemplar{
-			ResourceTags: ToMap(rl.Resource().Attributes()),
-			ScopeTags:    ToMap(sl.Scope().Attributes()),
-			LogTags:      ToMap(lr.Attributes()),
-			Exemplar:     message,
+			Attributes: ToAttributes(rl.Resource(), sl.Scope(), lr.Attributes()),
+			Exemplar:   message,
 		},
-		Tags: tags,
+		Attributes: enrichmentAttributes,
 	}
 	bucketpile, err := e.logstats.Record(now, rec, "", 1, logSize)
 	if err != nil {
@@ -110,7 +108,7 @@ func (e *beagle) recordLog(now time.Time, serviceName string, fingerprint int64,
 	return nil
 }
 
-func (e *beagle) sendLogStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*chqpb.LogStats) {
+func (e *statsProc) sendLogStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*chqpb.LogStats) {
 	wrapper := &chqpb.LogStatsReport{
 		SubmittedAt: now.UnixMilli(),
 		Stats:       []*chqpb.LogStats{},
@@ -125,7 +123,7 @@ func (e *beagle) sendLogStats(ctx context.Context, now time.Time, bucketpile *ma
 	e.logger.Info("Sent log stats", zap.Int("count", len(wrapper.Stats)))
 }
 
-func (e *beagle) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsReport) error {
+func (e *statsProc) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsReport) error {
 	b, err := proto.Marshal(wrapper)
 	if err != nil {
 		return err

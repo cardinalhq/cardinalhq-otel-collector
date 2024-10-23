@@ -33,7 +33,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
-func (e *beagle) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
+func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
 	now := time.Now()
 
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
@@ -80,7 +80,7 @@ func (e *beagle) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetri
 	return md, nil
 }
 
-func (e *beagle) processDatapoint(now time.Time, metricName, serviceName string, rattr, sattr, dattr pcommon.Map) {
+func (e *statsProc) processDatapoint(now time.Time, metricName, serviceName string, rattr, sattr, dattr pcommon.Map) {
 	if err := e.recordDatapoint(now, metricName, serviceName, rattr, sattr, dattr); err != nil {
 		e.logger.Error("Failed to record datapoint", zap.Error(err))
 	}
@@ -93,36 +93,36 @@ func computeStatsOnField(k string) bool {
 	return !strings.HasPrefix(k, translate.CardinalFieldPrefixDot)
 }
 
-func (e *beagle) recordDatapoint(now time.Time, metricName, serviceName string, rattr, sattr, dpAttr pcommon.Map) error {
+func (e *statsProc) recordDatapoint(now time.Time, metricName, serviceName string, rattr, sattr, dpAttr pcommon.Map) error {
 	var errs error
 
-	tags := e.processEnrichments(e.config.Statistics.MetricsEnrichments, map[string]pcommon.Map{
+	attributes := e.processEnrichments(map[string]pcommon.Map{
 		"resource": rattr,
 		"scope":    sattr,
 		"metric":   dpAttr,
 	})
 	rattr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "resource."+k, v.AsString(), tags, 1))
+			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "resource."+k, v.AsString(), attributes, 1))
 		}
 		return true
 	})
 	sattr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "scope."+k, v.AsString(), tags, 1))
+			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "scope."+k, v.AsString(), attributes, 1))
 		}
 		return true
 	})
 	dpAttr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "metric."+k, v.AsString(), tags, 1))
+			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "metric."+k, v.AsString(), attributes, 1))
 		}
 		return true
 	})
 	return errs
 }
 
-func (e *beagle) recordMetric(now time.Time, metricName, serviceName, tagName, tagValue string, tags map[string]string, count int) error {
+func (e *statsProc) recordMetric(now time.Time, metricName, serviceName, tagName, tagValue string, attributes []*chqpb.Attribute, count int) error {
 	rec := &MetricStat{
 		MetricName:  metricName,
 		TagName:     tagName,
@@ -130,7 +130,7 @@ func (e *beagle) recordMetric(now time.Time, metricName, serviceName, tagName, t
 		Phase:       e.pbPhase,
 		VendorID:    e.config.Statistics.Vendor,
 		Count:       int64(count),
-		Tags:        tags,
+		Attributes:  attributes,
 	}
 
 	bucketpile, err := e.metricstats.Record(now, rec, tagValue, count, 0)
@@ -144,7 +144,7 @@ func (e *beagle) recordMetric(now time.Time, metricName, serviceName, tagName, t
 	return nil
 }
 
-func (e *beagle) sendMetricStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*MetricStat) {
+func (e *statsProc) sendMetricStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*MetricStat) {
 	wrapper := &chqpb.MetricStatsReport{
 		SubmittedAt: now.UnixMilli(),
 		Stats:       []*chqpb.MetricStats{},
@@ -182,7 +182,7 @@ func (e *beagle) sendMetricStats(ctx context.Context, now time.Time, bucketpile 
 	e.logger.Info("Sent metric stats", zap.Int("count", len(wrapper.Stats)))
 }
 
-func (e *beagle) postMetricStats(ctx context.Context, wrapper *chqpb.MetricStatsReport) error {
+func (e *statsProc) postMetricStats(ctx context.Context, wrapper *chqpb.MetricStatsReport) error {
 	b, err := proto.Marshal(wrapper)
 	if err != nil {
 		return err

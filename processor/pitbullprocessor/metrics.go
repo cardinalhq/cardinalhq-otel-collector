@@ -101,7 +101,7 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 	return md, nil
 }
 
-func (e *pitbull) updateMetricTransformation(sc ottl.SamplerConfig) {
+func (e *pitbull) updateMetricTransformation(sc ottl.ControlPlaneConfig) {
 	e.Lock()
 	defer e.Unlock()
 	e.logger.Info("Updating metrics transformations", zap.Int("num_decorators", len(sc.Metrics.Decorators)))

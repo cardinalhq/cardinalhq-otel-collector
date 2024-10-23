@@ -92,7 +92,7 @@ func removeAllCardinalFields(attr pcommon.Map) {
 	})
 }
 
-func (e *pitbull) updateLogTransformations(sc ottl.SamplerConfig) {
+func (e *pitbull) updateLogTransformations(sc ottl.ControlPlaneConfig) {
 	e.Lock()
 	defer e.Unlock()
 	e.logger.Info("Updating log transformations", zap.Int("num_decorators", len(sc.Logs.Decorators)))

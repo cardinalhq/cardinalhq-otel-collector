@@ -31,7 +31,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
-func (e *beagle) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
+func (e *statsProc) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
 	e.Lock()
 	defer e.Unlock()
 
@@ -58,14 +58,12 @@ func (e *beagle) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Tr
 	return td, nil
 }
 
-func toAttributesAndSize(attributes map[string]interface{}) (map[string]string, int64) {
-	result := make(map[string]string)
+func toSize(attributes map[string]interface{}) int64 {
 	var size int64 = 0
 	for key, value := range attributes {
 		size += int64(len(key) + len(fmt.Sprintf("%v", value)))
-		result[key] = fmt.Sprintf("%v", value)
 	}
-	return result, size
+	return size
 }
 
 func getOrElse(m map[string]string, key string, defaultValue string) string {
@@ -75,7 +73,7 @@ func getOrElse(m map[string]string, key string, defaultValue string) string {
 	return defaultValue
 }
 
-func (e *beagle) recordSpan(now time.Time,
+func (e *statsProc) recordSpan(now time.Time,
 	serviceName string,
 	fingerprint int64,
 	isSlow bool,
@@ -84,28 +82,33 @@ func (e *beagle) recordSpan(now time.Time,
 	rs ptrace.ResourceSpans,
 ) error {
 	// spanSize = (size of attributes + top level fields)
-	var stringAttributes, spanSize = toAttributesAndSize(span.Attributes().AsRaw())
+	var spanSize = toSize(span.Attributes().AsRaw())
 	spanSize += int64(len(span.TraceID().String()))
 	spanSize += int64(len(span.Name()))
 	spanSize += int64(len(span.Kind().String()))
 	spanSize += int64(len(span.SpanID().String()))
 
-	tagsToEnrich := map[string]string{
-		"span.status_code": span.Status().Code().String(),
-		"span.is_slow":     fmt.Sprintf("%v", isSlow),
-		"span.kind":        span.Kind().String(),
-	}
-
-	otherTags := e.processEnrichments(e.config.Statistics.TracesEnrichments, map[string]pcommon.Map{
+	enrichmentAttributes := e.processEnrichments(map[string]pcommon.Map{
 		"resource": rs.Resource().Attributes(),
 		"scope":    iss.Scope().Attributes(),
 		"span":     span.Attributes(),
 	})
 
-	// append enrichedTags to tagsToEnrich
-	for key, value := range otherTags {
-		tagsToEnrich[key] = value
-	}
+	exemplarAttributes := ToAttributes(rs.Resource(), iss.Scope(), span.Attributes())
+
+	spanNameAttribute := toAttribute("span", "name", pcommon.NewValueStr(span.Name()), false)
+	spanKindAttribute := toAttribute("span", "kind", pcommon.NewValueStr(span.Kind().String()), false)
+	statusCodeAttribute := toAttribute("span", "status_code", pcommon.NewValueStr(span.Status().Code().String()), false)
+	isSlowAttribute := toAttribute("span", "isSlow", pcommon.NewValueBool(isSlow), true)
+
+	exemplarAttributes = append(exemplarAttributes, spanNameAttribute)
+	exemplarAttributes = append(exemplarAttributes, spanKindAttribute)
+	exemplarAttributes = append(exemplarAttributes, statusCodeAttribute)
+	exemplarAttributes = append(exemplarAttributes, isSlowAttribute)
+
+	enrichmentAttributes = append(enrichmentAttributes, statusCodeAttribute)
+	enrichmentAttributes = append(enrichmentAttributes, isSlowAttribute)
+	enrichmentAttributes = append(enrichmentAttributes, spanKindAttribute)
 
 	rec := &chqpb.SpanStats{
 		ServiceName: serviceName,
@@ -113,15 +116,10 @@ func (e *beagle) recordSpan(now time.Time,
 		Phase:       e.pbPhase,
 		VendorId:    e.config.Statistics.Vendor,
 		Count:       1,
-		Tags:        tagsToEnrich,
+		Attributes:  enrichmentAttributes,
 		Exemplar: &chqpb.SpanExemplar{
-			TraceId:      span.TraceID().String(),
-			SpanName:     span.Name(),
-			SpanKind:     span.Kind().String(),
-			Resource:     getOrElse(stringAttributes, translate.CardinalFieldResourceName, ""),
-			ResourceTags: ToMap(rs.Resource().Attributes()),
-			ScopeTags:    ToMap(iss.Scope().Attributes()),
-			SpanTags:     ToMap(span.Attributes()),
+			TraceId:    span.TraceID().String(),
+			Attributes: exemplarAttributes,
 		},
 	}
 	bucketpile, err := e.spanStats.Record(now, rec, "", 1, spanSize)
@@ -135,7 +133,7 @@ func (e *beagle) recordSpan(now time.Time,
 	return nil
 }
 
-func (e *beagle) sendSpanStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*chqpb.SpanStats) {
+func (e *statsProc) sendSpanStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*chqpb.SpanStats) {
 	wrapper := &chqpb.SpanStatsReport{
 		SubmittedAt: now.UnixMilli(),
 		Stats:       []*chqpb.SpanStats{},
@@ -150,7 +148,7 @@ func (e *beagle) sendSpanStats(ctx context.Context, now time.Time, bucketpile *m
 	e.logger.Info("Sent log stats", zap.Int("count", len(wrapper.Stats)))
 }
 
-func (e *beagle) postSpanStats(ctx context.Context, wrapper *chqpb.SpanStatsReport) error {
+func (e *statsProc) postSpanStats(ctx context.Context, wrapper *chqpb.SpanStatsReport) error {
 	b, err := proto.Marshal(wrapper)
 	if err != nil {
 		return err

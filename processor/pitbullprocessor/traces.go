@@ -68,7 +68,7 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 	return td, nil
 }
 
-func (e *pitbull) updateTraceTransformations(sc ottl.SamplerConfig) {
+func (e *pitbull) updateTraceTransformations(sc ottl.ControlPlaneConfig) {
 	e.Lock()
 	defer e.Unlock()
 	e.logger.Info("Updating trace transformations", zap.Int("num_decorators", len(sc.Spans.Decorators)))

@@ -26,12 +26,24 @@ import (
 
 type LogExtractor struct {
 	Route       string
-	Condition   *ottl.Condition[ottllog.TransformContext]
+	Conditions  []*ottl.Condition[ottllog.TransformContext]
 	Dimensions  map[string]*ottl.Statement[ottllog.TransformContext]
 	MetricName  string
 	MetricUnit  string
 	MetricType  string
 	MetricValue *ottl.Statement[ottllog.TransformContext]
+}
+
+func ConvertToPointerArray[T any](input []*T) *[]T {
+	result := make([]T, 0, len(input))
+
+	// Iterate over the input slice of pointers and dereference each pointer
+	for _, extractorPtr := range input {
+		if extractorPtr != nil {
+			result = append(result, *extractorPtr)
+		}
+	}
+	return &result
 }
 
 func (l LogExtractor) ExtractAttributes(ctx context.Context, tCtx ottllog.TransformContext) map[string]any {
@@ -64,7 +76,7 @@ func (s SpanExtractor) ExtractAttributes(ctx context.Context, tCtx ottlspan.Tran
 
 type SpanExtractor struct {
 	Route       string
-	Condition   *ottl.Condition[ottlspan.TransformContext]
+	Conditions  []*ottl.Condition[ottlspan.TransformContext]
 	Dimensions  map[string]*ottl.Statement[ottlspan.TransformContext]
 	MetricName  string
 	MetricUnit  string
@@ -74,7 +86,7 @@ type SpanExtractor struct {
 
 type MetricExtractorConfig struct {
 	Route       string            `json:"route"`
-	Condition   string            `json:"condition"`
+	Conditions  []string          `json:"condition"`
 	Dimensions  map[string]string `json:"dimensions"`
 	MetricName  string            `json:"metric_name"`
 	MetricUnit  string            `json:"metric_unit"`
@@ -82,8 +94,34 @@ type MetricExtractorConfig struct {
 	MetricValue string            `json:"metric_value"`
 }
 
+func (l LogExtractor) EvalLogConditions(ctx context.Context, transformCtx ottllog.TransformContext) (bool, error) {
+	for _, condition := range l.Conditions {
+		matches, err := condition.Eval(ctx, transformCtx)
+		if err != nil {
+			return false, err
+		}
+		if !matches {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func (l SpanExtractor) EvalSpanConditions(ctx context.Context, transformCtx ottlspan.TransformContext) (bool, error) {
+	for _, condition := range l.Conditions {
+		matches, err := condition.Eval(ctx, transformCtx)
+		if err != nil {
+			return false, err
+		}
+		if !matches {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
 func parseLogExtractorConfig(extractorConfig MetricExtractorConfig, parser ottl.Parser[ottllog.TransformContext]) (*LogExtractor, error) {
-	condition, err := parser.ParseCondition(extractorConfig.Condition)
+	conditions, err := parser.ParseConditions(extractorConfig.Conditions)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +139,7 @@ func parseLogExtractorConfig(extractorConfig MetricExtractorConfig, parser ottl.
 
 	return &LogExtractor{
 		Route:       extractorConfig.Route,
-		Condition:   condition,
+		Conditions:  conditions,
 		Dimensions:  dimensions,
 		MetricName:  extractorConfig.MetricName,
 		MetricUnit:  extractorConfig.MetricUnit,
@@ -111,7 +149,7 @@ func parseLogExtractorConfig(extractorConfig MetricExtractorConfig, parser ottl.
 }
 
 func parseSpanExtractorConfig(extractorConfig MetricExtractorConfig, parser ottl.Parser[ottlspan.TransformContext]) (*SpanExtractor, error) {
-	condition, err := parser.ParseCondition(extractorConfig.Condition)
+	conditions, err := parser.ParseConditions(extractorConfig.Conditions)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +167,7 @@ func parseSpanExtractorConfig(extractorConfig MetricExtractorConfig, parser ottl
 
 	return &SpanExtractor{
 		Route:       extractorConfig.Route,
-		Condition:   condition,
+		Conditions:  conditions,
 		Dimensions:  dimensions,
 		MetricName:  extractorConfig.MetricName,
 		MetricUnit:  extractorConfig.MetricUnit,

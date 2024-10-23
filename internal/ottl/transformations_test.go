@@ -31,7 +31,7 @@ func TestIPFunctions(t *testing.T) {
 			Context:    "log",
 			Conditions: []string{},
 			Statements: []string{
-				`set(attributes["ip"], IpLocation("73.202.180.160"))`,
+				`set(attributes["ip"], IpLocation("73.202.180.160")["city"])`,
 			},
 		},
 	}
@@ -46,12 +46,87 @@ func TestIPFunctions(t *testing.T) {
 
 	tc := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
 	transformations.ExecuteLogTransforms(nil, tc)
-	ip, ipFound := lr.Attributes().Get("ip")
-	assert.True(t, ipFound)
-	ipMap := ip.Map().AsRaw()
-	city, cityFound := ipMap["city"]
+	city, cityFound := lr.Attributes().Get("ip")
 	assert.True(t, cityFound)
-	assert.Equal(t, "Walnut Creek", city)
+	assert.Equal(t, "Walnut Creek", city.Str())
+}
+
+func TestIsInFunc(t *testing.T) {
+	tests := []struct {
+		name        string
+		serviceName string
+		expected    bool
+	}{
+		{
+			name:        "Positive case: Service in the list",
+			serviceName: "service1",
+			expected:    true,
+		},
+		{
+			name:        "Negative case: Service not in the list",
+			serviceName: "service4",
+			expected:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			statements := []ContextStatement{
+				{
+					Context:    "resource",
+					Conditions: []string{},
+					Statements: []string{
+						`set(attributes["isIn"], IsIn(attributes["service.name"], ["service1", "service2", "service3"]))`,
+					},
+				},
+			}
+			instruction := Instruction{
+				Statements: statements,
+			}
+			transformations, err := ParseTransformations(instruction, zap.NewNop())
+			assert.NoError(t, err)
+			rm := pmetric.NewResourceMetrics()
+			rm.Resource().Attributes().PutStr("service.name", tt.serviceName) // Use the test case's service name
+			tc := ottlresource.NewTransformContext(rm.Resource(), rm)
+			transformations.ExecuteResourceTransforms(nil, tc)
+			isIn, isInFound := rm.Resource().Attributes().Get("isIn")
+			assert.True(t, isInFound)
+			assert.Equal(t, tt.expected, isIn.Bool()) // Use the expected result from the test case
+		})
+	}
+}
+
+func TestSimpleBoolean(t *testing.T) {
+	statements := []ContextStatement{
+		{
+			Context: "log",
+			Conditions: []string{
+				`attributes["isTrue"] == true`,
+			},
+			Statements: []string{
+				`set(attributes["worked"], true)`,
+			},
+		},
+	}
+	instruction := Instruction{
+		Statements: statements,
+	}
+	rl := plog.NewResourceLogs()
+	sl := rl.ScopeLogs().AppendEmpty()
+	lr := sl.LogRecords().AppendEmpty()
+	lr.Attributes().PutBool("isTrue", true)
+
+	// Parse the transformations
+	transformations, err := ParseTransformations(instruction, zap.NewNop())
+	if err != nil {
+		t.Fatalf("Error parsing transformations: %v", err)
+	}
+
+	transformations.ExecuteLogTransforms(nil, ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl))
+
+	attr, ok := lr.Attributes().Get("worked")
+	assert.True(t, ok)
+	assert.True(t, attr.Bool())
 }
 
 func TestVPCFlowLogTransformations(t *testing.T) {
@@ -76,8 +151,16 @@ func TestVPCFlowLogTransformations(t *testing.T) {
 				`set(attributes["bytes_transferred"], Double(attributes["flow_log_fields"][9]))`,
 				`set(attributes["duration"], Double(attributes["flow_log_fields"][11]) - Double(attributes["flow_log_fields"][10]))`,
 				`set(attributes["action"], attributes["flow_log_fields"][12])`,
+				`set(attributes["sourceLocation"], IpLocation(attributes["flow_log_fields"][3]))`,
+				`set(attributes["destinationLocation"], IpLocation(attributes["flow_log_fields"][4]))`,
+				`set(attributes["sourceCity"], attributes["sourceLocation"]["city"])`,
+				`set(attributes["destinationCity"], attributes["destinationLocation"]["city"])`,
+				`set(attributes["sourceCountry"], attributes["sourceLocation"]["country"])`,
+				`set(attributes["destinationCountry"], attributes["destinationLocation"]["country"])`,
 				`replace_pattern(body, ",", "\t")`,
 				`delete_key(attributes, "flow_log_fields")`,
+				`delete_key(attributes, "sourceLocation")`,
+				`delete_key(attributes, "destinationLocation")`,
 			},
 		},
 	}
@@ -146,6 +229,22 @@ func TestVPCFlowLogTransformations(t *testing.T) {
 	action, actionFound := lr.Attributes().Get("action")
 	assert.True(t, actionFound)
 	assert.Equal(t, "ACCEPT", action.Str())
+
+	sourceCity, sourceCityFound := lr.Attributes().Get("sourceCity")
+	assert.True(t, sourceCityFound)
+	assert.Equal(t, "Unknown", sourceCity.Str())
+
+	destinationCity, destinationCityFound := lr.Attributes().Get("destinationCity")
+	assert.True(t, destinationCityFound)
+	assert.Equal(t, "Unknown", destinationCity.Str())
+
+	sourceCountry, sourceCountryFound := lr.Attributes().Get("sourceCountry")
+	assert.True(t, sourceCountryFound)
+	assert.Equal(t, "Unknown", sourceCountry.Str())
+
+	destinationCountry, destinationCountryFound := lr.Attributes().Get("destinationCity")
+	assert.True(t, destinationCountryFound)
+	assert.Equal(t, "Unknown", destinationCountry.Str())
 
 	expectedBody := "2\t123456789012\teni-abc12345\t10.0.0.1\t10.0.1.1\t443\t1024\t6\t10\t8000\t1625567329\t1625567389\tACCEPT\tOK"
 	body := lr.Body().AsString()

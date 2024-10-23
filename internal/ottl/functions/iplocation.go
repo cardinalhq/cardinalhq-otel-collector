@@ -75,9 +75,20 @@ func iplocation[K any](db *geoip2.Reader, ipGetter ottl.StringGetter[K]) ottl.Ex
 			return nil, fmt.Errorf("error looking up IP: %v", err)
 		}
 
+		city := record.City.Names["en"]
+		country := record.Country.Names["en"]
+
+		if city == "" {
+			city = "Unknown"
+		}
+
+		if country == "" {
+			country = "Unknown"
+		}
+
 		location := map[string]any{
-			"city":      record.City.Names["en"],
-			"country":   record.Country.Names["en"],
+			"city":      city,
+			"country":   country,
 			"latitude":  record.Location.Latitude,
 			"longitude": record.Location.Longitude,
 		}

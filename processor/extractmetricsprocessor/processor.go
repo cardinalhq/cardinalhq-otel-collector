@@ -54,19 +54,7 @@ func newExtractor(config *Config, ttype string, set processor.Settings) (*extrac
 	return e, nil
 }
 
-func convertToPointerArray[T any](input []*T) *[]T {
-	result := make([]T, 0, len(input))
-
-	// Iterate over the input slice of pointers and dereference each pointer
-	for _, extractorPtr := range input {
-		if extractorPtr != nil {
-			result = append(result, *extractorPtr)
-		}
-	}
-	return &result
-}
-
-func (e *extractor) configUpdateCallback(sc ottl.SamplerConfig) {
+func (e *extractor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 	var extractorConfigs = make([]*ottl.LogExtractor, 0)
 
 	if len(extractorConfigs) > 0 {
@@ -77,7 +65,7 @@ func (e *extractor) configUpdateCallback(sc ottl.SamplerConfig) {
 				e.logger.Error("Error parsing log extractor configurations", zap.Error(err))
 				return
 			}
-			e.logExtractors = convertToPointerArray(parsedExtractors)
+			e.logExtractors = ottl.ConvertToPointerArray(parsedExtractors)
 
 		case "traces":
 			parsedExtractors, err := ottl.ParseSpanExtractorConfigs(sc.SpanMetricExtractors, e.logger)
@@ -85,7 +73,7 @@ func (e *extractor) configUpdateCallback(sc ottl.SamplerConfig) {
 				e.logger.Error("Error parsing log extractor configurations", zap.Error(err))
 				return
 			}
-			e.spanExtractors = convertToPointerArray(parsedExtractors)
+			e.spanExtractors = ottl.ConvertToPointerArray(parsedExtractors)
 
 		default:
 		}

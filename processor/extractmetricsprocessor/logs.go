@@ -76,7 +76,7 @@ func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) ma
 						lr := logRecords.At(k)
 						logCtx := ottllog.NewTransformContext(lr, scopeLog.Scope(), resource, scopeLog, resourceLog)
 
-						matches, err := logExtractor.Condition.Eval(ctx, logCtx)
+						matches, err := logExtractor.EvalLogConditions(ctx, logCtx)
 						if err != nil {
 							e.logger.Error("Failed when executing ottl match statement.", zap.Error(err))
 							continue

@@ -37,7 +37,7 @@ func TestExtractMetricsFromLogs_MultipleLogsMatchingCondition(t *testing.T) {
 			MetricUnit:  "ms",
 			MetricType:  gaugeDoubleType,
 			MetricValue: `body["sent_bytes"]`,
-			Condition:   `attributes["log_type"] == "http"`,
+			Conditions:  []string{`attributes["log_type"] == "http"`},
 			Dimensions: map[string]string{
 				"statusCode": `attributes["status_code"]`,
 			},
@@ -51,7 +51,7 @@ func TestExtractMetricsFromLogs_MultipleLogsMatchingCondition(t *testing.T) {
 	assert.NotNil(t, logExtractor)
 	assert.NotNil(t, logExtractor.Dimensions)
 	assert.Len(t, logExtractor.Dimensions, 1)
-	assert.NotNil(t, logExtractor.Condition)
+	assert.NotNil(t, logExtractor.Conditions)
 	assert.NotNil(t, logExtractor.MetricValue)
 
 	// Create the logs dataset
@@ -110,6 +110,6 @@ func newLogsTestExtractor(logExtractors []*ottl.LogExtractor) *extractor {
 		config:            config,
 		telemetrySettings: set.TelemetrySettings,
 	}
-	e.logExtractors = convertToPointerArray(logExtractors)
+	e.logExtractors = ottl.ConvertToPointerArray(logExtractors)
 	return e
 }

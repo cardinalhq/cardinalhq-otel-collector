@@ -58,7 +58,7 @@ func TestPostMetricStats(t *testing.T) {
 	defer server.Close()
 
 	// Create a statsExporter instance with the mock server's URL and API key
-	processor := &beagle{
+	processor := &statsProc{
 		config: &Config{
 			Statistics: StatisticsConfig{
 				ClientConfig: confighttp.ClientConfig{

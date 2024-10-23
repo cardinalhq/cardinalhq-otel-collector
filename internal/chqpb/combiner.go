@@ -16,8 +16,6 @@ package chqpb
 
 import (
 	"fmt"
-	"slices"
-
 	"github.com/cespare/xxhash"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
@@ -25,7 +23,7 @@ import (
 
 func (l *LogStats) Key() uint64 {
 	key := fmt.Sprintf("%s:%d:%d:%s", l.ServiceName, l.Fingerprint, int32(l.Phase), l.VendorId)
-	key = AppendTagsToKey(l.Tags, key)
+	key = AppendTagsToKey(l.Attributes, key)
 	return xxhash.Sum64String(key)
 }
 
@@ -49,19 +47,16 @@ func (l *LogStats) Initialize() error {
 
 func (l *SpanStats) Key() uint64 {
 	key := fmt.Sprintf("%s:%d:%d:%s", l.ServiceName, l.Fingerprint, l.Phase, l.VendorId)
-	key = AppendTagsToKey(l.Tags, key)
+	key = AppendTagsToKey(l.Attributes, key)
 	return xxhash.Sum64String(key)
 }
 
-func AppendTagsToKey(tags map[string]string, key string) string {
-	var sortedKeys []string
-	for k := range tags {
-		sortedKeys = append(sortedKeys, k)
-	}
-	slices.Sort(sortedKeys)
-
-	for _, k := range sortedKeys {
-		key += fmt.Sprintf(":%s=%s", k, tags[k])
+func AppendTagsToKey(tags []*Attribute, key string) string {
+	for _, k := range tags {
+		context := k.ContextId
+		tagName := k.Key
+		fqn := fmt.Sprintf("%s.%s", context, tagName)
+		key += fmt.Sprintf(":%s=%s", fqn, k.Value)
 	}
 	return key
 }

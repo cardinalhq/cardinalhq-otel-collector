@@ -126,7 +126,7 @@ func (e *pitbull) Shutdown(ctx context.Context) error {
 	return errors.ErrorOrNil()
 }
 
-func (e *pitbull) configUpdateCallback(sc ottl.SamplerConfig) {
+func (e *pitbull) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 	switch e.ttype {
 	case "logs":
 		e.updateLogTransformations(sc)

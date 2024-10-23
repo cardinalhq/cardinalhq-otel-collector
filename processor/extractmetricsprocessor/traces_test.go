@@ -36,7 +36,7 @@ func TestExtractMetricsFromSpans_MultipleSpansMatchingCondition(t *testing.T) {
 			MetricUnit:  "ms",
 			MetricType:  gaugeDoubleType,
 			MetricValue: `attributes["random_number"]`,
-			Condition:   `attributes["span_type"] == "http"`,
+			Conditions:  []string{`attributes["span_type"] == "http"`},
 			Dimensions: map[string]string{
 				"statusCode": `attributes["status_code"]`,
 			},
@@ -50,7 +50,7 @@ func TestExtractMetricsFromSpans_MultipleSpansMatchingCondition(t *testing.T) {
 	assert.NotNil(t, spanExtractor)
 	assert.NotNil(t, spanExtractor.Dimensions)
 	assert.Len(t, spanExtractor.Dimensions, 1)
-	assert.NotNil(t, spanExtractor.Condition)
+	assert.NotNil(t, spanExtractor.Conditions)
 	assert.NotNil(t, spanExtractor.MetricValue)
 
 	traces := ptrace.NewTraces()
@@ -110,6 +110,6 @@ func newSpansTestExtractor(logExtractors []*ottl.SpanExtractor) *extractor {
 		config:            config,
 		telemetrySettings: set.TelemetrySettings,
 	}
-	e.spanExtractors = convertToPointerArray(logExtractors)
+	e.spanExtractors = ottl.ConvertToPointerArray(logExtractors)
 	return e
 }

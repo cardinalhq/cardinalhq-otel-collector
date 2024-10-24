@@ -14,7 +14,12 @@
 
 package extractmetricsprocessor
 
-import "go.opentelemetry.io/collector/component"
+import (
+	"errors"
+
+	"go.opentelemetry.io/collector/component"
+	"go.uber.org/multierr"
+)
 
 const (
 	// gaugeDoubleType is the gauge double metric type.
@@ -33,4 +38,18 @@ const (
 type Config struct {
 	Route                  string        `mapstructure:"route"`
 	ConfigurationExtension *component.ID `mapstructure:"configuration_extension"`
+}
+
+func (c *Config) Validate() error {
+	var errs error
+
+	if c.ConfigurationExtension == nil {
+		errs = multierr.Append(errs, errors.New("configuration_extension is required"))
+	}
+
+	if c.Route == "" {
+		errs = multierr.Append(errs, errors.New("route is required"))
+	}
+
+	return errs
 }

@@ -52,7 +52,6 @@ func newExtractor(config *Config, ttype string, set processor.Settings) (*extrac
 		config:            config,
 		telemetrySettings: set.TelemetrySettings,
 	}
-	e.configCallbackID = e.configExtension.RegisterCallback(e.id.String()+"/"+e.ttype, e.configUpdateCallback)
 
 	return e, nil
 }

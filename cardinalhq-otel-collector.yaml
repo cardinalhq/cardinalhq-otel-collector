@@ -98,4 +98,4 @@ connectors:
 # note: these are releative to the build directory, which is "./bin"
 replaces:
   - github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
-  - github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awsfirehosereceiver v0.110.0 => github.com/cardinalhq/opentelemetry-collector-contrib/receiver/awsfirehosereceiver 95a404a233e009cbb5de28434eeffbe50ef22693
+  - github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awsfirehosereceiver v0.110.0 => github.com/cardinalhq/opentelemetry-collector-contrib/receiver/awsfirehosereceiver 69b6b3122f1c810efdb17984f201bb013d5a862f

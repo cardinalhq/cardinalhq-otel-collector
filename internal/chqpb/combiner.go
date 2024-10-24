@@ -16,6 +16,7 @@ package chqpb
 
 import (
 	"fmt"
+
 	"github.com/cespare/xxhash"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"

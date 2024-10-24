@@ -17,11 +17,12 @@ package functions
 import (
 	"context"
 	"fmt"
-	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl"
-	"github.com/oschwald/geoip2-golang"
 	"net"
 	"os"
 	"path/filepath"
+
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl"
+	"github.com/oschwald/geoip2-golang"
 )
 
 // IpLocationArguments holds the target IP

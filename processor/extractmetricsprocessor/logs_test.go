@@ -16,15 +16,16 @@ package extractmetricsprocessor
 
 import (
 	"context"
-	"github.com/stretchr/testify/assert"
-	"go.opentelemetry.io/collector/processor"
-	"go.uber.org/zap"
 	"testing"
 	"time"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
+	"go.opentelemetry.io/collector/processor"
+	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 )
 
 func TestExtractMetricsFromLogs_MultipleLogsMatchingCondition(t *testing.T) {

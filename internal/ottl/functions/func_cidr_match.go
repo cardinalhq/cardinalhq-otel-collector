@@ -17,8 +17,9 @@ package functions
 import (
 	"context"
 	"fmt"
-	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl"
 	"net"
+
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl"
 )
 
 // CidrMatchArguments Define the arguments struct for the cidrMatch function

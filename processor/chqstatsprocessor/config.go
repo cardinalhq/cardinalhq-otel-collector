@@ -16,9 +16,9 @@ package chqstatsprocessor
 
 import (
 	"errors"
-	"go.opentelemetry.io/collector/component"
 	"time"
 
+	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.uber.org/multierr"
 )

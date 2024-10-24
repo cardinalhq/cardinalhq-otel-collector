@@ -17,6 +17,7 @@ package functions
 import (
 	"context"
 	"fmt"
+
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl"
 )
 

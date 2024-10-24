@@ -7,7 +7,6 @@ builds:
       goarch:
         - amd64
         - arm64
-        - ppc64le
         - s390x
       goarm:
         - "7"
@@ -54,21 +53,6 @@ dockers:
         - --label=org.opencontainers.image.source={{.GitURL}}
       use: buildx
     - goos: linux
-      goarch: ppc64le
-      dockerfile: Dockerfile-dist
-      image_templates:
-        - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:{{ .Version }}-ppc64le
-        - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:latest-dev-ppc64le
-      build_flag_templates:
-        - --pull
-        - --platform=linux/ppc64le
-        - --label=org.opencontainers.image.created={{.Date}}
-        - --label=org.opencontainers.image.name={{.ProjectName}}
-        - --label=org.opencontainers.image.revision={{.FullCommit}}
-        - --label=org.opencontainers.image.version={{.Version}}
-        - --label=org.opencontainers.image.source={{.GitURL}}
-      use: buildx
-    - goos: linux
       goarch: s390x
       dockerfile: Dockerfile-dist
       image_templates:
@@ -89,12 +73,10 @@ docker_manifests:
         - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:{{ .Version }}-386
         - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:{{ .Version }}-amd64
         - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:{{ .Version }}-arm64
-        - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:{{ .Version }}-ppc64le
         - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:{{ .Version }}-s390x
     - name_template: public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:latest-dev
       image_templates:
         - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:latest-dev-386
         - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:latest-dev-amd64
         - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:latest-dev-arm64
-        - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:latest-dev-ppc64le
         - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:latest-dev-s390x

@@ -16,7 +16,8 @@ package extractmetricsprocessor
 
 import (
 	"context"
-	"github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor/internal/metadata"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor/internal/metadata"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/processor"
@@ -47,6 +48,8 @@ func createLogsProcessor(ctx context.Context, set processor.Settings, cfg compon
 	return processorhelper.NewLogs(
 		ctx, set, cfg, nextConsumer,
 		e.ConsumeLogs,
+		processorhelper.WithStart(e.Start),
+		processorhelper.WithShutdown(e.Shutdown),
 		processorhelper.WithCapabilities(e.Capabilities()))
 }
 
@@ -58,5 +61,7 @@ func createSpansProcessor(ctx context.Context, set processor.Settings, cfg compo
 	return processorhelper.NewTraces(
 		ctx, set, cfg, nextConsumer,
 		e.ConsumeTraces,
+		processorhelper.WithStart(e.Start),
+		processorhelper.WithShutdown(e.Shutdown),
 		processorhelper.WithCapabilities(e.Capabilities()))
 }

@@ -19,7 +19,6 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/hashicorp/go-multierror"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -121,9 +120,8 @@ func (e *pitbull) Start(ctx context.Context, host component.Host) error {
 }
 
 func (e *pitbull) Shutdown(ctx context.Context) error {
-	var errors *multierror.Error
 	e.configExtension.UnregisterCallback(e.configCallbackID)
-	return errors.ErrorOrNil()
+	return nil
 }
 
 func (e *pitbull) configUpdateCallback(sc ottl.ControlPlaneConfig) {

@@ -5,7 +5,6 @@ go 1.22.3
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.0.0
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
-	github.com/hashicorp/go-multierror v1.1.1
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl v0.111.0
 	github.com/stretchr/testify v1.9.0
 	go.opentelemetry.io/collector/component v0.111.0
@@ -44,7 +43,6 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0 // indirect
-	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-version v1.7.0 // indirect
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
 	github.com/iancoleman/strcase v0.3.0 // indirect

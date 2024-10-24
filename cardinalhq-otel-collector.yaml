@@ -30,6 +30,7 @@ receivers:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/splunkhecreceiver v0.110.0
   - gomod: go.opentelemetry.io/collector/receiver/nopreceiver v0.111.0
   - gomod: go.opentelemetry.io/collector/receiver/otlpreceiver v0.111.0
+  - gomod: github.com/observiq/bindplane-agent/receiver/routereceiver v1.62.0
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver v0.110.0
     path: ./receiver/chqdatadogreceiver
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.110.0
@@ -86,6 +87,8 @@ processors:
     path: ./processor/fingerprintprocessor
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.110.0
     path: ./processor/summarysplitprocessor
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.110.0
+    path: ./processor/extractmetricsprocessor
 
 connectors:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/connector/datadogconnector v0.110.0

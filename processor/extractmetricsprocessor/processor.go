@@ -16,7 +16,10 @@ package extractmetricsprocessor
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strconv"
+
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/observiq/bindplane-agent/receiver/routereceiver"
@@ -25,7 +28,6 @@ import (
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
-	"strconv"
 )
 
 type extractor struct {
@@ -52,6 +54,26 @@ func newExtractor(config *Config, ttype string, set processor.Settings) (*extrac
 	e.configCallbackID = e.configExtension.RegisterCallback(e.id.String()+"/"+e.ttype, e.configUpdateCallback)
 
 	return e, nil
+}
+
+func (e *extractor) Start(ctx context.Context, host component.Host) error {
+	ext, found := host.GetExtensions()[*e.config.ConfigurationExtension]
+	if !found {
+		return errors.New("configuration extension " + e.config.ConfigurationExtension.String() + " not found")
+	}
+	cext, ok := ext.(*chqconfigextension.CHQConfigExtension)
+	if !ok {
+		return errors.New("configuration extension " + e.config.ConfigurationExtension.String() + " is not a chqconfig extension")
+	}
+	e.configExtension = cext
+	e.configCallbackID = e.configExtension.RegisterCallback(e.id.String()+"/"+e.ttype, e.configUpdateCallback)
+
+	return nil
+}
+
+func (e *extractor) Shutdown(ctx context.Context) error {
+	e.configExtension.UnregisterCallback(e.configCallbackID)
+	return nil
 }
 
 func (e *extractor) configUpdateCallback(sc ottl.ControlPlaneConfig) {

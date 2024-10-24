@@ -16,12 +16,14 @@ package chqstatsprocessor
 
 import (
 	"context"
-	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"errors"
 	"net/http"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 
 	"github.com/hashicorp/go-multierror"
 	"go.opentelemetry.io/collector/component"
@@ -74,7 +76,6 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 		podName:            os.Getenv("POD_NAME"),
 		vendor:             config.Statistics.Vendor,
 	}
-	dog.configCallbackID = dog.configExtension.RegisterCallback(dog.id.String()+"/"+dog.ttype, dog.configUpdateCallback)
 
 	if config.Statistics.Phase == "presample" {
 		dog.pbPhase = chqpb.Phase_PRE
@@ -119,12 +120,23 @@ func (e *statsProc) Start(ctx context.Context, host component.Host) error {
 	}
 	e.httpClient = httpClient
 
+	ext, found := host.GetExtensions()[*e.config.ConfigurationExtension]
+	if !found {
+		return errors.New("configuration extension " + e.config.ConfigurationExtension.String() + " not found")
+	}
+	cext, ok := ext.(*chqconfigextension.CHQConfigExtension)
+	if !ok {
+		return errors.New("configuration extension " + e.config.ConfigurationExtension.String() + " is not a chqconfig extension")
+	}
+	e.configExtension = cext
+	e.configCallbackID = e.configExtension.RegisterCallback(e.id.String()+"/"+e.ttype, e.configUpdateCallback)
+
 	return nil
 }
 
 func (e *statsProc) Shutdown(ctx context.Context) error {
 	var errors *multierror.Error
-	//e.configExtension.UnregisterCallback(e.configCallbackID)
+	e.configExtension.UnregisterCallback(e.configCallbackID)
 	return errors.ErrorOrNil()
 }
 

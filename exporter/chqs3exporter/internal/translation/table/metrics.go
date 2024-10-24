@@ -95,7 +95,7 @@ func (l *TableTranslator) toddGauge(metric pmetric.Metric, baseattrs map[string]
 		ret[translate.CardinalFieldID] = l.idg.Make(time.Now())
 		ok := ensureExpectedKeysMetrics(ret)
 		if !ok {
-			slog.Info("missing TID or other critical key", slog.String("metric", metric.Name()))
+			slog.Info("missing critical key", slog.String("metric", metric.Name()))
 			continue
 		}
 		rets = append(rets, ret)
@@ -134,7 +134,7 @@ func (l *TableTranslator) toddSum(metric pmetric.Metric, baseattrs map[string]an
 		ret[translate.CardinalFieldID] = l.idg.Make(time.Now())
 		ok := ensureExpectedKeysMetrics(ret)
 		if !ok {
-			slog.Info("missing TID or other critical key", slog.String("metric", metric.Name()))
+			slog.Info("missing critical key", slog.String("metric", metric.Name()))
 			continue
 		}
 		rets = append(rets, ret)
@@ -166,7 +166,7 @@ func (l *TableTranslator) toddHistogram(metric pmetric.Metric, baseattrs map[str
 		ret[translate.CardinalFieldValue] = float64(-1)
 		ok := ensureExpectedKeysMetrics(ret)
 		if !ok {
-			slog.Info("missing TID or other critical key", slog.String("metric", metric.Name()))
+			slog.Info("missing critical key", slog.String("metric", metric.Name()))
 			continue
 		}
 		rets = append(rets, ret)
@@ -193,7 +193,7 @@ func (l *TableTranslator) toddExponentialHistogram(metric pmetric.Metric, baseat
 		ret[translate.CardinalFieldValue] = float64(-1)
 		ok := ensureExpectedKeysMetrics(ret)
 		if !ok {
-			slog.Info("missing TID or other critical key", slog.String("metric", metric.Name()))
+			slog.Info("missing critical key", slog.String("metric", metric.Name()))
 			continue
 		}
 		rets = append(rets, ret)
@@ -208,10 +208,6 @@ func asJson[T uint64 | float64](s []T) string {
 }
 
 func ensureExpectedKeysMetrics(m map[string]any) bool {
-	_, ok := m[translate.CardinalFieldTID]
-	if !ok {
-		return false
-	}
 	keys := map[string]any{
 		translate.CardinalFieldMetricType:     translate.CardinalMetricTypeGauge,
 		translate.CardinalFieldHostname:       findHostname(m),

@@ -82,7 +82,7 @@ func (e *extractor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 }
 
 func (e *extractor) Capabilities() consumer.Capabilities {
-	return consumer.Capabilities{MutatesData: true}
+	return consumer.Capabilities{MutatesData: false}
 }
 
 func convertAnyToInt(value any) (int64, error) {

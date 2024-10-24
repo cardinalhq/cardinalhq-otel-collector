@@ -7,7 +7,7 @@ ARG USER_UID=2002
 USER ${USER_UID}
 
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --chmod=755 otelcol /app/bin/cardinalhq-otel-collector
+COPY --chmod=755 cardinalhq-otel-collector /app/bin/cardinalhq-otel-collector
 ENTRYPOINT ["/app/bin/cardinalhq-otel-collector"]
 CMD ["--config", "/etc/otelcol/config.yaml"]
 EXPOSE 4317 55678 55679

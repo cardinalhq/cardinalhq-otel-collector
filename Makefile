@@ -38,12 +38,14 @@ MODULE_SOURCE_PATHS = `ls -1d {receiver,processor,exporter,extension}/*` interna
 
 all_deps := $(shell find . -name '*.yaml') Dockerfile Makefile
 
+now := $(shell date -u +%Y%m%dT%H%M%S)
+
 #
 # Default target.
 #
 
 .PHONY: all
-all: bin/cardinalhq-otel-collector ${all_deps}
+all: ${TARGETS}
 
 #
 # Generate all the things.
@@ -88,6 +90,10 @@ tidy:
 # go install go.opentelemetry.io/collector/cmd/builder@latest
 bin/cardinalhq-otel-collector: cardinalhq-otel-collector.yaml
 	CGO_ENABLED=0 go run go.opentelemetry.io/collector/cmd/builder@${ODEL_VERSION} --config cardinalhq-otel-collector.yaml 
+#
+# make a buildtime directory to hold the build timestamp files
+buildtime:
+	[ ! -d buildtime ] && mkdir buildtime
 
 #
 # set git info details
@@ -95,13 +101,14 @@ bin/cardinalhq-otel-collector: cardinalhq-otel-collector.yaml
 set-git-info:
 	@$(eval GIT_BRANCH=$(shell git describe --tags))
 
+
 #
 # Multi-architecture image builds
 #
 .PHONY: images
-images: buildtime clean-image-names set-git-info docker-images
+images: buildtime clean-image-names set-git-info $(addsuffix .tstamp, $(addprefix buildtime/,$(IMAGE_TARGETS)))
 
-docker-images: ${all_deps} Dockerfile
+buildtime/%.tstamp:: ${all_deps} Dockerfile
 	${BUILDX} \
 		--tag ${IMAGE_PREFIX}$(patsubst %.tstamp,%,$(@F)):latest-dev \
 		--tag ${IMAGE_PREFIX}$(patsubst %.tstamp,%,$(@F)):${GIT_BRANCH} \
@@ -135,17 +142,12 @@ test: generate
 	done
 
 #
-# make a buildtime directory to hold the build timestamp files
-#
-buildtime:
-	[ ! -d buildtime ] && mkdir buildtime
-
-#
 # Clean the world.
 #
 
 .PHONY: clean
 clean: clean-image-names
+	rm -f buildtime/*.tstamp
 	rm -f bin/*
 
 .PHONY: really-clean

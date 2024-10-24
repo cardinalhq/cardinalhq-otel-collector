@@ -29,19 +29,16 @@ import (
 )
 
 func (e *extractor) ConsumeTraces(ctx context.Context, pt ptrace.Traces) (ptrace.Traces, error) {
-	metricsByRoute := e.extractMetricsFromSpans(ctx, pt)
-	if len(metricsByRoute) > 0 {
-		for route, metricsSet := range metricsByRoute {
-			for _, metrics := range metricsSet {
-				e.sendMetrics(ctx, route, metrics)
-			}
-		}
+	metrics := e.extractMetricsFromSpans(ctx, pt)
+	for _, metric := range metrics {
+		e.sendMetrics(ctx, e.config.Route, metric)
+
 	}
 	return pt, nil
 }
 
-func (e *extractor) extractMetricsFromSpans(ctx context.Context, pt ptrace.Traces) map[string][]pmetric.Metrics {
-	var metricsMapByRoute = make(map[string][]pmetric.Metrics)
+func (e *extractor) extractMetricsFromSpans(ctx context.Context, pt ptrace.Traces) []pmetric.Metrics {
+	var totalMetrics = []pmetric.Metrics{}
 
 	if e.spanExtractors != nil && len(*e.spanExtractors) > 0 {
 		for _, spanExtractor := range *e.spanExtractors {
@@ -97,10 +94,10 @@ func (e *extractor) extractMetricsFromSpans(ctx context.Context, pt ptrace.Trace
 					resourceMetrics.MoveTo(metrics.ResourceMetrics().AppendEmpty())
 				}
 			}
-			metricsMapByRoute[spanExtractor.Route] = append(metricsMapByRoute[spanExtractor.Route], metrics)
+			totalMetrics = append(totalMetrics, metrics)
 		}
 	}
-	return metricsMapByRoute
+	return totalMetrics
 }
 
 func (e *extractor) spanRecordToDataPoint(ctx context.Context, se ottl.SpanExtractor, sr ptrace.Span, spanCtx ottlspan.TransformContext, dpSlice pmetric.NumberDataPointSlice) {

@@ -75,12 +75,7 @@ func TestExtractMetricsFromLogs_MultipleLogsMatchingCondition(t *testing.T) {
 
 	// Extract metrics
 	e := newLogsTestExtractor(configs)
-	metricsByRoute := e.extractMetricsFromLogs(context.Background(), logs)
-	assert.NotNil(t, metricsByRoute)
-	assert.Len(t, metricsByRoute, 1)
-	// check if metricByRoute has an entry for route-1
-	metrics, ok := metricsByRoute["route-1"]
-	assert.True(t, ok)
+	metrics := e.extractMetricsFromLogs(context.Background(), logs)
 	assert.Len(t, metrics, 1)
 	metric := metrics[0]
 	assert.NotNil(t, metric)

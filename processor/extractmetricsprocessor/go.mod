@@ -1,4 +1,4 @@
-module github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor
+module github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor
 
 go 1.22.6
 

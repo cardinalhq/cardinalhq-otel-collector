@@ -29,19 +29,17 @@ import (
 )
 
 func (e *extractor) ConsumeLogs(ctx context.Context, pl plog.Logs) (plog.Logs, error) {
-	metricsByRoute := e.extractMetricsFromLogs(ctx, pl)
-	if len(metricsByRoute) > 0 {
-		for route, metricsSet := range metricsByRoute {
-			for _, metrics := range metricsSet {
-				e.sendMetrics(ctx, route, metrics)
-			}
+	metrics := e.extractMetricsFromLogs(ctx, pl)
+	if len(metrics) > 0 {
+		for _, metric := range metrics {
+			e.sendMetrics(ctx, e.config.Route, metric)
 		}
 	}
 	return pl, nil
 }
 
-func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) map[string][]pmetric.Metrics {
-	var metricsMapByRoute = make(map[string][]pmetric.Metrics)
+func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []pmetric.Metrics {
+	var totalMetrics = []pmetric.Metrics{}
 
 	if e.logExtractors != nil && len(*e.logExtractors) > 0 {
 		for _, logExtractor := range *e.logExtractors {
@@ -97,10 +95,10 @@ func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) ma
 					resourceMetrics.MoveTo(metrics.ResourceMetrics().AppendEmpty())
 				}
 			}
-			metricsMapByRoute[logExtractor.Route] = append(metricsMapByRoute[logExtractor.Route], metrics)
+			totalMetrics = append(totalMetrics, metrics)
 		}
 	}
-	return metricsMapByRoute
+	return totalMetrics
 }
 
 func (e *extractor) logRecordToDataPoint(ctx context.Context, lex ottl.LogExtractor, lr plog.LogRecord, logCtx ottllog.TransformContext, dpSlice pmetric.NumberDataPointSlice) {

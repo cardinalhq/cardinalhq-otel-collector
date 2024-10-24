@@ -51,6 +51,7 @@ func newExtractor(config *Config, ttype string, set processor.Settings) (*extrac
 		ttype:             ttype,
 		config:            config,
 		telemetrySettings: set.TelemetrySettings,
+		logger:            set.Logger,
 	}
 
 	return e, nil

@@ -105,7 +105,7 @@ func (e *statsProc) configUpdateCallback(cpc ottl.ControlPlaneConfig) {
 	case "metrics":
 		e.metricsStatsEnrichments = &configs.MetricEnrichments
 	case "traces":
-		e.tracesStatsEnrichments = &configs.MetricEnrichments
+		e.tracesStatsEnrichments = &configs.SpanEnrichments
 	}
 }
 

@@ -35,7 +35,7 @@ type PitbullProcessorConfig struct {
 type StatsProcessorConfig struct {
 	LogEnrichments    []StatsEnrichment `json:"log_enrichments,omitempty"`
 	MetricEnrichments []StatsEnrichment `json:"metric_enrichments,omitempty"`
-	TraceEnrichments  []StatsEnrichment `json:"trace_enrichments,omitempty"`
+	SpanEnrichments   []StatsEnrichment `json:"span_enrichments,omitempty"`
 }
 
 type ExtractMetricsProcessorConfig struct {

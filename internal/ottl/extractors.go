@@ -76,7 +76,6 @@ func (s SpanExtractor) ExtractAttributes(ctx context.Context, tCtx ottlspan.Tran
 }
 
 type SpanExtractor struct {
-	Route       string
 	Conditions  []*ottl.Condition[ottlspan.TransformContext]
 	Dimensions  map[string]*ottl.Statement[ottlspan.TransformContext]
 	MetricName  string
@@ -86,7 +85,6 @@ type SpanExtractor struct {
 }
 
 type MetricExtractorConfig struct {
-	Route       string            `json:"route"`
 	Conditions  []string          `json:"condition"`
 	Dimensions  map[string]string `json:"dimensions"`
 	MetricName  string            `json:"metric_name"`
@@ -139,7 +137,6 @@ func parseLogExtractorConfig(extractorConfig MetricExtractorConfig, parser ottl.
 	metricValue, _ := parser.ParseStatement(metricValueStatementStr)
 
 	return &LogExtractor{
-		Route:       extractorConfig.Route,
 		Conditions:  conditions,
 		Dimensions:  dimensions,
 		MetricName:  extractorConfig.MetricName,
@@ -167,7 +164,6 @@ func parseSpanExtractorConfig(extractorConfig MetricExtractorConfig, parser ottl
 	metricValue, _ := parser.ParseStatement(metricValueStatementStr)
 
 	return &SpanExtractor{
-		Route:       extractorConfig.Route,
 		Conditions:  conditions,
 		Dimensions:  dimensions,
 		MetricName:  extractorConfig.MetricName,

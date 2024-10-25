@@ -26,6 +26,10 @@ type ControlPlaneConfig struct {
 	MetricsEnrichments []StatsEnrichment `json:"metrics_enrichments,omitempty" mapstructure:"metrics_enrichments"`
 	TracesEnrichments  []StatsEnrichment `json:"traces_enrichments,omitempty" mapstructure:"traces_enrichments"`
 
+	LogsLookupConfigs    []LookupConfig `json:"logs_lookup_configs,omitempty" yaml:"logs_lookup_configs,omitempty"`
+	TracesLookupConfigs  []LookupConfig `json:"spans_lookup_configs,omitempty" yaml:"spans_lookup_configs,omitempty"`
+	MetricsLookupConfigs []LookupConfig `json:"metrics_lookup_configs,omitempty" yaml:"metrics_lookup_configs,omitempty"`
+
 	hash uint64
 }
 

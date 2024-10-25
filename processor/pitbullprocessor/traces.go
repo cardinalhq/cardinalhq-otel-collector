@@ -52,6 +52,12 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 			}
 			iss.Spans().RemoveIf(func(sr ptrace.Span) bool {
 				transformCtx := ottlspan.NewTransformContext(sr, iss.Scope(), rs.Resource(), iss, rs)
+				lookupTables := *e.tracesLookupConfigs
+				if len(lookupTables) > 0 {
+					for _, lookupConfig := range lookupTables {
+						lookupConfig.ExecuteSpansRules(context.Background(), transformCtx, sr)
+					}
+				}
 				e.traceTransformations.ExecuteSpanTransforms(e.ottlProcessed, transformCtx)
 				_, found := sr.Attributes().Get(translate.CardinalFieldDropMarker)
 				return found
@@ -68,7 +74,7 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 	return td, nil
 }
 
-func (e *pitbull) updateTraceTransformations(sc ottl.ControlPlaneConfig) {
+func (e *pitbull) updateTraceTransformations(sc ottl.ControlPlaneConfig, logger *zap.Logger) {
 	e.Lock()
 	defer e.Unlock()
 	e.logger.Info("Updating trace transformations", zap.Int("num_decorators", len(sc.Spans.Decorators)))
@@ -89,4 +95,10 @@ func (e *pitbull) updateTraceTransformations(sc ottl.ControlPlaneConfig) {
 	oldTransformation := e.traceTransformations
 	e.traceTransformations = newTransformations
 	oldTransformation.Stop()
+
+	if len(sc.TracesLookupConfigs) > 0 {
+		for _, lookupConfig := range sc.TracesLookupConfigs {
+			lookupConfig.Init(logger)
+		}
+	}
 }

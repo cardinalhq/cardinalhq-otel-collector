@@ -15,9 +15,9 @@
 package ottl
 
 type ControlPlaneConfig struct {
-	Logs    InstructionConfigV1 `json:"logs,omitempty" yaml:"logs,omitempty"`
-	Metrics InstructionConfigV1 `json:"metrics,omitempty" yaml:"metrics,omitempty"`
-	Spans   InstructionConfigV1 `json:"spans,omitempty" yaml:"spans,omitempty"`
+	Logs    InstructionConfig `json:"logs,omitempty" yaml:"logs,omitempty"`
+	Metrics InstructionConfig `json:"metrics,omitempty" yaml:"metrics,omitempty"`
+	Spans   InstructionConfig `json:"spans,omitempty" yaml:"spans,omitempty"`
 
 	LogMetricExtractors  []MetricExtractorConfig `json:"log_extractors"`
 	SpanMetricExtractors []MetricExtractorConfig `json:"span_extractors"`
@@ -38,7 +38,7 @@ type StatsEnrichment struct {
 	Tags    []string `json:"tags,omitempty" mapstructure:"tags"`
 }
 
-type InstructionConfigV1 struct {
+type InstructionConfig struct {
 	Decorators []Instruction `json:"decorators,omitempty" yaml:"decorators,omitempty"`
 }
 

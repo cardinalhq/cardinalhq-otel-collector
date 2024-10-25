@@ -15,7 +15,8 @@ permissions:
 
 jobs:
   goreleaser:
-    runs-on: ubuntu-latest
+    runs-on:
+      group: larger-runners
     steps:
       - name: Checkout
         id: checkout

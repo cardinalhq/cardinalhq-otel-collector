@@ -47,9 +47,9 @@ type LookupTable []map[string]string
 type TransposedLookupTable map[string]map[string]string
 
 type LookupRule struct {
-	FieldNameToSet string                 `json:"fieldNameToSet"`
-	Keys           []*LookupKey           `json:"conditions"`
-	Transposed     *TransposedLookupTable // make a special transposed table for this rule, to speed up lookups.
+	FieldNamesToSet []string               `json:"fieldNameToSet"`
+	Keys            []*LookupKey           `json:"conditions"`
+	Transposed      *TransposedLookupTable // make a special transposed table for this rule, to speed up lookups.
 }
 
 type LookupConfig struct {
@@ -159,7 +159,6 @@ func (lc *LookupConfig) Init(logger *zap.Logger) {
 // ExecuteLogsRules executes the log rules for the given record
 func (lc *LookupConfig) ExecuteLogsRules(ctx context.Context, tCtx ottllog.TransformContext, record plog.LogRecord) {
 	for _, lr := range lc.LogRules {
-		tagToSet := lr.FieldNameToSet
 		conditionsArray := make([]string, 0, len(lr.Keys)*2)
 
 		for _, lookupCondition := range lr.Keys {
@@ -177,9 +176,11 @@ func (lc *LookupConfig) ExecuteLogsRules(ctx context.Context, tCtx ottllog.Trans
 		if len(lr.Keys) > 0 && len(conditionsArray) == 0 {
 			return
 		}
-		targetValue, found := lr.Transposed.Lookup(tagToSet, conditionsArray)
-		if found {
-			record.Attributes().PutStr(tagToSet, targetValue)
+		for _, fieldNameToSet := range lr.FieldNamesToSet {
+			targetValue, found := lr.Transposed.Lookup(fieldNameToSet, conditionsArray)
+			if found {
+				record.Attributes().PutStr(fieldNameToSet, targetValue)
+			}
 		}
 	}
 }
@@ -187,7 +188,6 @@ func (lc *LookupConfig) ExecuteLogsRules(ctx context.Context, tCtx ottllog.Trans
 // ExecuteSpansRules executes the span rules for the given record
 func (lc *LookupConfig) ExecuteSpansRules(ctx context.Context, tCtx ottlspan.TransformContext, record ptrace.Span) {
 	for _, lr := range lc.SpanRules {
-		tagToSet := lr.FieldNameToSet
 		conditionsArray := make([]string, 0, len(lr.Keys)*2)
 
 		for _, lookupCondition := range lr.Keys {
@@ -205,9 +205,11 @@ func (lc *LookupConfig) ExecuteSpansRules(ctx context.Context, tCtx ottlspan.Tra
 		if len(lr.Keys) > 0 && len(conditionsArray) == 0 {
 			return
 		}
-		targetValue, found := lr.Transposed.Lookup(tagToSet, conditionsArray)
-		if found {
-			record.Attributes().PutStr(tagToSet, targetValue)
+		for _, fieldNameToSet := range lr.FieldNamesToSet {
+			targetValue, found := lr.Transposed.Lookup(fieldNameToSet, conditionsArray)
+			if found {
+				record.Attributes().PutStr(fieldNameToSet, targetValue)
+			}
 		}
 	}
 }
@@ -215,7 +217,6 @@ func (lc *LookupConfig) ExecuteSpansRules(ctx context.Context, tCtx ottlspan.Tra
 // ExecuteMetricsRules executes the metrics rules for the given record
 func (lc *LookupConfig) ExecuteMetricsRules(ctx context.Context, tCtx ottldatapoint.TransformContext, handlerFunc func(tagToSet string, targetValue string)) {
 	for _, lr := range lc.MetricsRules {
-		tagToSet := lr.FieldNameToSet
 		conditionsArray := make([]string, 0, len(lr.Keys)*2)
 
 		for _, lookupCondition := range lr.Keys {
@@ -233,9 +234,11 @@ func (lc *LookupConfig) ExecuteMetricsRules(ctx context.Context, tCtx ottldatapo
 		if len(lr.Keys) > 0 && len(conditionsArray) == 0 {
 			return
 		}
-		targetValue, found := lr.Transposed.Lookup(tagToSet, conditionsArray)
-		if found {
-			handlerFunc(tagToSet, targetValue)
+		for _, fieldNameToSet := range lr.FieldNamesToSet {
+			targetValue, found := lr.Transposed.Lookup(fieldNameToSet, conditionsArray)
+			if found {
+				handlerFunc(fieldNameToSet, targetValue)
+			}
 		}
 	}
 }

@@ -2,7 +2,7 @@ name: goreleaser-main-buildonly
 
 on:
   push:
-    tags:
+    branches:
       - "main"
 
 permissions:

@@ -40,7 +40,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ steps.go-cache-paths.outputs.go-build }}
-          key: ${{ runner.os }}-go-build }}
+          key: ${{ runner.os }}-${{ runner.arch }}-go-build
+          restore-keys: |
+            ${{ runner.os }}-go-build }}
 
       - name: Set up QEMU
         id: qemu

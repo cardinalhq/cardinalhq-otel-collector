@@ -32,7 +32,7 @@ import (
 // So for example, go get the value of ColumnName = serviceName (derived by executing the OTTLExpression say: resource.attributes["service.name"]) = service1
 // Now find the record in the lookup table where serviceName = service1.
 type LookupCondition struct {
-	ColumnName     string `json:"tag_name"`
+	ColumnName     string `json:"columnName"`
 	OTTLExpression string `json:"expression"`
 
 	ParsedLogExpression    *ottl.Statement[ottllog.TransformContext]
@@ -45,24 +45,24 @@ type LookupTable []map[string]string
 type TransposedLookupTable map[string]map[string]string
 
 type LookupRule struct {
-	TagNameToSet string                 `json:"tag_name"`
-	Conditions   []*LookupCondition     `json:"conditions"`
-	Transposed   *TransposedLookupTable // make a special transposed table for this rule, to speed up lookups.
+	FieldNameToSet string                 `json:"fieldNameToSet"`
+	Conditions     []*LookupCondition     `json:"conditions"`
+	Transposed     *TransposedLookupTable // make a special transposed table for this rule, to speed up lookups.
 }
 
 type LookupConfig struct {
-	TableName string      `json:"table_name"`
+	TableName string      `json:"tableName"`
 	Table     LookupTable `json:"table"`
 
-	LogRules     []*LookupRule `json:"log_rules"`
-	SpanRules    []*LookupRule `json:"span_rules"`
-	MetricsRules []*LookupRule `json:"metrics_rules"`
+	LogRules     []*LookupRule `json:"logRules"`
+	SpanRules    []*LookupRule `json:"spanRules"`
+	MetricsRules []*LookupRule `json:"metricsRules"`
 
 	// Qualifiers are conditions that need to be run to check if this lookup table should be used for this record.
 	// For example, check Exists(resource.attributes("service.name")) before running rules.
-	LogQualifiers    []string `json:"log_qualifiers"`
-	SpanQualifiers   []string `json:"span_qualifiers"`
-	MetricQualifiers []string `json:"metric_qualifiers"`
+	LogQualifiers    []string `json:"logQualifiers"`
+	SpanQualifiers   []string `json:"spanQualifiers"`
+	MetricQualifiers []string `json:"metricQualifiers"`
 
 	ParsedLogQualifiers     []*ottl.Condition[ottllog.TransformContext]
 	ParsedSpanQualifiers    []*ottl.Condition[ottlspan.TransformContext]
@@ -188,7 +188,7 @@ func (lc *LookupConfig) Init(logger *zap.Logger) {
 // ExecuteLogsRule executes the log rules for the given record
 func (lc *LookupConfig) ExecuteLogsRule(ctx context.Context, tCtx ottllog.TransformContext, record plog.LogRecord) {
 	for _, lr := range lc.LogRules {
-		tagToSet := lr.TagNameToSet
+		tagToSet := lr.FieldNameToSet
 		conditionsArray := make([]string, 0, len(lr.Conditions)*2)
 
 		for _, lookupCondition := range lr.Conditions {
@@ -216,7 +216,7 @@ func (lc *LookupConfig) ExecuteLogsRule(ctx context.Context, tCtx ottllog.Transf
 // ExecuteSpansRule executes the span rules for the given record
 func (lc *LookupConfig) ExecuteSpansRule(ctx context.Context, tCtx ottlspan.TransformContext, record ptrace.Span) {
 	for _, lr := range lc.SpanRules {
-		tagToSet := lr.TagNameToSet
+		tagToSet := lr.FieldNameToSet
 		conditionsArray := make([]string, 0, len(lr.Conditions)*2)
 
 		for _, lookupCondition := range lr.Conditions {
@@ -244,7 +244,7 @@ func (lc *LookupConfig) ExecuteSpansRule(ctx context.Context, tCtx ottlspan.Tran
 // ExecuteMetricsRule executes the metrics rules for the given record
 func (lc *LookupConfig) ExecuteMetricsRule(ctx context.Context, tCtx ottldatapoint.TransformContext, handlerFunc func(tagToSet string, targetValue string)) {
 	for _, lr := range lc.MetricsRules {
-		tagToSet := lr.TagNameToSet
+		tagToSet := lr.FieldNameToSet
 		conditionsArray := make([]string, 0, len(lr.Conditions)*2)
 
 		for _, lookupCondition := range lr.Conditions {

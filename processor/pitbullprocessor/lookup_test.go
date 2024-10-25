@@ -40,7 +40,7 @@ func TestLookupTableBasic(t *testing.T) {
 
 	// Define a LookupRule that maps "service.name" to "team"
 	rule := ottl.LookupRule{
-		TagNameToSet: "team",
+		FieldNameToSet: "team",
 		Conditions: []*ottl.LookupCondition{
 			{
 				ColumnName:     "serviceName",
@@ -80,7 +80,7 @@ func TestLookupTableBasicWithErrorInCondition(t *testing.T) {
 
 	// Define a LookupRule that maps "service.name" to "team"
 	rule := ottl.LookupRule{
-		TagNameToSet: "team",
+		FieldNameToSet: "team",
 		Conditions: []*ottl.LookupCondition{
 			{
 				ColumnName:     "serviceName",
@@ -127,7 +127,7 @@ func TestLookupTableMultipleConditions(t *testing.T) {
 
 	// Define a LookupRule that maps both "service.name" and "businessUnit" to "team"
 	rule := ottl.LookupRule{
-		TagNameToSet: "team",
+		FieldNameToSet: "team",
 		Conditions: []*ottl.LookupCondition{
 			{
 				ColumnName:     "serviceName",
@@ -170,7 +170,7 @@ func TestLookupTableNegativeCondition(t *testing.T) {
 	lookupTable := createLookupTableWithMultipleConditions()
 
 	rule := ottl.LookupRule{
-		TagNameToSet: "team",
+		FieldNameToSet: "team",
 		Conditions: []*ottl.LookupCondition{
 			{
 				ColumnName:     "serviceName",

@@ -13,10 +13,7 @@
 # limitations under the License.
 
 TARGETS=bin/cardinalhq-otel-collector
-PLATFORM=linux/amd64,linux/arm64
-BUILDX=docker buildx build --pull --platform ${PLATFORM}
-IMAGE_PREFIX=public.ecr.aws/cardinalhq.io/
-ODEL_VERSION=v0.111.0
+OTEL_VERSION=v0.111.0
 
 #
 # Build targets.  Adding to these will cause magic to occur.
@@ -25,18 +22,13 @@ ODEL_VERSION=v0.111.0
 # These are targets for "make local"
 BINARIES = cardinalhq-otel-collector
 
-# These are the targets for Docker images, used both for the multi-arch and
-# single (local) Docker builds.
-# Dockerfiles should have a target that ends in -image, e.g. agent-image.
-IMAGE_TARGETS = cardinalhq-otel-collector
-
 MODULE_SOURCE_PATHS = `ls -1d {receiver,processor,exporter,extension}/*` internal
 
 #
 # Below here lies magic...
 #
 
-all_deps := $(shell find . -name '*.yaml') Dockerfile Makefile
+all_deps := $(shell find . -name '*.yaml') Dockerfile-dist Makefile
 
 now := $(shell date -u +%Y%m%dT%H%M%S)
 
@@ -85,51 +77,23 @@ tidy:
 		(echo ============ go tidy in $$i ... ; cd $$i && go mod tidy) || exit 1; \
 	done
 
+.PHONY: buildfiles
+buildfiles:
+	rm -rf bin/* dist/*
+	CGO_ENABLED=0 go run go.opentelemetry.io/collector/cmd/builder@${OTEL_VERSION} --config cardinalhq-otel-collector.yaml --skip-compilation
 
 # requires otel builder to be installed.
 # go install go.opentelemetry.io/collector/cmd/builder@latest
 bin/cardinalhq-otel-collector: cardinalhq-otel-collector.yaml
-	CGO_ENABLED=0 go run go.opentelemetry.io/collector/cmd/builder@${ODEL_VERSION} --config cardinalhq-otel-collector.yaml 
-#
-# make a buildtime directory to hold the build timestamp files
-buildtime:
-	[ ! -d buildtime ] && mkdir buildtime
-
-#
-# set git info details
-#
-set-git-info:
-	@$(eval GIT_BRANCH=$(shell git describe --tags))
-
+	CGO_ENABLED=0 go run go.opentelemetry.io/collector/cmd/builder@${OTEL_VERSION} --config cardinalhq-otel-collector.yaml 
 
 #
 # Multi-architecture image builds
+# requires goreleaser to be installed.
 #
 .PHONY: images
-images: buildtime clean-image-names set-git-info $(addsuffix .tstamp, $(addprefix buildtime/,$(IMAGE_TARGETS)))
-
-buildtime/%.tstamp:: ${all_deps} Dockerfile
-	${BUILDX} \
-		--tag ${IMAGE_PREFIX}$(patsubst %.tstamp,%,$(@F)):latest-dev \
-		--tag ${IMAGE_PREFIX}$(patsubst %.tstamp,%,$(@F)):${GIT_BRANCH} \
-		--target $(patsubst %.tstamp,%,$(@F))-image \
-		--build-arg GIT_BRANCH=${GIT_BRANCH} \
-		-f Dockerfile \
-		--push .
-	echo >> buildtime/image-names.txt ${IMAGE_PREFIX}$(patsubst %.tstamp,%,$(@F)):latest-dev
-	echo >> buildtime/image-names.txt ${IMAGE_PREFIX}$(patsubst %.tstamp,%,$(@F)):${GIT_BRANCH}
-	@touch $@
-
-pre-build:
-	${BUILDX} \
-		--tag ${IMAGE_PREFIX}${IMAGE_TARGETS}:builder-latest \
-		--build-arg GIT_BRANCH=${GIT_BRANCH} \
-		-f Dockerfile.pre-build \
-		--push .
-
-.PHONY: image-names
-image-names:
-	@echo ::set-output name=imageNames::$(shell echo `cat buildtime/image-names.txt` | sed 's/\ /,\ /g')
+images: buildfiles
+	GITHUB_TOKEN=dummytoken goreleaser
 
 #
 # Test targets
@@ -146,13 +110,8 @@ test: generate
 #
 
 .PHONY: clean
-clean: clean-image-names
-	rm -f buildtime/*.tstamp
+clean:
 	rm -f bin/*
 
 .PHONY: really-clean
 really-clean: clean
-
-.PHONY: clean-image-names
-clean-image-names:
-	rm -f buildtime/image-names.txt

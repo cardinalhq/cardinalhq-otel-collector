@@ -71,10 +71,8 @@ func (e *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 
 			sl.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
 				transformCtx := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
-				if len(e.logsLookupConfigs) > 0 {
-					for _, lookupConfig := range e.logsLookupConfigs {
-						lookupConfig.ExecuteLogsRules(context.Background(), transformCtx, lr)
-					}
+				for _, lookupConfig := range e.logsLookupConfigs {
+					lookupConfig.ExecuteLogsRules(context.Background(), transformCtx, lr)
 				}
 				e.logTransformations.ExecuteLogTransforms(e.ottlProcessed, transformCtx)
 				_, dropMe := lr.Attributes().Get(translate.CardinalFieldDropMarker)

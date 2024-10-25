@@ -88,7 +88,7 @@ func (e *s3Exporter) partitionTableByCustomerIDAndInterval(tbl []map[string]any,
 	custmap := make(map[string]map[int64][]map[string]any)
 	now := time.Now()
 	for _, m := range tbl {
-		key := keyFromMap(m)
+		key := e.getKey(m)
 		ts := now
 		if !useNow {
 			if dsts, found := timestampFromMap(m); found {

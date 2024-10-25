@@ -59,6 +59,6 @@ jobs:
         with:
           distribution: goreleaser
           version: "latest"
-          args: release --clean -f .goreleaser.yml
+          args: release --clean -f .goreleaser.yaml
         env:
           GITHUB_TOKEN: dummy

@@ -27,7 +27,7 @@ release:
 dockers:
   - goos: linux
     goarch: amd64
-    dockerfile: Dockerfile-dist
+    dockerfile: Dockerfile
     image_templates:
       - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:v{{ .Version }}-amd64
       - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:latest-dev-amd64
@@ -42,7 +42,7 @@ dockers:
     use: buildx
   - goos: linux
     goarch: arm64
-    dockerfile: Dockerfile-dist
+    dockerfile: Dockerfile
     image_templates:
       - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:v{{ .Version }}-arm64
       - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:latest-dev-arm64
@@ -57,7 +57,7 @@ dockers:
     use: buildx
   - goos: linux
     goarch: s390x
-    dockerfile: Dockerfile-dist
+    dockerfile: Dockerfile
     image_templates:
       - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:v{{ .Version }}-s390x
       - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:latest-dev-s390x

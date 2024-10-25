@@ -412,3 +412,66 @@ func TestPartitionByCustomerID(t *testing.T) {
 		})
 	}
 }
+
+func TestGetKey(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   *Config
+		input    map[string]any
+		expected string
+	}{
+		{
+			"config with CustomerKey",
+			&Config{
+				S3Uploader: S3UploaderConfig{
+					CustomerKey: "custom_key",
+				},
+			},
+			map[string]any{
+				translate.CardinalFieldCustomerID:  "alice",
+				translate.CardinalFieldCollectorID: "12345",
+			},
+			"custom_key",
+		},
+		{
+			"config without CustomerKey",
+			&Config{
+				S3Uploader: S3UploaderConfig{
+					CustomerKey: "",
+				},
+			},
+			map[string]any{
+				translate.CardinalFieldCustomerID:  "alice",
+				translate.CardinalFieldCollectorID: "12345",
+			},
+			"alice/12345",
+		},
+		{
+			"nil config",
+			nil,
+			map[string]any{
+				translate.CardinalFieldCustomerID:  "alice",
+				translate.CardinalFieldCollectorID: "12345",
+			},
+			"alice/12345",
+		},
+		{
+			"missing customer_id and collector_id",
+			nil,
+			map[string]any{
+				"foo": "value",
+			},
+			"_default/_default",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := &s3Exporter{
+				config: tt.config,
+			}
+			result := e.getKey(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

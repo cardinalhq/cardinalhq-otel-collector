@@ -65,10 +65,17 @@ func keyFromMap(m map[string]any) string {
 	return fmt.Sprintf("%s/%s", customerIDFromMap(m), collectorIDFromMap(m))
 }
 
+func (e *s3Exporter) getKey(m map[string]any) string {
+	if e.config != nil && e.config.S3Uploader.CustomerKey != "" {
+		return e.config.S3Uploader.CustomerKey
+	}
+	return keyFromMap(m)
+}
+
 func (e *s3Exporter) partitionTableByCustomerID(interval int64, tbl []map[string]any) map[string][]map[string]any {
 	custmap := map[string][]map[string]any{}
 	for _, log := range tbl {
-		key := keyFromMap(log)
+		key := e.getKey(log)
 		custmap[key] = append(custmap[key], log)
 		if err := e.updateTagMap(key, interval, log); err != nil {
 			e.logger.Error("failed to update tag map", zap.Error(err))
@@ -81,7 +88,7 @@ func (e *s3Exporter) partitionTableByCustomerIDAndInterval(tbl []map[string]any,
 	custmap := make(map[string]map[int64][]map[string]any)
 	now := time.Now()
 	for _, m := range tbl {
-		key := keyFromMap(m)
+		key := e.getKey(m)
 		ts := now
 		if !useNow {
 			if dsts, found := timestampFromMap(m); found {

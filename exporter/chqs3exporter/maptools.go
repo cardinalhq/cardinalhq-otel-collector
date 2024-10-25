@@ -147,11 +147,13 @@ func (e *s3Exporter) writeTableForCustomerID(ids string, now time.Time, tbl []ma
 		e.logger.Debug("no items to put to store", zap.String("customerID", customerID), zap.String("clusterID", clusterID), zap.Time("timestamp", now))
 	}
 	// validate the customer ID
-	for _, item := range tbl {
-		cid := customerIDFromMap(item)
-		if customerID != cid {
-			e.logger.Error("customer ID mismatch", zap.String("customerID", customerID), zap.String("itemCustomerID", cid))
-			return fmt.Errorf("customer ID mismatch: %s != %s", customerID, cid)
+	if e.config == nil || e.config.S3Uploader.CustomerKey == "" {
+		for _, item := range tbl {
+			cid := customerIDFromMap(item)
+			if customerID != cid {
+				e.logger.Error("customer ID mismatch", zap.String("customerID", customerID), zap.String("itemCustomerID", cid))
+				return fmt.Errorf("customer ID mismatch: %s != %s", customerID, cid)
+			}
 		}
 	}
 

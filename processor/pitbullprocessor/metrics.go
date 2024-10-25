@@ -16,6 +16,7 @@ package pitbullprocessor
 
 import (
 	"context"
+
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
@@ -116,11 +117,8 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 }
 
 func (e *pitbull) evaluateLookupTables(transformCtx ottldatapoint.TransformContext, handlerFunc func(tagToSet string, targetValue string)) {
-	lookupTables := *e.metricsLookupConfigs
-	if len(lookupTables) > 0 {
-		for _, lookupConfig := range lookupTables {
-			lookupConfig.ExecuteMetricsRules(context.Background(), transformCtx, handlerFunc)
-		}
+	for _, lookupConfig := range e.metricsLookupConfigs {
+		lookupConfig.ExecuteMetricsRules(context.Background(), transformCtx, handlerFunc)
 	}
 }
 

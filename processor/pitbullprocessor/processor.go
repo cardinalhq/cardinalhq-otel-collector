@@ -54,13 +54,13 @@ type pitbull struct {
 	metricTransformations ottl.Transformations
 
 	// lookup tables for logs
-	logsLookupConfigs *[]ottl.LookupConfig
+	logsLookupConfigs []ottl.LookupConfig
 
 	// lookup tables for metrics
-	metricsLookupConfigs *[]ottl.LookupConfig
+	metricsLookupConfigs []ottl.LookupConfig
 
 	// lookup tables for traces
-	tracesLookupConfigs *[]ottl.LookupConfig
+	tracesLookupConfigs []ottl.LookupConfig
 
 	ottlProcessed *telemetry.DeferrableInt64Counter
 }

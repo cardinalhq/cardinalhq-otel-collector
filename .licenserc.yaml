@@ -5,8 +5,8 @@ header:
 
   paths-ignore:
     - 'bin'
+    - distribution
     - receiver/chqdatadogreceiver
-    - 'buildtime'
     - '**/*.md'
     - 'LICENSE'
     - 'NOTICE'

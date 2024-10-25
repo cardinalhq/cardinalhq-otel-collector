@@ -52,11 +52,8 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 			}
 			iss.Spans().RemoveIf(func(sr ptrace.Span) bool {
 				transformCtx := ottlspan.NewTransformContext(sr, iss.Scope(), rs.Resource(), iss, rs)
-				lookupTables := *e.tracesLookupConfigs
-				if len(lookupTables) > 0 {
-					for _, lookupConfig := range lookupTables {
-						lookupConfig.ExecuteSpansRules(context.Background(), transformCtx, sr)
-					}
+				for _, lookupConfig := range e.tracesLookupConfigs {
+					lookupConfig.ExecuteSpansRules(context.Background(), transformCtx, sr)
 				}
 				e.traceTransformations.ExecuteSpanTransforms(e.ottlProcessed, transformCtx)
 				_, found := sr.Attributes().Get(translate.CardinalFieldDropMarker)

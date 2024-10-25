@@ -44,22 +44,19 @@ func createTestLogRecord() plog.LogRecord {
 // TestFilterRule_ResourceConditionLog Test resource-based condition for logs
 func TestFilterRule_ResourceConditionLog(t *testing.T) {
 	// Create a filterRule with a resource-based condition
-	instruction := Instruction{
-		ProcessorID: "foo/bar",
-		Statements: []ContextStatement{
-			{
-				Context: "log",
-				RuleId:  "test-rule",
-				Conditions: []string{
-					`resource.attributes["service.name"] == "test-service"`,
-				},
-				Statements: []string{
-					`set(attributes["dropped"], true)`,
-				},
+	statements := []ContextStatement{
+		{
+			Context: "log",
+			RuleId:  "test-rule",
+			Conditions: []string{
+				`resource.attributes["service.name"] == "test-service"`,
+			},
+			Statements: []string{
+				`set(attributes["dropped"], true)`,
 			},
 		},
 	}
-	transformations, err := ParseTransformations(instruction, zap.NewNop())
+	transformations, err := ParseTransformations(statements, zap.NewNop())
 	require.NoError(t, err)
 
 	// Create test data

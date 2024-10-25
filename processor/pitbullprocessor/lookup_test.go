@@ -16,12 +16,13 @@ package pitbullprocessor
 
 import (
 	"context"
+	"testing"
+
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.uber.org/zap"
-	"testing"
 )
 
 // Helper function to convert a CSV-like structure to a LookupTable
@@ -43,17 +44,17 @@ func TestLookupTableBasic(t *testing.T) {
 		FieldNamesToSet: []string{"team"},
 		Keys: []*ottl.LookupKey{
 			{
-				ColumnName:     "serviceName",
-				OTTLExpression: `resource.attributes["service.name"]`,
+				ColumnName: "serviceName",
+				Expression: `resource.attributes["service.name"]`,
 			},
 		},
 	}
 
 	// Create LookupConfig with the rule, LookupTable, and the qualifier
 	lookupConfig := ottl.LookupConfig{
-		TableName: "test_table",
-		Table:     lookupTable,
-		LogRules:  []*ottl.LookupRule{&rule},
+		TableName:   "test_table",
+		LookupTable: lookupTable,
+		LogRules:    []*ottl.LookupRule{&rule},
 	}
 
 	lookupConfig.Init(logger)
@@ -81,17 +82,17 @@ func TestLookupTableBasicWithErrorInCondition(t *testing.T) {
 		FieldNamesToSet: []string{"team"},
 		Keys: []*ottl.LookupKey{
 			{
-				ColumnName:     "serviceName",
-				OTTLExpression: `resource.attributes['service.name']`,
+				ColumnName: "serviceName",
+				Expression: `resource.attributes['service.name']`,
 			},
 		},
 	}
 
 	// Create LookupConfig with the rule, LookupTable, and the qualifier
 	lookupConfig := ottl.LookupConfig{
-		TableName: "test_table",
-		Table:     lookupTable,
-		LogRules:  []*ottl.LookupRule{&rule},
+		TableName:   "test_table",
+		LookupTable: lookupTable,
+		LogRules:    []*ottl.LookupRule{&rule},
 	}
 
 	lookupConfig.Init(logger)
@@ -127,20 +128,20 @@ func TestLookupTableMultipleConditions(t *testing.T) {
 		FieldNamesToSet: []string{"team"},
 		Keys: []*ottl.LookupKey{
 			{
-				ColumnName:     "serviceName",
-				OTTLExpression: `resource.attributes["service.name"]`,
+				ColumnName: "serviceName",
+				Expression: `resource.attributes["service.name"]`,
 			},
 			{
-				ColumnName:     "businessUnit",
-				OTTLExpression: `resource.attributes["business.unit"]`,
+				ColumnName: "businessUnit",
+				Expression: `resource.attributes["business.unit"]`,
 			},
 		},
 	}
 
 	lookupConfig := ottl.LookupConfig{
-		TableName: "test_table",
-		Table:     lookupTable,
-		LogRules:  []*ottl.LookupRule{&rule},
+		TableName:   "test_table",
+		LookupTable: lookupTable,
+		LogRules:    []*ottl.LookupRule{&rule},
 	}
 
 	lookupConfig.Init(logger)
@@ -168,21 +169,21 @@ func TestLookupTableNegativeCondition(t *testing.T) {
 		FieldNamesToSet: []string{"team"},
 		Keys: []*ottl.LookupKey{
 			{
-				ColumnName:     "serviceName",
-				OTTLExpression: `resource.attributes["service.name"]`,
+				ColumnName: "serviceName",
+				Expression: `resource.attributes["service.name"]`,
 			},
 			{
-				ColumnName:     "businessUnit",
-				OTTLExpression: `resource.attributes["business.unit"]`,
+				ColumnName: "businessUnit",
+				Expression: `resource.attributes["business.unit"]`,
 			},
 		},
 	}
 
 	// Create LookupConfig with the rule, LookupTable, and the qualifier
 	lookupConfig := ottl.LookupConfig{
-		TableName: "test_table",
-		Table:     lookupTable,
-		LogRules:  []*ottl.LookupRule{&rule},
+		TableName:   "test_table",
+		LookupTable: lookupTable,
+		LogRules:    []*ottl.LookupRule{&rule},
 	}
 
 	lookupConfig.Init(logger)

@@ -133,13 +133,15 @@ func (e *pitbull) Shutdown(ctx context.Context) error {
 }
 
 func (e *pitbull) configUpdateCallback(sc ottl.ControlPlaneConfig) {
+	configs := sc.Pitbulls[e.id.Name()]
+
 	switch e.ttype {
 	case "logs":
-		e.updateLogTransformations(sc, e.logger)
+		e.updateLogTransformations(configs, e.logger)
 	case "traces":
-		e.updateTraceTransformations(sc, e.logger)
+		e.updateTraceTransformations(configs, e.logger)
 	case "metrics":
-		e.updateMetricTransformation(sc, e.logger)
+		e.updateMetricTransformation(configs, e.logger)
 	}
 	e.logger.Info("Configuration updated")
 }

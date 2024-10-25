@@ -71,21 +71,16 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 	return td, nil
 }
 
-func (e *pitbull) updateTraceTransformations(sc ottl.ControlPlaneConfig, logger *zap.Logger) {
+func (e *pitbull) updateTraceTransformations(sc ottl.PitbullProcessorConfig, logger *zap.Logger) {
 	e.Lock()
 	defer e.Unlock()
-	e.logger.Info("Updating trace transformations", zap.Int("num_decorators", len(sc.Spans.Decorators)))
+	e.logger.Info("Updating trace transformations", zap.Int("num_decorators", len(sc.SpanStatements)))
 	newTransformations := ottl.NewTransformations(e.logger)
 
-	for _, decorator := range sc.Spans.Decorators {
-		if decorator.ProcessorID != e.id.String() {
-			continue
-		}
-		transformations, err := ottl.ParseTransformations(decorator, e.logger)
-		if err != nil {
-			e.logger.Error("Error parsing traces transformation", zap.Error(err))
-			continue
-		}
+	transformations, err := ottl.ParseTransformations(sc.SpanStatements, e.logger)
+	if err != nil {
+		e.logger.Error("Error parsing traces transformation", zap.Error(err))
+	} else {
 		newTransformations = ottl.MergeWith(newTransformations, transformations)
 	}
 
@@ -93,8 +88,8 @@ func (e *pitbull) updateTraceTransformations(sc ottl.ControlPlaneConfig, logger 
 	e.traceTransformations = newTransformations
 	oldTransformation.Stop()
 
-	if len(sc.TracesLookupConfigs) > 0 {
-		for _, lookupConfig := range sc.TracesLookupConfigs {
+	if len(sc.SpanLookupConfigs) > 0 {
+		for _, lookupConfig := range sc.SpanLookupConfigs {
 			lookupConfig.Init(logger)
 		}
 	}

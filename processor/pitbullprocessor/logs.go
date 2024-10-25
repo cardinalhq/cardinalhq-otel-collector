@@ -95,30 +95,25 @@ func removeAllCardinalFields(attr pcommon.Map) {
 	})
 }
 
-func (e *pitbull) updateLogTransformations(sc ottl.ControlPlaneConfig, logger *zap.Logger) {
+func (e *pitbull) updateLogTransformations(sc ottl.PitbullProcessorConfig, logger *zap.Logger) {
 	e.Lock()
 	defer e.Unlock()
-	e.logger.Info("Updating log transformations", zap.Int("num_decorators", len(sc.Logs.Decorators)))
+	e.logger.Info("Updating log transformations", zap.Int("num_decorators", len(sc.LogStatements)))
 	newTransformations := ottl.NewTransformations(e.logger)
 
-	for _, decorator := range sc.Logs.Decorators {
-		if decorator.ProcessorID != e.id.String() {
-			continue
-		}
-		transformations, err := ottl.ParseTransformations(decorator, e.logger)
-		if err != nil {
-			e.logger.Error("Error parsing log transformation", zap.Error(err))
-		} else {
-			newTransformations = ottl.MergeWith(newTransformations, transformations)
-		}
+	transformations, err := ottl.ParseTransformations(sc.LogStatements, e.logger)
+	if err != nil {
+		e.logger.Error("Error parsing log transformation", zap.Error(err))
+	} else {
+		newTransformations = ottl.MergeWith(newTransformations, transformations)
 	}
 
 	oldTransformation := e.logTransformations
 	e.logTransformations = newTransformations
 	oldTransformation.Stop()
 
-	if len(sc.LogsLookupConfigs) > 0 {
-		for _, lookupConfig := range sc.LogsLookupConfigs {
+	if len(sc.LogLookupConfigs) > 0 {
+		for _, lookupConfig := range sc.LogLookupConfigs {
 			lookupConfig.Init(logger)
 		}
 	}

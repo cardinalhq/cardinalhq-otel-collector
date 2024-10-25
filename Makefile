@@ -24,12 +24,13 @@ BINARIES = cardinalhq-otel-collector
 
 MODULE_SOURCE_PATHS = `ls -1d {receiver,processor,exporter,extension}/*` internal
 SUMFILES = $(shell ls -1 {receiver,processor,exporter,extension}/*/go.sum internal/go.sum)
+ALLGOFILES = $(shell find ${MODULE_SOURCE_PATHS} -name '*.go')
 
 #
 # Below here lies magic...
 #
 
-all_deps := $(shell find . -name '*.yaml') Dockerfile Makefile distribution/main.go
+all_deps := $(shell find . -name '*.yaml') Dockerfile Makefile distribution/main.go ${SUMFILES} $(ALLGOFILES)
 
 #
 # Default target.
@@ -87,7 +88,7 @@ distribution/main.go: ${SUMFILES} cardinalhq-otel-collector.yaml
 
 # requires otel builder to be installed.
 # go install go.opentelemetry.io/collector/cmd/builder@latest
-bin/cardinalhq-otel-collector: cardinalhq-otel-collector.yaml distribution/main.go
+bin/cardinalhq-otel-collector: cardinalhq-otel-collector.yaml distribution/main.go ${all_deps}
 	(cd distribution ; CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o ../$@ .)
 
 #

@@ -35,10 +35,7 @@ func TestIPFunctions(t *testing.T) {
 			},
 		},
 	}
-	instruction := Instruction{
-		Statements: statements,
-	}
-	transformations, err := ParseTransformations(instruction, zap.NewNop())
+	transformations, err := ParseTransformations(statements, zap.NewNop())
 	assert.NoError(t, err)
 	rl := plog.NewResourceLogs()
 	sl := rl.ScopeLogs().AppendEmpty()
@@ -80,10 +77,7 @@ func TestIsInFunc(t *testing.T) {
 					},
 				},
 			}
-			instruction := Instruction{
-				Statements: statements,
-			}
-			transformations, err := ParseTransformations(instruction, zap.NewNop())
+			transformations, err := ParseTransformations(statements, zap.NewNop())
 			assert.NoError(t, err)
 			rm := pmetric.NewResourceMetrics()
 			rm.Resource().Attributes().PutStr("service.name", tt.serviceName) // Use the test case's service name
@@ -108,16 +102,13 @@ func TestSimpleBoolean(t *testing.T) {
 			},
 		},
 	}
-	instruction := Instruction{
-		Statements: statements,
-	}
 	rl := plog.NewResourceLogs()
 	sl := rl.ScopeLogs().AppendEmpty()
 	lr := sl.LogRecords().AppendEmpty()
 	lr.Attributes().PutBool("isTrue", true)
 
 	// Parse the transformations
-	transformations, err := ParseTransformations(instruction, zap.NewNop())
+	transformations, err := ParseTransformations(statements, zap.NewNop())
 	if err != nil {
 		t.Fatalf("Error parsing transformations: %v", err)
 	}
@@ -164,10 +155,7 @@ func TestVPCFlowLogTransformations(t *testing.T) {
 			},
 		},
 	}
-	instruction := Instruction{
-		Statements: statements,
-	}
-	transformations, err := ParseTransformations(instruction, zap.NewNop())
+	transformations, err := ParseTransformations(statements, zap.NewNop())
 	assert.NoError(t, err)
 	l := len(transformations.logTransforms)
 	assert.True(t, l > 0)
@@ -267,10 +255,7 @@ func TestTeamAssociations(t *testing.T) {
 		},
 	}
 
-	instruction := Instruction{
-		Statements: statements,
-	}
-	transformations, err := ParseTransformations(instruction, zap.NewNop())
+	transformations, err := ParseTransformations(statements, zap.NewNop())
 	assert.NoError(t, err)
 	l := len(transformations.resourceTransforms)
 	assert.True(t, l > 0)

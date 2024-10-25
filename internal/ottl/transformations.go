@@ -206,10 +206,9 @@ func GetServiceName(resource pcommon.Resource) string {
 	return "unknown"
 }
 
-func ParseTransformations(statement Instruction, logger *zap.Logger) (transformations, error) {
+func ParseTransformations(statements []ContextStatement, logger *zap.Logger) (transformations, error) {
 	var errors error
 
-	contextStatements := statement.Statements
 	resourceParser, _ := ottlresource.NewParser(ToFactory[ottlresource.TransformContext](), component.TelemetrySettings{Logger: logger})
 	scopeParser, _ := ottlscope.NewParser(ToFactory[ottlscope.TransformContext](), component.TelemetrySettings{Logger: logger})
 	logParser, _ := ottllog.NewParser(ToFactory[ottllog.TransformContext](), component.TelemetrySettings{Logger: logger})
@@ -219,7 +218,7 @@ func ParseTransformations(statement Instruction, logger *zap.Logger) (transforma
 
 	transformations := NewTransformations(logger)
 
-	for _, cs := range contextStatements {
+	for _, cs := range statements {
 		switch cs.Context {
 		case "resource":
 			conditions, err := resourceParser.ParseConditions(cs.Conditions)

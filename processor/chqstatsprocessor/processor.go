@@ -97,14 +97,15 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 	return dog, nil
 }
 
-func (e *statsProc) configUpdateCallback(sc ottl.ControlPlaneConfig) {
+func (e *statsProc) configUpdateCallback(cpc ottl.ControlPlaneConfig) {
+	configs := cpc.Stats[e.id.Name()]
 	switch e.ttype {
 	case "logs":
-		e.logStatsEnrichments = &sc.LogsEnrichments
+		e.logStatsEnrichments = &configs.LogEnrichments
 	case "metrics":
-		e.metricsStatsEnrichments = &sc.MetricsEnrichments
+		e.metricsStatsEnrichments = &configs.MetricEnrichments
 	case "traces":
-		e.tracesStatsEnrichments = &sc.MetricsEnrichments
+		e.tracesStatsEnrichments = &configs.MetricEnrichments
 	}
 }
 

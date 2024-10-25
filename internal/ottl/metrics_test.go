@@ -127,13 +127,7 @@ func TestMatchAndAdd_AverageAfterDroppingDimension(t *testing.T) {
 			},
 		},
 	}
-
-	// Parse transformations
-	instruction := Instruction{
-		ProcessorID: "foo/one",
-		Statements:  statements,
-	}
-	transformations, err := ParseTransformations(instruction, zap.NewNop())
+	transformations, err := ParseTransformations(statements, zap.NewNop())
 	require.NoError(t, err)
 	require.NotNil(t, transformations)
 

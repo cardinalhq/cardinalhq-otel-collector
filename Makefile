@@ -80,8 +80,10 @@ tidy:
 buildfiles: ${SUMFILES} distribution/main.go
 	rm -rf dist/*
 
-distribution/main.go: ${SUMFILES}
+distribution/main.go: ${SUMFILES} cardinalhq-otel-collector.yaml
 	go run go.opentelemetry.io/collector/cmd/builder@${OTEL_VERSION} --config cardinalhq-otel-collector.yaml --skip-compilation
+	sed -i.bak 's|$(shell pwd)|..|g' distribution/go.mod
+	rm -f distribution/go.mod.bak
 
 # requires otel builder to be installed.
 # go install go.opentelemetry.io/collector/cmd/builder@latest
@@ -116,3 +118,4 @@ clean:
 
 .PHONY: really-clean
 really-clean: clean
+	rm -rf distribution

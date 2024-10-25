@@ -16,6 +16,7 @@
 dist:
   name: cardinalhq-otel-collector
   output_path: ./distribution
+  include_core: true
   #version: v0.0.0-dev
 
 receivers:

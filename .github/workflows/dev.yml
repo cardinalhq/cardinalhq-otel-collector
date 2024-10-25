@@ -10,7 +10,6 @@ permissions:
   contents: read
   # packages: write
   # issues: write
-  # id-token: write
 
 jobs:
   goreleaser:

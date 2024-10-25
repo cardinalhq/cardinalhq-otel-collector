@@ -28,6 +28,9 @@ import (
 	"strings"
 )
 
+// LookupCondition represents a condition to be matched in the lookup table.
+// So for example, go get the value of ColumnName = serviceName (derived by executing the OTTLExpression say: resource.attributes["service.name"]) = service1
+// Now find the record in the lookup table where serviceName = service1.
 type LookupCondition struct {
 	ColumnName     string `json:"tag_name"`
 	OTTLExpression string `json:"expression"`
@@ -151,8 +154,7 @@ func (lc *LookupConfig) Init(logger *zap.Logger) {
 				conditionColumns = append(conditionColumns, condition.ColumnName)
 				condition.ParsedSpanExpression = parsedSpanExpression
 			}
-			t := lc.Table.Transpose(conditionColumns)
-			spanRule.Transposed = t
+			spanRule.Transposed = lc.Table.Transpose(conditionColumns)
 		}
 	}
 
@@ -177,8 +179,7 @@ func (lc *LookupConfig) Init(logger *zap.Logger) {
 				conditionColumns = append(conditionColumns, condition.ColumnName)
 				condition.ParsedMetricExpression = parsedMetricsExpression
 			}
-			t := lc.Table.Transpose(conditionColumns)
-			metricsRule.Transposed = t
+			metricsRule.Transposed = lc.Table.Transpose(conditionColumns)
 		}
 	}
 }

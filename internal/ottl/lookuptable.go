@@ -33,33 +33,33 @@ import (
 // So for example, go get the value of ColumnName = serviceName (derived by executing the OTTLExpression say: resource.attributes["service.name"]) = service1
 // Now find the record in the lookup table where serviceName = service1.
 type LookupKey struct {
-	ColumnName     string `json:"columnName"`
-	OTTLExpression string `json:"expression"`
+	ColumnName string `json:"column_name"`
+	Expression string `json:"expression"`
 
-	ParsedLogExpression    *ottl.Statement[ottllog.TransformContext]
-	ParsedSpanExpression   *ottl.Statement[ottlspan.TransformContext]
-	ParsedMetricExpression *ottl.Statement[ottldatapoint.TransformContext]
+	parsedLogExpression    *ottl.Statement[ottllog.TransformContext]
+	parsedSpanExpression   *ottl.Statement[ottlspan.TransformContext]
+	parsedMetricExpression *ottl.Statement[ottldatapoint.TransformContext]
 }
 
 //TODO: Read the LookupTable from RDS on the `external_api` and only send the `TransposedLookupTable` down to the collector.
 
 type LookupTable []map[string]string
 
-type TransposedLookupTable map[string]map[string]string
+type transposedLookupTable map[string]map[string]string
 
 type LookupRule struct {
-	FieldNamesToSet []string               `json:"fieldNameToSet"`
-	Keys            []*LookupKey           `json:"lookupKeys"`
-	Transposed      *TransposedLookupTable // make a special transposed table for this rule, to speed up lookups.
+	FieldNamesToSet []string     `json:"field_names_to_set"`
+	Keys            []*LookupKey `json:"keys"`
+
+	transposed *transposedLookupTable // make a special transposed table for this rule, to speed up lookups.
 }
 
 type LookupConfig struct {
-	TableName string      `json:"tableName"`
-	Table     LookupTable `json:"table"`
-
-	LogRules     []*LookupRule `json:"logRules"`
-	SpanRules    []*LookupRule `json:"spanRules"`
-	MetricsRules []*LookupRule `json:"metricsRules"`
+	TableName   string        `json:"table_name"`
+	LookupTable LookupTable   `json:"lookup_table"`
+	LogRules    []*LookupRule `json:"log_rules"`
+	SpanRules   []*LookupRule `json:"span_rules"`
+	MetricRules []*LookupRule `json:"metric_rules"`
 }
 
 // Helper function to create a key for the transposed map from conditions
@@ -68,8 +68,8 @@ func createKey(conditions []string) string {
 }
 
 // Transpose dynamically converts a regular LookupTable into a TransposedLookupTable using the provided condition columns
-func (lt LookupTable) Transpose(conditionColumns []string) *TransposedLookupTable {
-	transposed := TransposedLookupTable{}
+func (lt LookupTable) Transpose(conditionColumns []string) *transposedLookupTable {
+	transposed := transposedLookupTable{}
 
 	for _, row := range lt {
 		conditions := make([]string, 0)
@@ -86,7 +86,7 @@ func (lt LookupTable) Transpose(conditionColumns []string) *TransposedLookupTabl
 }
 
 // Lookup Optimized Lookup function for TransposedLookupTable using dynamic keys
-func (tlt TransposedLookupTable) Lookup(targetTagName string, conditions []string) (string, bool) {
+func (tlt transposedLookupTable) Lookup(targetTagName string, conditions []string) (string, bool) {
 	// Create the lookup key from the conditions
 	key := createKey(conditions)
 
@@ -106,16 +106,15 @@ func (lc *LookupConfig) Init(logger *zap.Logger) {
 
 		for _, logRule := range lc.LogRules {
 			for _, key := range logRule.Keys {
-				parsedLogExpression, err := logParser.ParseStatement(fmt.Sprintf("value(%s)", key.OTTLExpression))
+				parsedLogExpression, err := logParser.ParseStatement(fmt.Sprintf("value(%s)", key.Expression))
 				if err != nil {
 					logger.Error("Error parsing log expression", zap.Error(err))
 					return
 				}
 				conditionColumns = append(conditionColumns, key.ColumnName)
-				key.ParsedLogExpression = parsedLogExpression
+				key.parsedLogExpression = parsedLogExpression
 			}
-			t := lc.Table.Transpose(conditionColumns)
-			logRule.Transposed = t
+			logRule.transposed = lc.LookupTable.Transpose(conditionColumns)
 		}
 	}
 
@@ -126,33 +125,33 @@ func (lc *LookupConfig) Init(logger *zap.Logger) {
 
 		for _, spanRule := range lc.SpanRules {
 			for _, key := range spanRule.Keys {
-				parsedSpanExpression, err := spanParser.ParseStatement(fmt.Sprintf("value(%s)", key.OTTLExpression))
+				parsedSpanExpression, err := spanParser.ParseStatement(fmt.Sprintf("value(%s)", key.Expression))
 				if err != nil {
 					logger.Error("Error parsing span expression", zap.Error(err))
 					return
 				}
 				conditionColumns = append(conditionColumns, key.ColumnName)
-				key.ParsedSpanExpression = parsedSpanExpression
+				key.parsedSpanExpression = parsedSpanExpression
 			}
-			spanRule.Transposed = lc.Table.Transpose(conditionColumns)
+			spanRule.transposed = lc.LookupTable.Transpose(conditionColumns)
 		}
 	}
 
 	// for metric data points
-	if len(lc.MetricsRules) > 0 {
+	if len(lc.MetricRules) > 0 {
 		metricsParser, _ := ottldatapoint.NewParser(ToFactory[ottldatapoint.TransformContext](), component.TelemetrySettings{Logger: logger})
 		conditionColumns := make([]string, 0)
 		for _, metricsRule := range lc.SpanRules {
 			for _, key := range metricsRule.Keys {
-				parsedMetricsExpression, err := metricsParser.ParseStatement(fmt.Sprintf("value(%s)", key.OTTLExpression))
+				parsedMetricsExpression, err := metricsParser.ParseStatement(fmt.Sprintf("value(%s)", key.Expression))
 				if err != nil {
 					logger.Error("Error parsing metrics expression", zap.Error(err))
 					return
 				}
 				conditionColumns = append(conditionColumns, key.ColumnName)
-				key.ParsedMetricExpression = parsedMetricsExpression
+				key.parsedMetricExpression = parsedMetricsExpression
 			}
-			metricsRule.Transposed = lc.Table.Transpose(conditionColumns)
+			metricsRule.transposed = lc.LookupTable.Transpose(conditionColumns)
 		}
 	}
 }
@@ -163,7 +162,7 @@ func (lc *LookupConfig) ExecuteLogsRules(ctx context.Context, tCtx ottllog.Trans
 		conditionsArray := make([]string, 0, len(lr.Keys)*2)
 
 		for _, lookupCondition := range lr.Keys {
-			expression := lookupCondition.ParsedLogExpression
+			expression := lookupCondition.parsedLogExpression
 			if expression != nil {
 				attrVal, _, err := expression.Execute(ctx, tCtx)
 				if err != nil {
@@ -178,7 +177,7 @@ func (lc *LookupConfig) ExecuteLogsRules(ctx context.Context, tCtx ottllog.Trans
 			return
 		}
 		for _, fieldNameToSet := range lr.FieldNamesToSet {
-			targetValue, found := lr.Transposed.Lookup(fieldNameToSet, conditionsArray)
+			targetValue, found := lr.transposed.Lookup(fieldNameToSet, conditionsArray)
 			if found {
 				record.Attributes().PutStr(fieldNameToSet, targetValue)
 			}
@@ -192,7 +191,7 @@ func (lc *LookupConfig) ExecuteSpansRules(ctx context.Context, tCtx ottlspan.Tra
 		conditionsArray := make([]string, 0, len(lr.Keys)*2)
 
 		for _, lookupCondition := range lr.Keys {
-			expression := lookupCondition.ParsedSpanExpression
+			expression := lookupCondition.parsedSpanExpression
 			if expression != nil {
 				attrVal, _, err := expression.Execute(ctx, tCtx)
 				if err != nil {
@@ -207,7 +206,7 @@ func (lc *LookupConfig) ExecuteSpansRules(ctx context.Context, tCtx ottlspan.Tra
 			return
 		}
 		for _, fieldNameToSet := range lr.FieldNamesToSet {
-			targetValue, found := lr.Transposed.Lookup(fieldNameToSet, conditionsArray)
+			targetValue, found := lr.transposed.Lookup(fieldNameToSet, conditionsArray)
 			if found {
 				record.Attributes().PutStr(fieldNameToSet, targetValue)
 			}
@@ -217,11 +216,11 @@ func (lc *LookupConfig) ExecuteSpansRules(ctx context.Context, tCtx ottlspan.Tra
 
 // ExecuteMetricsRules executes the metrics rules for the given record
 func (lc *LookupConfig) ExecuteMetricsRules(ctx context.Context, tCtx ottldatapoint.TransformContext, handlerFunc func(tagToSet string, targetValue string)) {
-	for _, lr := range lc.MetricsRules {
+	for _, lr := range lc.MetricRules {
 		conditionsArray := make([]string, 0, len(lr.Keys)*2)
 
 		for _, lookupCondition := range lr.Keys {
-			expression := lookupCondition.ParsedMetricExpression
+			expression := lookupCondition.parsedMetricExpression
 			if expression != nil {
 				attrVal, _, err := expression.Execute(ctx, tCtx)
 				if err != nil {
@@ -236,7 +235,7 @@ func (lc *LookupConfig) ExecuteMetricsRules(ctx context.Context, tCtx ottldatapo
 			return
 		}
 		for _, fieldNameToSet := range lr.FieldNamesToSet {
-			targetValue, found := lr.Transposed.Lookup(fieldNameToSet, conditionsArray)
+			targetValue, found := lr.transposed.Lookup(fieldNameToSet, conditionsArray)
 			if found {
 				handlerFunc(fieldNameToSet, targetValue)
 			}

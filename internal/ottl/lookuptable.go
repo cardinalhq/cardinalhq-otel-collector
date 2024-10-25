@@ -71,14 +71,12 @@ func (lt LookupTable) Transpose(conditionColumns []string) *TransposedLookupTabl
 	transposed := TransposedLookupTable{}
 
 	for _, row := range lt {
-		// Create a dynamic key based on the condition columns
 		conditions := make([]string, 0)
 		for _, column := range conditionColumns {
 			conditions = append(conditions, column)
 			conditions = append(conditions, row[column])
 		}
 
-		// Insert the row into the transposed table using the dynamic key
 		key := createKey(conditions)
 		transposed[key] = row
 	}

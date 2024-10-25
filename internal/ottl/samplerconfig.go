@@ -15,50 +15,55 @@
 package ottl
 
 type ControlPlaneConfig struct {
-	Logs    InstructionConfig `json:"logs,omitempty" yaml:"logs,omitempty"`
-	Metrics InstructionConfig `json:"metrics,omitempty" yaml:"metrics,omitempty"`
-	Spans   InstructionConfig `json:"spans,omitempty" yaml:"spans,omitempty"`
-
-	LogMetricExtractors  []MetricExtractorConfig `json:"log_extractors"`
-	SpanMetricExtractors []MetricExtractorConfig `json:"span_extractors"`
-
-	LogsEnrichments    []StatsEnrichment `json:"logs_enrichments,omitempty" mapstructure:"logs_enrichments"`
-	MetricsEnrichments []StatsEnrichment `json:"metrics_enrichments,omitempty" mapstructure:"metrics_enrichments"`
-	TracesEnrichments  []StatsEnrichment `json:"traces_enrichments,omitempty" mapstructure:"traces_enrichments"`
-
-	LogsLookupConfigs    []LookupConfig `json:"logs_lookup_configs,omitempty" yaml:"logs_lookup_configs,omitempty"`
-	TracesLookupConfigs  []LookupConfig `json:"spans_lookup_configs,omitempty" yaml:"spans_lookup_configs,omitempty"`
-	MetricsLookupConfigs []LookupConfig `json:"metrics_lookup_configs,omitempty" yaml:"metrics_lookup_configs,omitempty"`
+	// Processor targets
+	Pitbulls       map[string]PitbullProcessorConfig        `json:"pitbulls,omitempty"`
+	Stats          map[string]StatsProcessorConfig          `json:"stats,omitempty"`
+	ExtractMetrics map[string]ExtractMetricsProcessorConfig `json:"extract_metrics,omitempty"`
 
 	hash uint64
 }
 
-type StatsEnrichment struct {
-	Context string   `json:"context,omitempty" mapstructure:"context"`
-	Tags    []string `json:"tags,omitempty" mapstructure:"tags"`
+type PitbullProcessorConfig struct {
+	LogStatements       []ContextStatement `json:"log_statements,omitempty"`
+	LogLookupConfigs    []LookupConfig     `json:"log_lookup_configs,omitempty"`
+	MetricStatements    []ContextStatement `json:"metric_statements,omitempty"`
+	MetricLookupConfigs []LookupConfig     `json:"metric_lookup_configs,omitempty"`
+	SpanStatements      []ContextStatement `json:"span_statements,omitempty"`
+	SpanLookupConfigs   []LookupConfig     `json:"span_lookup_configs,omitempty"`
 }
 
-type InstructionConfig struct {
-	Decorators []Instruction `json:"decorators,omitempty" yaml:"decorators,omitempty"`
+type StatsProcessorConfig struct {
+	LogEnrichments    []StatsEnrichment `json:"log_enrichments,omitempty"`
+	MetricEnrichments []StatsEnrichment `json:"metric_enrichments,omitempty"`
+	SpanEnrichments   []StatsEnrichment `json:"span_enrichments,omitempty"`
+}
+
+type ExtractMetricsProcessorConfig struct {
+	LogMetricExtractors  []MetricExtractorConfig `json:"log_metric_extractors,omitempty"`
+	SpanMetricExtractors []MetricExtractorConfig `json:"span_metric_extractors,omitempty"`
+}
+
+type StatsEnrichment struct {
+	Context string   `json:"context,omitempty"`
+	Tags    []string `json:"tags,omitempty"`
+}
+
+type SamplingConfig struct {
+	SampleRate float64 `json:"sample_rate,omitempty"`
+	RPS        int     `json:"rps,omitempty"`
+}
+
+type Instruction struct {
+	Statements []ContextStatement `json:"statements,omitempty"`
 }
 
 type ContextID string
 
-type SamplingConfig struct {
-	SampleRate float64 `json:"sampleRate,omitempty" yaml:"sampleRate,omitempty"`
-	RPS        int     `json:"rps,omitempty" yaml:"rps,omitempty"`
-}
-
-type Instruction struct {
-	ProcessorID string             `json:"processorId,omitempty" yaml:"processorId,omitempty"`
-	Statements  []ContextStatement `json:"statements,omitempty" yaml:"statements,omitempty"`
-}
-
 type ContextStatement struct {
-	Context        ContextID      `json:"context,omitempty" yaml:"context,omitempty"`
-	RuleId         RuleID         `json:"ruleId,omitempty" yaml:"ruleId,omitempty"`
-	Priority       int            `json:"priority,omitempty" yaml:"priority,omitempty"`
-	Conditions     []string       `json:"conditions,omitempty" yaml:"conditions,omitempty"`
-	Statements     []string       `json:"statements,omitempty" yaml:"statements,omitempty"`
-	SamplingConfig SamplingConfig `json:"samplingConfig,omitempty" yaml:"samplingConfig,omitempty"`
+	Context        ContextID      `json:"context,omitempty"`
+	RuleId         RuleID         `json:"rule_id,omitempty"`
+	Priority       int            `json:"priority,omitempty"`
+	Conditions     []string       `json:"conditions,omitempty"`
+	Statements     []string       `json:"statements,omitempty"`
+	SamplingConfig SamplingConfig `json:"sampling_config,omitempty"`
 }

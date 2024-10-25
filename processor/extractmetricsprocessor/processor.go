@@ -78,28 +78,26 @@ func (e *extractor) Shutdown(ctx context.Context) error {
 }
 
 func (e *extractor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
-	var extractorConfigs = make([]*ottl.LogExtractor, 0)
+	configs := sc.ExtractMetrics[e.id.Name()]
 
-	if len(extractorConfigs) > 0 {
-		switch e.ttype {
-		case "logs":
-			parsedExtractors, err := ottl.ParseLogExtractorConfigs(sc.LogMetricExtractors, e.logger)
-			if err != nil {
-				e.logger.Error("Error parsing log extractor configurations", zap.Error(err))
-				return
-			}
-			e.logExtractors = ottl.ConvertToPointerArray(parsedExtractors)
-
-		case "traces":
-			parsedExtractors, err := ottl.ParseSpanExtractorConfigs(sc.SpanMetricExtractors, e.logger)
-			if err != nil {
-				e.logger.Error("Error parsing log extractor configurations", zap.Error(err))
-				return
-			}
-			e.spanExtractors = ottl.ConvertToPointerArray(parsedExtractors)
-
-		default:
+	switch e.ttype {
+	case "logs":
+		parsedExtractors, err := ottl.ParseLogExtractorConfigs(configs.LogMetricExtractors, e.logger)
+		if err != nil {
+			e.logger.Error("Error parsing log extractor configurations", zap.Error(err))
+			return
 		}
+		e.logExtractors = ottl.ConvertToPointerArray(parsedExtractors)
+
+	case "traces":
+		parsedExtractors, err := ottl.ParseSpanExtractorConfigs(configs.SpanMetricExtractors, e.logger)
+		if err != nil {
+			e.logger.Error("Error parsing log extractor configurations", zap.Error(err))
+			return
+		}
+		e.spanExtractors = ottl.ConvertToPointerArray(parsedExtractors)
+
+	default: // ignore
 	}
 	e.logger.Info("Configuration updated")
 }

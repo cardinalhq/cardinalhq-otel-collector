@@ -122,30 +122,25 @@ func (e *pitbull) evaluateLookupTables(transformCtx ottldatapoint.TransformConte
 	}
 }
 
-func (e *pitbull) updateMetricTransformation(sc ottl.ControlPlaneConfig, logger *zap.Logger) {
+func (e *pitbull) updateMetricTransformation(sc ottl.PitbullProcessorConfig, logger *zap.Logger) {
 	e.Lock()
 	defer e.Unlock()
-	e.logger.Info("Updating metrics transformations", zap.Int("num_decorators", len(sc.Metrics.Decorators)))
+	e.logger.Info("Updating metrics transformations", zap.Int("num_decorators", len(sc.MetricStatements)))
 	newTransformations := ottl.NewTransformations(e.logger)
 
-	for _, decorator := range sc.Metrics.Decorators {
-		if decorator.ProcessorID != e.id.String() {
-			continue
-		}
-		transformations, err := ottl.ParseTransformations(decorator, e.logger)
-		if err != nil {
-			e.logger.Error("Error parsing metrics transformation", zap.Error(err))
-		} else {
-			newTransformations = ottl.MergeWith(newTransformations, transformations)
-		}
+	transformations, err := ottl.ParseTransformations(sc.MetricStatements, e.logger)
+	if err != nil {
+		e.logger.Error("Error parsing metrics transformation", zap.Error(err))
+	} else {
+		newTransformations = ottl.MergeWith(newTransformations, transformations)
 	}
 
 	oldTransformation := e.metricTransformations
 	e.metricTransformations = newTransformations
 	oldTransformation.Stop()
 
-	if len(sc.MetricsLookupConfigs) > 0 {
-		for _, lookupConfig := range sc.MetricsLookupConfigs {
+	if len(sc.MetricLookupConfigs) > 0 {
+		for _, lookupConfig := range sc.MetricLookupConfigs {
 			lookupConfig.Init(logger)
 		}
 	}

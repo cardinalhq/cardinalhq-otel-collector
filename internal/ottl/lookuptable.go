@@ -34,7 +34,6 @@ import (
 type LookupCondition struct {
 	ColumnName     string `json:"tag_name"`
 	OTTLExpression string `json:"expression"`
-	ColumnValue    string `json:"tag_value"`
 
 	ParsedLogExpression    *ottl.Statement[ottllog.TransformContext]
 	ParsedSpanExpression   *ottl.Statement[ottlspan.TransformContext]

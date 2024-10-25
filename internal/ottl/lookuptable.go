@@ -28,10 +28,10 @@ import (
 	"strings"
 )
 
-// LookupCondition represents a condition to be matched in the lookup table.
+// LookupKey represents a condition to be matched in the lookup table.
 // So for example, go get the value of ColumnName = serviceName (derived by executing the OTTLExpression say: resource.attributes["service.name"]) = service1
 // Now find the record in the lookup table where serviceName = service1.
-type LookupCondition struct {
+type LookupKey struct {
 	ColumnName     string `json:"columnName"`
 	OTTLExpression string `json:"expression"`
 
@@ -46,7 +46,7 @@ type TransposedLookupTable map[string]map[string]string
 
 type LookupRule struct {
 	FieldNameToSet string                 `json:"fieldNameToSet"`
-	Conditions     []*LookupCondition     `json:"conditions"`
+	Keys           []*LookupKey           `json:"conditions"`
 	Transposed     *TransposedLookupTable // make a special transposed table for this rule, to speed up lookups.
 }
 
@@ -57,16 +57,6 @@ type LookupConfig struct {
 	LogRules     []*LookupRule `json:"logRules"`
 	SpanRules    []*LookupRule `json:"spanRules"`
 	MetricsRules []*LookupRule `json:"metricsRules"`
-
-	// Qualifiers are conditions that need to be run to check if this lookup table should be used for this record.
-	// For example, check Exists(resource.attributes("service.name")) before running rules.
-	LogQualifiers    []string `json:"logQualifiers"`
-	SpanQualifiers   []string `json:"spanQualifiers"`
-	MetricQualifiers []string `json:"metricQualifiers"`
-
-	ParsedLogQualifiers     []*ottl.Condition[ottllog.TransformContext]
-	ParsedSpanQualifiers    []*ottl.Condition[ottlspan.TransformContext]
-	ParsedMetricsQualifiers []*ottl.Condition[ottldatapoint.TransformContext]
 }
 
 // Helper function to create a key for the transposed map from conditions
@@ -109,25 +99,19 @@ func (tlt TransposedLookupTable) Lookup(targetTagName string, conditions []strin
 }
 
 func (lc *LookupConfig) Init(logger *zap.Logger) {
-	if len(lc.LogRules) > 0 || len(lc.LogQualifiers) > 0 {
+	if len(lc.LogRules) > 0 {
 		logParser, _ := ottllog.NewParser(ToFactory[ottllog.TransformContext](), component.TelemetrySettings{Logger: logger})
-		qualifiers, logError := logParser.ParseConditions(lc.LogQualifiers)
-		if logError != nil {
-			logger.Error("Error parsing log qualifiers", zap.Error(logError))
-			return
-		}
-		lc.ParsedLogQualifiers = qualifiers
 		conditionColumns := make([]string, 0)
 
 		for _, logRule := range lc.LogRules {
-			for _, condition := range logRule.Conditions {
-				parsedLogExpression, err := logParser.ParseStatement(fmt.Sprintf("value(%s)", condition.OTTLExpression))
+			for _, key := range logRule.Keys {
+				parsedLogExpression, err := logParser.ParseStatement(fmt.Sprintf("value(%s)", key.OTTLExpression))
 				if err != nil {
-					logger.Error("Error parsing log expression", zap.Error(logError))
+					logger.Error("Error parsing log expression", zap.Error(err))
 					return
 				}
-				conditionColumns = append(conditionColumns, condition.ColumnName)
-				condition.ParsedLogExpression = parsedLogExpression
+				conditionColumns = append(conditionColumns, key.ColumnName)
+				key.ParsedLogExpression = parsedLogExpression
 			}
 			t := lc.Table.Transpose(conditionColumns)
 			logRule.Transposed = t
@@ -135,63 +119,50 @@ func (lc *LookupConfig) Init(logger *zap.Logger) {
 	}
 
 	// for spans
-	if len(lc.SpanRules) > 0 || len(lc.SpanQualifiers) > 0 {
+	if len(lc.SpanRules) > 0 {
 		spanParser, _ := ottlspan.NewParser(ToFactory[ottlspan.TransformContext](), component.TelemetrySettings{Logger: logger})
-		qualifiers, spanError := spanParser.ParseConditions(lc.LogQualifiers)
-		if spanError != nil {
-			logger.Error("Error parsing span qualifiers", zap.Error(spanError))
-			return
-		}
-		lc.ParsedSpanQualifiers = qualifiers
 		conditionColumns := make([]string, 0)
 
 		for _, spanRule := range lc.SpanRules {
-			for _, condition := range spanRule.Conditions {
-				parsedSpanExpression, err := spanParser.ParseStatement(fmt.Sprintf("value(%s)", condition.OTTLExpression))
+			for _, key := range spanRule.Keys {
+				parsedSpanExpression, err := spanParser.ParseStatement(fmt.Sprintf("value(%s)", key.OTTLExpression))
 				if err != nil {
-					logger.Error("Error parsing span expression", zap.Error(spanError))
+					logger.Error("Error parsing span expression", zap.Error(err))
 					return
 				}
-				conditionColumns = append(conditionColumns, condition.ColumnName)
-				condition.ParsedSpanExpression = parsedSpanExpression
+				conditionColumns = append(conditionColumns, key.ColumnName)
+				key.ParsedSpanExpression = parsedSpanExpression
 			}
 			spanRule.Transposed = lc.Table.Transpose(conditionColumns)
 		}
 	}
 
 	// for metric data points
-	if len(lc.MetricsRules) > 0 || len(lc.MetricQualifiers) > 0 {
+	if len(lc.MetricsRules) > 0 {
 		metricsParser, _ := ottldatapoint.NewParser(ToFactory[ottldatapoint.TransformContext](), component.TelemetrySettings{Logger: logger})
-		qualifiers, spanError := metricsParser.ParseConditions(lc.MetricQualifiers)
-		if spanError != nil {
-			logger.Error("Error parsing metrics qualifiers", zap.Error(spanError))
-			return
-		}
-		lc.ParsedMetricsQualifiers = qualifiers
 		conditionColumns := make([]string, 0)
-
 		for _, metricsRule := range lc.SpanRules {
-			for _, condition := range metricsRule.Conditions {
-				parsedMetricsExpression, err := metricsParser.ParseStatement(fmt.Sprintf("value(%s)", condition.OTTLExpression))
+			for _, key := range metricsRule.Keys {
+				parsedMetricsExpression, err := metricsParser.ParseStatement(fmt.Sprintf("value(%s)", key.OTTLExpression))
 				if err != nil {
-					logger.Error("Error parsing metrics expression", zap.Error(spanError))
+					logger.Error("Error parsing metrics expression", zap.Error(err))
 					return
 				}
-				conditionColumns = append(conditionColumns, condition.ColumnName)
-				condition.ParsedMetricExpression = parsedMetricsExpression
+				conditionColumns = append(conditionColumns, key.ColumnName)
+				key.ParsedMetricExpression = parsedMetricsExpression
 			}
 			metricsRule.Transposed = lc.Table.Transpose(conditionColumns)
 		}
 	}
 }
 
-// ExecuteLogsRule executes the log rules for the given record
-func (lc *LookupConfig) ExecuteLogsRule(ctx context.Context, tCtx ottllog.TransformContext, record plog.LogRecord) {
+// ExecuteLogsRules executes the log rules for the given record
+func (lc *LookupConfig) ExecuteLogsRules(ctx context.Context, tCtx ottllog.TransformContext, record plog.LogRecord) {
 	for _, lr := range lc.LogRules {
 		tagToSet := lr.FieldNameToSet
-		conditionsArray := make([]string, 0, len(lr.Conditions)*2)
+		conditionsArray := make([]string, 0, len(lr.Keys)*2)
 
-		for _, lookupCondition := range lr.Conditions {
+		for _, lookupCondition := range lr.Keys {
 			expression := lookupCondition.ParsedLogExpression
 			if expression != nil {
 				attrVal, _, err := expression.Execute(ctx, tCtx)
@@ -203,7 +174,7 @@ func (lc *LookupConfig) ExecuteLogsRule(ctx context.Context, tCtx ottllog.Transf
 				}
 			}
 		}
-		if len(lr.Conditions) > 0 && len(conditionsArray) == 0 {
+		if len(lr.Keys) > 0 && len(conditionsArray) == 0 {
 			return
 		}
 		targetValue, found := lr.Transposed.Lookup(tagToSet, conditionsArray)
@@ -213,13 +184,13 @@ func (lc *LookupConfig) ExecuteLogsRule(ctx context.Context, tCtx ottllog.Transf
 	}
 }
 
-// ExecuteSpansRule executes the span rules for the given record
-func (lc *LookupConfig) ExecuteSpansRule(ctx context.Context, tCtx ottlspan.TransformContext, record ptrace.Span) {
+// ExecuteSpansRules executes the span rules for the given record
+func (lc *LookupConfig) ExecuteSpansRules(ctx context.Context, tCtx ottlspan.TransformContext, record ptrace.Span) {
 	for _, lr := range lc.SpanRules {
 		tagToSet := lr.FieldNameToSet
-		conditionsArray := make([]string, 0, len(lr.Conditions)*2)
+		conditionsArray := make([]string, 0, len(lr.Keys)*2)
 
-		for _, lookupCondition := range lr.Conditions {
+		for _, lookupCondition := range lr.Keys {
 			expression := lookupCondition.ParsedSpanExpression
 			if expression != nil {
 				attrVal, _, err := expression.Execute(ctx, tCtx)
@@ -231,7 +202,7 @@ func (lc *LookupConfig) ExecuteSpansRule(ctx context.Context, tCtx ottlspan.Tran
 				}
 			}
 		}
-		if len(lr.Conditions) > 0 && len(conditionsArray) == 0 {
+		if len(lr.Keys) > 0 && len(conditionsArray) == 0 {
 			return
 		}
 		targetValue, found := lr.Transposed.Lookup(tagToSet, conditionsArray)
@@ -241,13 +212,13 @@ func (lc *LookupConfig) ExecuteSpansRule(ctx context.Context, tCtx ottlspan.Tran
 	}
 }
 
-// ExecuteMetricsRule executes the metrics rules for the given record
-func (lc *LookupConfig) ExecuteMetricsRule(ctx context.Context, tCtx ottldatapoint.TransformContext, handlerFunc func(tagToSet string, targetValue string)) {
+// ExecuteMetricsRules executes the metrics rules for the given record
+func (lc *LookupConfig) ExecuteMetricsRules(ctx context.Context, tCtx ottldatapoint.TransformContext, handlerFunc func(tagToSet string, targetValue string)) {
 	for _, lr := range lc.MetricsRules {
 		tagToSet := lr.FieldNameToSet
-		conditionsArray := make([]string, 0, len(lr.Conditions)*2)
+		conditionsArray := make([]string, 0, len(lr.Keys)*2)
 
-		for _, lookupCondition := range lr.Conditions {
+		for _, lookupCondition := range lr.Keys {
 			expression := lookupCondition.ParsedMetricExpression
 			if expression != nil {
 				attrVal, _, err := expression.Execute(ctx, tCtx)
@@ -259,7 +230,7 @@ func (lc *LookupConfig) ExecuteMetricsRule(ctx context.Context, tCtx ottldatapoi
 				}
 			}
 		}
-		if len(lr.Conditions) > 0 && len(conditionsArray) == 0 {
+		if len(lr.Keys) > 0 && len(conditionsArray) == 0 {
 			return
 		}
 		targetValue, found := lr.Transposed.Lookup(tagToSet, conditionsArray)
@@ -267,55 +238,4 @@ func (lc *LookupConfig) ExecuteMetricsRule(ctx context.Context, tCtx ottldatapoi
 			handlerFunc(tagToSet, targetValue)
 		}
 	}
-}
-
-// QualifiesForLogRecord checks if the log record qualifies for the lookup
-func (lc *LookupConfig) QualifiesForLogRecord(ctx context.Context, tCtx ottllog.TransformContext) bool {
-	if len(lc.LogQualifiers) == 0 {
-		return true
-	}
-	for _, qualifier := range lc.ParsedLogQualifiers {
-		matched, err := qualifier.Eval(ctx, tCtx)
-		if err != nil {
-			return false
-		}
-		if !matched {
-			return false
-		}
-	}
-	return true
-}
-
-// QualifiesForSpanRecord checks if the span record qualifies for the lookup
-func (lc *LookupConfig) QualifiesForSpanRecord(ctx context.Context, tCtx ottlspan.TransformContext) bool {
-	if len(lc.SpanQualifiers) == 0 {
-		return true
-	}
-	for _, qualifier := range lc.ParsedSpanQualifiers {
-		matched, err := qualifier.Eval(ctx, tCtx)
-		if err != nil {
-			return false
-		}
-		if !matched {
-			return false
-		}
-	}
-	return true
-}
-
-// QualifiesForDataPoint checks if the data point qualifies for the lookup
-func (lc *LookupConfig) QualifiesForDataPoint(ctx context.Context, tCtx ottldatapoint.TransformContext) bool {
-	if len(lc.MetricQualifiers) == 0 {
-		return true
-	}
-	for _, qualifier := range lc.ParsedMetricsQualifiers {
-		matched, err := qualifier.Eval(ctx, tCtx)
-		if err != nil {
-			return false
-		}
-		if !matched {
-			return false
-		}
-	}
-	return true
 }

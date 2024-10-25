@@ -55,9 +55,7 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 				lookupTables := *e.tracesLookupConfigs
 				if len(lookupTables) > 0 {
 					for _, lookupConfig := range lookupTables {
-						if lookupConfig.QualifiesForSpanRecord(context.Background(), transformCtx) {
-							lookupConfig.ExecuteSpansRule(context.Background(), transformCtx, sr)
-						}
+						lookupConfig.ExecuteSpansRules(context.Background(), transformCtx, sr)
 					}
 				}
 				e.traceTransformations.ExecuteSpanTransforms(e.ottlProcessed, transformCtx)

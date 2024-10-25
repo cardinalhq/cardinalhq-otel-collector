@@ -74,9 +74,7 @@ func (e *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 				lookupTables := *e.logsLookupConfigs
 				if len(lookupTables) > 0 {
 					for _, lookupConfig := range lookupTables {
-						if lookupConfig.QualifiesForLogRecord(context.Background(), transformCtx) {
-							lookupConfig.ExecuteLogsRule(context.Background(), transformCtx, lr)
-						}
+						lookupConfig.ExecuteLogsRules(context.Background(), transformCtx, lr)
 					}
 				}
 				e.logTransformations.ExecuteLogTransforms(e.ottlProcessed, transformCtx)

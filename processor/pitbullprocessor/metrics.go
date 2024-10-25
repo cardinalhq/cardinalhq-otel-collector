@@ -119,9 +119,7 @@ func (e *pitbull) evaluateLookupTables(transformCtx ottldatapoint.TransformConte
 	lookupTables := *e.metricsLookupConfigs
 	if len(lookupTables) > 0 {
 		for _, lookupConfig := range lookupTables {
-			if lookupConfig.QualifiesForDataPoint(context.Background(), transformCtx) {
-				lookupConfig.ExecuteMetricsRule(context.Background(), transformCtx, handlerFunc)
-			}
+			lookupConfig.ExecuteMetricsRules(context.Background(), transformCtx, handlerFunc)
 		}
 	}
 }

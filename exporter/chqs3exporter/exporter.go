@@ -284,9 +284,11 @@ func (e *s3Exporter) saveAndUploadParquet(ids string, interval int64) error {
 			logger.Error("Failed to unmarshal table", zap.Error(err))
 			return false, err
 		}
-		if !ensureCustomerID(tableRows, customerID, logger) {
-			logger.Error("Customer ID mismatch", zap.String("expectedCustomerID", customerID))
-			return false, fmt.Errorf("customer ID mismatch")
+		if e.config == nil || e.config.S3Uploader.CustomerKey == "" {
+			if !ensureCustomerID(tableRows, customerID, logger) {
+				logger.Error("Customer ID mismatch", zap.String("expectedCustomerID", customerID))
+				return false, fmt.Errorf("customer ID mismatch")
+			}
 		}
 		logger.Debug("Writing rows", zap.Int("count", len(tableRows)))
 		if _, err := writer.WriteRows(tableRows); err != nil {

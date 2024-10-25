@@ -15,7 +15,7 @@
 
 dist:
   name: cardinalhq-otel-collector
-  output_path: ./bin
+  output_path: ./distribution
   #version: v0.0.0-dev
 
 receivers:
@@ -95,7 +95,7 @@ connectors:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/connector/spanmetricsconnector v0.110.0
   - gomod: go.opentelemetry.io/collector/connector/forwardconnector v0.111.0
 
-# note: these are releative to the build directory, which is "./bin"
+# note: these are releative to the build directory, which is "./distribution"
 replaces:
   - github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
   - github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awsfirehosereceiver v0.110.0 => github.com/cardinalhq/opentelemetry-collector-contrib/receiver/awsfirehosereceiver 69b6b3122f1c810efdb17984f201bb013d5a862f

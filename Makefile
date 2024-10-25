@@ -23,14 +23,13 @@ OTEL_VERSION=v0.111.0
 BINARIES = cardinalhq-otel-collector
 
 MODULE_SOURCE_PATHS = `ls -1d {receiver,processor,exporter,extension}/*` internal
+SUMFILES = $(shell ls -1 {receiver,processor,exporter,extension}/*/go.sum internal/go.sum)
 
 #
 # Below here lies magic...
 #
 
-all_deps := $(shell find . -name '*.yaml') Dockerfile-dist Makefile
-
-now := $(shell date -u +%Y%m%dT%H%M%S)
+all_deps := $(shell find . -name '*.yaml') Dockerfile Makefile distribution/main.go
 
 #
 # Default target.
@@ -78,14 +77,16 @@ tidy:
 	done
 
 .PHONY: buildfiles
-buildfiles:
-	rm -rf bin/* dist/*
-	CGO_ENABLED=0 go run go.opentelemetry.io/collector/cmd/builder@${OTEL_VERSION} --config cardinalhq-otel-collector.yaml --skip-compilation
+buildfiles: ${SUMFILES} distribution/main.go
+	rm -rf dist/*
+
+distribution/main.go: ${SUMFILES}
+	go run go.opentelemetry.io/collector/cmd/builder@${OTEL_VERSION} --config cardinalhq-otel-collector.yaml --skip-compilation
 
 # requires otel builder to be installed.
 # go install go.opentelemetry.io/collector/cmd/builder@latest
-bin/cardinalhq-otel-collector: cardinalhq-otel-collector.yaml
-	CGO_ENABLED=0 go run go.opentelemetry.io/collector/cmd/builder@${OTEL_VERSION} --config cardinalhq-otel-collector.yaml 
+bin/cardinalhq-otel-collector: cardinalhq-otel-collector.yaml distribution/main.go
+	(cd distribution ; CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o ../$@ .)
 
 #
 # Multi-architecture image builds

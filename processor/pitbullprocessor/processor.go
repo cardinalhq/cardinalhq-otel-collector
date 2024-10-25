@@ -21,7 +21,6 @@ import (
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
-	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -143,13 +142,4 @@ func (e *pitbull) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 		e.updateMetricTransformation(sc, e.logger)
 	}
 	e.logger.Info("Configuration updated")
-}
-
-func ToMap(attributes pcommon.Map) map[string]string {
-	result := make(map[string]string)
-	attributes.Range(func(k string, v pcommon.Value) bool {
-		result[k] = v.AsString()
-		return true
-	})
-	return result
 }

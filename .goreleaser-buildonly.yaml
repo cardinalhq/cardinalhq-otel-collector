@@ -19,5 +19,3 @@ builds:
       - CGO_ENABLED=0
 release:
   disable: true
-artifacts:
-  disable: true

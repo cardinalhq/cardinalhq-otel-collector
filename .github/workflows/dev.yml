@@ -24,11 +24,31 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Go
+        # no cache here intentionally
         id: go
         uses: actions/setup-go@v5
         with:
           go-version: stable
-          cache-dependency-path: "**/*.sum"
+
+      - name: go-cache-paths
+        id: go-cache-paths
+        run: |
+          echo "go-build=$(go env GOCACHE)" >> $GITHUB_OUTPUT
+          echo "go-mod=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
+
+      - name: Go Build Cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-build }}
+          key: ${{ runner.os }}-go-build }}
+
+      - name: Set up QEMU
+        id: qemu
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Configure AWS credentials
         id: aws-credentials
@@ -47,14 +67,6 @@ jobs:
         with:
           registry-type: public
     
-      - name: Set up QEMU
-        id: qemu
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Run GoReleaser
         id: goreleaser
         uses: goreleaser/goreleaser-action@v6

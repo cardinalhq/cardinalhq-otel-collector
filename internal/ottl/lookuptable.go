@@ -40,6 +40,8 @@ type LookupKey struct {
 	ParsedMetricExpression *ottl.Statement[ottldatapoint.TransformContext]
 }
 
+//TODO: Read the LookupTable from RDS on the `external_api` and only send the `TransposedLookupTable` down to the collector.
+
 type LookupTable []map[string]string
 
 type TransposedLookupTable map[string]map[string]string

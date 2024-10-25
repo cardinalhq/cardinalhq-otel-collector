@@ -1,0 +1,23 @@
+project_name: cardinalhq-otel-collector
+version: 2
+builds:
+  - id: cardinalhq-otel-collector
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+      - s390x
+    dir: distribution
+    binary: cardinalhq-otel-collector
+    ldflags:
+      - -s
+      - -w
+    flags:
+      - -trimpath
+    env:
+      - CGO_ENABLED=0
+release:
+  disable: true
+artifacts:
+  disable: true

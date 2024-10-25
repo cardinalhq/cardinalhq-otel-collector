@@ -1,4 +1,4 @@
-name: goreleaser-dev
+name: goreleaser-latest-dev
 
 on:
   push:

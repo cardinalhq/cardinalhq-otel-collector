@@ -33,7 +33,6 @@ func TestExtractMetricsFromLogs_MultipleLogsMatchingCondition(t *testing.T) {
 
 	extractorConfigs := []ottl.MetricExtractorConfig{
 		{
-			Route:       "route-1",
 			MetricName:  "test_metric",
 			MetricUnit:  "ms",
 			MetricType:  gaugeDoubleType,

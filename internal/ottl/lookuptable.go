@@ -49,7 +49,7 @@ type TransposedLookupTable map[string]map[string]string
 
 type LookupRule struct {
 	FieldNamesToSet []string               `json:"fieldNameToSet"`
-	Keys            []*LookupKey           `json:"conditions"`
+	Keys            []*LookupKey           `json:"lookupKeys"`
 	Transposed      *TransposedLookupTable // make a special transposed table for this rule, to speed up lookups.
 }
 

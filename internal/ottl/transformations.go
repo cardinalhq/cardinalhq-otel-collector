@@ -181,6 +181,9 @@ func ToFactory[T any]() map[string]ottl.Factory[T] {
 	valueFactory := newValueFactory[T]()
 	factoryMap[valueFactory.Name()] = valueFactory
 
+	hasFactory := functions.NewExistsFactory[T]()
+	factoryMap[hasFactory.Name()] = hasFactory
+
 	return factoryMap
 }
 

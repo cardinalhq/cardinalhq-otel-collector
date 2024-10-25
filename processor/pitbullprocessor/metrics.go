@@ -16,7 +16,6 @@ package pitbullprocessor
 
 import (
 	"context"
-
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
@@ -54,6 +53,9 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 				case pmetric.MetricTypeGauge:
 					m.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
 						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
+						e.evaluateLookupTables(transformCtx, func(tagToSet string, targetValue string) {
+							dp.Attributes().PutStr(tagToSet, targetValue)
+						})
 						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
@@ -61,6 +63,9 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 				case pmetric.MetricTypeSum:
 					m.Sum().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
 						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
+						e.evaluateLookupTables(transformCtx, func(tagToSet string, targetValue string) {
+							dp.Attributes().PutStr(tagToSet, targetValue)
+						})
 						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
@@ -68,6 +73,9 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 				case pmetric.MetricTypeHistogram:
 					m.Histogram().DataPoints().RemoveIf(func(dp pmetric.HistogramDataPoint) bool {
 						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
+						e.evaluateLookupTables(transformCtx, func(tagToSet string, targetValue string) {
+							dp.Attributes().PutStr(tagToSet, targetValue)
+						})
 						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
@@ -75,6 +83,9 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 				case pmetric.MetricTypeSummary:
 					m.Summary().DataPoints().RemoveIf(func(dp pmetric.SummaryDataPoint) bool {
 						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
+						e.evaluateLookupTables(transformCtx, func(tagToSet string, targetValue string) {
+							dp.Attributes().PutStr(tagToSet, targetValue)
+						})
 						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
@@ -82,6 +93,9 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 				case pmetric.MetricTypeExponentialHistogram:
 					m.ExponentialHistogram().DataPoints().RemoveIf(func(dp pmetric.ExponentialHistogramDataPoint) bool {
 						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
+						e.evaluateLookupTables(transformCtx, func(tagToSet string, targetValue string) {
+							dp.Attributes().PutStr(tagToSet, targetValue)
+						})
 						e.metricTransformations.ExecuteDatapointTransforms(e.ottlProcessed, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
@@ -101,7 +115,18 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 	return md, nil
 }
 
-func (e *pitbull) updateMetricTransformation(sc ottl.ControlPlaneConfig) {
+func (e *pitbull) evaluateLookupTables(transformCtx ottldatapoint.TransformContext, handlerFunc func(tagToSet string, targetValue string)) {
+	lookupTables := *e.metricsLookupConfigs
+	if len(lookupTables) > 0 {
+		for _, lookupConfig := range lookupTables {
+			if lookupConfig.QualifiesForDataPoint(context.Background(), transformCtx) {
+				lookupConfig.ExecuteMetricsRule(e.logger, context.Background(), transformCtx, handlerFunc)
+			}
+		}
+	}
+}
+
+func (e *pitbull) updateMetricTransformation(sc ottl.ControlPlaneConfig, logger *zap.Logger) {
 	e.Lock()
 	defer e.Unlock()
 	e.logger.Info("Updating metrics transformations", zap.Int("num_decorators", len(sc.Metrics.Decorators)))
@@ -122,4 +147,10 @@ func (e *pitbull) updateMetricTransformation(sc ottl.ControlPlaneConfig) {
 	oldTransformation := e.metricTransformations
 	e.metricTransformations = newTransformations
 	oldTransformation.Stop()
+
+	if len(sc.MetricsLookupConfigs) > 0 {
+		for _, lookupConfig := range sc.MetricsLookupConfigs {
+			lookupConfig.Init(logger)
+		}
+	}
 }

@@ -54,6 +54,15 @@ type pitbull struct {
 	// for metrics
 	metricTransformations ottl.Transformations
 
+	// lookup tables for logs
+	logsLookupConfigs *[]ottl.LookupConfig
+
+	// lookup tables for metrics
+	metricsLookupConfigs *[]ottl.LookupConfig
+
+	// lookup tables for traces
+	tracesLookupConfigs *[]ottl.LookupConfig
+
 	ottlProcessed *telemetry.DeferrableInt64Counter
 }
 
@@ -127,11 +136,11 @@ func (e *pitbull) Shutdown(ctx context.Context) error {
 func (e *pitbull) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 	switch e.ttype {
 	case "logs":
-		e.updateLogTransformations(sc)
+		e.updateLogTransformations(sc, e.logger)
 	case "traces":
-		e.updateTraceTransformations(sc)
+		e.updateTraceTransformations(sc, e.logger)
 	case "metrics":
-		e.updateMetricTransformation(sc)
+		e.updateMetricTransformation(sc, e.logger)
 	}
 	e.logger.Info("Configuration updated")
 }

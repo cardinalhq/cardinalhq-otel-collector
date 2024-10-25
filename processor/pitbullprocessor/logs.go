@@ -71,9 +71,17 @@ func (e *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 
 			sl.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
 				transformCtx := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
+				lookupTables := *e.logsLookupConfigs
+				if len(lookupTables) > 0 {
+					for _, lookupConfig := range lookupTables {
+						if lookupConfig.QualifiesForLogRecord(context.Background(), transformCtx) {
+							lookupConfig.ExecuteLogsRule(e.logger, context.Background(), transformCtx, lr)
+						}
+					}
+				}
 				e.logTransformations.ExecuteLogTransforms(e.ottlProcessed, transformCtx)
-				_, found := lr.Attributes().Get(translate.CardinalFieldDropMarker)
-				return found
+				_, dropMe := lr.Attributes().Get(translate.CardinalFieldDropMarker)
+				return dropMe
 			})
 			return sl.LogRecords().Len() == 0
 		})
@@ -92,7 +100,7 @@ func removeAllCardinalFields(attr pcommon.Map) {
 	})
 }
 
-func (e *pitbull) updateLogTransformations(sc ottl.ControlPlaneConfig) {
+func (e *pitbull) updateLogTransformations(sc ottl.ControlPlaneConfig, logger *zap.Logger) {
 	e.Lock()
 	defer e.Unlock()
 	e.logger.Info("Updating log transformations", zap.Int("num_decorators", len(sc.Logs.Decorators)))
@@ -113,4 +121,10 @@ func (e *pitbull) updateLogTransformations(sc ottl.ControlPlaneConfig) {
 	oldTransformation := e.logTransformations
 	e.logTransformations = newTransformations
 	oldTransformation.Stop()
+
+	if len(sc.LogsLookupConfigs) > 0 {
+		for _, lookupConfig := range sc.LogsLookupConfigs {
+			lookupConfig.Init(logger)
+		}
+	}
 }

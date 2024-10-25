@@ -16,14 +16,16 @@ package extractmetricsprocessor
 
 import (
 	"context"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
-	"testing"
-	"time"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 )
 
 func TestExtractMetricsFromSpans_MultipleSpansMatchingCondition(t *testing.T) {
@@ -74,12 +76,7 @@ func TestExtractMetricsFromSpans_MultipleSpansMatchingCondition(t *testing.T) {
 
 	// Extract metrics
 	e := newSpansTestExtractor(configs)
-	metricsByRoute := e.extractMetricsFromSpans(context.Background(), traces)
-	assert.NotNil(t, metricsByRoute)
-	assert.Len(t, metricsByRoute, 1)
-	// check if metricByRoute has an entry for route-1
-	metrics, ok := metricsByRoute["route-1"]
-	assert.True(t, ok)
+	metrics := e.extractMetricsFromSpans(context.Background(), traces)
 	assert.Len(t, metrics, 1)
 	metric := metrics[0]
 	assert.NotNil(t, metric)

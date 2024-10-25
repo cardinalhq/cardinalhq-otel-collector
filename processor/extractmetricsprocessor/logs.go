@@ -16,30 +16,30 @@ package extractmetricsprocessor
 
 import (
 	"context"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
+	"time"
+
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
-	"time"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 func (e *extractor) ConsumeLogs(ctx context.Context, pl plog.Logs) (plog.Logs, error) {
-	metricsByRoute := e.extractMetricsFromLogs(ctx, pl)
-	if len(metricsByRoute) > 0 {
-		for route, metricsSet := range metricsByRoute {
-			for _, metrics := range metricsSet {
-				e.sendMetrics(ctx, route, metrics)
-			}
+	metrics := e.extractMetricsFromLogs(ctx, pl)
+	if len(metrics) > 0 {
+		for _, metric := range metrics {
+			e.sendMetrics(ctx, e.config.Route, metric)
 		}
 	}
 	return pl, nil
 }
 
-func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) map[string][]pmetric.Metrics {
-	var metricsMapByRoute = make(map[string][]pmetric.Metrics)
+func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []pmetric.Metrics {
+	var totalMetrics = []pmetric.Metrics{}
 
 	if e.logExtractors != nil && len(*e.logExtractors) > 0 {
 		for _, logExtractor := range *e.logExtractors {
@@ -95,10 +95,10 @@ func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) ma
 					resourceMetrics.MoveTo(metrics.ResourceMetrics().AppendEmpty())
 				}
 			}
-			metricsMapByRoute[logExtractor.Route] = append(metricsMapByRoute[logExtractor.Route], metrics)
+			totalMetrics = append(totalMetrics, metrics)
 		}
 	}
-	return metricsMapByRoute
+	return totalMetrics
 }
 
 func (e *extractor) logRecordToDataPoint(ctx context.Context, lex ottl.LogExtractor, lr plog.LogRecord, logCtx ottllog.TransformContext, dpSlice pmetric.NumberDataPointSlice) {

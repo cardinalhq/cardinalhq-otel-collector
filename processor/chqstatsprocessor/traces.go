@@ -66,13 +66,6 @@ func toSize(attributes map[string]interface{}) int64 {
 	return size
 }
 
-func getOrElse(m map[string]string, key string, defaultValue string) string {
-	if value, ok := m[key]; ok {
-		return value
-	}
-	return defaultValue
-}
-
 func (e *statsProc) recordSpan(now time.Time,
 	serviceName string,
 	fingerprint int64,

@@ -24,3 +24,5 @@ go.work
 buildtime
 
 bin
+
+dist/

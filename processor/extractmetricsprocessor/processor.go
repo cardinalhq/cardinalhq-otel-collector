@@ -20,14 +20,15 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/observiq/bindplane-agent/receiver/routereceiver"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 )
 
 type extractor struct {
@@ -50,8 +51,8 @@ func newExtractor(config *Config, ttype string, set processor.Settings) (*extrac
 		ttype:             ttype,
 		config:            config,
 		telemetrySettings: set.TelemetrySettings,
+		logger:            set.Logger,
 	}
-	e.configCallbackID = e.configExtension.RegisterCallback(e.id.String()+"/"+e.ttype, e.configUpdateCallback)
 
 	return e, nil
 }

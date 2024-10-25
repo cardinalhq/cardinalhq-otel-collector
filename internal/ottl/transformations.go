@@ -17,7 +17,6 @@ package ottl
 import (
 	"context"
 	"fmt"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl/functions"
 	"math/rand"
 
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl"
@@ -36,6 +35,7 @@ import (
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl/functions"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )

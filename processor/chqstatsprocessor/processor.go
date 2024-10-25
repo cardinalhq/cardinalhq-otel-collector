@@ -22,9 +22,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
-
 	"github.com/hashicorp/go-multierror"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
@@ -33,7 +30,9 @@ import (
 	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
 )
 

@@ -59,6 +59,8 @@ type LookupConfig struct {
 	SpanRules    []*LookupRule `json:"span_rules"`
 	MetricsRules []*LookupRule `json:"metrics_rules"`
 
+	// Qualifiers are conditions that need to be run to check if this lookup table should be used for this record.
+	// For example, check Exists(resource.attributes("service.name")) before running rules.
 	LogQualifiers    []string `json:"log_qualifiers"`
 	SpanQualifiers   []string `json:"span_qualifiers"`
 	MetricQualifiers []string `json:"metric_qualifiers"`

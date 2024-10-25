@@ -336,8 +336,6 @@ github.com/bmatcuk/doublestar/v4 v4.6.1 h1:FH9SifrbvJhnlQpztAx++wlkk70QBf0iBWDwN
 github.com/bmatcuk/doublestar/v4 v4.6.1/go.mod h1:xBQ8jztBU6kakFMg+8WGxn0c6z1fTSPVIjEY1Wr7jzc=
 github.com/briandowns/spinner v1.23.0 h1:alDF2guRWqa/FOZZYWjlMIx2L6H0wyewPxo/CH4Pt2A=
 github.com/briandowns/spinner v1.23.0/go.mod h1:rPG4gmXeN3wQV/TsAY4w8lPdIM6RX3yqeBQJSrbXjuE=
-github.com/cardinalhq/opentelemetry-collector-contrib/receiver/awsfirehosereceiver v0.0.0-20240905153247-69b6b3122f1c h1:SonCefy7q/vLV8mYfrlZv6jgRxWKX6VLwB8lYhbh3wI=
-github.com/cardinalhq/opentelemetry-collector-contrib/receiver/awsfirehosereceiver v0.0.0-20240905153247-69b6b3122f1c/go.mod h1:siUE6oVlzGr3R3SFetDEMXM1jsu+iOmKMP6HrbQidgE=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
 github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
@@ -1018,6 +1016,8 @@ github.com/open-telemetry/opentelemetry-collector-contrib/processor/tailsampling
 github.com/open-telemetry/opentelemetry-collector-contrib/processor/tailsamplingprocessor v0.110.0/go.mod h1:fMbX6TkiafPxvoBZTJNbFXSBS1eBCyEru4squ0SmVcM=
 github.com/open-telemetry/opentelemetry-collector-contrib/processor/transformprocessor v0.110.0 h1:7qIVo3gsBbNITaW1aWItNkDnFk/5TEb69MeQRZpSxSY=
 github.com/open-telemetry/opentelemetry-collector-contrib/processor/transformprocessor v0.110.0/go.mod h1:cPBwwiLx37z3wmsYFD/xJLnMsDNyIkuQMDMsxlabAgw=
+github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awsfirehosereceiver v0.110.0 h1:dBQeUO7Wbv8hU/npNTonAiIn2GbC0C0t7mxuSlFOQTI=
+github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awsfirehosereceiver v0.110.0/go.mod h1:CKkQ3kEEmDu4MCcGUYpND7klYBCeyJCLUrBrbcwUNY8=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/dockerstatsreceiver v0.110.0 h1:F78rIHhFzKDog+gyAD13Dn4glfrxLyzPrKIa9zRAAo8=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/dockerstatsreceiver v0.110.0/go.mod h1:71h/4mpoxwnYVx6KlQ1Z2vPoj3qdtdWHLyAlfOT9wGQ=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver v0.110.0 h1:7zepT1IUn3Y4xNfWpdNfp1Y0tnCON135BnD31qgCF2c=

@@ -527,5 +527,3 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitpr
 replace github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.110.0 => ../processor/extractmetricsprocessor
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
-
-replace github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awsfirehosereceiver v0.110.0 => github.com/cardinalhq/opentelemetry-collector-contrib/receiver/awsfirehosereceiver v0.0.0-20240905153247-69b6b3122f1c

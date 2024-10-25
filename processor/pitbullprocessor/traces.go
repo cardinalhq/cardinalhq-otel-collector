@@ -56,7 +56,7 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 				if len(lookupTables) > 0 {
 					for _, lookupConfig := range lookupTables {
 						if lookupConfig.QualifiesForSpanRecord(context.Background(), transformCtx) {
-							lookupConfig.ExecuteSpansRule(e.logger, context.Background(), transformCtx, sr)
+							lookupConfig.ExecuteSpansRule(context.Background(), transformCtx, sr)
 						}
 					}
 				}

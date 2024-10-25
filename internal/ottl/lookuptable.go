@@ -25,6 +25,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.uber.org/zap"
+	"strings"
 )
 
 type LookupCondition struct {
@@ -37,26 +38,70 @@ type LookupCondition struct {
 	ParsedMetricExpression *ottl.Statement[ottldatapoint.TransformContext]
 }
 
+type LookupTable []map[string]string
+
+type TransposedLookupTable map[string]map[string]string
+
 type LookupRule struct {
-	TagNameToSet string             `json:"tag_name"`
-	Conditions   []*LookupCondition `json:"conditions"`
+	TagNameToSet string                 `json:"tag_name"`
+	Conditions   []*LookupCondition     `json:"conditions"`
+	Transposed   *TransposedLookupTable // make a special transposed table for this rule, to speed up lookups.
 }
 
 type LookupConfig struct {
 	TableName string      `json:"table_name"`
 	Table     LookupTable `json:"table"`
 
-	LogRules     []LookupRule `json:"log_rules"`
-	SpanRules    []LookupRule `json:"span_rules"`
-	MetricsRules []LookupRule `json:"metrics_rules"`
+	LogRules     []*LookupRule `json:"log_rules"`
+	SpanRules    []*LookupRule `json:"span_rules"`
+	MetricsRules []*LookupRule `json:"metrics_rules"`
 
 	LogQualifiers    []string `json:"log_qualifiers"`
 	SpanQualifiers   []string `json:"span_qualifiers"`
 	MetricQualifiers []string `json:"metric_qualifiers"`
 
-	ParsedLogQualifiers    []*ottl.Condition[ottllog.TransformContext]
-	ParsedSpanQualifiers   []*ottl.Condition[ottlspan.TransformContext]
-	ParsedMetricQualifiers []*ottl.Condition[ottldatapoint.TransformContext]
+	ParsedLogQualifiers     []*ottl.Condition[ottllog.TransformContext]
+	ParsedSpanQualifiers    []*ottl.Condition[ottlspan.TransformContext]
+	ParsedMetricsQualifiers []*ottl.Condition[ottldatapoint.TransformContext]
+}
+
+// Helper function to create a key for the transposed map from conditions
+func createKey(conditions []string) string {
+	return strings.Join(conditions, "|")
+}
+
+// Transpose dynamically converts a regular LookupTable into a TransposedLookupTable using the provided condition columns
+func (lt LookupTable) Transpose(conditionColumns []string) *TransposedLookupTable {
+	transposed := TransposedLookupTable{}
+
+	for _, row := range lt {
+		// Create a dynamic key based on the condition columns
+		conditions := make([]string, 0)
+		for _, column := range conditionColumns {
+			conditions = append(conditions, column)
+			conditions = append(conditions, row[column])
+		}
+
+		// Insert the row into the transposed table using the dynamic key
+		key := createKey(conditions)
+		transposed[key] = row
+	}
+
+	return &transposed
+}
+
+// Lookup Optimized Lookup function for TransposedLookupTable using dynamic keys
+func (tlt TransposedLookupTable) Lookup(targetTagName string, conditions []string) (string, bool) {
+	// Create the lookup key from the conditions
+	key := createKey(conditions)
+
+	if row, exists := tlt[key]; exists {
+		if targetValue, exists := row[targetTagName]; exists {
+			return targetValue, true
+		}
+	}
+
+	return "", false
 }
 
 func (lc *LookupConfig) Init(logger *zap.Logger) {
@@ -68,6 +113,8 @@ func (lc *LookupConfig) Init(logger *zap.Logger) {
 			return
 		}
 		lc.ParsedLogQualifiers = qualifiers
+		conditionColumns := make([]string, 0)
+
 		for _, logRule := range lc.LogRules {
 			for _, condition := range logRule.Conditions {
 				parsedLogExpression, err := logParser.ParseStatement(fmt.Sprintf("value(%s)", condition.OTTLExpression))
@@ -75,56 +122,69 @@ func (lc *LookupConfig) Init(logger *zap.Logger) {
 					logger.Error("Error parsing log expression", zap.Error(logError))
 					return
 				}
+				conditionColumns = append(conditionColumns, condition.ColumnName)
 				condition.ParsedLogExpression = parsedLogExpression
 			}
+			t := lc.Table.Transpose(conditionColumns)
+			logRule.Transposed = t
 		}
 	}
 
 	// for spans
 	if len(lc.SpanRules) > 0 || len(lc.SpanQualifiers) > 0 {
 		spanParser, _ := ottlspan.NewParser(ToFactory[ottlspan.TransformContext](), component.TelemetrySettings{Logger: logger})
-		qualifiers, logError := spanParser.ParseConditions(lc.LogQualifiers)
-		if logError != nil {
-			logger.Error("Error parsing span qualifiers", zap.Error(logError))
+		qualifiers, spanError := spanParser.ParseConditions(lc.LogQualifiers)
+		if spanError != nil {
+			logger.Error("Error parsing span qualifiers", zap.Error(spanError))
 			return
 		}
 		lc.ParsedSpanQualifiers = qualifiers
-		for _, logRule := range lc.LogRules {
-			for _, condition := range logRule.Conditions {
+		conditionColumns := make([]string, 0)
+
+		for _, spanRule := range lc.SpanRules {
+			for _, condition := range spanRule.Conditions {
 				parsedSpanExpression, err := spanParser.ParseStatement(fmt.Sprintf("value(%s)", condition.OTTLExpression))
 				if err != nil {
-					logger.Error("Error parsing log expression", zap.Error(logError))
+					logger.Error("Error parsing span expression", zap.Error(spanError))
 					return
 				}
+				conditionColumns = append(conditionColumns, condition.ColumnName)
 				condition.ParsedSpanExpression = parsedSpanExpression
 			}
+			t := lc.Table.Transpose(conditionColumns)
+			spanRule.Transposed = t
 		}
 	}
 
 	// for metric data points
 	if len(lc.MetricsRules) > 0 || len(lc.MetricQualifiers) > 0 {
 		metricsParser, _ := ottldatapoint.NewParser(ToFactory[ottldatapoint.TransformContext](), component.TelemetrySettings{Logger: logger})
-		qualifiers, logError := metricsParser.ParseConditions(lc.MetricQualifiers)
-		if logError != nil {
-			logger.Error("Error parsing span qualifiers", zap.Error(logError))
+		qualifiers, spanError := metricsParser.ParseConditions(lc.MetricQualifiers)
+		if spanError != nil {
+			logger.Error("Error parsing metrics qualifiers", zap.Error(spanError))
 			return
 		}
-		lc.ParsedMetricQualifiers = qualifiers
-		for _, logRule := range lc.LogRules {
-			for _, condition := range logRule.Conditions {
-				parsedMetricExpression, err := metricsParser.ParseStatement(fmt.Sprintf("value(%s)", condition.OTTLExpression))
+		lc.ParsedMetricsQualifiers = qualifiers
+		conditionColumns := make([]string, 0)
+
+		for _, metricsRule := range lc.SpanRules {
+			for _, condition := range metricsRule.Conditions {
+				parsedMetricsExpression, err := metricsParser.ParseStatement(fmt.Sprintf("value(%s)", condition.OTTLExpression))
 				if err != nil {
-					logger.Error("Error parsing log expression", zap.Error(logError))
+					logger.Error("Error parsing metrics expression", zap.Error(spanError))
 					return
 				}
-				condition.ParsedMetricExpression = parsedMetricExpression
+				conditionColumns = append(conditionColumns, condition.ColumnName)
+				condition.ParsedMetricExpression = parsedMetricsExpression
 			}
+			t := lc.Table.Transpose(conditionColumns)
+			metricsRule.Transposed = t
 		}
 	}
 }
 
 // ExecuteLogsRule executes the log rules for the given record
-func (lc *LookupConfig) ExecuteLogsRule(logger *zap.Logger, ctx context.Context, tCtx ottllog.TransformContext, record plog.LogRecord) {
+func (lc *LookupConfig) ExecuteLogsRule(ctx context.Context, tCtx ottllog.TransformContext, record plog.LogRecord) {
 	for _, lr := range lc.LogRules {
 		tagToSet := lr.TagNameToSet
 		conditionsArray := make([]string, 0, len(lr.Conditions)*2)
@@ -144,7 +204,7 @@ func (lc *LookupConfig) ExecuteLogsRule(logger *zap.Logger, ctx context.Context,
 		if len(lr.Conditions) > 0 && len(conditionsArray) == 0 {
 			return
 		}
-		targetValue, found := lc.Table.Lookup(tagToSet, logger, conditionsArray)
+		targetValue, found := lr.Transposed.Lookup(tagToSet, conditionsArray)
 		if found {
 			record.Attributes().PutStr(tagToSet, targetValue)
 		}
@@ -152,7 +212,7 @@ func (lc *LookupConfig) ExecuteLogsRule(logger *zap.Logger, ctx context.Context,
 }
 
 // ExecuteSpansRule executes the span rules for the given record
-func (lc *LookupConfig) ExecuteSpansRule(logger *zap.Logger, ctx context.Context, tCtx ottlspan.TransformContext, record ptrace.Span) {
+func (lc *LookupConfig) ExecuteSpansRule(ctx context.Context, tCtx ottlspan.TransformContext, record ptrace.Span) {
 	for _, lr := range lc.SpanRules {
 		tagToSet := lr.TagNameToSet
 		conditionsArray := make([]string, 0, len(lr.Conditions)*2)
@@ -172,7 +232,7 @@ func (lc *LookupConfig) ExecuteSpansRule(logger *zap.Logger, ctx context.Context
 		if len(lr.Conditions) > 0 && len(conditionsArray) == 0 {
 			return
 		}
-		targetValue, found := lc.Table.Lookup(tagToSet, logger, conditionsArray)
+		targetValue, found := lr.Transposed.Lookup(tagToSet, conditionsArray)
 		if found {
 			record.Attributes().PutStr(tagToSet, targetValue)
 		}
@@ -180,7 +240,7 @@ func (lc *LookupConfig) ExecuteSpansRule(logger *zap.Logger, ctx context.Context
 }
 
 // ExecuteMetricsRule executes the metrics rules for the given record
-func (lc *LookupConfig) ExecuteMetricsRule(logger *zap.Logger, ctx context.Context, tCtx ottldatapoint.TransformContext, handlerFunc func(tagToSet string, targetValue string)) {
+func (lc *LookupConfig) ExecuteMetricsRule(ctx context.Context, tCtx ottldatapoint.TransformContext, handlerFunc func(tagToSet string, targetValue string)) {
 	for _, lr := range lc.MetricsRules {
 		tagToSet := lr.TagNameToSet
 		conditionsArray := make([]string, 0, len(lr.Conditions)*2)
@@ -200,31 +260,9 @@ func (lc *LookupConfig) ExecuteMetricsRule(logger *zap.Logger, ctx context.Conte
 		if len(lr.Conditions) > 0 && len(conditionsArray) == 0 {
 			return
 		}
-		targetValue, found := lc.Table.Lookup(tagToSet, logger, conditionsArray)
+		targetValue, found := lr.Transposed.Lookup(tagToSet, conditionsArray)
 		if found {
 			handlerFunc(tagToSet, targetValue)
-		}
-	}
-}
-
-// ExecuteDataPointRule executes the data point rules for the given record
-func (lc *LookupConfig) ExecuteDataPointRule(rules []LookupRule, logger *zap.Logger, ctx context.Context, tCtx ottlspan.TransformContext, record ptrace.Span) {
-	for _, lr := range rules {
-		tagToSet := lr.TagNameToSet
-		conditionsArray := make([]string, 0, len(lr.Conditions)*2)
-
-		for _, lookupCondition := range lr.Conditions {
-			attrVal, _, err := lookupCondition.ParsedSpanExpression.Execute(ctx, tCtx)
-			if err != nil {
-				return
-			}
-			if attrVal != nil {
-				conditionsArray = append(conditionsArray, lookupCondition.ColumnName, attrVal.(string))
-			}
-		}
-		targetValue, found := lc.Table.Lookup(tagToSet, logger, conditionsArray)
-		if found {
-			record.Attributes().PutStr(tagToSet, targetValue)
 		}
 	}
 }
@@ -268,7 +306,7 @@ func (lc *LookupConfig) QualifiesForDataPoint(ctx context.Context, tCtx ottldata
 	if len(lc.MetricQualifiers) == 0 {
 		return true
 	}
-	for _, qualifier := range lc.ParsedMetricQualifiers {
+	for _, qualifier := range lc.ParsedMetricsQualifiers {
 		matched, err := qualifier.Eval(ctx, tCtx)
 		if err != nil {
 			return false
@@ -278,47 +316,4 @@ func (lc *LookupConfig) QualifiesForDataPoint(ctx context.Context, tCtx ottldata
 		}
 	}
 	return true
-}
-
-type LookupTable []map[string]string
-
-// Lookup function that searches for a row matching the tagName-value pairs and returns the value of the targetTagName column
-func (lt LookupTable) Lookup(targetTagName string, logger *zap.Logger, conditions []string) (string, bool) {
-	// If no conditions are provided, return the first occurrence of the targetTagName
-	if len(conditions) == 0 {
-		for _, row := range lt {
-			if targetValue, exists := row[targetTagName]; exists {
-				return targetValue, true
-			}
-		}
-		return "", false
-	}
-
-	if len(conditions)%2 != 0 {
-		logger.Warn("Invalid conditions: each tag name must be followed by a value")
-		return "", false
-	}
-
-	for _, row := range lt {
-		matches := true
-		for i := 0; i < len(conditions); i += 2 {
-			tagName := conditions[i]
-			value := conditions[i+1]
-
-			if row[tagName] != value {
-				matches = false
-				break
-			}
-		}
-
-		if matches {
-			targetValue, exists := row[targetTagName]
-			if exists {
-				return targetValue, true
-			}
-			return "", false
-		}
-	}
-
-	return "", false
 }

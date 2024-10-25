@@ -53,7 +53,7 @@ func TestLookupTableBasic(t *testing.T) {
 	lookupConfig := ottl.LookupConfig{
 		TableName:     "test_table",
 		Table:         lookupTable,
-		LogRules:      []ottl.LookupRule{rule},
+		LogRules:      []*ottl.LookupRule{&rule},
 		LogQualifiers: []string{`Exists(resource.attributes["service.name"])`},
 	}
 
@@ -66,7 +66,7 @@ func TestLookupTableBasic(t *testing.T) {
 
 	transformCtx := ottllog.NewTransformContext(logRecord, sl.Scope(), rl.Resource(), sl, rl)
 	assert.True(t, lookupConfig.QualifiesForLogRecord(context.Background(), transformCtx))
-	lookupConfig.ExecuteLogsRule(logger, context.Background(), transformCtx, logRecord)
+	lookupConfig.ExecuteLogsRule(context.Background(), transformCtx, logRecord)
 
 	teamAttr, found := logRecord.Attributes().Get("team")
 	assert.True(t, found, "Expected 'team' attribute to be found")
@@ -93,7 +93,7 @@ func TestLookupTableBasicWithErrorInCondition(t *testing.T) {
 	lookupConfig := ottl.LookupConfig{
 		TableName:     "test_table",
 		Table:         lookupTable,
-		LogRules:      []ottl.LookupRule{rule},
+		LogRules:      []*ottl.LookupRule{&rule},
 		LogQualifiers: []string{`Exists(resource.attributes['service.name'])`},
 	}
 
@@ -105,7 +105,7 @@ func TestLookupTableBasicWithErrorInCondition(t *testing.T) {
 	rl.Resource().Attributes().PutStr("service.name", "service1")
 
 	transformCtx := ottllog.NewTransformContext(logRecord, sl.Scope(), rl.Resource(), sl, rl)
-	lookupConfig.ExecuteLogsRule(logger, context.Background(), transformCtx, logRecord)
+	lookupConfig.ExecuteLogsRule(context.Background(), transformCtx, logRecord)
 
 	_, found := logRecord.Attributes().Get("team")
 	assert.False(t, found, "Expected 'team' attribute to be found")
@@ -143,7 +143,7 @@ func TestLookupTableMultipleConditions(t *testing.T) {
 	lookupConfig := ottl.LookupConfig{
 		TableName:     "test_table",
 		Table:         lookupTable,
-		LogRules:      []ottl.LookupRule{rule},
+		LogRules:      []*ottl.LookupRule{&rule},
 		LogQualifiers: []string{`Exists(resource.attributes["service.name"]) and Exists(resource.attributes["business.unit"])`},
 	}
 
@@ -157,7 +157,7 @@ func TestLookupTableMultipleConditions(t *testing.T) {
 
 	transformCtx := ottllog.NewTransformContext(logRecord, sl.Scope(), rl.Resource(), sl, rl)
 	assert.True(t, lookupConfig.QualifiesForLogRecord(context.Background(), transformCtx))
-	lookupConfig.ExecuteLogsRule(logger, context.Background(), transformCtx, logRecord)
+	lookupConfig.ExecuteLogsRule(context.Background(), transformCtx, logRecord)
 
 	teamAttr, found := logRecord.Attributes().Get("team")
 	assert.True(t, found, "Expected 'team' attribute to be found")
@@ -187,7 +187,7 @@ func TestLookupTableNegativeCondition(t *testing.T) {
 	lookupConfig := ottl.LookupConfig{
 		TableName:     "test_table",
 		Table:         lookupTable,
-		LogRules:      []ottl.LookupRule{rule},
+		LogRules:      []*ottl.LookupRule{&rule},
 		LogQualifiers: []string{`Exists(resource.attributes["service.name"]) and Exists(resource.attributes["business.unit"])`},
 	}
 
@@ -202,7 +202,7 @@ func TestLookupTableNegativeCondition(t *testing.T) {
 
 	transformCtx := ottllog.NewTransformContext(logRecord, sl.Scope(), rl.Resource(), sl, rl)
 	assert.True(t, lookupConfig.QualifiesForLogRecord(context.Background(), transformCtx))
-	lookupConfig.ExecuteLogsRule(logger, context.Background(), transformCtx, logRecord)
+	lookupConfig.ExecuteLogsRule(context.Background(), transformCtx, logRecord)
 
 	_, found := logRecord.Attributes().Get("team")
 	assert.False(t, found, "Expected 'team' attribute NOT to be found since the conditions do not match")

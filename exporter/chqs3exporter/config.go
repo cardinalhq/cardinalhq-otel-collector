@@ -18,6 +18,7 @@ type S3UploaderConfig struct {
 	S3Bucket         string `mapstructure:"s3_bucket"`
 	S3Prefix         string `mapstructure:"s3_prefix"`
 	S3Partition      string `mapstructure:"s3_partition"`
+	CustomerKey      string `mapstructure:"customer_key"`
 	FilePrefix       string `mapstructure:"file_prefix"`
 	Endpoint         string `mapstructure:"endpoint"`
 	RoleArn          string `mapstructure:"role_arn"`

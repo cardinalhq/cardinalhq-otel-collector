@@ -49,9 +49,6 @@ func getFingerprint(l pcommon.Map) int64 {
 }
 
 func (e *statsProc) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
-	e.Lock()
-	defer e.Unlock()
-
 	now := time.Now()
 
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {

@@ -36,7 +36,7 @@ func createMockGeoIP2DB() *geoip2.Reader {
 }
 
 func testFile(file string) string {
-	return filepath.Join("geo-data", file)
+	return filepath.Join("metadata", file)
 }
 
 func Test_IpLocation_ValidIP(t *testing.T) {

@@ -21,6 +21,8 @@ func factories[K any]() []ottl.Factory[K] {
 		NewCidrMatchFactory[K](),
 		NewIpLocationFactory[K](),
 		NewIsInFactory[K](),
+		NewExistsFactory[K](),
+		NewDeriveSourceTypeFactory[K](),
 	}
 }
 

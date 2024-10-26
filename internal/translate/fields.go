@@ -69,6 +69,7 @@ const (
 	CardinalFieldCustomerName      = CardinalFieldPrefixDot + "customer_name"
 	CardinalFieldCollectorID       = CardinalFieldPrefixDot + "collector_id"
 	CardinalFieldDropMarker        = CardinalFieldPrefixDot + "drop_marker"
+	CardinalFieldReceiverType      = CardinalFieldPrefixDot + "receiver_type"
 
 	CardinalMetricTypeCount                = "count"
 	CardinalMetricTypeExponentialHistogram = "exponential_histogram"

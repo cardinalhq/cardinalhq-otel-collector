@@ -1,6 +1,5 @@
 patterns:
-  - receiverType: "awsfirehose"
-    sourceTypes:
+  - sourceTypes:
       - grokExpr: "%{NUMBER:version} +%{NUMBER:accountId} +%{DATA:interfaceId} +%{IPV4:sourceIp} +%{IPV4:destinationIp} +%{NUMBER:sourcePort} +%{NUMBER:destinationPort} +%{NUMBER:protocol} +%{NUMBER:packets} +%{NUMBER:bytes} +%{NUMBER:startTime} +%{NUMBER:endTime} +%{WORD:action} +%{WORD:status}"
         mandatoryFields:
           - version
@@ -18,3 +17,5 @@ patterns:
           - action
           - status
         type: "vpcFlowLogs"
+        receiverTypes:
+          - "awsfirehose"

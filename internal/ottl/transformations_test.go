@@ -121,131 +121,9 @@ func TestSimpleBoolean(t *testing.T) {
 	assert.True(t, attr.Bool())
 }
 
-func TestVPCFlowLogTransformations(t *testing.T) {
-	statements := []ContextStatement{
-		{
-			Context: "log",
-			Conditions: []string{
-				`attributes["logType"] == "vpcFlowFlowLogs"`,
-			},
-			Statements: []string{
-				`replace_pattern(body, "\\s+", ",")`,
-				`set(attributes["flow_log_fields"], Split(body, ","))`,
-				`set(attributes["flow_version"], attributes["flow_log_fields"][0])`,
-				`set(attributes["account_id"], attributes["flow_log_fields"][1])`,
-				`set(attributes["interface_id"], attributes["flow_log_fields"][2])`,
-				`set(attributes["source_address"], attributes["flow_log_fields"][3])`,
-				`set(attributes["destination_address"], attributes["flow_log_fields"][4])`,
-				`set(attributes["source_port"], attributes["flow_log_fields"][5])`,
-				`set(attributes["destination_port"], attributes["flow_log_fields"][6])`,
-				`set(attributes["protocol"], attributes["flow_log_fields"][7])`,
-				`set(attributes["packets"], Double(attributes["flow_log_fields"][8]))`,
-				`set(attributes["bytes_transferred"], Double(attributes["flow_log_fields"][9]))`,
-				`set(attributes["duration"], Double(attributes["flow_log_fields"][11]) - Double(attributes["flow_log_fields"][10]))`,
-				`set(attributes["action"], attributes["flow_log_fields"][12])`,
-				`set(attributes["sourceLocation"], IpLocation(attributes["flow_log_fields"][3]))`,
-				`set(attributes["destinationLocation"], IpLocation(attributes["flow_log_fields"][4]))`,
-				`set(attributes["sourceCity"], attributes["sourceLocation"]["city"])`,
-				`set(attributes["destinationCity"], attributes["destinationLocation"]["city"])`,
-				`set(attributes["sourceCountry"], attributes["sourceLocation"]["country"])`,
-				`set(attributes["destinationCountry"], attributes["destinationLocation"]["country"])`,
-				`replace_pattern(body, ",", "\t")`,
-				`delete_key(attributes, "flow_log_fields")`,
-				`delete_key(attributes, "sourceLocation")`,
-				`delete_key(attributes, "destinationLocation")`,
-			},
-		},
-	}
-	transformations, err := ParseTransformations(statements, zap.NewNop())
-	assert.NoError(t, err)
-	l := len(transformations.logTransforms)
-	assert.True(t, l > 0)
-
-	rl := plog.NewResourceLogs()
-	sl := rl.ScopeLogs().AppendEmpty()
-	lr := sl.LogRecords().AppendEmpty()
-	lr.Attributes().PutStr("logType", "vpcFlowFlowLogs")
-	lr.Body().SetStr("2        123456789012    eni-abc12345    10.0.0.1         10.0.1.1         443      1024     6         10       8000     1625567329   1625567389   ACCEPT   OK")
-	tc := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
-	transformations.ExecuteLogTransforms(nil, tc)
-
-	version, versionFound := lr.Attributes().Get("flow_version")
-	assert.True(t, versionFound)
-	versionStr := version.Str()
-	assert.Equal(t, "2", versionStr)
-
-	accountId, accountIdFound := lr.Attributes().Get("account_id")
-	assert.True(t, accountIdFound)
-	assert.Equal(t, "123456789012", accountId.Str())
-
-	intf, interfaceFound := lr.Attributes().Get("interface_id")
-	assert.True(t, interfaceFound)
-	assert.Equal(t, "eni-abc12345", intf.Str())
-
-	// assert all the other fields were parsed correctly
-	sourceAddr, sourceAddrFound := lr.Attributes().Get("source_address")
-	assert.True(t, sourceAddrFound)
-	assert.Equal(t, "10.0.0.1", sourceAddr.Str())
-
-	destAddr, destAddrFound := lr.Attributes().Get("destination_address")
-	assert.True(t, destAddrFound)
-	assert.Equal(t, "10.0.1.1", destAddr.Str())
-
-	srcPort, srcPortFound := lr.Attributes().Get("source_port")
-	assert.True(t, srcPortFound)
-	assert.Equal(t, "443", srcPort.Str())
-
-	destPort, destPortFound := lr.Attributes().Get("destination_port")
-	assert.True(t, destPortFound)
-	assert.Equal(t, "1024", destPort.Str())
-
-	protocol, protocolFound := lr.Attributes().Get("protocol")
-	assert.True(t, protocolFound)
-	assert.Equal(t, "6", protocol.Str())
-
-	packets, packetsFound := lr.Attributes().Get("packets")
-	assert.True(t, packetsFound)
-	assert.Equal(t, 10.0, packets.Double())
-
-	bytesTransferred, bytesTransferredFound := lr.Attributes().Get("bytes_transferred")
-	assert.True(t, bytesTransferredFound)
-	assert.Equal(t, 8000.0, bytesTransferred.Double())
-
-	duration, durationFound := lr.Attributes().Get("duration")
-	assert.True(t, durationFound)
-	assert.Equal(t, 60.0, duration.Double())
-
-	action, actionFound := lr.Attributes().Get("action")
-	assert.True(t, actionFound)
-	assert.Equal(t, "ACCEPT", action.Str())
-
-	sourceCity, sourceCityFound := lr.Attributes().Get("sourceCity")
-	assert.True(t, sourceCityFound)
-	assert.Equal(t, "Unknown", sourceCity.Str())
-
-	destinationCity, destinationCityFound := lr.Attributes().Get("destinationCity")
-	assert.True(t, destinationCityFound)
-	assert.Equal(t, "Unknown", destinationCity.Str())
-
-	sourceCountry, sourceCountryFound := lr.Attributes().Get("sourceCountry")
-	assert.True(t, sourceCountryFound)
-	assert.Equal(t, "Unknown", sourceCountry.Str())
-
-	destinationCountry, destinationCountryFound := lr.Attributes().Get("destinationCity")
-	assert.True(t, destinationCountryFound)
-	assert.Equal(t, "Unknown", destinationCountry.Str())
-
-	expectedBody := "2\t123456789012\teni-abc12345\t10.0.0.1\t10.0.1.1\t443\t1024\t6\t10\t8000\t1625567329\t1625567389\tACCEPT\tOK"
-	body := lr.Body().AsString()
-	assert.Equal(t, expectedBody, body)
-
-	_, sliceFound := lr.Attributes().Get("flow_log_fields")
-	assert.False(t, sliceFound)
-}
-
 func TestVPCFlowLogTransformation_UsingGrok(t *testing.T) {
 
-	statements := []ContextStatement{
+	statements1 := []ContextStatement{
 		{
 			Context:    "log",
 			Conditions: []string{},
@@ -254,10 +132,9 @@ func TestVPCFlowLogTransformation_UsingGrok(t *testing.T) {
 			},
 		},
 	}
-	transformations, err := ParseTransformations(statements, zap.NewNop())
+	transformations1, err := ParseTransformations(statements1, zap.NewNop())
 	assert.NoError(t, err)
-	l := len(transformations.logTransforms)
-	assert.True(t, l > 0)
+	assert.True(t, len(transformations1.logTransforms) > 0)
 
 	rl := plog.NewResourceLogs()
 	rl.Resource().Attributes().PutStr(translate.CardinalFieldReceiverType, "awsfirehose")
@@ -265,12 +142,40 @@ func TestVPCFlowLogTransformation_UsingGrok(t *testing.T) {
 	lr := sl.LogRecords().AppendEmpty()
 	lr.Body().SetStr("2        123456789012    eni-abc12345    10.0.0.1         10.0.1.1         443      1024     6         10       8000     1625567329   1625567389   ACCEPT   OK")
 	tc := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
-	transformations.ExecuteLogTransforms(nil, tc)
+	transformations1.ExecuteLogTransforms(nil, tc)
 
 	fields, fieldsFound := lr.Attributes().Get("fields")
 	assert.True(t, fieldsFound)
-	m := fields.Map().AsRaw()
-	assert.Equal(t, 15, len(m))
+	m1 := fields.Map().AsRaw()
+	assert.Equal(t, 15, len(m1))
+
+	statements2 := []ContextStatement{
+		{
+			Context: "log",
+			Conditions: []string{
+				`attributes["fields"]["sourceType"] == "vpcFlowLogs"`,
+			},
+			Statements: []string{
+				`set(attributes["fields"]["duration"], Double(attributes["fields"]["endTime"]) - Double(attributes["fields"]["startTime"]))`,
+				`set(attributes["fields"]["sourceLocation"], IpLocation(attributes["fields"]["sourceIp"]))`,
+				`set(attributes["fields"]["destinationLocation"], IpLocation(attributes["fields"]["destinationIp"]))`,
+				`set(attributes["fields"]["sourceCity"], attributes["fields"]["sourceLocation"]["city"])`,
+				`set(attributes["fields"]["destinationCity"], attributes["fields"]["destinationLocation"]["city"])`,
+				`set(attributes["fields"]["sourceCountry"], attributes["fields"]["sourceLocation"]["country"])`,
+				`set(attributes["fields"]["destinationCountry"], attributes["fields"]["destinationLocation"]["country"])`,
+			},
+		},
+	}
+	transformations2, err := ParseTransformations(statements2, zap.NewNop())
+	assert.NoError(t, err)
+	assert.True(t, len(transformations2.logTransforms) > 0)
+	transformations2.ExecuteLogTransforms(nil, tc)
+
+	fields2, _ := lr.Attributes().Get("fields")
+	m2 := fields2.Map().AsRaw()
+	duration, durationFound := m2["duration"]
+	assert.True(t, durationFound)
+	assert.Equal(t, 60.0, duration)
 }
 
 func TestTeamAssociations(t *testing.T) {

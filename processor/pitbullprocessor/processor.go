@@ -143,5 +143,5 @@ func (e *pitbull) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 	case "metrics":
 		e.updateMetricTransformation(configs, e.logger)
 	}
-	e.logger.Info("Configuration updated")
+	e.logger.Info("Configuration updated for processor instance", zap.String("instance", e.id.Name()))
 }

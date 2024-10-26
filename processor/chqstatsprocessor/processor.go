@@ -97,18 +97,6 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 	return dog, nil
 }
 
-func (e *statsProc) configUpdateCallback(cpc ottl.ControlPlaneConfig) {
-	configs := cpc.Stats[e.id.Name()]
-	switch e.ttype {
-	case "logs":
-		e.logStatsEnrichments = &configs.LogEnrichments
-	case "metrics":
-		e.metricsStatsEnrichments = &configs.MetricEnrichments
-	case "traces":
-		e.tracesStatsEnrichments = &configs.SpanEnrichments
-	}
-}
-
 func (e *statsProc) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: false}
 }
@@ -197,4 +185,18 @@ func ToAttributes(resource pcommon.Resource, scope pcommon.InstrumentationScope,
 	})
 
 	return attributes
+}
+
+func (e *statsProc) configUpdateCallback(cpc ottl.ControlPlaneConfig) {
+	configs := cpc.Stats[e.id.Name()]
+	switch e.ttype {
+	case "logs":
+		e.logStatsEnrichments = &configs.LogEnrichments
+	case "metrics":
+		e.metricsStatsEnrichments = &configs.MetricEnrichments
+	case "traces":
+		e.tracesStatsEnrichments = &configs.SpanEnrichments
+	}
+
+	e.logger.Info("Configuration updated for processor instance", zap.String("instance", e.id.Name()))
 }

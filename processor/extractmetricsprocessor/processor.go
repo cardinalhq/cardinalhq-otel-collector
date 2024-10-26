@@ -77,31 +77,6 @@ func (e *extractor) Shutdown(ctx context.Context) error {
 	return nil
 }
 
-func (e *extractor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
-	configs := sc.ExtractMetrics[e.id.Name()]
-
-	switch e.ttype {
-	case "logs":
-		parsedExtractors, err := ottl.ParseLogExtractorConfigs(configs.LogMetricExtractors, e.logger)
-		if err != nil {
-			e.logger.Error("Error parsing log extractor configurations", zap.Error(err))
-			return
-		}
-		e.logExtractors = ottl.ConvertToPointerArray(parsedExtractors)
-
-	case "traces":
-		parsedExtractors, err := ottl.ParseSpanExtractorConfigs(configs.SpanMetricExtractors, e.logger)
-		if err != nil {
-			e.logger.Error("Error parsing log extractor configurations", zap.Error(err))
-			return
-		}
-		e.spanExtractors = ottl.ConvertToPointerArray(parsedExtractors)
-
-	default: // ignore
-	}
-	e.logger.Info("Configuration updated")
-}
-
 func (e *extractor) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: false}
 }
@@ -156,4 +131,29 @@ func (e *extractor) sendMetrics(ctx context.Context, route string, metrics pmetr
 	if err != nil {
 		e.logger.Error("Failed to send metrics", zap.Error(err))
 	}
+}
+
+func (e *extractor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
+	configs := sc.ExtractMetrics[e.id.Name()]
+
+	switch e.ttype {
+	case "logs":
+		parsedExtractors, err := ottl.ParseLogExtractorConfigs(configs.LogMetricExtractors, e.logger)
+		if err != nil {
+			e.logger.Error("Error parsing log extractor configurations", zap.Error(err))
+			return
+		}
+		e.logExtractors = ottl.ConvertToPointerArray(parsedExtractors)
+
+	case "traces":
+		parsedExtractors, err := ottl.ParseSpanExtractorConfigs(configs.SpanMetricExtractors, e.logger)
+		if err != nil {
+			e.logger.Error("Error parsing log extractor configurations", zap.Error(err))
+			return
+		}
+		e.spanExtractors = ottl.ConvertToPointerArray(parsedExtractors)
+
+	default: // ignore
+	}
+	e.logger.Info("Configuration updated for processor instance", zap.String("instance", e.id.Name()))
 }

@@ -94,8 +94,8 @@ type transformations struct {
 	logger              *zap.Logger
 }
 
-func NewTransformations(logger *zap.Logger) transformations {
-	return transformations{
+func NewTransformations(logger *zap.Logger) *transformations {
+	return &transformations{
 		resourceTransforms:  make(map[RuleID]resourceTransform),
 		scopeTransforms:     make(map[RuleID]scopeTransform),
 		logTransforms:       make(map[RuleID]logTransform),
@@ -106,8 +106,8 @@ func NewTransformations(logger *zap.Logger) transformations {
 	}
 }
 
-func MergeWith(this transformations, other transformations) transformations {
-	return transformations{
+func MergeWith(this *transformations, other *transformations) *transformations {
+	return &transformations{
 		resourceTransforms:  merge(this.resourceTransforms, other.resourceTransforms),
 		scopeTransforms:     merge(this.scopeTransforms, other.scopeTransforms),
 		logTransforms:       merge(this.logTransforms, other.logTransforms),
@@ -203,7 +203,7 @@ func GetServiceName(resource pcommon.Resource) string {
 	return "unknown"
 }
 
-func ParseTransformations(statements []ContextStatement, logger *zap.Logger) (transformations, error) {
+func ParseTransformations(statements []ContextStatement, logger *zap.Logger) (*transformations, error) {
 	var errors error
 
 	resourceParser, _ := ottlresource.NewParser(ToFactory[ottlresource.TransformContext](), component.TelemetrySettings{Logger: logger})

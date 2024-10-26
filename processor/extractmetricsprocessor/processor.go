@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"sync"
 
 	"github.com/observiq/bindplane-agent/receiver/routereceiver"
 	"go.opentelemetry.io/collector/component"
@@ -32,6 +33,8 @@ import (
 )
 
 type extractor struct {
+	sync.RWMutex
+
 	config          *Config
 	logger          *zap.Logger
 	configExtension *chqconfigextension.CHQConfigExtension
@@ -41,8 +44,8 @@ type extractor struct {
 	telemetrySettings component.TelemetrySettings
 
 	configCallbackID int
-	logExtractors    *[]ottl.LogExtractor
-	spanExtractors   *[]ottl.SpanExtractor
+	logExtractors    []ottl.LogExtractor
+	spanExtractors   []ottl.SpanExtractor
 }
 
 func newExtractor(config *Config, ttype string, set processor.Settings) (*extractor, error) {
@@ -135,6 +138,7 @@ func (e *extractor) sendMetrics(ctx context.Context, route string, metrics pmetr
 
 func (e *extractor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 	configs := sc.ExtractMetrics[e.id.Name()]
+	e.Lock()
 
 	switch e.ttype {
 	case "logs":
@@ -143,7 +147,7 @@ func (e *extractor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 			e.logger.Error("Error parsing log extractor configurations", zap.Error(err))
 			return
 		}
-		e.logExtractors = ottl.ConvertToPointerArray(parsedExtractors)
+		e.logExtractors = parsedExtractors
 
 	case "traces":
 		parsedExtractors, err := ottl.ParseSpanExtractorConfigs(configs.SpanMetricExtractors, e.logger)
@@ -151,7 +155,7 @@ func (e *extractor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 			e.logger.Error("Error parsing log extractor configurations", zap.Error(err))
 			return
 		}
-		e.spanExtractors = ottl.ConvertToPointerArray(parsedExtractors)
+		e.spanExtractors = parsedExtractors
 
 	default: // ignore
 	}

@@ -95,7 +95,7 @@ func TestExtractMetricsFromSpans_MultipleSpansMatchingCondition(t *testing.T) {
 	assert.Equal(t, 100.0, datapoint1.DoubleValue())
 }
 
-func newSpansTestExtractor(logExtractors []*ottl.SpanExtractor) *extractor {
+func newSpansTestExtractor(logExtractors []ottl.SpanExtractor) *extractor {
 	config := &Config{}
 	ttype := "logs"
 	set := processor.Settings{}
@@ -106,6 +106,6 @@ func newSpansTestExtractor(logExtractors []*ottl.SpanExtractor) *extractor {
 		config:            config,
 		telemetrySettings: set.TelemetrySettings,
 	}
-	e.spanExtractors = ottl.ConvertToPointerArray(logExtractors)
+	e.spanExtractors = logExtractors
 	return e
 }

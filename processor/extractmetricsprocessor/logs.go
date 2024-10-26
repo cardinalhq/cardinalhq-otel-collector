@@ -41,8 +41,8 @@ func (e *extractor) ConsumeLogs(ctx context.Context, pl plog.Logs) (plog.Logs, e
 func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []pmetric.Metrics {
 	var totalMetrics = []pmetric.Metrics{}
 
-	if e.logExtractors != nil && len(*e.logExtractors) > 0 {
-		for _, logExtractor := range *e.logExtractors {
+	if e.logExtractors != nil && len(e.logExtractors) > 0 {
+		for _, logExtractor := range e.logExtractors {
 			metrics := pmetric.NewMetrics()
 
 			resourceLogs := pl.ResourceLogs()

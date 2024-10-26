@@ -40,8 +40,8 @@ func (e *extractor) ConsumeTraces(ctx context.Context, pt ptrace.Traces) (ptrace
 func (e *extractor) extractMetricsFromSpans(ctx context.Context, pt ptrace.Traces) []pmetric.Metrics {
 	var totalMetrics = []pmetric.Metrics{}
 
-	if e.spanExtractors != nil && len(*e.spanExtractors) > 0 {
-		for _, spanExtractor := range *e.spanExtractors {
+	if e.spanExtractors != nil && len(e.spanExtractors) > 0 {
+		for _, spanExtractor := range e.spanExtractors {
 			metrics := pmetric.NewMetrics()
 
 			resourceSpans := pt.ResourceSpans()

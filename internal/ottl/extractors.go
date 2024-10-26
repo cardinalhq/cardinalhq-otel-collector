@@ -35,18 +35,6 @@ type LogExtractor struct {
 	MetricValue *ottl.Statement[ottllog.TransformContext]
 }
 
-func ConvertToPointerArray[T any](input []*T) *[]T {
-	result := make([]T, 0, len(input))
-
-	// Iterate over the input slice of pointers and dereference each pointer
-	for _, extractorPtr := range input {
-		if extractorPtr != nil {
-			result = append(result, *extractorPtr)
-		}
-	}
-	return &result
-}
-
 func (l LogExtractor) ExtractAttributes(ctx context.Context, tCtx ottllog.TransformContext) map[string]any {
 	attrMap := make(map[string]any, len(l.Dimensions))
 	for k, v := range l.Dimensions {
@@ -106,8 +94,8 @@ func (l LogExtractor) EvalLogConditions(ctx context.Context, transformCtx ottllo
 	return true, nil
 }
 
-func (l SpanExtractor) EvalSpanConditions(ctx context.Context, transformCtx ottlspan.TransformContext) (bool, error) {
-	for _, condition := range l.Conditions {
+func (s SpanExtractor) EvalSpanConditions(ctx context.Context, transformCtx ottlspan.TransformContext) (bool, error) {
+	for _, condition := range s.Conditions {
 		matches, err := condition.Eval(ctx, transformCtx)
 		if err != nil {
 			return false, err
@@ -119,24 +107,24 @@ func (l SpanExtractor) EvalSpanConditions(ctx context.Context, transformCtx ottl
 	return true, nil
 }
 
-func parseLogExtractorConfig(extractorConfig MetricExtractorConfig, parser ottl.Parser[ottllog.TransformContext]) (*LogExtractor, error) {
+func parseLogExtractorConfig(extractorConfig MetricExtractorConfig, parser ottl.Parser[ottllog.TransformContext]) (LogExtractor, error) {
 	conditions, err := parser.ParseConditions(extractorConfig.Conditions)
 	if err != nil {
-		return nil, err
+		return LogExtractor{}, err
 	}
 	dimensions := make(map[string]*ottl.Statement[ottllog.TransformContext])
 	for key, value := range extractorConfig.Dimensions {
 		statementStr := fmt.Sprintf("value(%s)", value)
 		statement, statementParseError := parser.ParseStatement(statementStr)
 		if statementParseError != nil {
-			return nil, statementParseError
+			return LogExtractor{}, statementParseError
 		}
 		dimensions[key] = statement
 	}
 	metricValueStatementStr := fmt.Sprintf("value(%s)", extractorConfig.MetricValue)
 	metricValue, _ := parser.ParseStatement(metricValueStatementStr)
 
-	return &LogExtractor{
+	return LogExtractor{
 		Conditions:  conditions,
 		Dimensions:  dimensions,
 		MetricName:  extractorConfig.MetricName,
@@ -146,24 +134,24 @@ func parseLogExtractorConfig(extractorConfig MetricExtractorConfig, parser ottl.
 	}, nil
 }
 
-func parseSpanExtractorConfig(extractorConfig MetricExtractorConfig, parser ottl.Parser[ottlspan.TransformContext]) (*SpanExtractor, error) {
+func parseSpanExtractorConfig(extractorConfig MetricExtractorConfig, parser ottl.Parser[ottlspan.TransformContext]) (SpanExtractor, error) {
 	conditions, err := parser.ParseConditions(extractorConfig.Conditions)
 	if err != nil {
-		return nil, err
+		return SpanExtractor{}, err
 	}
 	dimensions := make(map[string]*ottl.Statement[ottlspan.TransformContext])
 	for key, value := range extractorConfig.Dimensions {
 		statementStr := fmt.Sprintf("value(%s)", value)
 		statement, statementParseError := parser.ParseStatement(statementStr)
 		if statementParseError != nil {
-			return nil, statementParseError
+			return SpanExtractor{}, statementParseError
 		}
 		dimensions[key] = statement
 	}
 	metricValueStatementStr := fmt.Sprintf("value(%s)", extractorConfig.MetricValue)
 	metricValue, _ := parser.ParseStatement(metricValueStatementStr)
 
-	return &SpanExtractor{
+	return SpanExtractor{
 		Conditions:  conditions,
 		Dimensions:  dimensions,
 		MetricName:  extractorConfig.MetricName,
@@ -173,10 +161,10 @@ func parseSpanExtractorConfig(extractorConfig MetricExtractorConfig, parser ottl
 	}, nil
 }
 
-func ParseLogExtractorConfigs(extractorConfigs []MetricExtractorConfig, logger *zap.Logger) ([]*LogExtractor, error) {
+func ParseLogExtractorConfigs(extractorConfigs []MetricExtractorConfig, logger *zap.Logger) ([]LogExtractor, error) {
 	logParser, _ := ottllog.NewParser(ToFactory[ottllog.TransformContext](), component.TelemetrySettings{Logger: logger})
 
-	var logExtractors []*LogExtractor
+	var logExtractors []LogExtractor
 	for _, extractorConfig := range extractorConfigs {
 		logExtractor, err := parseLogExtractorConfig(extractorConfig, logParser)
 		if err != nil {
@@ -187,10 +175,10 @@ func ParseLogExtractorConfigs(extractorConfigs []MetricExtractorConfig, logger *
 	return logExtractors, nil
 }
 
-func ParseSpanExtractorConfigs(extractorConfigs []MetricExtractorConfig, logger *zap.Logger) ([]*SpanExtractor, error) {
+func ParseSpanExtractorConfigs(extractorConfigs []MetricExtractorConfig, logger *zap.Logger) ([]SpanExtractor, error) {
 	spanParser, _ := ottlspan.NewParser(ToFactory[ottlspan.TransformContext](), component.TelemetrySettings{Logger: logger})
 
-	var spanExtractors []*SpanExtractor
+	var spanExtractors []SpanExtractor
 	for _, extractorConfig := range extractorConfigs {
 		spanExtractor, err := parseSpanExtractorConfig(extractorConfig, spanParser)
 		if err != nil {

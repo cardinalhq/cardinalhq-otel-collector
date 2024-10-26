@@ -94,7 +94,7 @@ func TestExtractMetricsFromLogs_MultipleLogsMatchingCondition(t *testing.T) {
 	assert.Equal(t, 100.0, datapoint1.DoubleValue())
 }
 
-func newLogsTestExtractor(logExtractors []*ottl.LogExtractor) *extractor {
+func newLogsTestExtractor(logExtractors []ottl.LogExtractor) *extractor {
 	config := &Config{}
 	ttype := "logs"
 	set := processor.Settings{}
@@ -105,6 +105,6 @@ func newLogsTestExtractor(logExtractors []*ottl.LogExtractor) *extractor {
 		config:            config,
 		telemetrySettings: set.TelemetrySettings,
 	}
-	e.logExtractors = ottl.ConvertToPointerArray(logExtractors)
+	e.logExtractors = logExtractors
 	return e
 }

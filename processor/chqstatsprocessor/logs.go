@@ -83,8 +83,11 @@ func (e *statsProc) recordLog(now time.Time, serviceName string, fingerprint int
 		"scope":    sl.Scope().Attributes(),
 		"log":      lr.Attributes(),
 	})
-	severityAttribute := toAttribute("log", "severity", pcommon.NewValueStr(lr.SeverityText()), false)
-	enrichmentAttributes = append(enrichmentAttributes, severityAttribute)
+	severity := lr.SeverityText()
+	if severity != "" {
+		severityAttribute := toAttribute("log", "severity_text", pcommon.NewValueStr(severity), false)
+		enrichmentAttributes = append(enrichmentAttributes, severityAttribute)
+	}
 
 	rec := &chqpb.LogStats{
 		ServiceName: serviceName,

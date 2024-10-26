@@ -40,67 +40,71 @@ func (e *extractor) ConsumeTraces(ctx context.Context, pt ptrace.Traces) (ptrace
 func (e *extractor) extractMetricsFromSpans(ctx context.Context, pt ptrace.Traces) []pmetric.Metrics {
 	var totalMetrics = []pmetric.Metrics{}
 
-	if e.spanExtractors != nil && len(*e.spanExtractors) > 0 {
-		for _, spanExtractor := range *e.spanExtractors {
-			metrics := pmetric.NewMetrics()
+	extractors := e.spanExtractors.Load()
+	if extractors == nil {
+		return totalMetrics
+	}
+	for _, spanExtractor := range *extractors {
+		metrics := pmetric.NewMetrics()
 
-			resourceSpans := pt.ResourceSpans()
-			for i := 0; i < resourceSpans.Len(); i++ {
-				resourceSpan := resourceSpans.At(i)
-				scopeSpans := resourceSpan.ScopeSpans()
-				resource := resourceSpan.Resource()
+		resourceSpans := pt.ResourceSpans()
+		for i := 0; i < resourceSpans.Len(); i++ {
+			resourceSpan := resourceSpans.At(i)
+			scopeSpans := resourceSpan.ScopeSpans()
+			resource := resourceSpan.Resource()
 
-				resourceMetrics := pmetric.NewResourceMetrics()
-				resource.Attributes().CopyTo(resourceMetrics.Resource().Attributes())
-				scopeMetrics := resourceMetrics.ScopeMetrics().AppendEmpty()
-				scopeMetrics.Scope().SetName(componentType.String())
+			resourceMetrics := pmetric.NewResourceMetrics()
+			resource.Attributes().CopyTo(resourceMetrics.Resource().Attributes())
+			scopeMetrics := resourceMetrics.ScopeMetrics().AppendEmpty()
+			scopeMetrics.Scope().SetName(componentType.String())
 
-				metric := scopeMetrics.Metrics().AppendEmpty()
+			metric := scopeMetrics.Metrics().AppendEmpty()
 
-				metric.SetName(spanExtractor.MetricName)
-				metric.SetUnit(spanExtractor.MetricUnit)
+			metric.SetName(spanExtractor.MetricName)
+			metric.SetUnit(spanExtractor.MetricUnit)
 
-				var dpSlice = pmetric.NewNumberDataPointSlice()
-				switch spanExtractor.MetricType {
-				case gaugeDoubleType, gaugeIntType:
-					dpSlice = metric.SetEmptyGauge().DataPoints()
-				case counterDoubleType, counterIntType:
-					dpSlice = metric.SetEmptySum().DataPoints()
-				}
+			var dpSlice = pmetric.NewNumberDataPointSlice()
+			switch spanExtractor.MetricType {
+			case gaugeDoubleType, gaugeIntType:
+				dpSlice = metric.SetEmptyGauge().DataPoints()
+			case counterDoubleType, counterIntType:
+				dpSlice = metric.SetEmptySum().DataPoints()
+			}
 
-				for j := 0; j < scopeSpans.Len(); j++ {
-					scopeSpan := scopeSpans.At(j)
-					logRecords := scopeSpan.Spans()
-					for k := 0; k < logRecords.Len(); k++ {
-						sr := logRecords.At(k)
-						spanCtx := ottlspan.NewTransformContext(sr, scopeSpan.Scope(), resource, scopeSpan, resourceSpan)
+			for j := 0; j < scopeSpans.Len(); j++ {
+				scopeSpan := scopeSpans.At(j)
+				logRecords := scopeSpan.Spans()
+				for k := 0; k < logRecords.Len(); k++ {
+					sr := logRecords.At(k)
+					spanCtx := ottlspan.NewTransformContext(sr, scopeSpan.Scope(), resource, scopeSpan, resourceSpan)
 
-						matches, err := spanExtractor.EvalSpanConditions(ctx, spanCtx)
-						if err != nil {
-							e.logger.Error("Failed when executing ottl match statement.", zap.Error(err))
-							continue
-						}
-
-						if !matches {
-							continue
-						}
-
-						e.spanRecordToDataPoint(ctx, spanExtractor, sr, spanCtx, dpSlice)
+					matches, err := spanExtractor.EvalSpanConditions(ctx, spanCtx)
+					if err != nil {
+						e.logger.Error("Failed when executing ottl match statement.", zap.Error(err))
+						continue
 					}
-				}
 
-				if dpSlice.Len() != 0 {
-					// Add the resource metric to the slice if we had any datapoints.
-					resourceMetrics.MoveTo(metrics.ResourceMetrics().AppendEmpty())
+					if !matches {
+						continue
+					}
+
+					e.spanRecordToDataPoint(ctx, spanExtractor, sr, spanCtx, dpSlice)
 				}
 			}
+
+			if dpSlice.Len() != 0 {
+				// Add the resource metric to the slice if we had any datapoints.
+				resourceMetrics.MoveTo(metrics.ResourceMetrics().AppendEmpty())
+			}
+		}
+		if metrics.ResourceMetrics().Len() > 0 {
 			totalMetrics = append(totalMetrics, metrics)
 		}
 	}
 	return totalMetrics
 }
 
-func (e *extractor) spanRecordToDataPoint(ctx context.Context, se ottl.SpanExtractor, sr ptrace.Span, spanCtx ottlspan.TransformContext, dpSlice pmetric.NumberDataPointSlice) {
+func (e *extractor) spanRecordToDataPoint(ctx context.Context, se *ottl.SpanExtractor, sr ptrace.Span, spanCtx ottlspan.TransformContext, dpSlice pmetric.NumberDataPointSlice) {
 	var val any
 
 	if se.MetricValue != nil {

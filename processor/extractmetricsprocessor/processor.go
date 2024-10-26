@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"sync/atomic"
 
 	"github.com/observiq/bindplane-agent/receiver/routereceiver"
 	"go.opentelemetry.io/collector/component"
@@ -41,8 +42,8 @@ type extractor struct {
 	telemetrySettings component.TelemetrySettings
 
 	configCallbackID int
-	logExtractors    *[]ottl.LogExtractor
-	spanExtractors   *[]ottl.SpanExtractor
+	logExtractors    atomic.Pointer[[]*ottl.LogExtractor]
+	spanExtractors   atomic.Pointer[[]*ottl.SpanExtractor]
 }
 
 func newExtractor(config *Config, ttype string, set processor.Settings) (*extractor, error) {
@@ -143,7 +144,7 @@ func (e *extractor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 			e.logger.Error("Error parsing log extractor configurations", zap.Error(err))
 			return
 		}
-		e.logExtractors = ottl.ConvertToPointerArray(parsedExtractors)
+		e.logExtractors.Store(&parsedExtractors)
 
 	case "traces":
 		parsedExtractors, err := ottl.ParseSpanExtractorConfigs(configs.SpanMetricExtractors, e.logger)
@@ -151,7 +152,7 @@ func (e *extractor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 			e.logger.Error("Error parsing log extractor configurations", zap.Error(err))
 			return
 		}
-		e.spanExtractors = ottl.ConvertToPointerArray(parsedExtractors)
+		e.spanExtractors.Store(&parsedExtractors)
 
 	default: // ignore
 	}

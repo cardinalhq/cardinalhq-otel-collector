@@ -106,6 +106,6 @@ func newSpansTestExtractor(logExtractors []*ottl.SpanExtractor) *extractor {
 		config:            config,
 		telemetrySettings: set.TelemetrySettings,
 	}
-	e.spanExtractors = ottl.ConvertToPointerArray(logExtractors)
+	e.spanExtractors.Store(&logExtractors)
 	return e
 }

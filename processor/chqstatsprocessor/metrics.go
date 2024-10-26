@@ -176,6 +176,7 @@ func (e *statsProc) sendMetricStats(ctx context.Context, now time.Time, bucketpi
 				VendorId:            ms.VendorID,
 				CardinalityEstimate: estimate,
 				Hll:                 b,
+				Attributes:          ms.Attributes,
 			}
 			wrapper.Stats = append(wrapper.Stats, item)
 		}

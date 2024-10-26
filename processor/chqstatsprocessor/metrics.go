@@ -35,6 +35,7 @@ import (
 
 func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
 	now := time.Now()
+	environment := translate.EnvironmentFromEnv()
 
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
 		rm := md.ResourceMetrics().At(i)
@@ -46,31 +47,33 @@ func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pme
 			for k := 0; k < ilm.Metrics().Len(); k++ {
 				m := ilm.Metrics().At(k)
 				metricName := m.Name()
+				extra := map[string]string{"name": m.Name()}
+
 				switch m.Type() {
 				case pmetric.MetricTypeGauge:
 					for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
 						dp := m.Gauge().DataPoints().At(l)
-						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
+						e.processDatapoint(now, metricName, serviceName, extra, environment, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeSum:
 					for l := 0; l < m.Sum().DataPoints().Len(); l++ {
 						dp := m.Sum().DataPoints().At(l)
-						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
+						e.processDatapoint(now, metricName, serviceName, extra, environment, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeHistogram:
 					for l := 0; l < m.Histogram().DataPoints().Len(); l++ {
 						dp := m.Histogram().DataPoints().At(l)
-						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
+						e.processDatapoint(now, metricName, serviceName, extra, environment, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeSummary:
 					for l := 0; l < m.Summary().DataPoints().Len(); l++ {
 						dp := m.Summary().DataPoints().At(l)
-						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
+						e.processDatapoint(now, metricName, serviceName, extra, environment, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeExponentialHistogram:
 					for l := 0; l < m.ExponentialHistogram().DataPoints().Len(); l++ {
 						dp := m.ExponentialHistogram().DataPoints().At(l)
-						e.processDatapoint(now, metricName, serviceName, rattr, sattr, dp.Attributes())
+						e.processDatapoint(now, metricName, serviceName, extra, environment, rattr, sattr, dp.Attributes())
 					}
 				}
 			}
@@ -80,7 +83,9 @@ func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pme
 	return md, nil
 }
 
-func (e *statsProc) processDatapoint(now time.Time, metricName, serviceName string, rattr, sattr, dattr pcommon.Map) {
+func (e *statsProc) processDatapoint(now time.Time, metricName, serviceName string, extra map[string]string, environment translate.Environment, rattr, sattr, dattr pcommon.Map) {
+	tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
+	dattr.PutInt(translate.CardinalFieldTID, tid)
 	if err := e.recordDatapoint(now, metricName, serviceName, rattr, sattr, dattr); err != nil {
 		e.logger.Error("Failed to record datapoint", zap.Error(err))
 	}

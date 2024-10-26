@@ -16,6 +16,7 @@ package fingerprintprocessor
 
 import (
 	"context"
+	"strings"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
@@ -46,6 +47,9 @@ func (e *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 					continue
 				}
 				lr.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)
+				if lr.SeverityText() == "" {
+					lr.SetSeverityText(strings.ToUpper(level))
+				}
 				lr.Attributes().PutStr(translate.CardinalFieldLevel, level)
 			}
 		}

@@ -30,10 +30,8 @@ import (
 
 func (e *extractor) ConsumeLogs(ctx context.Context, pl plog.Logs) (plog.Logs, error) {
 	metrics := e.extractMetricsFromLogs(ctx, pl)
-	if len(metrics) > 0 {
-		for _, metric := range metrics {
-			e.sendMetrics(ctx, e.config.Route, metric)
-		}
+	for _, metric := range metrics {
+		e.sendMetrics(ctx, e.config.Route, metric)
 	}
 	return pl, nil
 }
@@ -41,67 +39,71 @@ func (e *extractor) ConsumeLogs(ctx context.Context, pl plog.Logs) (plog.Logs, e
 func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []pmetric.Metrics {
 	var totalMetrics = []pmetric.Metrics{}
 
-	if e.logExtractors != nil && len(*e.logExtractors) > 0 {
-		for _, logExtractor := range *e.logExtractors {
-			metrics := pmetric.NewMetrics()
+	extractors := e.logExtractors.Load()
+	if extractors == nil {
+		return totalMetrics
+	}
+	for _, logExtractor := range *extractors {
+		metrics := pmetric.NewMetrics()
 
-			resourceLogs := pl.ResourceLogs()
-			for i := 0; i < resourceLogs.Len(); i++ {
-				resourceLog := resourceLogs.At(i)
-				scopeLogs := resourceLog.ScopeLogs()
-				resource := resourceLog.Resource()
+		resourceLogs := pl.ResourceLogs()
+		for i := 0; i < resourceLogs.Len(); i++ {
+			resourceLog := resourceLogs.At(i)
+			scopeLogs := resourceLog.ScopeLogs()
+			resource := resourceLog.Resource()
 
-				resourceMetrics := pmetric.NewResourceMetrics()
-				resource.Attributes().CopyTo(resourceMetrics.Resource().Attributes())
-				scopeMetrics := resourceMetrics.ScopeMetrics().AppendEmpty()
-				scopeMetrics.Scope().SetName(componentType.String())
+			resourceMetrics := pmetric.NewResourceMetrics()
+			resource.Attributes().CopyTo(resourceMetrics.Resource().Attributes())
+			scopeMetrics := resourceMetrics.ScopeMetrics().AppendEmpty()
+			scopeMetrics.Scope().SetName(componentType.String())
 
-				metric := scopeMetrics.Metrics().AppendEmpty()
+			metric := scopeMetrics.Metrics().AppendEmpty()
 
-				metric.SetName(logExtractor.MetricName)
-				metric.SetUnit(logExtractor.MetricUnit)
+			metric.SetName(logExtractor.MetricName)
+			metric.SetUnit(logExtractor.MetricUnit)
 
-				var dpSlice = pmetric.NewNumberDataPointSlice()
-				switch logExtractor.MetricType {
-				case gaugeDoubleType, gaugeIntType:
-					dpSlice = metric.SetEmptyGauge().DataPoints()
-				case counterDoubleType, counterIntType:
-					dpSlice = metric.SetEmptySum().DataPoints()
-				}
+			var dpSlice = pmetric.NewNumberDataPointSlice()
+			switch logExtractor.MetricType {
+			case gaugeDoubleType, gaugeIntType:
+				dpSlice = metric.SetEmptyGauge().DataPoints()
+			case counterDoubleType, counterIntType:
+				dpSlice = metric.SetEmptySum().DataPoints()
+			}
 
-				for j := 0; j < scopeLogs.Len(); j++ {
-					scopeLog := scopeLogs.At(j)
-					logRecords := scopeLog.LogRecords()
-					for k := 0; k < logRecords.Len(); k++ {
-						lr := logRecords.At(k)
-						logCtx := ottllog.NewTransformContext(lr, scopeLog.Scope(), resource, scopeLog, resourceLog)
+			for j := 0; j < scopeLogs.Len(); j++ {
+				scopeLog := scopeLogs.At(j)
+				logRecords := scopeLog.LogRecords()
+				for k := 0; k < logRecords.Len(); k++ {
+					lr := logRecords.At(k)
+					logCtx := ottllog.NewTransformContext(lr, scopeLog.Scope(), resource, scopeLog, resourceLog)
 
-						matches, err := logExtractor.EvalLogConditions(ctx, logCtx)
-						if err != nil {
-							e.logger.Error("Failed when executing ottl match statement.", zap.Error(err))
-							continue
-						}
-
-						if !matches {
-							continue
-						}
-
-						e.logRecordToDataPoint(ctx, logExtractor, lr, logCtx, dpSlice)
+					matches, err := logExtractor.EvalLogConditions(ctx, logCtx)
+					if err != nil {
+						e.logger.Error("Failed when executing ottl match statement.", zap.Error(err))
+						continue
 					}
-				}
 
-				if dpSlice.Len() != 0 {
-					// Add the resource metric to the slice if we had any datapoints.
-					resourceMetrics.MoveTo(metrics.ResourceMetrics().AppendEmpty())
+					if !matches {
+						continue
+					}
+
+					e.logRecordToDataPoint(ctx, logExtractor, lr, logCtx, dpSlice)
 				}
 			}
+
+			if dpSlice.Len() != 0 {
+				// Add the resource metric to the slice if we had any datapoints.
+				resourceMetrics.MoveTo(metrics.ResourceMetrics().AppendEmpty())
+			}
+		}
+		if metrics.ResourceMetrics().Len() > 0 {
 			totalMetrics = append(totalMetrics, metrics)
 		}
 	}
 	return totalMetrics
 }
 
-func (e *extractor) logRecordToDataPoint(ctx context.Context, lex ottl.LogExtractor, lr plog.LogRecord, logCtx ottllog.TransformContext, dpSlice pmetric.NumberDataPointSlice) {
+func (e *extractor) logRecordToDataPoint(ctx context.Context, lex *ottl.LogExtractor, lr plog.LogRecord, logCtx ottllog.TransformContext, dpSlice pmetric.NumberDataPointSlice) {
 	var val any
 
 	if lex.MetricValue != nil {

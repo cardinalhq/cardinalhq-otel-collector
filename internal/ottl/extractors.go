@@ -35,18 +35,6 @@ type LogExtractor struct {
 	MetricValue *ottl.Statement[ottllog.TransformContext]
 }
 
-func ConvertToPointerArray[T any](input []*T) *[]T {
-	result := make([]T, 0, len(input))
-
-	// Iterate over the input slice of pointers and dereference each pointer
-	for _, extractorPtr := range input {
-		if extractorPtr != nil {
-			result = append(result, *extractorPtr)
-		}
-	}
-	return &result
-}
-
 func (l LogExtractor) ExtractAttributes(ctx context.Context, tCtx ottllog.TransformContext) map[string]any {
 	attrMap := make(map[string]any, len(l.Dimensions))
 	for k, v := range l.Dimensions {

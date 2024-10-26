@@ -105,6 +105,6 @@ func newLogsTestExtractor(logExtractors []*ottl.LogExtractor) *extractor {
 		config:            config,
 		telemetrySettings: set.TelemetrySettings,
 	}
-	e.logExtractors = ottl.ConvertToPointerArray(logExtractors)
+	e.logExtractors.Store(&logExtractors)
 	return e
 }

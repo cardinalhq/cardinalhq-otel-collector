@@ -48,33 +48,45 @@ func getFingerprint(l pcommon.Map) int64 {
 }
 
 func (e *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
-	e.Lock()
-	defer e.Unlock()
-
 	if ld.ResourceLogs().Len() == 0 {
+		return ld, nil
+	}
+
+	transformations := e.logTransformations.Load()
+	luc := e.logsLookupConfigs.Load()
+	if transformations == nil && luc == nil {
 		return ld, nil
 	}
 
 	ld.ResourceLogs().RemoveIf(func(rl plog.ResourceLogs) bool {
 		transformCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
-		e.logTransformations.ExecuteResourceTransforms(e.ottlProcessed, transformCtx)
-		if _, found := rl.Resource().Attributes().Get(translate.CardinalFieldDropMarker); found {
-			return true
+		if transformations != nil {
+			transformations.ExecuteResourceTransforms(e.ottlProcessed, transformCtx)
+			if _, found := rl.Resource().Attributes().Get(translate.CardinalFieldDropMarker); found {
+				return true
+			}
 		}
 
 		rl.ScopeLogs().RemoveIf(func(sl plog.ScopeLogs) bool {
 			transformCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), rl)
-			e.logTransformations.ExecuteScopeTransforms(e.ottlProcessed, transformCtx)
-			if _, found := sl.Scope().Attributes().Get(translate.CardinalFieldDropMarker); found {
-				return true
+			if transformations != nil {
+				transformations.ExecuteScopeTransforms(e.ottlProcessed, transformCtx)
+				if _, found := sl.Scope().Attributes().Get(translate.CardinalFieldDropMarker); found {
+					return true
+				}
 			}
 
 			sl.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
 				transformCtx := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
-				for _, lookupConfig := range e.logsLookupConfigs {
-					lookupConfig.ExecuteLogsRules(context.Background(), transformCtx, lr)
+				if luc != nil {
+					for _, lookupConfig := range *luc {
+						lookupConfig.ExecuteLogsRules(context.Background(), transformCtx, lr)
+					}
 				}
-				e.logTransformations.ExecuteLogTransforms(e.ottlProcessed, transformCtx)
+				if transformations == nil {
+					return false
+				}
+				transformations.ExecuteLogTransforms(e.ottlProcessed, transformCtx)
 				_, dropMe := lr.Attributes().Get(translate.CardinalFieldDropMarker)
 				return dropMe
 			})
@@ -96,8 +108,6 @@ func removeAllCardinalFields(attr pcommon.Map) {
 }
 
 func (e *pitbull) updateLogTransformations(sc ottl.PitbullProcessorConfig, logger *zap.Logger) {
-	e.Lock()
-	defer e.Unlock()
 	e.logger.Info("Updating log transformations", zap.Int("num_decorators", len(sc.LogStatements)))
 	newTransformations := ottl.NewTransformations(e.logger)
 
@@ -108,9 +118,9 @@ func (e *pitbull) updateLogTransformations(sc ottl.PitbullProcessorConfig, logge
 		newTransformations = ottl.MergeWith(newTransformations, transformations)
 	}
 
-	oldTransformation := e.logTransformations
-	e.logTransformations = newTransformations
-	oldTransformation.Stop()
+	oldTransformations := e.logTransformations.Load()
+	e.logTransformations.Store(newTransformations)
+	oldTransformations.Stop()
 
 	if len(sc.LogLookupConfigs) > 0 {
 		for _, lookupConfig := range sc.LogLookupConfigs {

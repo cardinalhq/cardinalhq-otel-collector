@@ -17,7 +17,7 @@ package pitbullprocessor
 import (
 	"context"
 	"errors"
-	"sync"
+	"sync/atomic"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
@@ -33,36 +33,21 @@ import (
 )
 
 type pitbull struct {
-	sync.RWMutex
-
-	config *Config
-	logger *zap.Logger
-
+	config            *Config
+	logger            *zap.Logger
 	id                component.ID
 	ttype             string
 	telemetrySettings component.TelemetrySettings
 	configExtension   *chqconfigextension.CHQConfigExtension
-	configCallbackID  int
 
-	// for logs
-	logTransformations ottl.Transformations
-
-	// for spans
-	traceTransformations ottl.Transformations
-
-	// for metrics
-	metricTransformations ottl.Transformations
-
-	// lookup tables for logs
-	logsLookupConfigs []ottl.LookupConfig
-
-	// lookup tables for metrics
-	metricsLookupConfigs []ottl.LookupConfig
-
-	// lookup tables for traces
-	tracesLookupConfigs []ottl.LookupConfig
-
-	ottlProcessed *telemetry.DeferrableInt64Counter
+	configCallbackID      int
+	logTransformations    atomic.Pointer[ottl.Transformations]
+	logsLookupConfigs     atomic.Pointer[[]ottl.LookupConfig]
+	traceTransformations  atomic.Pointer[ottl.Transformations]
+	tracesLookupConfigs   atomic.Pointer[[]ottl.LookupConfig]
+	metricTransformations atomic.Pointer[ottl.Transformations]
+	metricsLookupConfigs  atomic.Pointer[[]ottl.LookupConfig]
+	ottlProcessed         *telemetry.DeferrableInt64Counter
 }
 
 func newPitbull(config *Config, ttype string, set processor.Settings) (*pitbull, error) {
@@ -92,17 +77,6 @@ func newPitbull(config *Config, ttype string, set processor.Settings) (*pitbull,
 		return nil, err
 	}
 	dog.ottlProcessed = counter
-
-	switch ttype {
-	case "logs":
-		dog.logTransformations = ottl.Transformations{}
-
-	case "metrics":
-		dog.metricTransformations = ottl.Transformations{}
-
-	case "traces":
-		dog.traceTransformations = ottl.Transformations{}
-	}
 
 	return dog, nil
 }

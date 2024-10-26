@@ -85,7 +85,7 @@ func (e *statsProc) recordLog(now time.Time, serviceName string, fingerprint int
 	})
 	severity := lr.SeverityText()
 	if severity != "" {
-		severityAttribute := toAttribute("log", "severity", pcommon.NewValueStr(severity), false)
+		severityAttribute := toAttribute("log", "severity_text", pcommon.NewValueStr(severity), false)
 		enrichmentAttributes = append(enrichmentAttributes, severityAttribute)
 	}
 

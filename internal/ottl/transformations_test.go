@@ -121,6 +121,35 @@ func TestSimpleBoolean(t *testing.T) {
 	assert.True(t, attr.Bool())
 }
 
+func TestSeverity(t *testing.T) {
+	rl := plog.NewResourceLogs()
+	rl.Resource().Attributes().PutStr(translate.CardinalFieldReceiverType, "awsfirehose")
+	sl := rl.ScopeLogs().AppendEmpty()
+	lr := sl.LogRecords().AppendEmpty()
+	lr.SetSeverityText("INFO")
+
+	statements := []ContextStatement{
+		{
+			Context: "log",
+			Conditions: []string{
+				`severity_text == "INFO"`,
+			},
+			Statements: []string{
+				`set(attributes["foo"], "INFO")`,
+			},
+		},
+	}
+	transformations, err := ParseTransformations(statements, zap.NewNop())
+	assert.NoError(t, err)
+	assert.True(t, len(transformations.logTransforms) > 0)
+	transformations.ExecuteLogTransforms(nil, ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl))
+
+	// assert if foo exists and is set to INFO
+	foo, fooFound := lr.Attributes().Get("foo")
+	assert.True(t, fooFound)
+	assert.Equal(t, "INFO", foo.Str())
+}
+
 func TestVPCFlowLogTransformation_UsingGrok(t *testing.T) {
 
 	statements1 := []ContextStatement{

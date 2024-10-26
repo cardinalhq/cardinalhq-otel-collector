@@ -15,6 +15,7 @@
 package ottl
 
 import (
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"testing"
 
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
@@ -95,7 +96,7 @@ func TestSimpleBoolean(t *testing.T) {
 		{
 			Context: "log",
 			Conditions: []string{
-				`attributes["isTrue"] == true`,
+				`Exists(attributes["isTrue"]) and attributes["isTrue"] == true`,
 			},
 			Statements: []string{
 				`set(attributes["worked"], true)`,
@@ -240,6 +241,36 @@ func TestVPCFlowLogTransformations(t *testing.T) {
 
 	_, sliceFound := lr.Attributes().Get("flow_log_fields")
 	assert.False(t, sliceFound)
+}
+
+func TestVPCFlowLogTransformation_UsingGrok(t *testing.T) {
+
+	statements := []ContextStatement{
+		{
+			Context:    "log",
+			Conditions: []string{},
+			Statements: []string{
+				`set(attributes["fields"], DeriveSourceType(body, resource.attributes["_cardinalhq.receiver_type"]))`,
+			},
+		},
+	}
+	transformations, err := ParseTransformations(statements, zap.NewNop())
+	assert.NoError(t, err)
+	l := len(transformations.logTransforms)
+	assert.True(t, l > 0)
+
+	rl := plog.NewResourceLogs()
+	rl.Resource().Attributes().PutStr(translate.CardinalFieldReceiverType, "awsfirehose")
+	sl := rl.ScopeLogs().AppendEmpty()
+	lr := sl.LogRecords().AppendEmpty()
+	lr.Body().SetStr("2        123456789012    eni-abc12345    10.0.0.1         10.0.1.1         443      1024     6         10       8000     1625567329   1625567389   ACCEPT   OK")
+	tc := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
+	transformations.ExecuteLogTransforms(nil, tc)
+
+	fields, fieldsFound := lr.Attributes().Get("fields")
+	assert.True(t, fieldsFound)
+	m := fields.Map().AsRaw()
+	assert.Equal(t, 15, len(m))
 }
 
 func TestTeamAssociations(t *testing.T) {

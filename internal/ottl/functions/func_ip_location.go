@@ -42,7 +42,7 @@ func NewIpLocationFactory[K any]() ottl.Factory[K] {
 		if err != nil {
 			return nil, fmt.Errorf("error getting working directory: %v", err)
 		}
-		dbPath := filepath.Join(dir, "functions", "geo-data", "GeoLite2-City.mmdb")
+		dbPath := filepath.Join(dir, "functions", "metadata", "GeoLite2-City.mmdb")
 		return createIpLocationFunction[K](dbPath, ipArgs.Target)
 	})
 }

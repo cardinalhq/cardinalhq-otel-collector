@@ -32,9 +32,6 @@ import (
 )
 
 func (e *statsProc) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
-	e.Lock()
-	defer e.Unlock()
-
 	now := time.Now()
 	for i := 0; i < td.ResourceSpans().Len(); i++ {
 		rs := td.ResourceSpans().At(i)

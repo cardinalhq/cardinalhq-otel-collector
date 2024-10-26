@@ -19,7 +19,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -37,8 +37,6 @@ import (
 )
 
 type statsProc struct {
-	sync.RWMutex
-
 	config          *Config
 	httpClient      *http.Client
 	logger          *zap.Logger
@@ -58,9 +56,9 @@ type statsProc struct {
 	spanStats   *stats.StatsCombiner[*chqpb.SpanStats]
 	metricstats *stats.StatsCombiner[*MetricStat]
 
-	logStatsEnrichments     *[]ottl.StatsEnrichment
-	metricsStatsEnrichments *[]ottl.StatsEnrichment
-	tracesStatsEnrichments  *[]ottl.StatsEnrichment
+	logStatsEnrichments     atomic.Pointer[[]ottl.StatsEnrichment]
+	metricsStatsEnrichments atomic.Pointer[[]ottl.StatsEnrichment]
+	tracesStatsEnrichments  atomic.Pointer[[]ottl.StatsEnrichment]
 }
 
 func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsProc, error) {
@@ -130,18 +128,18 @@ func (e *statsProc) Shutdown(ctx context.Context) error {
 
 func (e *statsProc) processEnrichments(attributesByScope map[string]pcommon.Map) []*chqpb.Attribute {
 	tags := make([]*chqpb.Attribute, 0)
-	var enrichmentsPtr *[]ottl.StatsEnrichment
+	var enrichments *[]ottl.StatsEnrichment
 	switch e.ttype {
 	case "logs":
-		enrichmentsPtr = e.logStatsEnrichments
+		enrichments = e.logStatsEnrichments.Load()
 	case "metrics":
-		enrichmentsPtr = e.metricsStatsEnrichments
+		enrichments = e.metricsStatsEnrichments.Load()
 	case "traces":
-		enrichmentsPtr = e.tracesStatsEnrichments
+		enrichments = e.tracesStatsEnrichments.Load()
 	}
 
-	if enrichmentsPtr != nil {
-		for _, enrichment := range *enrichmentsPtr {
+	if enrichments != nil {
+		for _, enrichment := range *enrichments {
 			attributes, found := attributesByScope[enrichment.Context]
 			if found {
 				for _, tag := range enrichment.Tags {
@@ -191,11 +189,14 @@ func (e *statsProc) configUpdateCallback(cpc ottl.ControlPlaneConfig) {
 	configs := cpc.Stats[e.id.Name()]
 	switch e.ttype {
 	case "logs":
-		e.logStatsEnrichments = &configs.LogEnrichments
+		e.logStatsEnrichments.Store(&configs.LogEnrichments)
+		e.logger.Info("Stats enrichment for logs", zap.String("instance", e.id.Name()), zap.Int("enrichments", len(configs.LogEnrichments)))
 	case "metrics":
-		e.metricsStatsEnrichments = &configs.MetricEnrichments
+		e.metricsStatsEnrichments.Store(&configs.MetricEnrichments)
+		e.logger.Info("Stats enrichment for metrics", zap.String("instance", e.id.Name()), zap.Int("enrichments", len(configs.MetricEnrichments)))
 	case "traces":
-		e.tracesStatsEnrichments = &configs.SpanEnrichments
+		e.tracesStatsEnrichments.Store(&configs.SpanEnrichments)
+		e.logger.Info("Stats enrichment for traces", zap.String("instance", e.id.Name()), zap.Int("enrichments", len(configs.SpanEnrichments)))
 	}
 
 	e.logger.Info("Configuration updated for processor instance", zap.String("instance", e.id.Name()))

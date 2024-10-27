@@ -19,3 +19,17 @@ patterns:
         type: "vpcFlowLogs"
         receiverTypes:
           - "awsfirehose"
+      - grokExpr: "%{IPORHOST:client_ip} %{USER:ident} %{USER:auth} \\[%{HTTPDATE:timestamp}\\] \"(?:%{WORD:method} %{URIPATHPARAM:request} HTTP/%{NUMBER:http_version})\" %{NUMBER:response_code} %{NUMBER:bytes}"
+        mandatoryFields:
+          - client_ip
+          - ident
+          - auth
+          - timestamp
+          - method
+          - request
+          - http_version
+          - response_code
+          - bytes
+        type: "accessLogs"
+        receiverTypes:
+          - "datadog"

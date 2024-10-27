@@ -142,8 +142,10 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 }
 
 func (e *pitbull) evaluateLookupTables(transformCtx ottldatapoint.TransformContext, configs *[]ottl.LookupConfig, handlerFunc func(tagToSet string, targetValue string)) {
-	for _, lookupConfig := range *configs {
-		lookupConfig.ExecuteMetricsRules(context.Background(), transformCtx, handlerFunc)
+	if *configs != nil {
+		for _, lookupConfig := range *configs {
+			lookupConfig.ExecuteMetricsRules(context.Background(), transformCtx, handlerFunc)
+		}
 	}
 }
 

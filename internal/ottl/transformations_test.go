@@ -150,6 +150,56 @@ func TestSeverity(t *testing.T) {
 	assert.Equal(t, "INFO", foo.Str())
 }
 
+func TestAccessLogs_UsingGrok(t *testing.T) {
+	statements1 := []ContextStatement{
+		{
+			Context:    "log",
+			Conditions: []string{},
+			Statements: []string{
+				`set(attributes["fields"], DeriveSourceType(body, resource.attributes["_cardinalhq.receiver_type"]))`,
+			},
+		},
+	}
+	transformations1, err := ParseTransformations(statements1, zap.NewNop())
+	assert.NoError(t, err)
+	assert.True(t, len(transformations1.logTransforms) > 0)
+
+	rl := plog.NewResourceLogs()
+	rl.Resource().Attributes().PutStr(translate.CardinalFieldReceiverType, "datadog")
+	sl := rl.ScopeLogs().AppendEmpty()
+	lr := sl.LogRecords().AppendEmpty()
+	lr.Body().SetStr("10.1.1.140 - - [16/May/2022:15:01:52 -0700] \"GET /themes/ComBeta/images/bullet.png HTTP/1.1\" 404 304")
+	tc := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
+	transformations1.ExecuteLogTransforms(nil, tc)
+
+	fields, fieldsFound := lr.Attributes().Get("fields")
+	assert.True(t, fieldsFound)
+	m1 := fields.Map().AsRaw()
+	assert.Equal(t, 10, len(m1))
+	assert.True(t, m1["sourceType"] == "accessLogs")
+
+	statements2 := []ContextStatement{
+		{
+			Context: "log",
+			Conditions: []string{
+				`attributes["fields"]["sourceType"] == "accessLogs" and Int(attributes["fields"]["response_code"]) >= 400`,
+			},
+			Statements: []string{
+				`set(attributes["isTrue"], true)`,
+			},
+		},
+	}
+
+	transformations2, err := ParseTransformations(statements2, zap.NewNop())
+	assert.NoError(t, err)
+	assert.True(t, len(transformations2.logTransforms) > 0)
+
+	transformations2.ExecuteLogTransforms(nil, tc)
+	get, b := lr.Attributes().Get("isTrue")
+	assert.True(t, b)
+	assert.True(t, get.Bool())
+}
+
 func TestVPCFlowLogTransformation_UsingGrok(t *testing.T) {
 
 	statements1 := []ContextStatement{

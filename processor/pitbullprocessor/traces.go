@@ -92,9 +92,11 @@ func (e *pitbull) updateTraceTransformations(sc ottl.PitbullProcessorConfig, log
 		newTransformations = ottl.MergeWith(newTransformations, transformations)
 	}
 
-	oldTransformation := e.traceTransformations.Load()
+	oldTransformations := e.traceTransformations.Load()
 	e.traceTransformations.Store(newTransformations)
-	oldTransformation.Stop()
+	if oldTransformations != nil {
+		oldTransformations.Stop()
+	}
 
 	if len(sc.SpanLookupConfigs) > 0 {
 		for _, lookupConfig := range sc.SpanLookupConfigs {

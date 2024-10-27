@@ -120,7 +120,9 @@ func (e *pitbull) updateLogTransformations(sc ottl.PitbullProcessorConfig, logge
 
 	oldTransformations := e.logTransformations.Load()
 	e.logTransformations.Store(newTransformations)
-	oldTransformations.Stop()
+	if oldTransformations != nil {
+		oldTransformations.Stop()
+	}
 
 	if len(sc.LogLookupConfigs) > 0 {
 		for _, lookupConfig := range sc.LogLookupConfigs {

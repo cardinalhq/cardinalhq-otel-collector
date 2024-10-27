@@ -158,9 +158,11 @@ func (e *pitbull) updateMetricTransformation(sc ottl.PitbullProcessorConfig, log
 		newTransformations = ottl.MergeWith(newTransformations, transformations)
 	}
 
-	oldTransformation := e.metricTransformations.Load()
+	oldTransformations := e.metricTransformations.Load()
 	e.metricTransformations.Store(newTransformations)
-	oldTransformation.Stop()
+	if oldTransformations != nil {
+		oldTransformations.Stop()
+	}
 
 	if len(sc.MetricLookupConfigs) > 0 {
 		for _, lookupConfig := range sc.MetricLookupConfigs {

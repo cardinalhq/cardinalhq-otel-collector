@@ -33,8 +33,8 @@ import (
 // So for example, go get the value of ColumnName = serviceName (derived by executing the OTTLExpression say: resource.attributes["service.name"]) = service1
 // Now find the record in the lookup table where serviceName = service1.
 type LookupKey struct {
-	ColumnName string `json:"column_name"`
-	Expression string `json:"expression"`
+	ColumnName string `json:"column_name,omitempty" yaml:"column_name,omitempty"`
+	Expression string `json:"expression,omitempty" yaml:"expression,omitempty"`
 
 	parsedLogExpression    *ottl.Statement[ottllog.TransformContext]
 	parsedSpanExpression   *ottl.Statement[ottlspan.TransformContext]
@@ -48,18 +48,18 @@ type LookupTable []map[string]string
 type transposedLookupTable map[string]map[string]string
 
 type LookupRule struct {
-	FieldNamesToSet []string     `json:"field_names_to_set"`
-	Keys            []*LookupKey `json:"keys"`
+	FieldNamesToSet []string     `json:"field_names_to_set,omitempty" yaml:"field_names_to_set,omitempty"`
+	Keys            []*LookupKey `json:"keys,omitempty" yaml:"keys,omitempty"`
 
 	transposed *transposedLookupTable // make a special transposed table for this rule, to speed up lookups.
 }
 
 type LookupConfig struct {
-	TableName   string        `json:"table_name"`
-	LookupTable LookupTable   `json:"lookup_table"`
-	LogRules    []*LookupRule `json:"log_rules"`
-	SpanRules   []*LookupRule `json:"span_rules"`
-	MetricRules []*LookupRule `json:"metric_rules"`
+	TableName   string        `json:"table_name,omitempty" yaml:"table_name,omitempty"`
+	LookupTable LookupTable   `json:"lookup_table,omitempty" yaml:"lookup_table,omitempty"`
+	LogRules    []*LookupRule `json:"log_rules,omitempty" yaml:"log_rules,omitempty"`
+	SpanRules   []*LookupRule `json:"span_rules,omitempty" yaml:"span_rules,omitempty"`
+	MetricRules []*LookupRule `json:"metric_rules,omitempty" yaml:"metric_rules,omitempty"`
 }
 
 // Helper function to create a key for the transposed map from conditions

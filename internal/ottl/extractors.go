@@ -72,15 +72,6 @@ type SpanExtractor struct {
 	MetricValue *ottl.Statement[ottlspan.TransformContext]
 }
 
-type MetricExtractorConfig struct {
-	Conditions  []string          `json:"condition"`
-	Dimensions  map[string]string `json:"dimensions"`
-	MetricName  string            `json:"metric_name"`
-	MetricUnit  string            `json:"metric_unit"`
-	MetricType  string            `json:"metric_type"`
-	MetricValue string            `json:"metric_value"`
-}
-
 func (l LogExtractor) EvalLogConditions(ctx context.Context, transformCtx ottllog.TransformContext) (bool, error) {
 	for _, condition := range l.Conditions {
 		matches, err := condition.Eval(ctx, transformCtx)

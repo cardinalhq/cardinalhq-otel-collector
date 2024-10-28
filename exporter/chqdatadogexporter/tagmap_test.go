@@ -54,8 +54,10 @@ func TestTagStrings(t *testing.T) {
 	resourceAttrs.PutStr("k8s.persistentvolume.access_mode", "ReadWriteOnce")
 	resourceAttrs.PutStr("log.file.path", "/var/log")
 	resourceAttrs.PutStr("log.file.name", "app.log")
+	resourceAttrs.PutStr("bob", "uncle")
 
 	scopeAttrs.PutStr("telemetry.sdk.language", "go")
+	scopeAttrs.PutStr("bobscope", "unclescope")
 
 	logAttrs.PutStr("bobs.your", "uncle")
 	logAttrs.PutInt("number", 123)
@@ -66,12 +68,14 @@ func TestTagStrings(t *testing.T) {
 		"is_true:true",
 		"bobs.your:uncle",
 		"language:go",
+		"bobscope:unclescope",
 	}
 	expectedResources := []string{
 		"container_id:12345",
 		"access_mode:ReadWriteOnce",
 		"dirname:/var/log",
 		"filename:app.log",
+		"bob:uncle",
 	}
 
 	tags, resources := tagStrings(resourceAttrs, scopeAttrs, logAttrs)

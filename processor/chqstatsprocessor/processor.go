@@ -186,6 +186,7 @@ func ToAttributes(resource pcommon.Resource, scope pcommon.InstrumentationScope,
 }
 
 func (e *statsProc) configUpdateCallback(cpc ottl.ControlPlaneConfig) {
+	e.logger.Info("full stats config", zap.Any("config", cpc.Stats))
 	configs := cpc.Stats[e.id.Name()]
 	switch e.ttype {
 	case "logs":

@@ -153,10 +153,12 @@ func (c *ConfigManagerImpl) checkUpdates() {
 		return
 	}
 	c.logger.Info("Sampler config updated", zap.Uint64("hash", newhash))
+	c.logger.Info("New config", zap.String("config", string(b)))
 	if err := yaml.Unmarshal(b, &conf); err != nil {
 		c.logger.Error("Error unmarshalling sampler config YAML", zap.Error(err))
 		return
 	}
+	c.logger.Info("New config", zap.Any("config", conf))
 	conf.hash = newhash
 	c.lastconf = &conf
 

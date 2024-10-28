@@ -125,8 +125,8 @@ func (e *datadogExporter) convertSumMetric(_ context.Context, metric pmetric.Met
 		value := valueAsFloat64(dp)
 		lAttr := dp.Attributes()
 		interval, hasInterval := getInterval(lAttr)
-		if strings.Contains(metric.Name(), "movie") {
-			e.logger.Info("Received rate interval:%s, value:%s", zap.Int64("interval", interval), zap.Float64("value", value))
+		if strings.Contains(metric.Name(), "movie") && strings.Contains(metric.Name(), "starts") {
+			e.logger.Info("Received rate interval:%d, value:%f", zap.Int64("interval", interval), zap.Float64("value", value))
 		}
 		if hasInterval {
 			value = value / float64(interval)

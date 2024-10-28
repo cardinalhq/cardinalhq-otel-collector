@@ -15,9 +15,13 @@
 package chqdatadogexporter
 
 import (
+	"context"
 	"testing"
+	"time"
 
+	ddpb "github.com/cardinalhq/cardinalhq-otel-collector/internal/ddpb"
 	"github.com/tj/assert"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 )
 
@@ -29,4 +33,84 @@ func TestValueAsFloat64(t *testing.T) {
 	meaningoflife := pmetric.NewNumberDataPoint()
 	meaningoflife.SetIntValue(42)
 	assert.Equal(t, 42.0, valueAsFloat64(meaningoflife))
+}
+
+func TestConvertSumMetric(t *testing.T) {
+	ctx := context.Background()
+	exporter := &datadogExporter{}
+
+	metric := pmetric.NewMetric()
+	metric.SetName("test.sum.metric")
+	metric.SetUnit("ms")
+
+	rAttr := pcommon.NewMap()
+	rAttr.PutStr("resource_key", "resource_value")
+
+	sAttr := pcommon.NewMap()
+	sAttr.PutStr("scope_key", "scope_value")
+
+	sum := pmetric.NewSum()
+	sum.SetAggregationTemporality(pmetric.AggregationTemporalityCumulative)
+	sum.SetIsMonotonic(true)
+
+	dp := sum.DataPoints().AppendEmpty()
+	dp.SetIntValue(100)
+	dp.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
+	dp.Attributes().PutStr("dp_key", "dp_value")
+
+	series := exporter.convertSumMetric(ctx, metric, rAttr, sAttr, sum)
+
+	assert.Len(t, series, 1)
+	assert.Equal(t, "test.sum.metric", series[0].Metric)
+	assert.Equal(t, "ms", series[0].Unit)
+	assert.Equal(t, ddpb.MetricPayload_COUNT, series[0].Type)
+	assert.ElementsMatch(t,
+		[]string{
+			"resource_key:resource_value",
+			"scope_key:scope_value",
+			"dp_key:dp_value",
+		}, series[0].Tags)
+	assert.Len(t, series[0].Points, 1)
+	assert.Equal(t, float64(100), series[0].Points[0].Value)
+}
+
+func TestConvertSumMetricWithInterval(t *testing.T) {
+	ctx := context.Background()
+	exporter := &datadogExporter{}
+
+	metric := pmetric.NewMetric()
+	metric.SetName("test.sum.metric.interval")
+	metric.SetUnit("ms")
+
+	rAttr := pcommon.NewMap()
+	rAttr.PutStr("resource_key", "resource_value")
+
+	sAttr := pcommon.NewMap()
+	sAttr.PutStr("scope_key", "scope_value")
+
+	sum := pmetric.NewSum()
+	sum.SetAggregationTemporality(pmetric.AggregationTemporalityCumulative)
+	sum.SetIsMonotonic(false)
+
+	dp := sum.DataPoints().AppendEmpty()
+	dp.SetIntValue(100)
+	dp.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
+	dp.Attributes().PutStr("dp_key", "dp_value")
+	dp.Attributes().PutInt("_dd.rateInterval", 10)
+
+	series := exporter.convertSumMetric(ctx, metric, rAttr, sAttr, sum)
+
+	assert.Len(t, series, 1)
+	assert.Equal(t, "test.sum.metric.interval", series[0].Metric)
+	assert.Equal(t, "ms", series[0].Unit)
+	assert.Equal(t, ddpb.MetricPayload_RATE, series[0].Type)
+	assert.Equal(t, int64(10), series[0].Interval)
+	assert.ElementsMatch(t,
+		[]string{
+			"resource_key:resource_value",
+			"scope_key:scope_value",
+			"dp_key:dp_value",
+		}, series[0].Tags)
+	assert.Len(t, series[0].Points, 1)
+	assert.Equal(t, float64(10), series[0].Points[0].Value) // 100 / 10
 }

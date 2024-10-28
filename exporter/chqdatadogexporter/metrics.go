@@ -130,6 +130,7 @@ func (e *datadogExporter) convertSumMetric(_ context.Context, metric pmetric.Met
 			m.Type = ddpb.MetricPayload_RATE
 			m.Interval = interval
 		}
+		lAttr.Remove("_dd.rateInterval")
 		tags, resources := tagStrings(rAttr, sAttr, dp.Attributes())
 		m.Tags = append(m.Tags, tags...)
 		if len(resources) > 0 {
@@ -142,7 +143,6 @@ func (e *datadogExporter) convertSumMetric(_ context.Context, metric pmetric.Met
 				})
 			}
 		}
-		lAttr.Remove("_dd.rateInterval")
 		m.Points = append(m.Points, &ddpb.MetricPayload_MetricPoint{
 			Timestamp: dp.Timestamp().AsTime().Unix(),
 			Value:     value,

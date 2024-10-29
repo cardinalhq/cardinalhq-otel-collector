@@ -15,19 +15,22 @@
 package aggregationprocessor
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 var _ ottl.MetricAggregator[float64] = &MockAggregator[float64]{}
 
-type MockAggregator[T float64] struct {
+type MockAggregator[T float64 | int64] struct {
 }
 
 func (m *MockAggregator[T]) Configure(config ottl.ControlPlaneConfig, vendor string) {
@@ -49,34 +52,62 @@ func (m *MockAggregator[T]) HasRules() bool {
 	return false
 }
 
-func TestAggregateGauge(t *testing.T) {
+type MockMetricsConsumer struct {
+	ConsumedMetrics []pmetric.Metrics
+}
+
+func (m *MockMetricsConsumer) ConsumeMetrics(_ context.Context, metrics pmetric.Metrics) error {
+	m.ConsumedMetrics = append(m.ConsumedMetrics, metrics)
+	return nil
+}
+
+func TestAggregateCounter(t *testing.T) {
 	rms := pmetric.NewResourceMetrics()
 	ils := rms.ScopeMetrics().AppendEmpty()
 	metric := ils.Metrics().AppendEmpty()
 	metric.SetName("test")
 
-	metric.SetEmptyGauge()
-	dp1 := metric.Gauge().DataPoints().AppendEmpty()
+	now := time.Now()
+	metric.SetEmptySum()
+	dp1 := metric.Sum().DataPoints().AppendEmpty()
+	dp1.SetTimestamp(pcommon.NewTimestampFromTime(now))
 	dp1.SetDoubleValue(1.0)
 	dp1.Attributes().PutStr("foo", "bar")
-	dp2 := metric.Gauge().DataPoints().AppendEmpty()
+	dp1.Attributes().PutBool(translate.CardinalFieldAggregate, true)
+
+	dp2 := metric.Sum().DataPoints().AppendEmpty()
 	dp2.SetDoubleValue(2.0)
+	dp2.Attributes().PutBool(translate.CardinalFieldAggregate, true)
+	dp2.SetTimestamp(pcommon.NewTimestampFromTime(now))
 	dp2.Attributes().PutStr("foo", "bar")
-	dp3 := metric.Gauge().DataPoints().AppendEmpty()
+
+	dp3 := metric.Sum().DataPoints().AppendEmpty()
 	dp3.SetDoubleValue(3.0)
 	dp3.Attributes().PutStr("foo", "bar")
+	dp3.Attributes().PutBool(translate.CardinalFieldAggregate, true)
+	dp3.SetTimestamp(pcommon.NewTimestampFromTime(now))
+
+	mockConsumer := &MockMetricsConsumer{}
 
 	mp := &pitbull{
-		aggregatorF: &MockAggregator[float64]{},
+		aggregatorF:        ottl.NewMetricAggregatorImpl[float64](10000),
+		aggregatorI:        ottl.NewMetricAggregatorImpl[int64](10000),
+		nextMetricReceiver: mockConsumer,
 	}
 
-	aggregated := mp.aggregateGaugeDatapoint(rms, ils, metric, dp1)
-	assert.True(t, aggregated)
-	aggregated = mp.aggregateGaugeDatapoint(rms, ils, metric, dp2)
-	assert.True(t, aggregated)
-	aggregated = mp.aggregateGaugeDatapoint(rms, ils, metric, dp3)
-	assert.True(t, aggregated)
+	mp.aggregateSumDatapoint(rms, ils, metric, dp1)
+	mp.aggregateSumDatapoint(rms, ils, metric, dp2)
+	mp.aggregateSumDatapoint(rms, ils, metric, dp3)
+	mp.emit(now.Add(30 * time.Second))
+
+	require.Equal(t, 1, len(mockConsumer.ConsumedMetrics))
+	require.Equal(t, 1, mockConsumer.ConsumedMetrics[0].ResourceMetrics().Len())
+	require.Equal(t, 1, mockConsumer.ConsumedMetrics[0].ResourceMetrics().At(0).ScopeMetrics().Len())
+	require.Equal(t, 1, mockConsumer.ConsumedMetrics[0].ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().Len())
+	require.Equal(t, 1, mockConsumer.ConsumedMetrics[0].ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Sum().DataPoints().Len())
+	assert.Equal(t, 6.0, mockConsumer.ConsumedMetrics[0].ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Sum().DataPoints().At(0).DoubleValue())
 }
+
 func TestSetResourceMetadata(t *testing.T) {
 	res := pmetric.NewResourceMetrics()
 

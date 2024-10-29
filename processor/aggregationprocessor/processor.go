@@ -15,11 +15,13 @@
 package aggregationprocessor
 
 import (
+	"context"
 	"sync"
 	"time"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
+	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -29,6 +31,10 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor/internal/metadata"
 )
+
+type MetricsConsumer interface {
+	ConsumeMetrics(ctx context.Context, td pmetric.Metrics) error
+}
 
 type pitbull struct {
 	sync.RWMutex
@@ -41,7 +47,7 @@ type pitbull struct {
 	telemetrySettings component.TelemetrySettings
 
 	// for metrics
-	nextMetricReceiver   consumer.Metrics
+	nextMetricReceiver   MetricsConsumer
 	aggregationInterval  time.Duration
 	aggregatorI          ottl.MetricAggregator[int64]
 	aggregatorF          ottl.MetricAggregator[float64]

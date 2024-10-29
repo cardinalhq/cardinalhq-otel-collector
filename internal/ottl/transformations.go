@@ -552,7 +552,7 @@ func (t *transformations) ExecuteDatapointTransforms(logger *zap.Logger, counter
 		if !allConditionsTrue {
 			return
 		}
-		logger.Info("Executing datapoint transformation statements", zap.String("rule_id", ruleID))
+		logger.Info("Executing datapoint transformation statements", zap.String("rule_id", ruleID), zap.String("metric_name", transformCtx.GetMetric().Name()))
 		for _, statement := range dataPointTransform.statements {
 			_, _, err := statement.Execute(context.Background(), transformCtx)
 			if err != nil {

@@ -89,12 +89,16 @@ func tagStrings(resourceAttrs pcommon.Map, scopeAttrs pcommon.Map, logAttrs pcom
 	resourceAttrs.Range(func(k string, v pcommon.Value) bool {
 		if tag, ok := rAttrMap[k]; ok {
 			resources = append(resources, tag+":"+v.AsString())
+		} else {
+			resources = append(resources, k+":"+v.AsString())
 		}
 		return true
 	})
 	scopeAttrs.Range(func(k string, v pcommon.Value) bool {
 		if tag, ok := sAttrMap[k]; ok {
 			tags = append(tags, tag+":"+v.AsString())
+		} else {
+			tags = append(tags, k+":"+v.AsString())
 		}
 		return true
 	})

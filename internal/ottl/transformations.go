@@ -549,6 +549,7 @@ func (t *transformations) ExecuteDatapointTransforms(logger *zap.Logger, counter
 			allConditionsTrue = allConditionsTrue && conditionMet
 		}
 		telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "pre-statements"), attribute.String("rule_id", ruleID), attribute.Bool("all_conditions_true", allConditionsTrue)))
+		logger.Info("metric datapoint transformation result", zap.String("rule_id", ruleID), zap.String("metric_name", transformCtx.GetMetric().Name()), zap.Bool("all_conditions_true", allConditionsTrue))
 		if !allConditionsTrue {
 			return
 		}

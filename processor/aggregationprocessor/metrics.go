@@ -16,6 +16,7 @@ package aggregationprocessor
 
 import (
 	"context"
+	"time"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
@@ -117,7 +118,7 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 		return rm.ScopeMetrics().Len() == 0
 	})
 
-	e.emit()
+	e.emit(time.Now())
 
 	if md.ResourceMetrics().Len() == 0 {
 		return md, processorhelper.ErrSkipProcessingData

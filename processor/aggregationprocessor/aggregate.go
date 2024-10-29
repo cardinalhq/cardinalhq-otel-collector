@@ -26,8 +26,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 )
 
-func (e *pitbull) emit() {
-	now := time.Now()
+func (e *pitbull) emit(now time.Time) {
 	if now.Sub(e.lastEmitCheck) < time.Duration(e.aggregationInterval)*time.Second {
 		return
 	}
@@ -43,8 +42,7 @@ func (e *pitbull) emit() {
 }
 
 func (e *pitbull) emitSetI(set *ottl.AggregationSet[int64]) {
-	now := time.Now()
-	for _, agg := range set.Aggregations {
+	for ts, agg := range set.Aggregations {
 		mmetrics := pmetric.NewMetrics()
 		res := mmetrics.ResourceMetrics().AppendEmpty()
 		sm := res.ScopeMetrics().AppendEmpty()
@@ -61,13 +59,11 @@ func (e *pitbull) emitSetI(set *ottl.AggregationSet[int64]) {
 			m.SetEmptyGauge()
 			dp = m.Gauge().DataPoints().AppendEmpty()
 		}
-		ts := pcommon.NewTimestampFromTime(now)
-		dp.SetTimestamp(ts)
-		dp.SetStartTimestamp(ts)
+		dp.SetTimestamp(pcommon.Timestamp(ts))
+		dp.SetStartTimestamp(pcommon.Timestamp(ts))
 		dp.SetIntValue(agg.Value()[0])
 
 		setTags(res, sm, m, dp, agg.Tags())
-		e.emit()
 
 		err := e.nextMetricReceiver.ConsumeMetrics(context.Background(), mmetrics)
 		if err != nil {
@@ -77,8 +73,7 @@ func (e *pitbull) emitSetI(set *ottl.AggregationSet[int64]) {
 }
 
 func (e *pitbull) emitSetF(set *ottl.AggregationSet[float64]) {
-	now := time.Now()
-	for _, agg := range set.Aggregations {
+	for ts, agg := range set.Aggregations {
 		mmetrics := pmetric.NewMetrics()
 		res := mmetrics.ResourceMetrics().AppendEmpty()
 		sm := res.ScopeMetrics().AppendEmpty()
@@ -95,13 +90,11 @@ func (e *pitbull) emitSetF(set *ottl.AggregationSet[float64]) {
 			m.SetEmptyGauge()
 			dp = m.Gauge().DataPoints().AppendEmpty()
 		}
-		ts := pcommon.NewTimestampFromTime(now)
-		dp.SetTimestamp(ts)
-		dp.SetStartTimestamp(ts)
+		dp.SetTimestamp(pcommon.Timestamp(ts))
+		dp.SetStartTimestamp(pcommon.Timestamp(ts))
 		dp.SetDoubleValue(agg.Value()[0])
 
 		setTags(res, sm, m, dp, agg.Tags())
-		e.emit()
 
 		err := e.nextMetricReceiver.ConsumeMetrics(context.Background(), mmetrics)
 		if err != nil {

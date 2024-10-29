@@ -33,26 +33,19 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 	if md.ResourceMetrics().Len() == 0 {
 		return md, nil
 	}
-
-	environment := translate.EnvironmentFromEnv()
-
 	md.ResourceMetrics().RemoveIf(func(rm pmetric.ResourceMetrics) bool {
-		rattr := rm.Resource().Attributes()
 		serviceName := ottl.GetServiceName(rm.Resource())
 		rm.ScopeMetrics().RemoveIf(func(ilm pmetric.ScopeMetrics) bool {
-			sattr := ilm.Scope().Attributes()
 			ilm.Metrics().RemoveIf(func(m pmetric.Metric) bool {
 				metricName := m.Name()
-				extra := map[string]string{"name": m.Name()}
 				switch m.Type() {
 				case pmetric.MetricTypeGauge:
 					m.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
 						dattr := dp.Attributes()
+
 						if !needsAttr(dattr) {
 							return false
 						}
-						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
-						dattr.PutInt(translate.CardinalFieldTID, tid)
 						agg := e.aggregate(rm, ilm, m, dp)
 						if agg {
 							telemetry.CounterAdd(e.aggregatedDatapoints, 1, metric.WithAttributes(
@@ -68,8 +61,6 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						if !needsAttr(dattr) {
 							return false
 						}
-						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
-						dattr.PutInt(translate.CardinalFieldTID, tid)
 						agg := e.aggregate(rm, ilm, m, dp)
 						if agg {
 							telemetry.CounterAdd(e.aggregatedDatapoints, 1, metric.WithAttributes(
@@ -85,8 +76,6 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						if !needsAttr(dattr) {
 							return false
 						}
-						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
-						dattr.PutInt(translate.CardinalFieldTID, tid)
 						return false
 					})
 				case pmetric.MetricTypeSummary:
@@ -95,8 +84,6 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						if !needsAttr(dattr) {
 							return false
 						}
-						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
-						dattr.PutInt(translate.CardinalFieldTID, tid)
 						return false
 					})
 				case pmetric.MetricTypeExponentialHistogram:
@@ -105,8 +92,6 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						if !needsAttr(dattr) {
 							return false
 						}
-						tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
-						dattr.PutInt(translate.CardinalFieldTID, tid)
 						return false
 					})
 				}

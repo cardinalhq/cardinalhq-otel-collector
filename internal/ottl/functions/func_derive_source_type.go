@@ -61,15 +61,18 @@ type GrokPattern struct {
 }
 
 func compilePatterns(config *Config) (map[string][]GrokPattern, error) {
-	g, err := grok.NewComplete()
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize grok parser: %w", err)
-	}
-
 	var compiledPatterns = make(map[string][]GrokPattern)
+
 	for _, patternConfig := range config.Patterns {
 		for _, sourceType := range patternConfig.SourceTypes {
-			err := g.Compile(sourceType.GrokExpr, true) // assuming named captures only
+			// Create a new grok instance for each sourceType to avoid shared state
+			g, err := grok.NewComplete()
+			if err != nil {
+				return nil, fmt.Errorf("failed to initialize grok parser: %w", err)
+			}
+
+			// Compile each Grok expression independently
+			err = g.Compile(sourceType.GrokExpr, true)
 			if err != nil {
 				return nil, fmt.Errorf("failed to compile pattern %q: %w", sourceType.GrokExpr, err)
 			}
@@ -85,7 +88,7 @@ func compilePatterns(config *Config) (map[string][]GrokPattern, error) {
 				MandatoryFields: mandatoryFields,
 			}
 
-			// Map GrokPattern to each receiverType in ReceiverTypes
+			// Associate GrokPattern with each receiverType
 			for _, receiverType := range sourceType.ReceiverTypes {
 				compiledPatterns[receiverType] = append(compiledPatterns[receiverType], grokPattern)
 			}

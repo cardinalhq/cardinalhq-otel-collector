@@ -206,8 +206,7 @@ func TestAccessLogs_UsingGrok(t *testing.T) {
 	assert.True(t, get.Bool())
 }
 
-// TODO: Fix this test
-func XTestVPCFlowLogTransformation_UsingGrok(t *testing.T) {
+func TestVPCFlowLogTransformation_UsingGrok(t *testing.T) {
 	logger := zap.NewNop()
 	statements1 := []ContextStatement{
 		{

@@ -15,8 +15,9 @@
 package ottl
 
 import (
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"testing"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
@@ -27,6 +28,7 @@ import (
 )
 
 func TestIPFunctions(t *testing.T) {
+	logger := zap.NewNop()
 	statements := []ContextStatement{
 		{
 			Context:    "log",
@@ -36,20 +38,21 @@ func TestIPFunctions(t *testing.T) {
 			},
 		},
 	}
-	transformations, err := ParseTransformations(statements, zap.NewNop())
+	transformations, err := ParseTransformations(logger, statements)
 	assert.NoError(t, err)
 	rl := plog.NewResourceLogs()
 	sl := rl.ScopeLogs().AppendEmpty()
 	lr := sl.LogRecords().AppendEmpty()
 
 	tc := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
-	transformations.ExecuteLogTransforms(nil, tc)
+	transformations.ExecuteLogTransforms(logger, nil, tc)
 	city, cityFound := lr.Attributes().Get("ip")
 	assert.True(t, cityFound)
 	assert.Equal(t, "Walnut Creek", city.Str())
 }
 
 func TestIsInFunc(t *testing.T) {
+	logger := zap.NewNop()
 	tests := []struct {
 		name        string
 		serviceName string
@@ -78,12 +81,12 @@ func TestIsInFunc(t *testing.T) {
 					},
 				},
 			}
-			transformations, err := ParseTransformations(statements, zap.NewNop())
+			transformations, err := ParseTransformations(logger, statements)
 			assert.NoError(t, err)
 			rm := pmetric.NewResourceMetrics()
 			rm.Resource().Attributes().PutStr("service.name", tt.serviceName) // Use the test case's service name
 			tc := ottlresource.NewTransformContext(rm.Resource(), rm)
-			transformations.ExecuteResourceTransforms(nil, tc)
+			transformations.ExecuteResourceTransforms(logger, nil, tc)
 			isIn, isInFound := rm.Resource().Attributes().Get("isIn")
 			assert.True(t, isInFound)
 			assert.Equal(t, tt.expected, isIn.Bool()) // Use the expected result from the test case
@@ -92,6 +95,7 @@ func TestIsInFunc(t *testing.T) {
 }
 
 func TestSimpleBoolean(t *testing.T) {
+	logger := zap.NewNop()
 	statements := []ContextStatement{
 		{
 			Context: "log",
@@ -109,12 +113,12 @@ func TestSimpleBoolean(t *testing.T) {
 	lr.Attributes().PutBool("isTrue", true)
 
 	// Parse the transformations
-	transformations, err := ParseTransformations(statements, zap.NewNop())
+	transformations, err := ParseTransformations(logger, statements)
 	if err != nil {
 		t.Fatalf("Error parsing transformations: %v", err)
 	}
 
-	transformations.ExecuteLogTransforms(nil, ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl))
+	transformations.ExecuteLogTransforms(logger, nil, ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl))
 
 	attr, ok := lr.Attributes().Get("worked")
 	assert.True(t, ok)
@@ -122,6 +126,7 @@ func TestSimpleBoolean(t *testing.T) {
 }
 
 func TestSeverity(t *testing.T) {
+	logger := zap.NewNop()
 	rl := plog.NewResourceLogs()
 	rl.Resource().Attributes().PutStr(translate.CardinalFieldReceiverType, "awsfirehose")
 	sl := rl.ScopeLogs().AppendEmpty()
@@ -139,10 +144,10 @@ func TestSeverity(t *testing.T) {
 			},
 		},
 	}
-	transformations, err := ParseTransformations(statements, zap.NewNop())
+	transformations, err := ParseTransformations(logger, statements)
 	assert.NoError(t, err)
 	assert.True(t, len(transformations.logTransforms) > 0)
-	transformations.ExecuteLogTransforms(nil, ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl))
+	transformations.ExecuteLogTransforms(logger, nil, ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl))
 
 	// assert if foo exists and is set to INFO
 	foo, fooFound := lr.Attributes().Get("foo")
@@ -151,6 +156,7 @@ func TestSeverity(t *testing.T) {
 }
 
 func TestAccessLogs_UsingGrok(t *testing.T) {
+	logger := zap.NewNop()
 	statements1 := []ContextStatement{
 		{
 			Context:    "log",
@@ -160,7 +166,7 @@ func TestAccessLogs_UsingGrok(t *testing.T) {
 			},
 		},
 	}
-	transformations1, err := ParseTransformations(statements1, zap.NewNop())
+	transformations1, err := ParseTransformations(logger, statements1)
 	assert.NoError(t, err)
 	assert.True(t, len(transformations1.logTransforms) > 0)
 
@@ -170,7 +176,7 @@ func TestAccessLogs_UsingGrok(t *testing.T) {
 	lr := sl.LogRecords().AppendEmpty()
 	lr.Body().SetStr("10.1.1.140 - - [16/May/2022:15:01:52 -0700] \"GET /themes/ComBeta/images/bullet.png HTTP/1.1\" 404 304")
 	tc := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
-	transformations1.ExecuteLogTransforms(nil, tc)
+	transformations1.ExecuteLogTransforms(logger, nil, tc)
 
 	fields, fieldsFound := lr.Attributes().Get("fields")
 	assert.True(t, fieldsFound)
@@ -190,18 +196,18 @@ func TestAccessLogs_UsingGrok(t *testing.T) {
 		},
 	}
 
-	transformations2, err := ParseTransformations(statements2, zap.NewNop())
+	transformations2, err := ParseTransformations(logger, statements2)
 	assert.NoError(t, err)
 	assert.True(t, len(transformations2.logTransforms) > 0)
 
-	transformations2.ExecuteLogTransforms(nil, tc)
+	transformations2.ExecuteLogTransforms(logger, nil, tc)
 	get, b := lr.Attributes().Get("isTrue")
 	assert.True(t, b)
 	assert.True(t, get.Bool())
 }
 
 func TestVPCFlowLogTransformation_UsingGrok(t *testing.T) {
-
+	logger := zap.NewNop()
 	statements1 := []ContextStatement{
 		{
 			Context:    "log",
@@ -211,7 +217,7 @@ func TestVPCFlowLogTransformation_UsingGrok(t *testing.T) {
 			},
 		},
 	}
-	transformations1, err := ParseTransformations(statements1, zap.NewNop())
+	transformations1, err := ParseTransformations(logger, statements1)
 	assert.NoError(t, err)
 	assert.True(t, len(transformations1.logTransforms) > 0)
 
@@ -221,7 +227,7 @@ func TestVPCFlowLogTransformation_UsingGrok(t *testing.T) {
 	lr := sl.LogRecords().AppendEmpty()
 	lr.Body().SetStr("2        123456789012    eni-abc12345    10.0.0.1         10.0.1.1         443      1024     6         10       8000     1625567329   1625567389   ACCEPT   OK")
 	tc := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
-	transformations1.ExecuteLogTransforms(nil, tc)
+	transformations1.ExecuteLogTransforms(logger, nil, tc)
 
 	fields, fieldsFound := lr.Attributes().Get("fields")
 	assert.True(t, fieldsFound)
@@ -245,10 +251,10 @@ func TestVPCFlowLogTransformation_UsingGrok(t *testing.T) {
 			},
 		},
 	}
-	transformations2, err := ParseTransformations(statements2, zap.NewNop())
+	transformations2, err := ParseTransformations(logger, statements2)
 	assert.NoError(t, err)
 	assert.True(t, len(transformations2.logTransforms) > 0)
-	transformations2.ExecuteLogTransforms(nil, tc)
+	transformations2.ExecuteLogTransforms(logger, nil, tc)
 
 	fields2, _ := lr.Attributes().Get("fields")
 	m2 := fields2.Map().AsRaw()
@@ -258,6 +264,7 @@ func TestVPCFlowLogTransformation_UsingGrok(t *testing.T) {
 }
 
 func TestTeamAssociations(t *testing.T) {
+	logger := zap.NewNop()
 	statements := []ContextStatement{
 		{
 			Context: "resource",
@@ -270,7 +277,7 @@ func TestTeamAssociations(t *testing.T) {
 		},
 	}
 
-	transformations, err := ParseTransformations(statements, zap.NewNop())
+	transformations, err := ParseTransformations(logger, statements)
 	assert.NoError(t, err)
 	l := len(transformations.resourceTransforms)
 	assert.True(t, l > 0)
@@ -278,7 +285,7 @@ func TestTeamAssociations(t *testing.T) {
 	rm1 := pmetric.NewResourceMetrics()
 	rm1.Resource().Attributes().PutStr("service.name", "service1")
 	tc := ottlresource.NewTransformContext(rm1.Resource(), rm1)
-	transformations.ExecuteResourceTransforms(nil, tc)
+	transformations.ExecuteResourceTransforms(logger, nil, tc)
 
 	// check if rm1 attributes have been updated with team = "cardinal"
 	team, found := rm1.Resource().Attributes().Get("team")

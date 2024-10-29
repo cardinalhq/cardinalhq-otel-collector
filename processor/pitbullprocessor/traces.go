@@ -42,7 +42,7 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 	td.ResourceSpans().RemoveIf(func(rs ptrace.ResourceSpans) bool {
 		transformCtx := ottlresource.NewTransformContext(rs.Resource(), rs)
 		if transformations != nil {
-			transformations.ExecuteResourceTransforms(e.ottlProcessed, transformCtx)
+			transformations.ExecuteResourceTransforms(e.logger, e.ottlProcessed, transformCtx)
 			if _, found := rs.Resource().Attributes().Get(translate.CardinalFieldDropMarker); found {
 				return true
 			}
@@ -50,7 +50,7 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 		rs.ScopeSpans().RemoveIf(func(iss ptrace.ScopeSpans) bool {
 			transformCtx := ottlscope.NewTransformContext(iss.Scope(), rs.Resource(), rs)
 			if transformations != nil {
-				transformations.ExecuteScopeTransforms(e.ottlProcessed, transformCtx)
+				transformations.ExecuteScopeTransforms(e.logger, e.ottlProcessed, transformCtx)
 				if _, found := iss.Scope().Attributes().Get(translate.CardinalFieldDropMarker); found {
 					return true
 				}
@@ -65,7 +65,7 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 				if transformations == nil {
 					return false
 				}
-				transformations.ExecuteSpanTransforms(e.ottlProcessed, transformCtx)
+				transformations.ExecuteSpanTransforms(e.logger, e.ottlProcessed, transformCtx)
 				_, found := sr.Attributes().Get(translate.CardinalFieldDropMarker)
 				return found
 			})
@@ -83,9 +83,9 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 
 func (e *pitbull) updateTraceTransformations(sc ottl.PitbullProcessorConfig, logger *zap.Logger) {
 	e.logger.Info("Updating trace transformations", zap.Int("num_decorators", len(sc.SpanStatements)))
-	newTransformations := ottl.NewTransformations(e.logger)
+	newTransformations := ottl.NewTransformations()
 
-	transformations, err := ottl.ParseTransformations(sc.SpanStatements, e.logger)
+	transformations, err := ottl.ParseTransformations(e.logger, sc.SpanStatements)
 	if err != nil {
 		e.logger.Error("Error parsing traces transformation", zap.Error(err))
 	} else {

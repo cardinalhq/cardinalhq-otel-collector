@@ -61,7 +61,7 @@ func (e *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 	ld.ResourceLogs().RemoveIf(func(rl plog.ResourceLogs) bool {
 		transformCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
 		if transformations != nil {
-			transformations.ExecuteResourceTransforms(e.ottlProcessed, transformCtx)
+			transformations.ExecuteResourceTransforms(e.logger, e.ottlProcessed, transformCtx)
 			if _, found := rl.Resource().Attributes().Get(translate.CardinalFieldDropMarker); found {
 				return true
 			}
@@ -70,7 +70,7 @@ func (e *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 		rl.ScopeLogs().RemoveIf(func(sl plog.ScopeLogs) bool {
 			transformCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), rl)
 			if transformations != nil {
-				transformations.ExecuteScopeTransforms(e.ottlProcessed, transformCtx)
+				transformations.ExecuteScopeTransforms(e.logger, e.ottlProcessed, transformCtx)
 				if _, found := sl.Scope().Attributes().Get(translate.CardinalFieldDropMarker); found {
 					return true
 				}
@@ -86,7 +86,7 @@ func (e *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 				if transformations == nil {
 					return false
 				}
-				transformations.ExecuteLogTransforms(e.ottlProcessed, transformCtx)
+				transformations.ExecuteLogTransforms(e.logger, e.ottlProcessed, transformCtx)
 				_, dropMe := lr.Attributes().Get(translate.CardinalFieldDropMarker)
 				return dropMe
 			})
@@ -109,9 +109,9 @@ func removeAllCardinalFields(attr pcommon.Map) {
 
 func (e *pitbull) updateLogTransformations(sc ottl.PitbullProcessorConfig, logger *zap.Logger) {
 	e.logger.Info("Updating log transformations", zap.Int("num_decorators", len(sc.LogStatements)))
-	newTransformations := ottl.NewTransformations(e.logger)
+	newTransformations := ottl.NewTransformations()
 
-	transformations, err := ottl.ParseTransformations(sc.LogStatements, e.logger)
+	transformations, err := ottl.ParseTransformations(e.logger, sc.LogStatements)
 	if err != nil {
 		e.logger.Error("Error parsing log transformation", zap.Error(err))
 	} else {

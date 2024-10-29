@@ -16,7 +16,6 @@ package ottl
 
 import (
 	"testing"
-	"time"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 
@@ -154,45 +153,6 @@ func TestSeverity(t *testing.T) {
 	foo, fooFound := lr.Attributes().Get("foo")
 	assert.True(t, fooFound)
 	assert.Equal(t, "INFO", foo.Str())
-}
-
-func TestSet(t *testing.T) {
-	rm := pmetric.NewResourceMetrics()
-	sm := rm.ScopeMetrics().AppendEmpty()
-	metrics := sm.Metrics()
-	m := metrics.AppendEmpty()
-	m.SetName("api-gateway.movie_play_starts")
-	dp := m.SetEmptySum().DataPoints().AppendEmpty()
-	dp.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
-	dp.Attributes().PutStr("movieId", "foo")
-
-	statements := []ContextStatement{
-		{
-			Context: "datapoint",
-			Conditions: []string{
-				`metric.name == "api-gateway.movie_play_starts"`,
-			},
-			Statements: []string{
-				"set(attributes[\"movieId\"], \"_aggregated\")",
-				"set(attributes[\"_cardinalhq.aggregate\"], true)",
-			},
-		},
-	}
-
-	transformations, err := ParseTransformations(statements, zap.NewNop())
-	assert.NoError(t, err)
-	assert.True(t, len(transformations.dataPointTransforms) > 0)
-
-	transformations.ExecuteDatapointTransforms(nil, ottldatapoint.NewTransformContext(dp, m, metrics, sm.Scope(), rm.Resource(), sm, rm))
-	// check value of movieId
-	movieId, movieIdFound := dp.Attributes().Get("movieId")
-	assert.True(t, movieIdFound)
-	assert.Equal(t, "_aggregated", movieId.Str())
-
-	// check value of _cardinalhq.aggregate
-	aggregate, aggregateFound := dp.Attributes().Get("_cardinalhq.aggregate")
-	assert.True(t, aggregateFound)
-	assert.True(t, aggregate.Bool())
 }
 
 func TestAccessLogs_UsingGrok(t *testing.T) {

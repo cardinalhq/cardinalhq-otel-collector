@@ -43,7 +43,7 @@ func createTestLogRecord() plog.LogRecord {
 
 // TestFilterRule_ResourceConditionLog Test resource-based condition for logs
 func TestFilterRule_ResourceConditionLog(t *testing.T) {
-	// Create a filterRule with a resource-based condition
+	logger := zap.NewNop()
 	statements := []ContextStatement{
 		{
 			Context: "log",
@@ -56,7 +56,7 @@ func TestFilterRule_ResourceConditionLog(t *testing.T) {
 			},
 		},
 	}
-	transformations, err := ParseTransformations(statements, zap.NewNop())
+	transformations, err := ParseTransformations(logger, statements)
 	require.NoError(t, err)
 
 	// Create test data
@@ -65,7 +65,7 @@ func TestFilterRule_ResourceConditionLog(t *testing.T) {
 	ll := createTestLogRecord()
 
 	transformCtx := ottllog.NewTransformContext(ll, sl.Scope(), rl.Resource(), sl, rl)
-	transformations.ExecuteLogTransforms(nil, transformCtx)
+	transformations.ExecuteLogTransforms(logger, nil, transformCtx)
 
 	dropped, exists := ll.Attributes().Get("dropped")
 	require.True(t, exists)

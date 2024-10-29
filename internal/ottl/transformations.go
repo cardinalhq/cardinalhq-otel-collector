@@ -91,10 +91,9 @@ type transformations struct {
 	spanTransforms      map[RuleID]spanTransform
 	metricTransforms    map[RuleID]metricTransform
 	dataPointTransforms map[RuleID]dataPointTransform
-	logger              *zap.Logger
 }
 
-func NewTransformations(logger *zap.Logger) *transformations {
+func NewTransformations() *transformations {
 	return &transformations{
 		resourceTransforms:  make(map[RuleID]resourceTransform),
 		scopeTransforms:     make(map[RuleID]scopeTransform),
@@ -102,7 +101,6 @@ func NewTransformations(logger *zap.Logger) *transformations {
 		spanTransforms:      make(map[RuleID]spanTransform),
 		metricTransforms:    make(map[RuleID]metricTransform),
 		dataPointTransforms: make(map[RuleID]dataPointTransform),
-		logger:              logger,
 	}
 }
 
@@ -203,7 +201,7 @@ func GetServiceName(resource pcommon.Resource) string {
 	return "unknown"
 }
 
-func ParseTransformations(statements []ContextStatement, logger *zap.Logger) (*transformations, error) {
+func ParseTransformations(logger *zap.Logger, statements []ContextStatement) (*transformations, error) {
 	var errors error
 
 	resourceParser, _ := ottlresource.NewParser(ToFactory[ottlresource.TransformContext](), component.TelemetrySettings{Logger: logger})
@@ -213,7 +211,7 @@ func ParseTransformations(statements []ContextStatement, logger *zap.Logger) (*t
 	metricParser, _ := ottlmetric.NewParser(ToFactory[ottlmetric.TransformContext](), component.TelemetrySettings{Logger: logger})
 	dataPointParser, _ := ottldatapoint.NewParser(ToFactory[ottldatapoint.TransformContext](), component.TelemetrySettings{Logger: logger})
 
-	transformations := NewTransformations(logger)
+	transformations := NewTransformations()
 
 	for _, cs := range statements {
 		switch cs.Context {
@@ -373,7 +371,7 @@ func evaluateTransform[T any](counter telemetry.DeferrableCounter, rules map[Rul
 	}
 }
 
-func (t *transformations) ExecuteResourceTransforms(counter telemetry.DeferrableCounter, transformCtx ottlresource.TransformContext) {
+func (t *transformations) ExecuteResourceTransforms(logger *zap.Logger, counter telemetry.DeferrableCounter, transformCtx ottlresource.TransformContext) {
 	attrset := attribute.NewSet(attribute.String("context", "resource"))
 	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "resource")))
 	evaluateTransform[resourceTransform](counter, t.resourceTransforms, func(counter telemetry.DeferrableCounter, resourceTransform resourceTransform, ruleID string) {
@@ -390,13 +388,13 @@ func (t *transformations) ExecuteResourceTransforms(counter telemetry.Deferrable
 		for _, statement := range resourceTransform.statements {
 			_, _, err := statement.Execute(context.Background(), transformCtx)
 			if err != nil {
-				t.logger.Error("Error executing resource transformation", zap.Error(err))
+				logger.Error("Error executing resource transformation", zap.Error(err))
 			}
 		}
 	})
 }
 
-func (t *transformations) ExecuteScopeTransforms(counter telemetry.DeferrableCounter, transformCtx ottlscope.TransformContext) {
+func (t *transformations) ExecuteScopeTransforms(logger *zap.Logger, counter telemetry.DeferrableCounter, transformCtx ottlscope.TransformContext) {
 	attrset := attribute.NewSet(attribute.String("context", "scope"))
 	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "scope")))
 	evaluateTransform[scopeTransform](counter, t.scopeTransforms, func(counter telemetry.DeferrableCounter, scopeTransform scopeTransform, ruleID string) {
@@ -413,14 +411,14 @@ func (t *transformations) ExecuteScopeTransforms(counter telemetry.DeferrableCou
 		for _, statement := range scopeTransform.statements {
 			_, _, err := statement.Execute(context.Background(), transformCtx)
 			if err != nil {
-				t.logger.Error("Error executing scope transformation", zap.Error(err))
+				logger.Error("Error executing scope transformation", zap.Error(err))
 			}
 		}
 
 	})
 }
 
-func (t *transformations) ExecuteLogTransforms(counter telemetry.DeferrableCounter, transformCtx ottllog.TransformContext) {
+func (t *transformations) ExecuteLogTransforms(logger *zap.Logger, counter telemetry.DeferrableCounter, transformCtx ottllog.TransformContext) {
 	attrset := attribute.NewSet(attribute.String("context", "log"))
 	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "log")))
 	evaluateTransform[logTransform](counter, t.logTransforms, func(counter telemetry.DeferrableCounter, logTransform logTransform, ruleID string) {
@@ -457,7 +455,7 @@ func (t *transformations) ExecuteLogTransforms(counter telemetry.DeferrableCount
 		for _, statement := range logTransform.statements {
 			_, _, err := statement.Execute(context.Background(), transformCtx)
 			if err != nil {
-				t.logger.Error("Error executing log transformation", zap.Error(err))
+				logger.Error("Error executing log transformation", zap.Error(err))
 			}
 		}
 	})
@@ -474,7 +472,7 @@ func shouldFilter(rate int, randval float64) bool {
 	}
 }
 
-func (t *transformations) ExecuteSpanTransforms(counter telemetry.DeferrableCounter, transformCtx ottlspan.TransformContext) {
+func (t *transformations) ExecuteSpanTransforms(logger *zap.Logger, counter telemetry.DeferrableCounter, transformCtx ottlspan.TransformContext) {
 	attrset := attribute.NewSet(attribute.String("context", "span"))
 	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "span")))
 	evaluateTransform[spanTransform](counter, t.spanTransforms, func(counter telemetry.DeferrableCounter, spanTransform spanTransform, ruleID string) {
@@ -511,13 +509,13 @@ func (t *transformations) ExecuteSpanTransforms(counter telemetry.DeferrableCoun
 		for _, statement := range spanTransform.statements {
 			_, _, err := statement.Execute(context.Background(), transformCtx)
 			if err != nil {
-				t.logger.Error("Error executing span transformation", zap.Error(err))
+				logger.Error("Error executing span transformation", zap.Error(err))
 			}
 		}
 	})
 }
 
-func (t *transformations) ExecuteMetricTransforms(counter telemetry.DeferrableCounter, transformCtx ottlmetric.TransformContext) {
+func (t *transformations) ExecuteMetricTransforms(logger *zap.Logger, counter telemetry.DeferrableCounter, transformCtx ottlmetric.TransformContext) {
 	attrset := attribute.NewSet(attribute.String("context", "metric"))
 	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "metric")))
 	evaluateTransform[metricTransform](counter, t.metricTransforms, func(counter telemetry.DeferrableCounter, metricTransform metricTransform, ruleID string) {
@@ -534,13 +532,13 @@ func (t *transformations) ExecuteMetricTransforms(counter telemetry.DeferrableCo
 		for _, statement := range metricTransform.statements {
 			_, _, err := statement.Execute(context.Background(), transformCtx)
 			if err != nil {
-				t.logger.Error("Error executing metric transformation", zap.Error(err))
+				logger.Error("Error executing metric transformation", zap.Error(err))
 			}
 		}
 	})
 }
 
-func (t *transformations) ExecuteDatapointTransforms(counter telemetry.DeferrableCounter, transformCtx ottldatapoint.TransformContext) {
+func (t *transformations) ExecuteDatapointTransforms(logger *zap.Logger, counter telemetry.DeferrableCounter, transformCtx ottldatapoint.TransformContext) {
 	attrset := attribute.NewSet(attribute.String("context", "datapoint"))
 	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "datapoint")))
 	evaluateTransform[dataPointTransform](counter, t.dataPointTransforms, func(counter telemetry.DeferrableCounter, dataPointTransform dataPointTransform, ruleID string) {
@@ -554,11 +552,11 @@ func (t *transformations) ExecuteDatapointTransforms(counter telemetry.Deferrabl
 		if !allConditionsTrue {
 			return
 		}
-		t.logger.Info("Matched rule, running statements", zap.String("rule_id", ruleID), zap.String("metric_name", transformCtx.GetMetric().Name()))
+		logger.Info("Executing datapoint transformation statements", zap.String("rule_id", ruleID))
 		for _, statement := range dataPointTransform.statements {
 			_, _, err := statement.Execute(context.Background(), transformCtx)
 			if err != nil {
-				t.logger.Error("Error executing datapoint transformation", zap.Error(err))
+				logger.Error("Error executing datapoint transformation", zap.Error(err))
 			}
 		}
 	})

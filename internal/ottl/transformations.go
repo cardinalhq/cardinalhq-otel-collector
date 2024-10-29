@@ -554,6 +554,7 @@ func (t *transformations) ExecuteDatapointTransforms(counter telemetry.Deferrabl
 		if !allConditionsTrue {
 			return
 		}
+		t.logger.Info("Matched rule, running statements", zap.String("rule_id", ruleID), zap.String("metric_name", transformCtx.GetMetric().Name()))
 		for _, statement := range dataPointTransform.statements {
 			_, _, err := statement.Execute(context.Background(), transformCtx)
 			if err != nil {

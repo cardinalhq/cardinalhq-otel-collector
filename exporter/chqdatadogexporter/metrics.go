@@ -124,6 +124,9 @@ func (e *datadogExporter) convertSumMetric(_ context.Context, metric pmetric.Met
 		dp := s.DataPoints().At(i)
 		value := valueAsFloat64(dp)
 		lAttr := dp.Attributes()
+		if strings.Contains(metric.Name(), "starts") {
+			e.logger.Info("starts metric", zap.String("name", metric.Name()), zap.Any("attributes", lAttr.AsRaw()))
+		}
 		interval, hasInterval := getInterval(lAttr)
 		if hasInterval {
 			value = value / float64(interval)

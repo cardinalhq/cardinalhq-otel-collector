@@ -96,7 +96,7 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 }
 
 func (e *statsProc) Capabilities() consumer.Capabilities {
-	return consumer.Capabilities{MutatesData: false}
+	return consumer.Capabilities{MutatesData: true}
 }
 
 func (e *statsProc) Start(ctx context.Context, host component.Host) error {

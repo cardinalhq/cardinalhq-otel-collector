@@ -63,6 +63,8 @@ func TestTagStrings(t *testing.T) {
 	logAttrs.PutInt("number", 123)
 	logAttrs.PutBool("is_true", true)
 
+	logAttrs.PutStr("_cardinalhq.ignoreme", "ignoreme")
+
 	expectedTags := []string{
 		"number:123",
 		"is_true:true",

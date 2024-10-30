@@ -87,6 +87,9 @@ func tagStrings(resourceAttrs pcommon.Map, scopeAttrs pcommon.Map, logAttrs pcom
 	// This should really go onto the resource list, but it seems datadog doesn't
 	// add these to the metric, so we will do this.
 	resourceAttrs.Range(func(k string, v pcommon.Value) bool {
+		if strings.HasPrefix(k, "_cardinalhq.") {
+			return true
+		}
 		if tag, ok := rAttrMap[k]; ok {
 			resources = append(resources, tag+":"+v.AsString())
 		} else {
@@ -95,6 +98,9 @@ func tagStrings(resourceAttrs pcommon.Map, scopeAttrs pcommon.Map, logAttrs pcom
 		return true
 	})
 	scopeAttrs.Range(func(k string, v pcommon.Value) bool {
+		if strings.HasPrefix(k, "_cardinalhq.") {
+			return true
+		}
 		if tag, ok := sAttrMap[k]; ok {
 			tags = append(tags, tag+":"+v.AsString())
 		} else {
@@ -103,6 +109,9 @@ func tagStrings(resourceAttrs pcommon.Map, scopeAttrs pcommon.Map, logAttrs pcom
 		return true
 	})
 	logAttrs.Range(func(k string, v pcommon.Value) bool {
+		if strings.HasPrefix(k, "_cardinalhq.") {
+			return true
+		}
 		tags = append(tags, k+":"+v.AsString())
 		return true
 	})

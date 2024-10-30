@@ -16,6 +16,8 @@ package ottl
 
 import (
 	"fmt"
+	"log/slog"
+	"strings"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl/accumulator"
 )
@@ -72,6 +74,9 @@ func (a *AggregationImpl[T]) Add(name string, values []T) error {
 func (a *AggregationImpl[T]) Value() []T {
 	if a.ty == AggregationTypeAvg {
 		return a.accumulator.Avg()
+	}
+	if strings.Contains(a.name, "starts") {
+		slog.Info("Records aggregated: ", slog.Any("record", a.accumulator.Record()))
 	}
 	return a.accumulator.Sum()
 }

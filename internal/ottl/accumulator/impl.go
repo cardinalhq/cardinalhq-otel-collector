@@ -16,7 +16,6 @@ package accumulator
 
 import (
 	"fmt"
-	"log/slog"
 )
 
 type AccumulatorImpl[T int64 | float64] struct {
@@ -66,7 +65,6 @@ func (a *AccumulatorImpl[T]) Sum() []T {
 
 func (a *AccumulatorImpl[T]) Avg() []T {
 	ret := make([]T, len(a.buckets))
-	slog.Info("AVERAGE", slog.Uint64("count", a.count), slog.Any("sum", a.sum), slog.Any("record", a.record))
 	if a.count == 0 {
 		return ret
 	}
@@ -74,4 +72,8 @@ func (a *AccumulatorImpl[T]) Avg() []T {
 		ret[i] = a.sum[i] / T(a.count)
 	}
 	return ret
+}
+
+func (a *AccumulatorImpl[T]) Record() []T {
+	return a.record
 }

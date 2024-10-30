@@ -125,7 +125,8 @@ func (e *datadogExporter) convertSumMetric(_ context.Context, metric pmetric.Met
 		value := valueAsFloat64(dp)
 		lAttr := dp.Attributes()
 		if strings.Contains(metric.Name(), "starts") {
-			e.logger.Info("starts metric", zap.String("name", metric.Name()), zap.Any("attributes", lAttr.AsRaw()))
+			e.logger.Info("starts metric", zap.Int64("timestamp", dp.StartTimestamp().AsTime().Unix()), zap.String("name", metric.Name()), zap.Any("attributes", lAttr.AsRaw()))
+			lAttr.PutInt("_dd.rateInterval", 10)
 		}
 		interval, hasInterval := getInterval(lAttr)
 		if hasInterval {

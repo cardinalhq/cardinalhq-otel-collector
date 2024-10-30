@@ -60,6 +60,7 @@ func (a *AccumulatorImpl[T]) Count() uint64 {
 }
 
 func (a *AccumulatorImpl[T]) Sum() []T {
+	slog.Info("SUM", slog.Uint64("count", a.count), slog.Any("sum", a.sum), slog.Any("record", a.record))
 	return a.sum
 }
 

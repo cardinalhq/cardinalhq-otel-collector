@@ -33,9 +33,8 @@ type StatsCombiner[T StatsObject] struct {
 	bucket   *map[uint64][]T
 }
 
-func (l *StatsCombiner[T]) Record(now time.Time, item T, tid int64, incKey string, count int, logSize int64) (*map[uint64][]T, error) {
+func (l *StatsCombiner[T]) Record(now time.Time, item T, incKey string, count int, logSize int64) (*map[uint64][]T, error) {
 	key := item.Key()
-	key = key ^ uint64(tid)
 	l.Lock()
 	defer l.Unlock()
 	list, ok := (*l.bucket)[key]

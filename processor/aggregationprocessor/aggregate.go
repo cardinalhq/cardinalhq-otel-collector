@@ -71,7 +71,6 @@ func (e *pitbull) emitSetI(set *ottl.AggregationSet[int64]) {
 		if err != nil {
 			e.logger.Error("Error emitting metrics", zap.Error(err))
 		}
-		e.logger.Info("Emitted metrics", zap.Int64("start_time", set.StartTime), zap.String("name", agg.Name()), zap.Int64("value", agg.Value()[0]), zap.String("tags", fmt.Sprintf("%v", agg.Tags())))
 	}
 }
 
@@ -93,7 +92,8 @@ func (e *pitbull) emitSetF(set *ottl.AggregationSet[float64]) {
 			m.SetEmptyGauge()
 			dp = m.Gauge().DataPoints().AppendEmpty()
 		}
-		ts := pcommon.Timestamp(set.StartTime)
+		tstime := time.UnixMilli(set.StartTime)
+		ts := pcommon.Timestamp(pcommon.NewTimestampFromTime(tstime))
 		dp.SetTimestamp(ts)
 		dp.SetStartTimestamp(ts)
 		dp.SetDoubleValue(agg.Value()[0])
@@ -104,7 +104,7 @@ func (e *pitbull) emitSetF(set *ottl.AggregationSet[float64]) {
 		if err != nil {
 			e.logger.Error("Error emitting metrics", zap.Error(err))
 		}
-		e.logger.Info("Emitted metrics", zap.Int64("start_time", set.StartTime), zap.String("name", agg.Name()), zap.Float64("value", agg.Value()[0]), zap.String("tags", fmt.Sprintf("%v", agg.Tags())))
+		e.logger.Info("Emitted metrics", zap.Time("timestamp", ts.AsTime()), zap.String("name", agg.Name()), zap.Float64("value", agg.Value()[0]), zap.String("tags", fmt.Sprintf("%v", agg.Tags())))
 	}
 }
 

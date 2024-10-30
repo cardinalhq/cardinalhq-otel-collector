@@ -48,13 +48,11 @@ func NewMetricAggregatorImpl[T int64 | float64](interval int64) *MetricAggregato
 
 func (m *MetricAggregatorImpl[T]) Emit(now time.Time) map[int64]*AggregationSet[T] {
 	ret := map[int64]*AggregationSet[T]{}
-	nnow := now.UTC().UnixMilli()
-	// TODO add grace rather than just emitting previous interval
-	interval := nnow - (nnow % m.interval) - m.interval
+	targetTime := timebox(now, m.interval) - m.interval*2
 	m.setsLock.Lock()
 	defer m.setsLock.Unlock()
 	for k, v := range m.sets {
-		if k < interval {
+		if k < targetTime {
 			ret[k] = v
 			delete(m.sets, k)
 		}

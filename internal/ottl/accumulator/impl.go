@@ -14,12 +14,16 @@
 
 package accumulator
 
-import "fmt"
+import (
+	"fmt"
+	"log/slog"
+)
 
 type AccumulatorImpl[T int64 | float64] struct {
 	buckets []T
 	count   uint64
 	sum     []T
+	record  []T
 }
 
 var (
@@ -42,6 +46,9 @@ func (a *AccumulatorImpl[T]) Add(value []T) error {
 		a.sum[i] += v
 	}
 	a.count++
+	if len(value) == 1 {
+		a.record = append(a.record, value[0])
+	}
 	return nil
 }
 
@@ -59,6 +66,7 @@ func (a *AccumulatorImpl[T]) Sum() []T {
 
 func (a *AccumulatorImpl[T]) Avg() []T {
 	ret := make([]T, len(a.buckets))
+	slog.Info("AVERAGE", slog.Uint64("count", a.count), slog.Any("sum", a.sum), slog.Any("record", a.record))
 	if a.count == 0 {
 		return ret
 	}

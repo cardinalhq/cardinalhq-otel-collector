@@ -73,7 +73,7 @@ func (m *MetricAggregatorImpl[T]) add(logger *zap.Logger, t time.Time, name stri
 	if !ok {
 		set = NewAggregationSet[T](startTime, m.interval)
 		m.sets[startTime] = set
-		logger.Info("Created new aggregation set", zap.Int64("starttime", startTime), zap.String("addr", fmt.Sprintf("%p", set)))
+		logger.Debug("Created new aggregation set", zap.Int64("starttime", startTime), zap.String("addr", fmt.Sprintf("%p", set)))
 	}
 	return set.Add(logger, name, buckets, values, aggregationType, tags)
 }
@@ -106,7 +106,7 @@ func attrsToMap(attrs map[string]pcommon.Map) map[string]string {
 	ret := map[string]string{}
 	for scope, attr := range attrs {
 		attr.Range(func(k string, v pcommon.Value) bool {
-			if k[0] != '_' && k != "timestamp" && k != "_dd.rateInterval" {
+			if k == "_dd.rateInterval" || (k[0] != '_' && k != "timestamp") {
 				ret[scope+"."+k] = v.AsString()
 			}
 			return true

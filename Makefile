@@ -104,7 +104,7 @@ images: buildfiles
 #
 
 .PHONY: test
-test: generate
+test:
 	for i in $(MODULE_SOURCE_PATHS); do \
 		(echo ============ testing $$i ... && cd $$i && go test ./...) || exit 1; \
 	done

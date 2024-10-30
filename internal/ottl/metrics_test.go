@@ -62,11 +62,13 @@ func TestAttrsToMap(t *testing.T) {
 	attrs["scope1"].PutInt("name2", 123)
 	attrs["scope2"].PutBool("name3", true)
 	attrs["scope2"].PutBool("_cardinalhq.aggregate", true)
+	attrs["scope2"].PutInt("_dd.rateInterval", 10)
 
 	expected := map[string]string{
-		"scope1.name1": "value1",
-		"scope1.name2": "123",
-		"scope2.name3": "true",
+		"scope1.name1":            "value1",
+		"scope1.name2":            "123",
+		"scope2.name3":            "true",
+		"scope2._dd.rateInterval": "10",
 	}
 
 	result := attrsToMap(attrs)

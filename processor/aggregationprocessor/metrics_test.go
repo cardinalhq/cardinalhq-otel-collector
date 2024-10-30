@@ -94,6 +94,7 @@ func TestAggregateCounter(t *testing.T) {
 		aggregatorF:        ottl.NewMetricAggregatorImpl[float64](10000),
 		aggregatorI:        ottl.NewMetricAggregatorImpl[int64](10000),
 		nextMetricReceiver: mockConsumer,
+		logger:             zap.NewNop(),
 	}
 
 	mp.aggregateSumDatapoint(rms, ils, metric, dp1)

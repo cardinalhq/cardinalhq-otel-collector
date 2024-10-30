@@ -225,7 +225,8 @@ func (e *pitbull) aggregateDatapoint(
 	dp pmetric.NumberDataPoint,
 	metadata map[string]string,
 ) bool {
-	t := dp.Timestamp().AsTime()
+	//t := dp.Timestamp().AsTime()
+	t := time.Now()
 	switch dp.ValueType() {
 	case pmetric.NumberDataPointValueTypeInt:
 		v := dp.IntValue()

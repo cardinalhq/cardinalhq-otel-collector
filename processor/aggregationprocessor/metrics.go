@@ -49,6 +49,7 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						agg := e.aggregate(rm, ilm, m, dp)
 						if agg {
 							telemetry.CounterAdd(e.aggregatedDatapoints, 1, metric.WithAttributes(
+								attribute.String("type", "gauge"),
 								attribute.String("metric_name", metricName),
 								attribute.String("service_name", serviceName)))
 							return agg
@@ -64,6 +65,7 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						agg := e.aggregate(rm, ilm, m, dp)
 						if agg {
 							telemetry.CounterAdd(e.aggregatedDatapoints, 1, metric.WithAttributes(
+								attribute.String("type", "sum"),
 								attribute.String("metric_name", metricName),
 								attribute.String("service_name", serviceName)))
 							return agg

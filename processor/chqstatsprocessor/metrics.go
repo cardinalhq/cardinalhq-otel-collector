@@ -124,7 +124,7 @@ func (e *statsProc) recordDatapoint(now time.Time, metricName, serviceName strin
 		}
 		return true
 	})
-	errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, translate.CardinalFieldTID, strconv.FormatInt(tid, 10), attributes, 1))
+	errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "metric."+translate.CardinalFieldTID, strconv.FormatInt(tid, 10), attributes, 1))
 	return errs
 }
 

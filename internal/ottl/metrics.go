@@ -119,7 +119,9 @@ func attrsToMap(attrs map[string]pcommon.Map) map[string]string {
 	ret := map[string]string{}
 	for scope, attr := range attrs {
 		attr.Range(func(k string, v pcommon.Value) bool {
-			ret[scope+"."+k] = v.AsString()
+			if k[0] != '_' && k != "timestamp" {
+				ret[scope+"."+k] = v.AsString()
+			}
 			return true
 		})
 	}

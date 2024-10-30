@@ -61,6 +61,7 @@ func TestAttrsToMap(t *testing.T) {
 	attrs["scope1"].PutStr("name1", "value1")
 	attrs["scope1"].PutInt("name2", 123)
 	attrs["scope2"].PutBool("name3", true)
+	attrs["scope2"].PutBool("_cardinalhq.aggregate", true)
 
 	expected := map[string]string{
 		"scope1.name1": "value1",

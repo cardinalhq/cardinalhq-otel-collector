@@ -101,21 +101,18 @@ func (m *MetricAggregatorImpl[T]) MatchAndAdd(
 	defer m.rulesLock.RUnlock()
 	t = nowtime(t)
 
-	// If the aggregation marker exists, it doesn't matter what the value is.
-	_, shouldAggregate := mattr.Get(translate.CardinalFieldAggregate)
-	if shouldAggregate {
-		attrs := attrsToMap(map[string]pcommon.Map{
-			"resource":        rattr,
-			"instrumentation": iattr,
-			"metric":          mattr,
-		})
-		for k, v := range metadata {
-			attrs["metadata."+k] = v
-		}
-		err := m.add(*t, name, buckets, values, aggregationType, attrs)
-		return true, err
+	if _, shouldAggregate := mattr.Get(translate.CardinalFieldAggregate); !shouldAggregate {
+		return false, nil
 	}
-	return false, nil
+	attrs := attrsToMap(map[string]pcommon.Map{
+		"resource":        rattr,
+		"instrumentation": iattr,
+		"metric":          mattr,
+	})
+	for k, v := range metadata {
+		attrs["metadata."+k] = v
+	}
+	return true, m.add(*t, name, buckets, values, aggregationType, attrs)
 }
 
 func attrsToMap(attrs map[string]pcommon.Map) map[string]string {

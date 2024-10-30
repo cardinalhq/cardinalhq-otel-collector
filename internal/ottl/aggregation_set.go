@@ -14,6 +14,8 @@
 
 package ottl
 
+import "log/slog"
+
 type AggregationSet[T int64 | float64] struct {
 	Aggregations map[uint64]*AggregationImpl[T]
 	StartTime    int64
@@ -32,6 +34,7 @@ func (a *AggregationSet[T]) Add(name string, buckets []T, values []T, aggregatio
 	fingerprint := FingerprintTags(tags)
 	if _, ok := a.Aggregations[fingerprint]; !ok {
 		a.Aggregations[fingerprint] = NewAggregationImpl[T](name, buckets, aggregationType, tags)
+		slog.Info("Created new aggregation", slog.Int64("starttime", a.StartTime), slog.Uint64("fingerprint", fingerprint), slog.String("name", name), slog.Any("tags", tags))
 	}
 	return a.Aggregations[fingerprint].Add(name, values)
 }

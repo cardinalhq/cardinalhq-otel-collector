@@ -15,7 +15,6 @@
 package ottl
 
 import (
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"slices"
 	"strings"
 
@@ -29,15 +28,15 @@ func FingerprintTags(tags map[string]string) uint64 {
 	slices.Sort(keys)
 	values := make([]string, 0, len(keys))
 	for _, k := range keys {
-		if k[0] != '_' && k != "timestamp" && k != translate.CardinalFieldTID {
-			values = append(values, tags[k])
+		if k[0] != '_' && k != "timestamp" {
+			values = append(values, k+"="+tags[k])
 		}
 	}
 	return hashTagValues(values)
 }
 
 func hashTagValues(values []string) uint64 {
-	return xxhash.Sum64String(strings.Join(values, ":"))
+	return xxhash.Sum64String(strings.Join(values, ","))
 }
 
 func matchscope(scope map[string]string, attrs map[string]pcommon.Map) bool {

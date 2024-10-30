@@ -15,6 +15,8 @@
 package ottl
 
 import (
+	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -30,10 +32,9 @@ type MetricAggregator[T int64 | float64] interface {
 }
 
 type MetricAggregatorImpl[T int64 | float64] struct {
-	sets      map[int64]*AggregationSet[T]
-	setsLock  sync.Mutex
-	rulesLock sync.RWMutex
-	interval  int64
+	sets     map[int64]*AggregationSet[T]
+	setsLock sync.Mutex
+	interval int64
 }
 
 var _ MetricAggregator[int64] = (*MetricAggregatorImpl[int64])(nil)
@@ -74,6 +75,7 @@ func (m *MetricAggregatorImpl[T]) add(t time.Time, name string, buckets []T, val
 	if !ok {
 		set = NewAggregationSet[T](startTime, m.interval)
 		m.sets[startTime] = set
+		slog.Info("Created new aggregation set", slog.Int64("starttime", startTime), slog.String("addr", fmt.Sprintf("%p", set)))
 	}
 	return set.Add(name, buckets, values, aggregationType, tags)
 }
@@ -86,24 +88,11 @@ func nowtime(t *time.Time) *time.Time {
 	return t
 }
 
-func (m *MetricAggregatorImpl[T]) MatchAndAdd(
-	t *time.Time,
-	buckets []T,
-	values []T,
-	aggregationType AggregationType,
-	name string,
-	metadata map[string]string,
-	rattr pcommon.Map,
-	iattr pcommon.Map,
-	mattr pcommon.Map,
-) (bool, error) {
-	m.rulesLock.RLock()
-	defer m.rulesLock.RUnlock()
-	t = nowtime(t)
-
+func (m *MetricAggregatorImpl[T]) MatchAndAdd(t *time.Time, buckets []T, values []T, aggregationType AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (bool, error) {
 	if _, shouldAggregate := mattr.Get(translate.CardinalFieldAggregate); !shouldAggregate {
 		return false, nil
 	}
+	t = nowtime(t)
 	attrs := attrsToMap(map[string]pcommon.Map{
 		"resource":        rattr,
 		"instrumentation": iattr,

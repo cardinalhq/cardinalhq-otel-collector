@@ -22,7 +22,6 @@ type AccumulatorImpl[T int64 | float64] struct {
 	buckets []T
 	count   uint64
 	sum     []T
-	record  []T
 }
 
 var (
@@ -45,9 +44,6 @@ func (a *AccumulatorImpl[T]) Add(value []T) error {
 		a.sum[i] += v
 	}
 	a.count++
-	if len(value) == 1 && value[0] != 0 {
-		a.record = append(a.record, value[0])
-	}
 	return nil
 }
 
@@ -72,8 +68,4 @@ func (a *AccumulatorImpl[T]) Avg() []T {
 		ret[i] = a.sum[i] / T(a.count)
 	}
 	return ret
-}
-
-func (a *AccumulatorImpl[T]) Record() []T {
-	return a.record
 }

@@ -73,7 +73,7 @@ func (a *AggregationImpl[T]) Add(name string, values []T) error {
 
 func (a *AggregationImpl[T]) Value() []T {
 	if strings.Contains(a.name, "starts") {
-		slog.Info("Records aggregated: ", slog.Any("record", a.accumulator.Record()))
+		slog.Info("Records aggregated: ", slog.Any("sum", a.accumulator.Sum()), slog.Any("count", a.accumulator.Count()), slog.Any("record", a.accumulator.Record()))
 	}
 	if a.ty == AggregationTypeAvg {
 		return a.accumulator.Avg()

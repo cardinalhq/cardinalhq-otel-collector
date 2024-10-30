@@ -45,7 +45,7 @@ func (a *AccumulatorImpl[T]) Add(value []T) error {
 		a.sum[i] += v
 	}
 	a.count++
-	if len(value) == 1 {
+	if len(value) == 1 && value[0] != 0 {
 		a.record = append(a.record, value[0])
 	}
 	return nil

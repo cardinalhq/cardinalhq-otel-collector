@@ -85,8 +85,7 @@ func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pme
 
 func (e *statsProc) processDatapoint(now time.Time, metricName, serviceName string, extra map[string]string, environment translate.Environment, rattr, sattr, dattr pcommon.Map) {
 	tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
-	dattr.PutInt(translate.CardinalFieldTID, tid)
-	if err := e.recordDatapoint(now, metricName, serviceName, rattr, sattr, dattr); err != nil {
+	if err := e.recordDatapoint(now, metricName, serviceName, tid, rattr, sattr, dattr); err != nil {
 		e.logger.Error("Failed to record datapoint", zap.Error(err))
 	}
 }
@@ -98,7 +97,7 @@ func computeStatsOnField(k string) bool {
 	return !strings.HasPrefix(k, translate.CardinalFieldPrefixDot)
 }
 
-func (e *statsProc) recordDatapoint(now time.Time, metricName, serviceName string, rattr, sattr, dpAttr pcommon.Map) error {
+func (e *statsProc) recordDatapoint(now time.Time, metricName, serviceName string, tid int64, rattr, sattr, dpAttr pcommon.Map) error {
 	var errs error
 
 	attributes := e.processEnrichments(map[string]pcommon.Map{
@@ -108,26 +107,26 @@ func (e *statsProc) recordDatapoint(now time.Time, metricName, serviceName strin
 	})
 	rattr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "resource."+k, v.AsString(), attributes, 1))
+			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, tid, "resource."+k, v.AsString(), attributes, 1))
 		}
 		return true
 	})
 	sattr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "scope."+k, v.AsString(), attributes, 1))
+			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, tid, "scope."+k, v.AsString(), attributes, 1))
 		}
 		return true
 	})
 	dpAttr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "metric."+k, v.AsString(), attributes, 1))
+			errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, tid, "metric."+k, v.AsString(), attributes, 1))
 		}
 		return true
 	})
 	return errs
 }
 
-func (e *statsProc) recordMetric(now time.Time, metricName, serviceName, tagName, tagValue string, attributes []*chqpb.Attribute, count int) error {
+func (e *statsProc) recordMetric(now time.Time, metricName string, serviceName string, tid int64, tagName, tagValue string, attributes []*chqpb.Attribute, count int) error {
 	rec := &MetricStat{
 		MetricName:  metricName,
 		TagName:     tagName,
@@ -138,7 +137,7 @@ func (e *statsProc) recordMetric(now time.Time, metricName, serviceName, tagName
 		Attributes:  attributes,
 	}
 
-	bucketpile, err := e.metricstats.Record(now, rec, tagValue, count, 0)
+	bucketpile, err := e.metricstats.Record(now, rec, tid, tagValue, count, 0)
 	if err != nil {
 		return err
 	}

@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -85,8 +86,7 @@ func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pme
 
 func (e *statsProc) processDatapoint(now time.Time, metricName, serviceName string, extra map[string]string, environment translate.Environment, rattr, sattr, dattr pcommon.Map) {
 	tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
-	dattr.PutInt(translate.CardinalFieldTID, tid)
-	if err := e.recordDatapoint(now, metricName, serviceName, rattr, sattr, dattr); err != nil {
+	if err := e.recordDatapoint(now, metricName, serviceName, tid, rattr, sattr, dattr); err != nil {
 		e.logger.Error("Failed to record datapoint", zap.Error(err))
 	}
 }
@@ -98,7 +98,7 @@ func computeStatsOnField(k string) bool {
 	return !strings.HasPrefix(k, translate.CardinalFieldPrefixDot)
 }
 
-func (e *statsProc) recordDatapoint(now time.Time, metricName, serviceName string, rattr, sattr, dpAttr pcommon.Map) error {
+func (e *statsProc) recordDatapoint(now time.Time, metricName, serviceName string, tid int64, rattr, sattr, dpAttr pcommon.Map) error {
 	var errs error
 
 	attributes := e.processEnrichments(map[string]pcommon.Map{
@@ -124,10 +124,11 @@ func (e *statsProc) recordDatapoint(now time.Time, metricName, serviceName strin
 		}
 		return true
 	})
+	errs = multierr.Append(errs, e.recordMetric(now, metricName, serviceName, "metric."+translate.CardinalFieldTID, strconv.FormatInt(tid, 10), attributes, 1))
 	return errs
 }
 
-func (e *statsProc) recordMetric(now time.Time, metricName, serviceName, tagName, tagValue string, attributes []*chqpb.Attribute, count int) error {
+func (e *statsProc) recordMetric(now time.Time, metricName string, serviceName string, tagName, tagValue string, attributes []*chqpb.Attribute, count int) error {
 	rec := &MetricStat{
 		MetricName:  metricName,
 		TagName:     tagName,

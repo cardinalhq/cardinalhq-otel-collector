@@ -28,9 +28,7 @@ func FingerprintTags(tags map[string]string) uint64 {
 	slices.Sort(keys)
 	values := make([]string, 0, len(keys))
 	for _, k := range keys {
-		if k[0] != '_' && k != "timestamp" {
-			values = append(values, k+"="+tags[k])
-		}
+		values = append(values, k+"="+tags[k])
 	}
 	return hashTagValues(values)
 }

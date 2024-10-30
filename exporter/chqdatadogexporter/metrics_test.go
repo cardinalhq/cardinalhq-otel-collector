@@ -114,3 +114,87 @@ func TestConvertSumMetricWithInterval(t *testing.T) {
 	assert.Len(t, series[0].Points, 1)
 	assert.Equal(t, float64(10), series[0].Points[0].Value) // 100 / 10
 }
+
+func TestGetInterval(t *testing.T) {
+	tests := []struct {
+		name     string
+		attrs    pcommon.Map
+		expected int64
+		found    bool
+	}{
+		{
+			name:     "NoInterval",
+			attrs:    pcommon.NewMap(),
+			expected: 1,
+			found:    false,
+		},
+		{
+			name: "ValidInt64Interval",
+			attrs: func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutInt("_dd.rateInterval", 10)
+				return m
+			}(),
+			expected: 10,
+			found:    true,
+		},
+		{
+			name: "InvalidInt64Interval",
+			attrs: func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutInt("_dd.rateInterval", -5)
+				return m
+			}(),
+			expected: 1,
+			found:    true,
+		},
+		{
+			name: "ValidStringInterval",
+			attrs: func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("_dd.rateInterval", "15")
+				return m
+			}(),
+			expected: 15,
+			found:    true,
+		},
+		{
+			name: "InvalidStringInterval",
+			attrs: func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("_dd.rateInterval", "-20")
+				return m
+			}(),
+			expected: 1,
+			found:    true,
+		},
+		{
+			name: "NonNumericStringInterval",
+			attrs: func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("_dd.rateInterval", "invalid")
+				return m
+			}(),
+			expected: 1,
+			found:    false,
+		},
+		{
+			name: "UnsupportedTypeInterval",
+			attrs: func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutDouble("_dd.rateInterval", 5.5)
+				return m
+			}(),
+			expected: 1,
+			found:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			interval, found := getInterval(tt.attrs)
+			assert.Equal(t, tt.expected, interval)
+			assert.Equal(t, tt.found, found)
+		})
+	}
+}

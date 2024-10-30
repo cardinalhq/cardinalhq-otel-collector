@@ -67,13 +67,13 @@ func timebox(t time.Time, interval int64) int64 {
 }
 
 func (m *MetricAggregatorImpl[T]) add(t time.Time, name string, buckets []T, values []T, aggregationType AggregationType, tags map[string]string) error {
-	interval := timebox(t, m.interval)
+	startTime := timebox(t, m.interval)
 	m.setsLock.Lock()
 	defer m.setsLock.Unlock()
-	set, ok := m.sets[interval]
+	set, ok := m.sets[startTime]
 	if !ok {
-		set = NewAggregationSet[T](interval, m.interval)
-		m.sets[interval] = set
+		set = NewAggregationSet[T](startTime, m.interval)
+		m.sets[startTime] = set
 	}
 	return set.Add(name, buckets, values, aggregationType, tags)
 }

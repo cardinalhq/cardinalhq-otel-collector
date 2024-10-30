@@ -22,6 +22,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -157,16 +158,31 @@ func (e *datadogExporter) convertSumMetric(_ context.Context, metric pmetric.Met
 }
 
 func getInterval(lAttr pcommon.Map) (int64, bool) {
-	if v, found := lAttr.Get("_dd.rateInterval"); found {
-		val := v.AsRaw()
-		if intval, ok := val.(int64); ok {
-			if intval <= 0 {
-				intval = 1
-			}
-			return intval, true
-		}
+	v, found := lAttr.Get("_dd.rateInterval")
+	if !found {
+		return 1, false
 	}
-	return 1, false
+
+	value := v.AsRaw()
+	switch value.(type) {
+	case int64:
+		intval := value.(int64)
+		if intval <= 0 {
+			intval = 1
+		}
+		return intval, true
+	case string:
+		intval, err := strconv.ParseInt(value.(string), 10, 64)
+		if err != nil {
+			return 1, false
+		}
+		if intval <= 0 {
+			intval = 1
+		}
+		return intval, true
+	default:
+		return 1, false
+	}
 }
 
 func (e *datadogExporter) sendMetrics(ctx context.Context, msg *ddpb.MetricPayload) error {

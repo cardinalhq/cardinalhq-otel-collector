@@ -175,11 +175,11 @@ func TestMatchAndAdd_AverageAfterDroppingDimension(t *testing.T) {
 
 	buckets := []float64{1}
 
-	_, err = m.MatchAndAdd(&ttime, buckets, []float64{1.0}, AggregationTypeAvg, "metric1", nil, rattr, sattr, dp1Attributes)
-	require.Nil(t, err)
+	_, err = m.MatchAndAdd(zap.NewNop(), &ttime, buckets, []float64{1.0}, AggregationTypeAvg, "metric1", nil, rattr, sattr, dp1Attributes)
+	require.NoError(t, err)
 
-	_, err = m.MatchAndAdd(&ttime, buckets, []float64{2.0}, AggregationTypeAvg, "metric1", nil, rattr, sattr, dp2Attributes)
-	require.Nil(t, err)
+	_, err = m.MatchAndAdd(zap.NewNop(), &ttime, buckets, []float64{2.0}, AggregationTypeAvg, "metric1", nil, rattr, sattr, dp2Attributes)
+	require.NoError(t, err)
 
 	expectedAverage := 1.5
 

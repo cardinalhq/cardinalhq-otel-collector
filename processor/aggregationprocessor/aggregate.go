@@ -27,7 +27,6 @@ import (
 )
 
 func (e *pitbull) emit(now time.Time) {
-
 	if now.Sub(e.lastEmitCheck) < time.Duration(e.aggregationInterval)*time.Second {
 		return
 	}
@@ -231,6 +230,7 @@ func (e *pitbull) aggregateDatapoint(
 	case pmetric.NumberDataPointValueTypeInt:
 		v := dp.IntValue()
 		matched, err := e.aggregatorI.MatchAndAdd(
+			e.logger,
 			&t,
 			[]int64{1},
 			[]int64{v},
@@ -248,7 +248,9 @@ func (e *pitbull) aggregateDatapoint(
 
 	case pmetric.NumberDataPointValueTypeDouble:
 		v := dp.DoubleValue()
-		matched, err := e.aggregatorF.MatchAndAdd(&t,
+		matched, err := e.aggregatorF.MatchAndAdd(
+			e.logger,
+			&t,
 			[]float64{1},
 			[]float64{v},
 			ty,

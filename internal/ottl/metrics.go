@@ -16,19 +16,19 @@ package ottl
 
 import (
 	"fmt"
-	"log/slog"
 	"strings"
 	"sync"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
+	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
 type MetricAggregator[T int64 | float64] interface {
 	Emit(now time.Time) map[int64]*AggregationSet[T]
-	MatchAndAdd(t *time.Time, buckets []T, value []T, aggregationType AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (bool, error)
+	MatchAndAdd(logger *zap.Logger, t *time.Time, buckets []T, value []T, aggregationType AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (bool, error)
 }
 
 type MetricAggregatorImpl[T int64 | float64] struct {
@@ -67,7 +67,7 @@ func timebox(t time.Time, interval int64) int64 {
 	return n - (n % interval)
 }
 
-func (m *MetricAggregatorImpl[T]) add(t time.Time, name string, buckets []T, values []T, aggregationType AggregationType, tags map[string]string) error {
+func (m *MetricAggregatorImpl[T]) add(logger *zap.Logger, t time.Time, name string, buckets []T, values []T, aggregationType AggregationType, tags map[string]string) error {
 	startTime := timebox(t, m.interval)
 	m.setsLock.Lock()
 	defer m.setsLock.Unlock()
@@ -75,9 +75,9 @@ func (m *MetricAggregatorImpl[T]) add(t time.Time, name string, buckets []T, val
 	if !ok {
 		set = NewAggregationSet[T](startTime, m.interval)
 		m.sets[startTime] = set
-		slog.Info("Created new aggregation set", slog.Int64("starttime", startTime), slog.String("addr", fmt.Sprintf("%p", set)))
+		logger.Info("Created new aggregation set", zap.Int64("starttime", startTime), zap.String("addr", fmt.Sprintf("%p", set)))
 	}
-	return set.Add(name, buckets, values, aggregationType, tags)
+	return set.Add(logger, name, buckets, values, aggregationType, tags)
 }
 
 func nowtime(t *time.Time) *time.Time {
@@ -88,7 +88,7 @@ func nowtime(t *time.Time) *time.Time {
 	return t
 }
 
-func (m *MetricAggregatorImpl[T]) MatchAndAdd(t *time.Time, buckets []T, values []T, aggregationType AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (bool, error) {
+func (m *MetricAggregatorImpl[T]) MatchAndAdd(logger *zap.Logger, t *time.Time, buckets []T, values []T, aggregationType AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (bool, error) {
 	if _, shouldAggregate := mattr.Get(translate.CardinalFieldAggregate); !shouldAggregate {
 		return false, nil
 	}
@@ -101,7 +101,7 @@ func (m *MetricAggregatorImpl[T]) MatchAndAdd(t *time.Time, buckets []T, values 
 	for k, v := range metadata {
 		attrs["metadata."+k] = v
 	}
-	return true, m.add(*t, name, buckets, values, aggregationType, attrs)
+	return true, m.add(logger, *t, name, buckets, values, aggregationType, attrs)
 }
 
 func attrsToMap(attrs map[string]pcommon.Map) map[string]string {

@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 func TestAggregationSet_Add(t *testing.T) {
@@ -34,7 +35,7 @@ func TestAggregationSet_Add(t *testing.T) {
 	}
 	fingerprint := FingerprintTags(tags)
 
-	err := aggregationSet.Add("alice", buckets, values, aggregationType, tags)
+	err := aggregationSet.Add(zap.NewNop(), "alice", buckets, values, aggregationType, tags)
 	assert.Nil(t, err)
 
 	assert.NotNil(t, aggregationSet.Aggregations[fingerprint])
@@ -69,7 +70,7 @@ func TestAggregationSet_Add_ExistingAggregation(t *testing.T) {
 	assert.Nil(t, err)
 
 	aggregationSet.Aggregations[fingerprint] = ai
-	err = aggregationSet.Add("alice", buckets, []float64{value2}, aggregationType, tags)
+	err = aggregationSet.Add(zap.NewNop(), "alice", buckets, []float64{value2}, aggregationType, tags)
 	assert.Nil(t, err)
 
 	assert.NotNil(t, aggregationSet.Aggregations[fingerprint])

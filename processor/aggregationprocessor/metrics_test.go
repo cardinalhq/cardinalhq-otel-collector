@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
+	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
@@ -44,7 +45,7 @@ func (m *MockAggregator[T]) Emit(t time.Time) map[int64]*ottl.AggregationSet[T] 
 	return nil
 }
 
-func (m *MockAggregator[T]) MatchAndAdd(t *time.Time, buckets []T, values []T, ty ottl.AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (bool, error) {
+func (m *MockAggregator[T]) MatchAndAdd(_ *zap.Logger, t *time.Time, buckets []T, values []T, ty ottl.AggregationType, name string, metadata map[string]string, rattr pcommon.Map, iattr pcommon.Map, mattr pcommon.Map) (bool, error) {
 	return true, nil
 }
 

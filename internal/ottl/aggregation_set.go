@@ -16,7 +16,8 @@ package ottl
 
 import (
 	"fmt"
-	"log/slog"
+
+	"go.uber.org/zap"
 )
 
 type AggregationSet[T int64 | float64] struct {
@@ -33,11 +34,11 @@ func NewAggregationSet[T int64 | float64](starttime int64, interval int64) *Aggr
 	}
 }
 
-func (a *AggregationSet[T]) Add(name string, buckets []T, values []T, aggregationType AggregationType, tags map[string]string) error {
+func (a *AggregationSet[T]) Add(logger *zap.Logger, name string, buckets []T, values []T, aggregationType AggregationType, tags map[string]string) error {
 	fingerprint := FingerprintTags(tags)
 	if _, ok := a.Aggregations[fingerprint]; !ok {
 		a.Aggregations[fingerprint] = NewAggregationImpl[T](name, buckets, aggregationType, tags)
-		slog.Info("Created new aggregation", slog.Int64("starttime", a.StartTime), slog.Uint64("fingerprint", fingerprint), slog.String("addr", fmt.Sprintf("%p", a)), slog.String("name", name), slog.Any("tags", tags))
+		logger.Info("Created new aggregation", zap.Int64("starttime", a.StartTime), zap.Uint64("fingerprint", fingerprint), zap.String("addr", fmt.Sprintf("%p", a)), zap.String("name", name), zap.Any("tags", tags))
 	}
 	return a.Aggregations[fingerprint].Add(name, values)
 }

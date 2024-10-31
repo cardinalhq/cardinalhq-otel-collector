@@ -90,7 +90,7 @@ func TestAggregateCounter(t *testing.T) {
 
 	mockConsumer := &MockMetricsConsumer{}
 
-	mp := &pitbull{
+	mp := &aggregationProcessor{
 		aggregatorF:        ottl.NewMetricAggregatorImpl[float64](10000),
 		aggregatorI:        ottl.NewMetricAggregatorImpl[int64](10000),
 		nextMetricReceiver: mockConsumer,

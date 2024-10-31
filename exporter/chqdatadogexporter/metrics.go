@@ -164,15 +164,14 @@ func getInterval(lAttr pcommon.Map) (int64, bool) {
 	}
 
 	value := v.AsRaw()
-	switch value.(type) {
+	switch vv := value.(type) {
 	case int64:
-		intval := value.(int64)
-		if intval <= 0 {
-			intval = 1
+		if vv <= 0 {
+			vv = 1
 		}
-		return intval, true
+		return vv, true
 	case string:
-		intval, err := strconv.ParseInt(value.(string), 10, 64)
+		intval, err := strconv.ParseInt(vv, 10, 64)
 		if err != nil {
 			return 1, false
 		}

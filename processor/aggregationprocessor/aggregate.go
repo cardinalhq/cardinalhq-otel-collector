@@ -26,7 +26,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 )
 
-func (e *pitbull) emit(now time.Time) {
+func (e *aggregationProcessor) emit(now time.Time) {
 	if now.Sub(e.lastEmitCheck) < time.Duration(e.aggregationInterval)*time.Second {
 		return
 	}
@@ -41,7 +41,7 @@ func (e *pitbull) emit(now time.Time) {
 	}
 }
 
-func (e *pitbull) emitSetI(set *ottl.AggregationSet[int64]) {
+func (e *aggregationProcessor) emitSetI(set *ottl.AggregationSet[int64]) {
 	for _, agg := range set.Aggregations {
 		mmetrics := pmetric.NewMetrics()
 		res := mmetrics.ResourceMetrics().AppendEmpty()
@@ -74,7 +74,7 @@ func (e *pitbull) emitSetI(set *ottl.AggregationSet[int64]) {
 	}
 }
 
-func (e *pitbull) emitSetF(set *ottl.AggregationSet[float64]) {
+func (e *aggregationProcessor) emitSetF(set *ottl.AggregationSet[float64]) {
 	for _, agg := range set.Aggregations {
 		mmetrics := pmetric.NewMetrics()
 		res := mmetrics.ResourceMetrics().AppendEmpty()
@@ -180,7 +180,7 @@ func setMetricMetadata(metric pmetric.Metric, tagname string, v string) {
 	}
 }
 
-func (e *pitbull) aggregate(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint) bool {
+func (e *aggregationProcessor) aggregate(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint) bool {
 	switch metric.Type() {
 	case pmetric.MetricTypeGauge:
 		return e.aggregateGaugeDatapoint(rms, ils, metric, dp)
@@ -191,7 +191,7 @@ func (e *pitbull) aggregate(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetric
 	}
 }
 
-func (e *pitbull) aggregateGaugeDatapoint(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint) bool {
+func (e *aggregationProcessor) aggregateGaugeDatapoint(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint) bool {
 	metadata := map[string]string{
 		"resource.schemaurl":        rms.SchemaUrl(),
 		"instrumentation.schemaurl": ils.SchemaUrl(),
@@ -204,7 +204,7 @@ func (e *pitbull) aggregateGaugeDatapoint(rms pmetric.ResourceMetrics, ils pmetr
 	return e.aggregateDatapoint(ottl.AggregationTypeAvg, rms, ils, metric, dp, metadata)
 }
 
-func (e *pitbull) aggregateSumDatapoint(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint) bool {
+func (e *aggregationProcessor) aggregateSumDatapoint(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint) bool {
 	metadata := map[string]string{
 		"resource.schemaurl":            rms.SchemaUrl(),
 		"instrumentation.schemaurl":     ils.SchemaUrl(),
@@ -219,7 +219,7 @@ func (e *pitbull) aggregateSumDatapoint(rms pmetric.ResourceMetrics, ils pmetric
 	return e.aggregateDatapoint(ottl.AggregationTypeSum, rms, ils, metric, dp, metadata)
 }
 
-func (e *pitbull) aggregateDatapoint(
+func (e *aggregationProcessor) aggregateDatapoint(
 	ty ottl.AggregationType,
 	rms pmetric.ResourceMetrics,
 	ils pmetric.ScopeMetrics,

@@ -23,7 +23,7 @@ import (
 )
 
 func (l *LogStats) Key() uint64 {
-	key := fmt.Sprintf("%s:%d:%d:%s", l.ServiceName, l.Fingerprint, int32(l.Phase), l.VendorId)
+	key := fmt.Sprintf("%s:%d:%d:%s", l.ServiceName, l.Fingerprint, int32(l.Phase), l.ProcessorId)
 	key = AppendTagsToKey(l.Attributes, key)
 	return xxhash.Sum64String(key)
 }
@@ -47,7 +47,7 @@ func (l *LogStats) Initialize() error {
 }
 
 func (l *SpanStats) Key() uint64 {
-	key := fmt.Sprintf("%s:%d:%d:%s", l.ServiceName, l.Fingerprint, l.Phase, l.VendorId)
+	key := fmt.Sprintf("%s:%d:%d:%s", l.ServiceName, l.Fingerprint, l.Phase, l.ProcessorId)
 	key = AppendTagsToKey(l.Attributes, key)
 	return xxhash.Sum64String(key)
 }

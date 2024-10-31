@@ -44,7 +44,7 @@ message LogStats {
 	int64 count = 4;
 	int64 logSize = 5;
 	LogExemplar exemplar = 6;
-	string vendorId = 7;
+	string processorId = 7;
 	repeated Attribute attributes = 8;
 }
 
@@ -65,7 +65,7 @@ message SpanStats {
 	int64 count = 4;
 	int64 spanSize = 5;
 	SpanExemplar exemplar = 6;
-	string vendorId = 7;
+	string processorId = 7;
 	repeated Attribute attributes = 8;
 }
 
@@ -83,7 +83,7 @@ message MetricStats {
 	double cardinalityEstimate = 5;
 	bytes hll = 6;
 	int64 count = 7;
-	string vendorId = 8;
+	string processorId = 8;
 	repeated Attribute attributes = 9;
 }
 

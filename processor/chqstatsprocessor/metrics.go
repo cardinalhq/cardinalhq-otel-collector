@@ -134,7 +134,7 @@ func (e *statsProc) recordMetric(now time.Time, metricName string, serviceName s
 		TagName:     tagName,
 		ServiceName: serviceName,
 		Phase:       e.pbPhase,
-		VendorID:    e.config.Statistics.Vendor,
+		ProcessorId: e.id.Name(),
 		Count:       int64(count),
 		Attributes:  attributes,
 	}
@@ -174,7 +174,7 @@ func (e *statsProc) sendMetricStats(ctx context.Context, now time.Time, bucketpi
 				TagName:             ms.TagName,
 				Phase:               ms.Phase,
 				Count:               ms.Count,
-				VendorId:            ms.VendorID,
+				ProcessorId:         ms.ProcessorId,
 				CardinalityEstimate: estimate,
 				Hll:                 b,
 				Attributes:          ms.Attributes,

@@ -27,7 +27,7 @@ type MetricStat struct {
 	TagName     string
 	ServiceName string
 	Phase       chqpb.Phase
-	VendorID    string
+	ProcessorId string
 	Count       int64
 	HLL         hll.HllSketch
 	Attributes  []*chqpb.Attribute
@@ -36,7 +36,7 @@ type MetricStat struct {
 var _ stats.StatsObject = (*MetricStat)(nil)
 
 func (m *MetricStat) Key() uint64 {
-	key := m.MetricName + ":" + m.TagName + ":" + m.ServiceName + ":" + m.Phase.String() + ":" + m.VendorID
+	key := m.MetricName + ":" + m.TagName + ":" + m.ServiceName + ":" + m.Phase.String() + ":" + m.ProcessorId
 	key = chqpb.AppendTagsToKey(m.Attributes, key)
 	return xxhash.Sum64String(key)
 }

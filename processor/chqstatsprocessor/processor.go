@@ -48,7 +48,6 @@ type statsProc struct {
 	telemetrySettings  component.TelemetrySettings
 	pbPhase            chqpb.Phase
 	podName            string
-	vendor             string
 
 	configCallbackID int
 

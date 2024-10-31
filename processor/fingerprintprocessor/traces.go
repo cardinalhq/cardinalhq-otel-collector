@@ -31,7 +31,7 @@ const (
 	httpUrlPath = "url.path"
 )
 
-func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
+func (e *aggregationProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
 	for i := 0; i < td.ResourceSpans().Len(); i++ {
 		rs := td.ResourceSpans().At(i)
 		serviceName := getServiceName(rs.Resource().Attributes())
@@ -54,18 +54,18 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 	return td, nil
 }
 
-func (c *pitbull) isSpanSlow(span ptrace.Span, fingerprint uint64) bool {
+func (c *aggregationProcessor) isSpanSlow(span ptrace.Span, fingerprint uint64) bool {
 	spanDuration := span.EndTimestamp().AsTime().Sub(span.StartTimestamp().AsTime()).Abs().Milliseconds()
 	return c.slowSpanPercentile(fingerprint, float64(spanDuration))
 }
 
-func (c *pitbull) slowSpanPercentile(fingerprint uint64, duration float64) bool {
+func (c *aggregationProcessor) slowSpanPercentile(fingerprint uint64, duration float64) bool {
 	sketch := c.findSpanSketch(fingerprint)
 	sketch.Update(time.Now().UnixMilli(), duration)
 	return sketch.GreaterThanThreeStdDev(duration)
 }
 
-func (c *pitbull) findSpanSketch(fingerprint uint64) *SlidingEstimatorStat {
+func (c *aggregationProcessor) findSpanSketch(fingerprint uint64) *SlidingEstimatorStat {
 	sketch, ok := c.estimators[fingerprint]
 	if !ok {
 		estimator := NewSlidingEstimatorStat(c.estimatorWindowSize, c.estimatorInterval)
@@ -75,7 +75,7 @@ func (c *pitbull) findSpanSketch(fingerprint uint64) *SlidingEstimatorStat {
 	return sketch
 }
 
-func (c *pitbull) getHttpResource(span ptrace.Span) string {
+func (c *aggregationProcessor) getHttpResource(span ptrace.Span) string {
 	attrs := span.Attributes()
 	var resourceKeys []string
 

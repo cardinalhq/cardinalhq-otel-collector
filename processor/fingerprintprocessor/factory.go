@@ -30,8 +30,9 @@ func NewFactory() processor.Factory {
 	return processor.NewFactory(
 		metadata.Type,
 		createDefaultConfig,
-		processor.WithTraces(createSpansProcessor, metadata.TracesStability),
+		processor.WithMetrics(createMetricsProcessor, metadata.MetricsStability),
 		processor.WithLogs(createLogsProcessor, metadata.LogsStability),
+		processor.WithTraces(createSpansProcessor, metadata.TracesStability),
 	)
 }
 
@@ -63,5 +64,16 @@ func createSpansProcessor(ctx context.Context, set processor.Settings, cfg compo
 	return processorhelper.NewTraces(
 		ctx, set, cfg, nextConsumer,
 		e.ConsumeTraces,
+		processorhelper.WithCapabilities(e.Capabilities()))
+}
+
+func createMetricsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Metrics) (processor.Metrics, error) {
+	e, err := newPitbull(cfg.(*Config), "metrics", set)
+	if err != nil {
+		return nil, err
+	}
+	return processorhelper.NewMetrics(
+		ctx, set, cfg, nextConsumer,
+		e.ConsumeMetrics,
 		processorhelper.WithCapabilities(e.Capabilities()))
 }

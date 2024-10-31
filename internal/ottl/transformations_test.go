@@ -263,6 +263,42 @@ func TestVPCFlowLogTransformation_UsingGrok(t *testing.T) {
 	assert.Equal(t, 60.0, duration)
 }
 
+func TestAccessLogs_UsingLookup(t *testing.T) {
+	logger := zap.NewNop()
+
+	// `set(attributes["isIn"], IsIn(attributes["service.name"], ["service1", "service2", "service3"]))`,
+
+	statements := []ContextStatement{
+		{
+			Context:    "log",
+			Conditions: []string{},
+			Statements: []string{
+				`set(attributes["fields"]["method_code"], Int(Lookup(attributes["method"], ["GET", "3", "CONNECT", "4"], "99")))`,
+			},
+		},
+	}
+
+	transformations, err := ParseTransformations(logger, statements)
+	assert.NoError(t, err)
+	assert.True(t, len(transformations.logTransforms) > 0)
+
+	rl := plog.NewResourceLogs()
+	rl.Resource().Attributes().PutStr(translate.CardinalFieldReceiverType, "datadog")
+	sl := rl.ScopeLogs().AppendEmpty()
+	lr := sl.LogRecords().AppendEmpty()
+	lr.Attributes().PutStr("method", "GET")
+
+	tc := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
+	transformations.ExecuteLogTransforms(logger, nil, tc)
+
+	fields, fieldsFound := lr.Attributes().Get("fields")
+	assert.True(t, fieldsFound)
+
+	methodCode, methodCodeFound := fields.Map().Get("method_code")
+	assert.True(t, methodCodeFound)
+	assert.Equal(t, methodCode.Int(), int64(3))
+}
+
 func TestTeamAssociations(t *testing.T) {
 	logger := zap.NewNop()
 	statements := []ContextStatement{

@@ -36,7 +36,7 @@ type MetricsConsumer interface {
 	ConsumeMetrics(ctx context.Context, td pmetric.Metrics) error
 }
 
-type pitbull struct {
+type aggregationProcessor struct {
 	sync.RWMutex
 
 	config *Config
@@ -55,8 +55,8 @@ type pitbull struct {
 	aggregatedDatapoints *telemetry.DeferrableInt64Counter
 }
 
-func newPitbull(config *Config, ttype string, set processor.Settings, nextConsumer consumer.Metrics) (*pitbull, error) {
-	dog := &pitbull{
+func newPitbull(config *Config, ttype string, set processor.Settings, nextConsumer consumer.Metrics) (*aggregationProcessor, error) {
+	dog := &aggregationProcessor{
 		id:                 set.ID,
 		ttype:              ttype,
 		config:             config,
@@ -82,11 +82,11 @@ func newPitbull(config *Config, ttype string, set processor.Settings, nextConsum
 	return dog, nil
 }
 
-func (e *pitbull) Capabilities() consumer.Capabilities {
+func (e *aggregationProcessor) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: true}
 }
 
-func (e *pitbull) setupMetricTelemetry(set processor.Settings, attrset attribute.Set) error {
+func (e *aggregationProcessor) setupMetricTelemetry(set processor.Settings, attrset attribute.Set) error {
 	counter, err := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
 		"cardinalhq.processor.pitbull.ottl_processed",
 		[]metric.Int64CounterOption{

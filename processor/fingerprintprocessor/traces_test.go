@@ -82,7 +82,7 @@ func TestGetHttpResource(t *testing.T) {
 				}
 			}
 
-			p := &aggregationProcessor{
+			p := &fingerprintProcessor{
 				traceFingerprinter: &mockTraceFingerprinter{},
 			}
 			result := p.getHttpResource(span)

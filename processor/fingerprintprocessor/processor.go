@@ -24,7 +24,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/fingerprinter"
 )
 
-type aggregationProcessor struct {
+type fingerprintProcessor struct {
 	config *Config
 	logger *zap.Logger
 
@@ -42,8 +42,8 @@ type aggregationProcessor struct {
 	estimatorInterval   int64
 }
 
-func newPitbull(config *Config, ttype string, set processor.Settings) (*aggregationProcessor, error) {
-	dog := &aggregationProcessor{
+func newPitbull(config *Config, ttype string, set processor.Settings) (*fingerprintProcessor, error) {
+	dog := &fingerprintProcessor{
 		id:                set.ID,
 		ttype:             ttype,
 		config:            config,
@@ -65,7 +65,7 @@ func newPitbull(config *Config, ttype string, set processor.Settings) (*aggregat
 	return dog, nil
 }
 
-func (e *aggregationProcessor) Capabilities() consumer.Capabilities {
+func (e *fingerprintProcessor) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: true}
 }
 

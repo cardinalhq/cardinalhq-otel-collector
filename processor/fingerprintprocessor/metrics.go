@@ -23,7 +23,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 )
 
-func (e *aggregationProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
+func (e *fingerprintProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
 	environment := translate.EnvironmentFromEnv()
 
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
@@ -69,7 +69,7 @@ func (e *aggregationProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Me
 	return md, nil
 }
 
-func (e *aggregationProcessor) processDatapoint(extra map[string]string, environment translate.Environment, rattr, sattr, dattr pcommon.Map) {
+func (e *fingerprintProcessor) processDatapoint(extra map[string]string, environment translate.Environment, rattr, sattr, dattr pcommon.Map) {
 	tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 	dattr.PutInt(translate.CardinalFieldTID, tid)
 }

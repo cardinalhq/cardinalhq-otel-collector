@@ -34,7 +34,7 @@ func getServiceName(r pcommon.Map) string {
 	return "unknown"
 }
 
-func (e *aggregationProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
+func (e *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {

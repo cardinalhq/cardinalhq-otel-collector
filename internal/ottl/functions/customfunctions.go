@@ -23,6 +23,7 @@ func factories[K any]() []ottl.Factory[K] {
 		NewIsInFactory[K](),
 		NewExistsFactory[K](),
 		NewDeriveSourceTypeFactory[K](),
+		NewLookupFactory[K](),
 	}
 }
 

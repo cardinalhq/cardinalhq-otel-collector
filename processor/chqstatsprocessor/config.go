@@ -33,7 +33,6 @@ type StatisticsConfig struct {
 
 	Interval time.Duration `mapstructure:"interval"`
 	Phase    string        `mapstructure:"phase"`
-	Vendor   string        `mapstructure:"vendor"`
 }
 
 type ContextID = string

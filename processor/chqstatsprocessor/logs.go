@@ -90,7 +90,7 @@ func (e *statsProc) recordLog(now time.Time, serviceName string, fingerprint int
 		ServiceName: serviceName,
 		Fingerprint: fingerprint,
 		Phase:       e.pbPhase,
-		VendorId:    e.config.Statistics.Vendor,
+		ProcessorId: e.id.Name(),
 		Count:       1,
 		LogSize:     logSize,
 		Exemplar: &chqpb.LogExemplar{

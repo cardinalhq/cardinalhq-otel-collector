@@ -71,7 +71,6 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 		telemetrySettings:  set.TelemetrySettings,
 		logger:             set.Logger,
 		podName:            os.Getenv("POD_NAME"),
-		vendor:             config.Statistics.Vendor,
 	}
 
 	if config.Statistics.Phase == "presample" {

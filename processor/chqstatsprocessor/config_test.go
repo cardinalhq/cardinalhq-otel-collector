@@ -78,7 +78,6 @@ func TestConfig(t *testing.T) {
 			},
 			Interval: 100 * time.Second,
 			Phase:    "presample",
-			Vendor:   "alice",
 		},
 	}
 	assert.Equal(t, expected, e)

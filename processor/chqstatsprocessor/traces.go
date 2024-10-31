@@ -104,7 +104,7 @@ func (e *statsProc) recordSpan(now time.Time,
 		ServiceName: serviceName,
 		Fingerprint: fingerprint,
 		Phase:       e.pbPhase,
-		VendorId:    e.config.Statistics.Vendor,
+		ProcessorId: e.id.Name(),
 		Count:       1,
 		Attributes:  enrichmentAttributes,
 		Exemplar: &chqpb.SpanExemplar{

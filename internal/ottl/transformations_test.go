@@ -15,6 +15,7 @@
 package ottl
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
@@ -297,6 +298,73 @@ func TestAccessLogs_UsingLookup(t *testing.T) {
 	methodCode, methodCodeFound := fields.Map().Get("method_code")
 	assert.True(t, methodCodeFound)
 	assert.Equal(t, methodCode.Int(), int64(3))
+}
+
+func TestPIIRegexRules(t *testing.T) {
+	logger := zap.NewNop()
+	statements := []ContextStatement{
+		{
+			Context:    "log",
+			Conditions: []string{},
+			Statements: []string{
+				`replace_pattern(body, "([0-9A-Fa-f]{2}[:\\-]){5}([0-9A-Fa-f]{2})", "<mac_address>")`,
+				`replace_pattern(body, "[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}", "<bank_account_number>")`,
+				`replace_pattern(body, "([0-9]{4}[- ]?){3}[0-9]{2,4}", "<cc>")`,
+				`replace_pattern(body, "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", "<email>")`,
+				`replace_pattern(body, "(?:[0-9]{1,3}\\.){3}[0-9]{1,3}", "<ipv4>")`,
+				`replace_pattern(body, "([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}", "<ipv6>")`,
+				`replace_pattern(body, "\\d{1,5}\\s\\w+(\\s\\w+)*\\s(?:Street|St|Avenue|Ave|Boulevard|Blvd|Road|Rd|Drive|Dr|Lane|Ln|Court|Ct|Circle|Cir|Way|Plaza|Pl|Place|Sq|Square|Loop)\\s?(?:Apt|Apartment|Suite|Ste|#)?\\s?\\d{0,5},?\\s\\w+(\\s\\w+)*,\\s[A-Z]{2}\\s\\d{5}(-\\d{4})?", "<street_address>")`,
+				`replace_pattern(body, "[2-9][0-9]{2}\\)?[-.\\s]?[0-9]{3}[-.\\s]?[0-9]{4}", "<phone_number>")`,
+			},
+		},
+	}
+
+	transformations, err := ParseTransformations(logger, statements)
+	assert.NoError(t, err)
+	assert.True(t, len(transformations.logTransforms) > 0)
+
+	rl := plog.NewResourceLogs()
+	sl := rl.ScopeLogs().AppendEmpty()
+	lr := sl.LogRecords().AppendEmpty()
+	lr.Body().SetStr("This is a credit card number: 5610591081018250\n" +
+		"This is a US Address: 1234 Main St, Walnut Creek, CA 94596\n" +
+		"This is a phone number: 925-555-1212\n" +
+		"This is a IBAN number: DE89370400440532013000\n" +
+		"This is a IPV4 address: 192.168.1.1\n" +
+		"This is a IPV6 address: 2001:0db8:85a3:0000:0000:8a2e:0370:7334\n" +
+		"This is a email address: foo.bar@gmail.com\n" +
+		"This is a MAC Address: 00:1A:2B:3C:4D:5E\n" +
+		"This is a SSN: 200-10-1234\n")
+
+	tc := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
+	transformations.ExecuteLogTransforms(logger, nil, tc)
+
+	// check if body has been updated with cc
+	body := lr.Body().Str()
+	assert.True(t, strings.Contains(body, "cc"))
+	assert.False(t, strings.Contains(body, "5610591081018250"))
+
+	assert.True(t, strings.Contains(body, "email"))
+	assert.False(t, strings.Contains(body, "foo.bar@gmail.com"))
+
+	assert.True(t, strings.Contains(body, "ipv4"))
+	assert.False(t, strings.Contains(body, "192.168.1.1"))
+
+	assert.True(t, strings.Contains(body, "ipv6"))
+	assert.False(t, strings.Contains(body, "2001:0db8:85a3:0000:0000:8a2e:0370:7334"))
+
+	assert.True(t, strings.Contains(body, "street_address"))
+	assert.False(t, strings.Contains(body, "1234 Main St, Walnut Creek, CA 94596"))
+
+	assert.True(t, strings.Contains(body, "phone_number"))
+	assert.False(t, strings.Contains(body, "925-555-1212"))
+
+	assert.True(t, strings.Contains(body, "bank_account_number"))
+	assert.False(t, strings.Contains(body, "DE89370400440532013000"))
+
+	assert.True(t, strings.Contains(body, "mac_address"))
+	assert.False(t, strings.Contains(body, "00:1A:2B:3C:4D:5E"))
+
 }
 
 func TestTeamAssociations(t *testing.T) {

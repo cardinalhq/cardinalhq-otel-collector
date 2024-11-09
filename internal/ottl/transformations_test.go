@@ -315,6 +315,7 @@ func TestPIIRegexRules(t *testing.T) {
 				`replace_pattern(body, "([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}", "<ipv6>")`,
 				`replace_pattern(body, "\\d{1,5}\\s\\w+(\\s\\w+)*\\s(?:Street|St|Avenue|Ave|Boulevard|Blvd|Road|Rd|Drive|Dr|Lane|Ln|Court|Ct|Circle|Cir|Way|Plaza|Pl|Place|Sq|Square|Loop)\\s?(?:Apt|Apartment|Suite|Ste|#)?\\s?\\d{0,5},?\\s\\w+(\\s\\w+)*,\\s[A-Z]{2}\\s\\d{5}(-\\d{4})?", "<street_address>")`,
 				`replace_pattern(body, "[2-9][0-9]{2}\\)?[-.\\s]?[0-9]{3}[-.\\s]?[0-9]{4}", "<phone_number>")`,
+				`replace_all_patterns(attributes, "value", "[2-9][0-9]{2}\\)?[-.\\s]?[0-9]{3}[-.\\s]?[0-9]{4}", "<phone_number>")`,
 			},
 		},
 	}
@@ -335,6 +336,7 @@ func TestPIIRegexRules(t *testing.T) {
 		"This is a email address: foo.bar@gmail.com\n" +
 		"This is a MAC Address: 00:1A:2B:3C:4D:5E\n" +
 		"This is a SSN: 200-10-1234\n")
+	lr.Attributes().PutStr("message", "This is a phone number: 925-555-1212")
 
 	tc := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
 	transformations.ExecuteLogTransforms(logger, nil, tc)
@@ -364,6 +366,10 @@ func TestPIIRegexRules(t *testing.T) {
 
 	assert.True(t, strings.Contains(body, "mac_address"))
 	assert.False(t, strings.Contains(body, "00:1A:2B:3C:4D:5E"))
+
+	message, messageFound := lr.Attributes().Get("message")
+	assert.True(t, messageFound)
+	assert.Equal(t, "This is a phone number: <phone_number>", message.Str())
 
 }
 

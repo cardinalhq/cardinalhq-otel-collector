@@ -34,7 +34,6 @@ message Attribute {
 
 message LogExemplar {
 	repeated Attribute attributes = 1;
-	string exemplar = 2;
 }
 
 message LogStats {

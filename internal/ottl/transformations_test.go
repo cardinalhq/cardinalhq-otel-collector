@@ -300,6 +300,35 @@ func TestAccessLogs_UsingLookup(t *testing.T) {
 	assert.Equal(t, methodCode.Int(), int64(3))
 }
 
+func TestLogSeverityRule(t *testing.T) {
+	logger := zap.NewNop()
+	statements := []ContextStatement{
+		{
+			Context: "log",
+			Conditions: []string{
+				`severity_text == "INFO"`,
+			},
+			Statements: []string{
+				`set(attributes["foo"], "INFO")`,
+			},
+		},
+	}
+	transformations, err := ParseTransformations(logger, statements)
+	assert.NoError(t, err)
+	assert.True(t, len(transformations.logTransforms) > 0)
+
+	rl := plog.NewResourceLogs()
+	sl := rl.ScopeLogs().AppendEmpty()
+	lr := sl.LogRecords().AppendEmpty()
+	lr.SetSeverityText("INFO")
+
+	transformations.ExecuteLogTransforms(logger, nil, ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl))
+
+	foo, fooFound := lr.Attributes().Get("foo")
+	assert.True(t, fooFound)
+	assert.Equal(t, "INFO", foo.Str())
+}
+
 func TestPIIRegexRules(t *testing.T) {
 	logger := zap.NewNop()
 	statements := []ContextStatement{

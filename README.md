@@ -1,62 +1,28 @@
 # cardinalhq-otel-collector
 
-CardinalHQ **todo**
-
 This repository contains three main components.
 
-* The CardinalHQ decorator processor.
-* Example configuration to use the CardinalHQ processor.
-* A Docker build of a collector with the CardinalHQ processor, as well as
-  a number of other common processors, exporters, and other components.
+* Various Cardinal processors, extensions, exporters, and receivers.
+* Example configurations and documentation.
+* A Docker build of a collector with the CardinalHQ components, as well as
+  a number of other commonly used components.
 
-## CardinalHQ Decorator
+## CardinalHQ Ecosystem
 
-The CardinalHQ decorator is intended too be used in ocnjuction with CardinalHQ's
-SaaS offering, where full telemetry data is available regardless of what
-cost reduction is applied to your upstream telemetry provider.
+CardinalHQ offers a flexible system where a collector runs in your environment, allowing full control over your data without vendor lock-in. Our custom exporters, processors, and extensions support use cases like automatic PII redaction, cost management, and operational recommendations—all while preserving full data fidelity in commodity storage, such as an S3 bucket. These capabilities enable quick and effective operational diagnosis.
 
-CardinalHQ's decorator processor examines logs, metrics, and traces and
-makes decisions based on configured rules.  These rules are able to
-be changed without restarting the collector.
+Our SaaS solution offers control over your collector use cases, including remote configuration
+of rules (without requiring a collector restart or downtime) and adding or removing exporters and receivers.
+We also provide a comprehensive SaaS solution to store and manage your data securely should you prefer
+not to use your own object storage.
 
-Based on the decisions made, additional attributes are added to the
-telemetry.  This is then used to decide what telementry should be sent
-to your upstream providers.
+Whether you choose to store data in your own S3 bucket or utilize our SaaS offering, CardinalHQ enables additional features on top of your data, including a user interface to explore, manage collectors, and configure features without editing YAML files.
 
-CardinalHQ's SaaS product allows controlling a fleet of collectors
-to handle all three telemetry types, configures rules to lower your
-upstream costs, and will maintain all dimensions and fidelity of your
-telemetry.  To use this service, you must [sign up.]
+The CardinalHQ collector integrates seamlessly with our SaaS platform, ensuring full telemetry data access, regardless of any cost-saving measures applied to your upstream provider. Each component can function independently, but doing so would require manual configuration and, in some cases, setting up custom API endpoints.
 
-### Logs
+The CardinalHQ ecosystem comprises three main components—sources, sinks, and a common processing component—built from OpenTelemetry modules. For example, a Datadog sink can receive telemetry from the common processor, applying filtering, rate-limiting, and aggregation before sending data to Datadog. This structure allows for targeted cost reduction or data management when interacting with upstream vendors.
 
-Log telemetry is analyzed by service or by pattern.  The patterns
-are an integer representation of logs where similr log messages
-have the same integer value.
+Cardinal is use-case focused, so instead of building a pipeline, you are configuring a higher level concept.  Cost savings by removing tags is one such use case, while PII redaction is another, and many more exist to
+solve real-world telemetry problems.
 
-Rate limiting can be applied at the service level or the <service, fingerprint>
-level.
-
-
-### Metrics
-
-Metrics are matched based on a scope, and then tags are removed based on rules.
-The resulting metric is aggregated and the lower cardinality aggergate is
-periodically transmitted to your upstream provider.
-
-
-## Getting Started
-
-### Install and Configure CardinalHQ Collector
-
-...
-
-
-
-## Repository
-
-... what's here, layout, etc.
-
-## Contributing
-
-...
+See <url here> for more, including how to begin using Cardinal's collector and ecosystem.

@@ -28,6 +28,58 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 )
 
+func TestFoo(t *testing.T) {
+	logger := zap.NewNop()
+
+	extractorConfigs := []ottl.MetricExtractorConfig{
+		{
+			MetricName: "android-api.movie_playback_started",
+			MetricType: counterIntType,
+			Conditions: []string{`String(resource.attributes["service.name"]) == "android-api"`,
+				`attributes["_cardinalhq.fingerprint"]  == 1437925384739009809`,
+			},
+			Dimensions: map[string]string{
+				"logLevel": `attributes["_extracted"]["logLevel"]`,
+			},
+		},
+	}
+
+	configs, err := ottl.ParseLogExtractorConfigs(extractorConfigs, logger)
+	assert.NoError(t, err)
+	assert.Len(t, configs, 1)
+	logExtractor := configs[0]
+	assert.NotNil(t, logExtractor)
+	assert.NotNil(t, logExtractor.Dimensions)
+	assert.Len(t, logExtractor.Dimensions, 1)
+	assert.NotNil(t, logExtractor.Conditions)
+
+	// Create the logs dataset
+	logs := plog.NewLogs()
+	rLogs := logs.ResourceLogs().AppendEmpty()
+	scopeLogs := rLogs.ScopeLogs().AppendEmpty()
+	logRecord1 := scopeLogs.LogRecords().AppendEmpty()
+	logRecord1.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
+	extractedMap := logRecord1.Attributes().PutEmptyMap("_extracted")
+	extractedMap.PutStr("logLevel", "INFO")
+	rLogs.Resource().Attributes().PutStr("service.name", "android-api")
+	logRecord1.Attributes().PutInt("_cardinalhq.fingerprint", 1437925384739009809)
+
+	// Extract metrics
+	e := newLogsTestExtractor(configs)
+	metrics := e.extractMetricsFromLogs(context.Background(), logs)
+	assert.Len(t, metrics, 1)
+	metric := metrics[0]
+	assert.NotNil(t, metric)
+	assert.Equal(t, "android-api.movie_playback_started", metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Name())
+	assert.Equal(t, 1, metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Sum().DataPoints().Len())
+	datapoint0 := metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Sum().DataPoints().At(0)
+	assert.NotNil(t, datapoint0)
+	assert.Equal(t, int64(1), datapoint0.IntValue())
+	logLevel, logLevelFound := datapoint0.Attributes().Get("logLevel")
+	assert.True(t, logLevelFound)
+	assert.Equal(t, "INFO", logLevel.Str())
+}
+
 func TestExtractMetricsFromLogs_MultipleLogsMatchingCondition(t *testing.T) {
 	logger := zap.NewNop()
 

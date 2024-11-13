@@ -39,7 +39,7 @@ func (l LogExtractor) ExtractAttributes(ctx context.Context, tCtx ottllog.Transf
 	attrMap := make(map[string]any, len(l.Dimensions))
 	for k, v := range l.Dimensions {
 		attrVal, _, err := v.Execute(ctx, tCtx)
-		if err != nil || attrVal == nil {
+		if err != nil || attrVal == nil || attrVal == "" {
 			continue
 		}
 

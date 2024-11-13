@@ -16,6 +16,9 @@ package extractmetricsprocessor
 
 import (
 	"context"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"time"
 
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
@@ -37,7 +40,7 @@ func (e *extractor) ConsumeLogs(ctx context.Context, pl plog.Logs) (plog.Logs, e
 }
 
 func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []pmetric.Metrics {
-	var totalMetrics = []pmetric.Metrics{}
+	var totalMetrics []pmetric.Metrics
 
 	extractors := e.logExtractors.Load()
 	if extractors == nil {
@@ -57,17 +60,17 @@ func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []
 			scopeMetrics := resourceMetrics.ScopeMetrics().AppendEmpty()
 			scopeMetrics.Scope().SetName(componentType.String())
 
-			metric := scopeMetrics.Metrics().AppendEmpty()
+			newMetric := scopeMetrics.Metrics().AppendEmpty()
 
-			metric.SetName(logExtractor.MetricName)
-			metric.SetUnit(logExtractor.MetricUnit)
+			newMetric.SetName(logExtractor.MetricName)
+			newMetric.SetUnit(logExtractor.MetricUnit)
 
 			var dpSlice = pmetric.NewNumberDataPointSlice()
 			switch logExtractor.MetricType {
 			case gaugeDoubleType, gaugeIntType:
-				dpSlice = metric.SetEmptyGauge().DataPoints()
+				dpSlice = newMetric.SetEmptyGauge().DataPoints()
 			case counterDoubleType, counterIntType:
-				dpSlice = metric.SetEmptySum().DataPoints()
+				dpSlice = newMetric.SetEmptySum().DataPoints()
 			}
 
 			for j := 0; j < scopeLogs.Len(); j++ {
@@ -84,6 +87,8 @@ func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []
 					}
 
 					if !matches {
+						attrset := attribute.NewSet(attribute.String("metricName", logExtractor.MetricName), attribute.String("metricType", logExtractor.MetricType), attribute.Bool("conditionsEvaluated", false))
+						telemetry.CounterAdd(e.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 						continue
 					}
 
@@ -146,6 +151,12 @@ func (e *extractor) logRecordToDataPoint(ctx context.Context, lex *ottl.LogExtra
 
 		dp.SetIntValue(intVal)
 	}
+	attrset := attribute.NewSet(attribute.Bool("metricValueExtracted", val != 1),
+		attribute.Bool("attributesExtracted", len(attrs) > 0),
+		attribute.String("metricName", lex.MetricName),
+		attribute.String("metricType", lex.MetricType),
+		attribute.Bool("conditionsEvaluated", true))
+	telemetry.CounterAdd(e.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 
 	// Mark this datapoint for aggregation
 	dp.Attributes().PutBool(translate.CardinalFieldAggregate, true)

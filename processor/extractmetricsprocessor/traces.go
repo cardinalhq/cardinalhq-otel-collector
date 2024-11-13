@@ -16,6 +16,9 @@ package extractmetricsprocessor
 
 import (
 	"context"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"time"
 
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlspan"
@@ -58,17 +61,17 @@ func (e *extractor) extractMetricsFromSpans(ctx context.Context, pt ptrace.Trace
 			scopeMetrics := resourceMetrics.ScopeMetrics().AppendEmpty()
 			scopeMetrics.Scope().SetName(componentType.String())
 
-			metric := scopeMetrics.Metrics().AppendEmpty()
+			newMetric := scopeMetrics.Metrics().AppendEmpty()
 
-			metric.SetName(spanExtractor.MetricName)
-			metric.SetUnit(spanExtractor.MetricUnit)
+			newMetric.SetName(spanExtractor.MetricName)
+			newMetric.SetUnit(spanExtractor.MetricUnit)
 
 			var dpSlice = pmetric.NewNumberDataPointSlice()
 			switch spanExtractor.MetricType {
 			case gaugeDoubleType, gaugeIntType:
-				dpSlice = metric.SetEmptyGauge().DataPoints()
+				dpSlice = newMetric.SetEmptyGauge().DataPoints()
 			case counterDoubleType, counterIntType:
-				dpSlice = metric.SetEmptySum().DataPoints()
+				dpSlice = newMetric.SetEmptySum().DataPoints()
 			}
 
 			for j := 0; j < scopeSpans.Len(); j++ {
@@ -85,6 +88,8 @@ func (e *extractor) extractMetricsFromSpans(ctx context.Context, pt ptrace.Trace
 					}
 
 					if !matches {
+						attrset := attribute.NewSet(attribute.String("metricName", spanExtractor.MetricName), attribute.String("metricType", spanExtractor.MetricType), attribute.Bool("conditionsEvaluated", false))
+						telemetry.CounterAdd(e.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 						continue
 					}
 
@@ -147,6 +152,14 @@ func (e *extractor) spanRecordToDataPoint(ctx context.Context, se *ottl.SpanExtr
 
 		dp.SetIntValue(intVal)
 	}
+
+	attrset := attribute.NewSet(attribute.Bool("metricValueExtracted", val != 1),
+		attribute.Bool("attributesExtracted", len(attrs) > 0),
+		attribute.String("metricName", se.MetricName),
+		attribute.String("metricType", se.MetricType),
+		attribute.Bool("conditionsEvaluated", true))
+
+	telemetry.CounterAdd(e.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 
 	// Mark this datapoint for aggregation
 	dp.Attributes().PutBool(translate.CardinalFieldAggregate, true)

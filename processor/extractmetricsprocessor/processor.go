@@ -18,6 +18,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor/internal/metadata"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"strconv"
 	"sync/atomic"
 
@@ -40,6 +44,7 @@ type extractor struct {
 	id                component.ID
 	ttype             string
 	telemetrySettings component.TelemetrySettings
+	rulesEvaluated    *telemetry.DeferrableInt64Counter
 
 	configCallbackID int
 	logExtractors    atomic.Pointer[[]*ottl.LogExtractor]
@@ -54,6 +59,25 @@ func newExtractor(config *Config, ttype string, set processor.Settings) (*extrac
 		telemetrySettings: set.TelemetrySettings,
 		logger:            set.Logger,
 	}
+
+	attrset := attribute.NewSet(
+		attribute.String("processor", set.ID.String()),
+		attribute.String("signal", ttype),
+	)
+	counter, err := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
+		"extract_metric_rules_evaluated",
+		[]metric.Int64CounterOption{
+			metric.WithDescription("The number of rules evaluated"),
+			metric.WithUnit("1"),
+		},
+		[]metric.AddOption{
+			metric.WithAttributeSet(attrset),
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	e.rulesEvaluated = counter
 
 	return e, nil
 }

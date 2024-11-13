@@ -16,6 +16,10 @@ package extractmetricsprocessor
 
 import (
 	"context"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor/internal/metadata"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"testing"
 	"time"
 
@@ -106,6 +110,26 @@ func newSpansTestExtractor(logExtractors []*ottl.SpanExtractor) *extractor {
 		config:            config,
 		telemetrySettings: set.TelemetrySettings,
 	}
+	attrset := attribute.NewSet(
+		attribute.String("processor", "test"),
+		attribute.String("signal", "logs"),
+	)
+	set.MeterProvider = mockMeterProvider{}
+	counter, err := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
+		"extract_metric_rules_evaluated",
+		[]metric.Int64CounterOption{
+			metric.WithDescription("The number of rules evaluated"),
+			metric.WithUnit("1"),
+		},
+		[]metric.AddOption{
+			metric.WithAttributeSet(attrset),
+		},
+	)
+	if err != nil {
+		return nil
+	}
+
+	e.rulesEvaluated = counter
 	e.spanExtractors.Store(&logExtractors)
 	return e
 }

@@ -34,7 +34,7 @@ func TestMetricStat_Key(t *testing.T) {
 		Count:       0,
 	}
 
-	assert.Equal(t, uint64(0x24f43c4422ea113e), m.Key())
+	assert.Equal(t, uint64(0xbe935ac6e08e4601), m.Key())
 }
 
 type testMetricStat struct{}

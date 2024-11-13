@@ -45,7 +45,7 @@ func (e *statsProc) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace
 					isSlow = isslowValue.Bool()
 				}
 				fingerprint := getFingerprint(sr.Attributes())
-				if err := e.recordSpan(now, serviceName, fingerprint, isSlow, sr, iss, rs); err != nil {
+				if err := e.recordSpan(td, now, serviceName, fingerprint, isSlow, sr, iss, rs); err != nil {
 					e.logger.Error("Failed to record span", zap.Error(err))
 				}
 			}
@@ -63,7 +63,9 @@ func toSize(attributes map[string]interface{}) int64 {
 	return size
 }
 
-func (e *statsProc) recordSpan(now time.Time,
+func (e *statsProc) recordSpan(
+	td ptrace.Traces,
+	now time.Time,
 	serviceName string,
 	fingerprint int64,
 	isSlow bool,
@@ -84,17 +86,9 @@ func (e *statsProc) recordSpan(now time.Time,
 		"span":     span.Attributes(),
 	})
 
-	exemplarAttributes := ToAttributes(rs.Resource(), iss.Scope(), span.Attributes())
-
-	spanNameAttribute := toAttribute("span", "name", pcommon.NewValueStr(span.Name()), false)
 	spanKindAttribute := toAttribute("span", "kind", pcommon.NewValueStr(span.Kind().String()), false)
 	statusCodeAttribute := toAttribute("span", "status_code", pcommon.NewValueStr(span.Status().Code().String()), false)
 	isSlowAttribute := toAttribute("span", "isSlow", pcommon.NewValueBool(isSlow), true)
-
-	exemplarAttributes = append(exemplarAttributes, spanNameAttribute)
-	exemplarAttributes = append(exemplarAttributes, spanKindAttribute)
-	exemplarAttributes = append(exemplarAttributes, statusCodeAttribute)
-	exemplarAttributes = append(exemplarAttributes, isSlowAttribute)
 
 	enrichmentAttributes = append(enrichmentAttributes, statusCodeAttribute)
 	enrichmentAttributes = append(enrichmentAttributes, isSlowAttribute)
@@ -107,20 +101,62 @@ func (e *statsProc) recordSpan(now time.Time,
 		ProcessorId: e.id.Name(),
 		Count:       1,
 		Attributes:  enrichmentAttributes,
-		Exemplar: &chqpb.SpanExemplar{
-			TraceId:    span.TraceID().String(),
-			Attributes: exemplarAttributes,
-		},
 	}
+	e.addSpanExemplar(td, fingerprint)
+
 	bucketpile, err := e.spanStats.Record(now, rec, "", 1, spanSize)
 	if err != nil {
 		return err
 	}
-	if bucketpile != nil {
+	e.sendSpanStatsWithExemplars(bucketpile, now)
+	return nil
+}
+
+func (e *statsProc) sendSpanStatsWithExemplars(bucketpile *map[uint64][]*chqpb.SpanStats, now time.Time) {
+	if bucketpile != nil && len(*bucketpile) > 0 {
+		for bucketKey, items := range *bucketpile {
+			itemsWithValidExemplars := items[:0]
+			for _, item := range items {
+				marshalled, err := e.jsonMarshaller.tracesMarshaler.MarshalTraces(e.traceExemplars[item.Fingerprint])
+				if err != nil {
+					continue
+				}
+				item.Exemplar = marshalled
+				itemsWithValidExemplars = append(itemsWithValidExemplars, item)
+			}
+			if len(itemsWithValidExemplars) > 0 {
+				(*bucketpile)[bucketKey] = itemsWithValidExemplars
+			} else {
+				delete(*bucketpile, bucketKey)
+			}
+		}
+		// clear the logExemplars map
+		e.traceExemplars = make(map[int64]ptrace.Traces)
+
 		// TODO should send this to a channel and have a separate goroutine send it
 		go e.sendSpanStats(context.Background(), now, bucketpile)
 	}
-	return nil
+}
+
+func (e *statsProc) addSpanExemplar(td ptrace.Traces, fingerprint int64) {
+	_, found := e.logExemplars[fingerprint]
+	if !found {
+		copyObj := ptrace.NewTraces()
+		td.CopyTo(copyObj)
+		// iterate over all 3 levels, and just filter any span records that don't match the fingerprint
+		copyObj.ResourceSpans().RemoveIf(func(rsp ptrace.ResourceSpans) bool {
+			rsp.ScopeSpans().RemoveIf(func(ss ptrace.ScopeSpans) bool {
+				ss.Spans().RemoveIf(func(lr ptrace.Span) bool {
+					return getFingerprint(lr.Attributes()) != fingerprint
+				})
+				return ss.Spans().Len() == 0
+			})
+			return rsp.ScopeSpans().Len() == 0
+		})
+		if copyObj.ResourceSpans().Len() > 0 {
+			e.traceExemplars[fingerprint] = copyObj
+		}
+	}
 }
 
 func (e *statsProc) sendSpanStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*chqpb.SpanStats) {

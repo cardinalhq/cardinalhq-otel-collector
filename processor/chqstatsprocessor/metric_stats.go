@@ -16,14 +16,15 @@ package chqstatsprocessor
 
 import (
 	"github.com/apache/datasketches-go/hll"
-	"github.com/cespare/xxhash"
-
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
+	"github.com/cespare/xxhash"
 )
 
 type MetricStat struct {
 	MetricName  string
+	MetricType  string
+	TagScope    string
 	TagName     string
 	ServiceName string
 	Phase       chqpb.Phase
@@ -36,7 +37,7 @@ type MetricStat struct {
 var _ stats.StatsObject = (*MetricStat)(nil)
 
 func (m *MetricStat) Key() uint64 {
-	key := m.MetricName + ":" + m.TagName + ":" + m.ServiceName + ":" + m.Phase.String() + ":" + m.ProcessorId
+	key := m.MetricName + ":" + m.MetricType + ":" + m.TagScope + ":" + m.TagName + ":" + m.ServiceName + ":" + m.Phase.String() + ":" + m.ProcessorId
 	key = chqpb.AppendTagsToKey(m.Attributes, key)
 	return xxhash.Sum64String(key)
 }

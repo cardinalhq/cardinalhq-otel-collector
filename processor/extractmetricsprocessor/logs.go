@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
@@ -164,7 +165,7 @@ func (e *extractor) logRecordToDataPoint(ctx context.Context, lex *ottl.LogExtra
 	telemetry.CounterAdd(e.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 
 	// Mark this datapoint for aggregation
-	//dp.Attributes().PutBool(translate.CardinalFieldAggregate, true)
+	dp.Attributes().PutBool(translate.CardinalFieldAggregate, true)
 
 	// Successfully constructed dp, we can add it to the slice
 	dp.MoveTo(dpSlice.AppendEmpty())

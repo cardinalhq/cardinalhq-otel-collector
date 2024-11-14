@@ -149,9 +149,14 @@ func (e *datadogExporter) convertSumMetric(_ context.Context, metric pmetric.Met
 			Value:     value,
 		})
 		ret = append(ret, m)
-		if strings.Contains(m.Metric, "android") {
+		if strings.Contains(m.Metric, "android") && len(m.Points) > 0 {
+			var concatenatedPoints string
+			for _, m := range m.Points {
+				concatenatedPoints += fmt.Sprintf("%v", m.Timestamp) + ":" + fmt.Sprintf("%v", m.Value) + ","
+			}
 			e.logger.Info("DD Exporter saw metric", zap.String("name", metric.Name()), zap.Float64("value", value), zap.Bool("hasInterval", hasInterval),
-				zap.String("tags", strings.Join(tags, ",")))
+				zap.String("tags", strings.Join(tags, ",")), zap.Int64("interval", m.Interval),
+				zap.String("points", concatenatedPoints))
 		}
 	}
 	return ret

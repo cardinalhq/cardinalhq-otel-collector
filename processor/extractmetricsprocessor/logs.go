@@ -16,10 +16,11 @@ package extractmetricsprocessor
 
 import (
 	"context"
+	"time"
+
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	"time"
 
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -70,9 +71,10 @@ func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []
 			case gaugeDoubleType, gaugeIntType:
 				dpSlice = newMetric.SetEmptyGauge().DataPoints()
 			case counterDoubleType, counterIntType:
-				dpSlice = newMetric.SetEmptySum().DataPoints()
-				newMetric.Sum().SetAggregationTemporality(pmetric.AggregationTemporalityDelta)
-				newMetric.Sum().SetIsMonotonic(false)
+				sum := newMetric.SetEmptySum()
+				dpSlice = sum.DataPoints()
+				sum.SetAggregationTemporality(pmetric.AggregationTemporalityDelta)
+				sum.SetIsMonotonic(false)
 			}
 
 			for j := 0; j < scopeLogs.Len(); j++ {

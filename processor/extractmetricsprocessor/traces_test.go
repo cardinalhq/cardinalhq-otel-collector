@@ -16,12 +16,13 @@ package extractmetricsprocessor
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor/internal/metadata"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -109,6 +110,7 @@ func newSpansTestExtractor(logExtractors []*ottl.SpanExtractor) *extractor {
 		ttype:             ttype,
 		config:            config,
 		telemetrySettings: set.TelemetrySettings,
+		logger:            zap.NewNop(),
 	}
 	attrset := attribute.NewSet(
 		attribute.String("processor", "test"),

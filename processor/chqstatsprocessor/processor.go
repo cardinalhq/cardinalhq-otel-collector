@@ -94,6 +94,7 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 		jsonMarshaller:     newMarshaller(),
 		logExemplars:       make(map[int64]plog.Logs),
 		traceExemplars:     make(map[int64]ptrace.Traces),
+		metricExemplars:    make(map[string]pmetric.Metrics),
 		logger:             set.Logger,
 		podName:            os.Getenv("POD_NAME"),
 	}

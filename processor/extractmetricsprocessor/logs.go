@@ -71,6 +71,8 @@ func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []
 				dpSlice = newMetric.SetEmptyGauge().DataPoints()
 			case counterDoubleType, counterIntType:
 				dpSlice = newMetric.SetEmptySum().DataPoints()
+				newMetric.Sum().SetAggregationTemporality(pmetric.AggregationTemporalityDelta)
+				newMetric.Sum().SetIsMonotonic(false)
 			}
 
 			for j := 0; j < scopeLogs.Len(); j++ {

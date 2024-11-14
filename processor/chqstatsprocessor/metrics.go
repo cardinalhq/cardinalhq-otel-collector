@@ -167,33 +167,38 @@ func (e *statsProc) addMetricsExemplar(lm pmetric.Metrics, serviceName, metricNa
 					if lr.Name() != metricName {
 						return true
 					}
+					switch lr.Type() {
+					case pmetric.MetricTypeGauge:
+						lr.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
+							return metricType != pmetric.MetricTypeGauge.String()
+						})
+						return lr.Gauge().DataPoints().Len() == 0
 
-					lr.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
-						return metricType != pmetric.MetricTypeGauge.String()
-					})
-					hasGaugeDataPoints := lr.Gauge().DataPoints().Len() > 0
+					case pmetric.MetricTypeSum:
+						lr.Sum().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
+							return metricType != pmetric.MetricTypeSum.String()
+						})
+						return lr.Sum().DataPoints().Len() == 0
 
-					lr.Sum().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
-						return metricType != pmetric.MetricTypeSum.String()
-					})
-					hasSumDataPoints := lr.Sum().DataPoints().Len() > 0
+					case pmetric.MetricTypeHistogram:
+						lr.Histogram().DataPoints().RemoveIf(func(dp pmetric.HistogramDataPoint) bool {
+							return metricType != pmetric.MetricTypeHistogram.String()
+						})
+						return lr.Histogram().DataPoints().Len() == 0
 
-					lr.Histogram().DataPoints().RemoveIf(func(dp pmetric.HistogramDataPoint) bool {
-						return metricType != pmetric.MetricTypeHistogram.String()
-					})
-					hasHistogramDataPoints := lr.Histogram().DataPoints().Len() > 0
+					case pmetric.MetricTypeSummary:
+						lr.Summary().DataPoints().RemoveIf(func(dp pmetric.SummaryDataPoint) bool {
+							return metricType != pmetric.MetricTypeSummary.String()
+						})
+						return lr.Summary().DataPoints().Len() == 0
 
-					lr.Summary().DataPoints().RemoveIf(func(dp pmetric.SummaryDataPoint) bool {
-						return metricType != pmetric.MetricTypeSummary.String()
-					})
-					hasSummaryDataPoints := lr.Summary().DataPoints().Len() > 0
-
-					lr.ExponentialHistogram().DataPoints().RemoveIf(func(dp pmetric.ExponentialHistogramDataPoint) bool {
-						return metricType != pmetric.MetricTypeExponentialHistogram.String()
-					})
-					hasExponentialHistogramDataPoints := lr.ExponentialHistogram().DataPoints().Len() > 0
-
-					return hasGaugeDataPoints || hasSumDataPoints || hasHistogramDataPoints || hasSummaryDataPoints || hasExponentialHistogramDataPoints
+					case pmetric.MetricTypeExponentialHistogram:
+						lr.ExponentialHistogram().DataPoints().RemoveIf(func(dp pmetric.ExponentialHistogramDataPoint) bool {
+							return metricType != pmetric.MetricTypeExponentialHistogram.String()
+						})
+						return lr.ExponentialHistogram().DataPoints().Len() == 0
+					}
+					return false
 				})
 				return ss.Metrics().Len() == 0
 			})

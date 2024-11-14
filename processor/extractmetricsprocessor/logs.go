@@ -33,8 +33,8 @@ import (
 
 func (e *extractor) ConsumeLogs(ctx context.Context, pl plog.Logs) (plog.Logs, error) {
 	metrics := e.extractMetricsFromLogs(ctx, pl)
-	for _, metric := range metrics {
-		e.sendMetrics(ctx, e.config.Route, metric)
+	for _, metricToSend := range metrics {
+		e.sendMetrics(ctx, e.config.Route, metricToSend)
 	}
 	return pl, nil
 }

@@ -73,7 +73,7 @@ func (m *MetricAggregatorImpl[T]) add(logger *zap.Logger, t time.Time, name stri
 	if !ok {
 		set = NewAggregationSet[T](startTime, m.interval)
 		m.sets[startTime] = set
-		logger.Debug("Created new aggregation set", zap.Int64("starttime", startTime), zap.String("addr", fmt.Sprintf("%p", set)))
+		logger.Info("Created new aggregation set", zap.Int64("starttime", startTime), zap.String("addr", fmt.Sprintf("%p", set)))
 	}
 	return set.Add(logger, name, buckets, values, aggregationType, tags)
 }

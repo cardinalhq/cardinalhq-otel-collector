@@ -16,7 +16,6 @@ package pitbullprocessor
 
 import (
 	"context"
-
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
@@ -35,6 +34,7 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 
 	transformations := e.metricTransformations.Load()
 	lookups := e.metricsLookupConfigs.Load()
+	// Iterate over md.ResourceMetrics and look for a metricName
 	if transformations == nil && lookups == nil {
 		return md, nil
 	}

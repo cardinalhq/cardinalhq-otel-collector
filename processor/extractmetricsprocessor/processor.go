@@ -164,6 +164,7 @@ func (e *extractor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 	switch e.ttype {
 	case "logs":
 		parsedExtractors, err := ottl.ParseLogExtractorConfigs(configs.LogMetricExtractors, e.logger)
+		e.logger.Info("Setting log extractors", zap.String("id", e.id.Name()), zap.Int("num_configs", len(configs.LogMetricExtractors)), zap.Int("num_parsed_configs", len(parsedExtractors)))
 		if err != nil {
 			e.logger.Error("Error parsing log extractor configurations", zap.Error(err))
 			return

@@ -38,7 +38,7 @@ func (a *AggregationSet[T]) Add(logger *zap.Logger, name string, buckets []T, va
 	fingerprint := FingerprintTags(tags)
 	if _, ok := a.Aggregations[fingerprint]; !ok {
 		a.Aggregations[fingerprint] = NewAggregationImpl[T](name, buckets, aggregationType, tags)
-		logger.Debug("Created new aggregation", zap.Int64("starttime", a.StartTime), zap.Uint64("fingerprint", fingerprint), zap.String("addr", fmt.Sprintf("%p", a)), zap.String("name", name), zap.Any("tags", tags))
+		logger.Info("Created new aggregation", zap.Int64("starttime", a.StartTime), zap.Uint64("fingerprint", fingerprint), zap.String("addr", fmt.Sprintf("%p", a)), zap.String("name", name), zap.Any("tags", tags))
 	}
 	return a.Aggregations[fingerprint].Add(name, values)
 }

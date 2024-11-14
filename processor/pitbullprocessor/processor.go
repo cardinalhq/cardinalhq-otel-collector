@@ -80,7 +80,7 @@ func newPitbull(config *Config, ttype string, set processor.Settings) (*pitbull,
 	dog.ottlProcessed = counter
 
 	histogram, histogramError := telemetry.NewDeferrableHistogram(metadata.Meter(set.TelemetrySettings),
-		"time_to_process",
+		"ottl_time_to_process",
 		[]metric.Int64HistogramOption{},
 		[]metric.RecordOption{
 			metric.WithAttributeSet(attrset),

@@ -90,7 +90,7 @@ func (e *extractor) extractMetricsFromSpans(ctx context.Context, pt ptrace.Trace
 					}
 
 					if !matches {
-						attrset := attribute.NewSet(attribute.String("metricName", spanExtractor.MetricName), attribute.String("metricType", spanExtractor.MetricType), attribute.Bool("conditionsEvaluated", false))
+						attrset := attribute.NewSet(attribute.String("ruleId", spanExtractor.RuleID), attribute.String("metricName", spanExtractor.MetricName), attribute.String("metricType", spanExtractor.MetricType), attribute.Bool("conditionsEvaluated", false))
 						telemetry.CounterAdd(e.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 						continue
 					}
@@ -157,6 +157,7 @@ func (e *extractor) spanRecordToDataPoint(ctx context.Context, se *ottl.SpanExtr
 
 	attrset := attribute.NewSet(attribute.Bool("metricValueExtracted", val != 1),
 		attribute.Bool("attributesExtracted", len(attrs) > 0),
+		attribute.String("ruleId", se.RuleID),
 		attribute.String("metricName", se.MetricName),
 		attribute.String("metricType", se.MetricType),
 		attribute.Bool("conditionsEvaluated", true))

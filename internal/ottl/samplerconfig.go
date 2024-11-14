@@ -50,6 +50,7 @@ type ExtractMetricsProcessorConfig struct {
 }
 
 type MetricExtractorConfig struct {
+	RuleId      string            `json:"rule_id,omitempty"`
 	Conditions  []string          `json:"conditions,omitempty" yaml:"conditions,omitempty"`
 	Dimensions  map[string]string `json:"dimensions,omitempty" yaml:"dimensions,omitempty"`
 	MetricName  string            `json:"metric_name,omitempty" yaml:"metric_name,omitempty"`

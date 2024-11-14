@@ -26,10 +26,10 @@ import (
 )
 
 type LogExtractor struct {
-	Route       string
 	Conditions  []*ottl.Condition[ottllog.TransformContext]
 	Dimensions  map[string]*ottl.Statement[ottllog.TransformContext]
 	MetricName  string
+	RuleID      string
 	MetricUnit  string
 	MetricType  string
 	MetricValue *ottl.Statement[ottllog.TransformContext]
@@ -64,6 +64,7 @@ func (s SpanExtractor) ExtractAttributes(ctx context.Context, tCtx ottlspan.Tran
 }
 
 type SpanExtractor struct {
+	RuleID      string
 	Conditions  []*ottl.Condition[ottlspan.TransformContext]
 	Dimensions  map[string]*ottl.Statement[ottlspan.TransformContext]
 	MetricName  string
@@ -116,6 +117,7 @@ func parseLogExtractorConfig(extractorConfig MetricExtractorConfig, parser ottl.
 	metricValue, _ := parser.ParseStatement(metricValueStatementStr)
 
 	return &LogExtractor{
+		RuleID:      extractorConfig.RuleId,
 		Conditions:  conditions,
 		Dimensions:  dimensions,
 		MetricName:  extractorConfig.MetricName,
@@ -143,6 +145,7 @@ func parseSpanExtractorConfig(extractorConfig MetricExtractorConfig, parser ottl
 	metricValue, _ := parser.ParseStatement(metricValueStatementStr)
 
 	return &SpanExtractor{
+		RuleID:      extractorConfig.RuleId,
 		Conditions:  conditions,
 		Dimensions:  dimensions,
 		MetricName:  extractorConfig.MetricName,

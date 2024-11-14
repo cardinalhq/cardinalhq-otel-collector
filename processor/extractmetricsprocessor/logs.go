@@ -89,7 +89,7 @@ func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []
 					}
 
 					if !matches {
-						attrset := attribute.NewSet(attribute.String("metricName", logExtractor.MetricName), attribute.String("metricType", logExtractor.MetricType), attribute.Bool("conditionsEvaluated", false))
+						attrset := attribute.NewSet(attribute.String("ruleId", logExtractor.RuleID), attribute.String("metricName", logExtractor.MetricName), attribute.String("metricType", logExtractor.MetricType), attribute.Bool("conditionsEvaluated", false))
 						telemetry.CounterAdd(e.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 						continue
 					}
@@ -156,6 +156,7 @@ func (e *extractor) logRecordToDataPoint(ctx context.Context, lex *ottl.LogExtra
 	attrset := attribute.NewSet(attribute.Bool("metricValueExtracted", val != 1),
 		attribute.Bool("attributesExtracted", len(attrs) > 0),
 		attribute.String("metricName", lex.MetricName),
+		attribute.String("ruleId", lex.RuleID),
 		attribute.String("metricType", lex.MetricType),
 		attribute.Bool("conditionsEvaluated", true))
 	telemetry.CounterAdd(e.rulesEvaluated, 1, metric.WithAttributeSet(attrset))

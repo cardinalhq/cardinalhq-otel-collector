@@ -17,6 +17,9 @@ package chqstatsprocessor
 import (
 	"context"
 	"errors"
+	"go.opentelemetry.io/collector/pdata/plog"
+	"go.opentelemetry.io/collector/pdata/pmetric"
+	"go.opentelemetry.io/collector/pdata/ptrace"
 	"net/http"
 	"os"
 	"sync/atomic"
@@ -35,6 +38,20 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
 )
+
+func newMarshaller() otelJsonMarshaller {
+	return otelJsonMarshaller{
+		logsMarshaler:    &plog.JSONMarshaler{},
+		tracesMarshaler:  &ptrace.JSONMarshaler{},
+		metricsMarshaler: &pmetric.JSONMarshaler{},
+	}
+}
+
+type otelJsonMarshaller struct {
+	logsMarshaler    plog.Marshaler
+	tracesMarshaler  ptrace.Marshaler
+	metricsMarshaler pmetric.Marshaler
+}
 
 type statsProc struct {
 	config          *Config
@@ -55,6 +72,12 @@ type statsProc struct {
 	spanStats   *stats.StatsCombiner[*chqpb.SpanStats]
 	metricstats *stats.StatsCombiner[*MetricStat]
 
+	logExemplars    map[int64]plog.Logs
+	traceExemplars  map[int64]ptrace.Traces
+	metricExemplars map[string]pmetric.Metrics
+
+	jsonMarshaller otelJsonMarshaller
+
 	logStatsEnrichments     atomic.Pointer[[]ottl.StatsEnrichment]
 	metricsStatsEnrichments atomic.Pointer[[]ottl.StatsEnrichment]
 	tracesStatsEnrichments  atomic.Pointer[[]ottl.StatsEnrichment]
@@ -68,6 +91,9 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 		config:             config,
 		httpClientSettings: config.Statistics.ClientConfig,
 		telemetrySettings:  set.TelemetrySettings,
+		jsonMarshaller:     newMarshaller(),
+		logExemplars:       make(map[int64]plog.Logs),
+		traceExemplars:     make(map[int64]ptrace.Traces),
 		logger:             set.Logger,
 		podName:            os.Getenv("POD_NAME"),
 	}

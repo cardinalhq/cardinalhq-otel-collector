@@ -16,8 +16,8 @@ package pitbullprocessor
 
 import (
 	"context"
-	"strings"
-
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
@@ -26,9 +26,7 @@ import (
 	"go.opentelemetry.io/collector/processor/processorhelper"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.uber.org/zap"
-
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
+	"strings"
 )
 
 func getServiceName(r pcommon.Map) string {
@@ -61,7 +59,7 @@ func (e *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 	ld.ResourceLogs().RemoveIf(func(rl plog.ResourceLogs) bool {
 		transformCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
 		if transformations != nil {
-			transformations.ExecuteResourceTransforms(e.logger, e.ottlProcessed, transformCtx)
+			transformations.ExecuteResourceTransforms(e.logger, e.ottlProcessed, e.histogram, transformCtx)
 			if _, found := rl.Resource().Attributes().Get(translate.CardinalFieldDropMarker); found {
 				return true
 			}
@@ -70,7 +68,7 @@ func (e *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 		rl.ScopeLogs().RemoveIf(func(sl plog.ScopeLogs) bool {
 			transformCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), rl)
 			if transformations != nil {
-				transformations.ExecuteScopeTransforms(e.logger, e.ottlProcessed, transformCtx)
+				transformations.ExecuteScopeTransforms(e.logger, e.ottlProcessed, e.histogram, transformCtx)
 				if _, found := sl.Scope().Attributes().Get(translate.CardinalFieldDropMarker); found {
 					return true
 				}
@@ -86,7 +84,7 @@ func (e *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 				if transformations == nil {
 					return false
 				}
-				transformations.ExecuteLogTransforms(e.logger, e.ottlProcessed, transformCtx)
+				transformations.ExecuteLogTransforms(e.logger, e.ottlProcessed, e.histogram, transformCtx)
 				_, dropMe := lr.Attributes().Get(translate.CardinalFieldDropMarker)
 				return dropMe
 			})

@@ -59,7 +59,7 @@ func (e *statsProc) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, err
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				lr := sl.LogRecords().At(k)
 				fp := getFingerprint(lr.Attributes())
-				if err := e.recordLog(now, serviceName, fp, rl, sl, lr); err != nil {
+				if err := e.recordLog(ld, now, serviceName, fp, rl, sl, lr); err != nil {
 					e.logger.Error("Failed to record log", zap.Error(err))
 				}
 			}
@@ -69,7 +69,7 @@ func (e *statsProc) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, err
 	return ld, nil
 }
 
-func (e *statsProc) recordLog(now time.Time, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) error {
+func (e *statsProc) recordLog(ld plog.Logs, now time.Time, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) error {
 	message := lr.Body().AsString()
 	logSize := int64(len(message))
 
@@ -80,16 +80,6 @@ func (e *statsProc) recordLog(now time.Time, serviceName string, fingerprint int
 		"scope":    sl.Scope().Attributes(),
 		"log":      lr.Attributes(),
 	})
-	severity := lr.SeverityText()
-	attributes := ToAttributes(rl.Resource(), sl.Scope(), lr.Attributes())
-
-	if severity != "" {
-		severityAttribute := toAttribute("log", "severity_text", pcommon.NewValueStr(severity), false)
-		attributes = append(attributes, severityAttribute)
-		enrichmentAttributes = append(enrichmentAttributes, severityAttribute)
-	}
-
-	attributes = append(attributes, toAttribute("log", "body", lr.Body(), false))
 
 	rec := &chqpb.LogStats{
 		ServiceName: serviceName,
@@ -98,20 +88,65 @@ func (e *statsProc) recordLog(now time.Time, serviceName string, fingerprint int
 		ProcessorId: e.id.Name(),
 		Count:       1,
 		LogSize:     logSize,
-		Exemplar: &chqpb.LogExemplar{
-			Attributes: attributes,
-		},
-		Attributes: enrichmentAttributes,
+		Attributes:  enrichmentAttributes,
 	}
+
+	e.addLogExemplar(ld, fingerprint)
+
 	bucketpile, err := e.logstats.Record(now, rec, "", 1, logSize)
 	if err != nil {
 		return err
 	}
-	if bucketpile != nil {
+	e.sendLogStatsWithExemplars(bucketpile, now)
+	return nil
+}
+
+func (e *statsProc) sendLogStatsWithExemplars(bucketpile *map[uint64][]*chqpb.LogStats, now time.Time) {
+	if bucketpile != nil && len(*bucketpile) > 0 {
+		for bucketKey, items := range *bucketpile {
+			itemsWithValidExemplars := items[:0]
+			for _, item := range items {
+				marshalled, err := e.jsonMarshaller.logsMarshaler.MarshalLogs(e.logExemplars[item.Fingerprint])
+				if err != nil {
+					continue
+				}
+				item.Exemplar = marshalled
+				itemsWithValidExemplars = append(itemsWithValidExemplars, item)
+			}
+			if len(itemsWithValidExemplars) > 0 {
+				(*bucketpile)[bucketKey] = itemsWithValidExemplars
+			} else {
+				delete(*bucketpile, bucketKey)
+			}
+		}
+		// clear the logExemplars map
+		e.logExemplars = make(map[int64]plog.Logs)
+
 		// TODO should send this to a channel and have a separate goroutine send it
 		go e.sendLogStats(context.Background(), now, bucketpile)
 	}
-	return nil
+}
+
+func (e *statsProc) addLogExemplar(ld plog.Logs, fingerprint int64) {
+	_, found := e.logExemplars[fingerprint]
+	if !found {
+		copyObj := plog.NewLogs()
+		ld.CopyTo(copyObj)
+		// iterate over all 3 levels, and just filter any log records that don't match the fingerprint
+		copyObj.ResourceLogs().RemoveIf(func(rsp plog.ResourceLogs) bool {
+			rsp.ScopeLogs().RemoveIf(func(ss plog.ScopeLogs) bool {
+				ss.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
+					return getFingerprint(lr.Attributes()) != fingerprint
+				})
+				return ss.LogRecords().Len() == 0
+			})
+			return rsp.ScopeLogs().Len() == 0
+		})
+
+		if copyObj.ResourceLogs().Len() > 0 {
+			e.logExemplars[fingerprint] = copyObj
+		}
+	}
 }
 
 func (e *statsProc) sendLogStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*chqpb.LogStats) {

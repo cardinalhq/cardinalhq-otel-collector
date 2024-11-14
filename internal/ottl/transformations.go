@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"time"
 
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
@@ -371,8 +372,9 @@ func evaluateTransform[T any](counter telemetry.DeferrableCounter, rules map[Rul
 	}
 }
 
-func (t *transformations) ExecuteResourceTransforms(logger *zap.Logger, counter telemetry.DeferrableCounter, transformCtx ottlresource.TransformContext) {
+func (t *transformations) ExecuteResourceTransforms(logger *zap.Logger, counter telemetry.DeferrableCounter, histogram telemetry.DeferrableHistogram, transformCtx ottlresource.TransformContext) {
 	attrset := attribute.NewSet(attribute.String("context", "resource"))
+	startTime := time.Now()
 	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "resource")))
 	evaluateTransform[resourceTransform](counter, t.resourceTransforms, func(counter telemetry.DeferrableCounter, resourceTransform resourceTransform, ruleID string) {
 		allConditionsTrue := true
@@ -392,10 +394,12 @@ func (t *transformations) ExecuteResourceTransforms(logger *zap.Logger, counter 
 			}
 		}
 	})
+	telemetry.HistogramAdd(histogram, time.Since(startTime).Nanoseconds(), metric.WithAttributeSet(attrset))
 }
 
-func (t *transformations) ExecuteScopeTransforms(logger *zap.Logger, counter telemetry.DeferrableCounter, transformCtx ottlscope.TransformContext) {
+func (t *transformations) ExecuteScopeTransforms(logger *zap.Logger, counter telemetry.DeferrableCounter, histogram telemetry.DeferrableHistogram, transformCtx ottlscope.TransformContext) {
 	attrset := attribute.NewSet(attribute.String("context", "scope"))
+	startTime := time.Now()
 	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "scope")))
 	evaluateTransform[scopeTransform](counter, t.scopeTransforms, func(counter telemetry.DeferrableCounter, scopeTransform scopeTransform, ruleID string) {
 		allConditionsTrue := true
@@ -414,12 +418,14 @@ func (t *transformations) ExecuteScopeTransforms(logger *zap.Logger, counter tel
 				logger.Error("Error executing scope transformation", zap.Error(err))
 			}
 		}
-
 	})
+	telemetry.HistogramAdd(histogram, time.Since(startTime).Nanoseconds(), metric.WithAttributeSet(attrset))
 }
 
-func (t *transformations) ExecuteLogTransforms(logger *zap.Logger, counter telemetry.DeferrableCounter, transformCtx ottllog.TransformContext) {
+func (t *transformations) ExecuteLogTransforms(logger *zap.Logger, counter telemetry.DeferrableCounter, histogram telemetry.DeferrableHistogram, transformCtx ottllog.TransformContext) {
 	attrset := attribute.NewSet(attribute.String("context", "log"))
+	startTime := time.Now()
+
 	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "log")))
 	evaluateTransform[logTransform](counter, t.logTransforms, func(counter telemetry.DeferrableCounter, logTransform logTransform, ruleID string) {
 		allConditionsTrue := true
@@ -459,6 +465,7 @@ func (t *transformations) ExecuteLogTransforms(logger *zap.Logger, counter telem
 			}
 		}
 	})
+	telemetry.HistogramAdd(histogram, time.Since(startTime).Nanoseconds(), metric.WithAttributeSet(attrset))
 }
 
 func shouldFilter(rate int, randval float64) bool {
@@ -472,8 +479,10 @@ func shouldFilter(rate int, randval float64) bool {
 	}
 }
 
-func (t *transformations) ExecuteSpanTransforms(logger *zap.Logger, counter telemetry.DeferrableCounter, transformCtx ottlspan.TransformContext) {
+func (t *transformations) ExecuteSpanTransforms(logger *zap.Logger, counter telemetry.DeferrableCounter, histogram telemetry.DeferrableHistogram, transformCtx ottlspan.TransformContext) {
 	attrset := attribute.NewSet(attribute.String("context", "span"))
+	startTime := time.Now()
+
 	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "span")))
 	evaluateTransform[spanTransform](counter, t.spanTransforms, func(counter telemetry.DeferrableCounter, spanTransform spanTransform, ruleID string) {
 		allConditionsTrue := true
@@ -513,10 +522,13 @@ func (t *transformations) ExecuteSpanTransforms(logger *zap.Logger, counter tele
 			}
 		}
 	})
+	telemetry.HistogramAdd(histogram, time.Since(startTime).Nanoseconds(), metric.WithAttributeSet(attrset))
 }
 
-func (t *transformations) ExecuteMetricTransforms(logger *zap.Logger, counter telemetry.DeferrableCounter, transformCtx ottlmetric.TransformContext) {
+func (t *transformations) ExecuteMetricTransforms(logger *zap.Logger, counter telemetry.DeferrableCounter, histogram telemetry.DeferrableHistogram, transformCtx ottlmetric.TransformContext) {
 	attrset := attribute.NewSet(attribute.String("context", "metric"))
+	startTime := time.Now()
+
 	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "metric")))
 	evaluateTransform[metricTransform](counter, t.metricTransforms, func(counter telemetry.DeferrableCounter, metricTransform metricTransform, ruleID string) {
 		allConditionsTrue := true
@@ -536,10 +548,13 @@ func (t *transformations) ExecuteMetricTransforms(logger *zap.Logger, counter te
 			}
 		}
 	})
+	telemetry.HistogramAdd(histogram, time.Since(startTime).Nanoseconds(), metric.WithAttributeSet(attrset))
 }
 
-func (t *transformations) ExecuteDatapointTransforms(logger *zap.Logger, counter telemetry.DeferrableCounter, transformCtx ottldatapoint.TransformContext) {
+func (t *transformations) ExecuteDatapointTransforms(logger *zap.Logger, counter telemetry.DeferrableCounter, histogram telemetry.DeferrableHistogram, transformCtx ottldatapoint.TransformContext) {
 	attrset := attribute.NewSet(attribute.String("context", "datapoint"))
+	startTime := time.Now()
+
 	telemetry.CounterAdd(counter, 1, metric.WithAttributeSet(attrset), metric.WithAttributes(attribute.String("stage", "datapoint")))
 	evaluateTransform[dataPointTransform](counter, t.dataPointTransforms, func(counter telemetry.DeferrableCounter, dataPointTransform dataPointTransform, ruleID string) {
 		allConditionsTrue := true
@@ -559,4 +574,5 @@ func (t *transformations) ExecuteDatapointTransforms(logger *zap.Logger, counter
 			}
 		}
 	})
+	telemetry.HistogramAdd(histogram, time.Since(startTime).Nanoseconds(), metric.WithAttributeSet(attrset))
 }

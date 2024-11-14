@@ -139,7 +139,7 @@ func (e *statsProc) sendSpanStatsWithExemplars(bucketpile *map[uint64][]*chqpb.S
 }
 
 func (e *statsProc) addSpanExemplar(td ptrace.Traces, fingerprint int64) {
-	_, found := e.logExemplars[fingerprint]
+	_, found := e.traceExemplars[fingerprint]
 	if !found {
 		copyObj := ptrace.NewTraces()
 		td.CopyTo(copyObj)

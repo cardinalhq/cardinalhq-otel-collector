@@ -148,8 +148,27 @@ func (e *statsProc) recordMetric(lm pmetric.Metrics, now time.Time, metricName s
 		return err
 	}
 	if bucketpile != nil {
+		var marshalledExemplars []*chqpb.MetricExemplar
+		for fingerprint, exemplar := range e.metricExemplars {
+			b, err := e.jsonMarshaller.metricsMarshaler.MarshalMetrics(exemplar)
+			if err != nil {
+				e.logger.Error("Failed to marshal metric exemplars", zap.Error(err))
+				continue
+			}
+			split := strings.Split(fingerprint, ":")
+			marshalledExemplars = append(marshalledExemplars, &chqpb.MetricExemplar{
+				ServiceName: split[0],
+				MetricName:  split[1],
+				MetricType:  split[2],
+				Exemplar:    b,
+			})
+		}
+
+		// clear exemplars map for next batch
+		e.metricExemplars = make(map[string]pmetric.Metrics)
+
 		// TODO should send this to a channel and have a separate goroutine send it
-		go e.sendMetricStats(context.Background(), now, bucketpile)
+		go e.sendMetricStats(context.Background(), now, bucketpile, marshalledExemplars)
 	}
 	return nil
 }
@@ -211,25 +230,7 @@ func (e *statsProc) addMetricsExemplar(lm pmetric.Metrics, serviceName, metricNa
 	}
 }
 
-func (e *statsProc) sendMetricStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*MetricStat) {
-	var marshalledExemplars []*chqpb.MetricExemplar
-	for fingerprint, exemplar := range e.metricExemplars {
-		b, err := e.jsonMarshaller.metricsMarshaler.MarshalMetrics(exemplar)
-		if err != nil {
-			e.logger.Error("Failed to marshal metric exemplars", zap.Error(err))
-			continue
-		}
-		split := strings.Split(fingerprint, ":")
-		marshalledExemplars = append(marshalledExemplars, &chqpb.MetricExemplar{
-			ServiceName: split[0],
-			MetricName:  split[1],
-			MetricType:  split[2],
-			Exemplar:    b,
-		})
-	}
-	// clear exemplars map for next batch
-	e.metricExemplars = make(map[string]pmetric.Metrics)
-
+func (e *statsProc) sendMetricStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*MetricStat, marshalledExemplars []*chqpb.MetricExemplar) {
 	wrapper := &chqpb.MetricStatsReport{
 		SubmittedAt: now.UnixMilli(),
 		Stats:       []*chqpb.MetricStats{},

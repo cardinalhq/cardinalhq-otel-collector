@@ -188,28 +188,6 @@ func toAttribute(contextId string, k string, v pcommon.Value, isAttribute bool) 
 	}
 }
 
-func ToAttributes(resource pcommon.Resource, scope pcommon.InstrumentationScope, recordAttrs pcommon.Map) []*chqpb.Attribute {
-	// make an empty slice  that can be appended
-	attributes := make([]*chqpb.Attribute, 0)
-
-	resource.Attributes().Range(func(k string, v pcommon.Value) bool {
-		attributes = append(attributes, toAttribute("resource", k, v, true))
-		return true
-	})
-
-	scope.Attributes().Range(func(k string, v pcommon.Value) bool {
-		attributes = append(attributes, toAttribute("scope", k, v, true))
-		return true
-	})
-
-	recordAttrs.Range(func(k string, v pcommon.Value) bool {
-		attributes = append(attributes, toAttribute("log", k, v, true))
-		return true
-	})
-
-	return attributes
-}
-
 func (e *statsProc) configUpdateCallback(cpc ottl.ControlPlaneConfig) {
 	configs := cpc.Stats[e.id.Name()]
 	switch e.ttype {

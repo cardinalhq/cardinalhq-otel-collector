@@ -135,6 +135,7 @@ func (e *extractor) logRecordToDataPoint(ctx context.Context, lex *ottl.LogExtra
 	}
 
 	dp.SetTimestamp(extractTimestampFromLogRecord(lr))
+	e.logger.Info("Setting timestamp on datapoint", zap.String("timestamp", dp.Timestamp().String()))
 	switch lex.MetricType {
 	case gaugeDoubleType, counterDoubleType:
 		floatVal, err := convertAnyToFloat(val)

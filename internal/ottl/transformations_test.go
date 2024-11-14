@@ -46,7 +46,7 @@ func TestIPFunctions(t *testing.T) {
 	lr := sl.LogRecords().AppendEmpty()
 
 	tc := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
-	transformations.ExecuteLogTransforms(logger, nil, tc)
+	transformations.ExecuteLogTransforms(logger, nil, nil, tc)
 	city, cityFound := lr.Attributes().Get("ip")
 	assert.True(t, cityFound)
 	assert.Equal(t, "Walnut Creek", city.Str())
@@ -87,7 +87,7 @@ func TestIsInFunc(t *testing.T) {
 			rm := pmetric.NewResourceMetrics()
 			rm.Resource().Attributes().PutStr("service.name", tt.serviceName) // Use the test case's service name
 			tc := ottlresource.NewTransformContext(rm.Resource(), rm)
-			transformations.ExecuteResourceTransforms(logger, nil, tc)
+			transformations.ExecuteResourceTransforms(logger, nil, nil, tc)
 			isIn, isInFound := rm.Resource().Attributes().Get("isIn")
 			assert.True(t, isInFound)
 			assert.Equal(t, tt.expected, isIn.Bool()) // Use the expected result from the test case
@@ -119,7 +119,7 @@ func TestSimpleBoolean(t *testing.T) {
 		t.Fatalf("Error parsing transformations: %v", err)
 	}
 
-	transformations.ExecuteLogTransforms(logger, nil, ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl))
+	transformations.ExecuteLogTransforms(logger, nil, nil, ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl))
 
 	attr, ok := lr.Attributes().Get("worked")
 	assert.True(t, ok)
@@ -148,7 +148,7 @@ func TestSeverity(t *testing.T) {
 	transformations, err := ParseTransformations(logger, statements)
 	assert.NoError(t, err)
 	assert.True(t, len(transformations.logTransforms) > 0)
-	transformations.ExecuteLogTransforms(logger, nil, ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl))
+	transformations.ExecuteLogTransforms(logger, nil, nil, ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl))
 
 	// assert if foo exists and is set to INFO
 	foo, fooFound := lr.Attributes().Get("foo")
@@ -177,7 +177,7 @@ func TestAccessLogs_UsingGrok(t *testing.T) {
 	lr := sl.LogRecords().AppendEmpty()
 	lr.Body().SetStr("10.1.1.140 - - [16/May/2022:15:01:52 -0700] \"GET /themes/ComBeta/images/bullet.png HTTP/1.1\" 404 304")
 	tc := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
-	transformations1.ExecuteLogTransforms(logger, nil, tc)
+	transformations1.ExecuteLogTransforms(logger, nil, nil, tc)
 
 	fields, fieldsFound := lr.Attributes().Get("fields")
 	assert.True(t, fieldsFound)
@@ -201,7 +201,7 @@ func TestAccessLogs_UsingGrok(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, len(transformations2.logTransforms) > 0)
 
-	transformations2.ExecuteLogTransforms(logger, nil, tc)
+	transformations2.ExecuteLogTransforms(logger, nil, nil, tc)
 	get, b := lr.Attributes().Get("isTrue")
 	assert.True(t, b)
 	assert.True(t, get.Bool())
@@ -228,7 +228,7 @@ func TestVPCFlowLogTransformation_UsingGrok(t *testing.T) {
 	lr := sl.LogRecords().AppendEmpty()
 	lr.Body().SetStr("2        123456789012    eni-abc12345    10.0.0.1         10.0.1.1         443      1024     6         10       8000     1625567329   1625567389   ACCEPT   OK")
 	tc := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
-	transformations1.ExecuteLogTransforms(logger, nil, tc)
+	transformations1.ExecuteLogTransforms(logger, nil, nil, tc)
 
 	fields, fieldsFound := lr.Attributes().Get("fields")
 	assert.True(t, fieldsFound)
@@ -255,7 +255,7 @@ func TestVPCFlowLogTransformation_UsingGrok(t *testing.T) {
 	transformations2, err := ParseTransformations(logger, statements2)
 	assert.NoError(t, err)
 	assert.True(t, len(transformations2.logTransforms) > 0)
-	transformations2.ExecuteLogTransforms(logger, nil, tc)
+	transformations2.ExecuteLogTransforms(logger, nil, nil, tc)
 
 	fields2, _ := lr.Attributes().Get("fields")
 	m2 := fields2.Map().AsRaw()
@@ -290,7 +290,7 @@ func TestAccessLogs_UsingLookup(t *testing.T) {
 	lr.Attributes().PutStr("method", "GET")
 
 	tc := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
-	transformations.ExecuteLogTransforms(logger, nil, tc)
+	transformations.ExecuteLogTransforms(logger, nil, nil, tc)
 
 	fields, fieldsFound := lr.Attributes().Get("fields")
 	assert.True(t, fieldsFound)
@@ -322,7 +322,7 @@ func TestLogSeverityRule(t *testing.T) {
 	lr := sl.LogRecords().AppendEmpty()
 	lr.SetSeverityText("INFO")
 
-	transformations.ExecuteLogTransforms(logger, nil, ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl))
+	transformations.ExecuteLogTransforms(logger, nil, nil, ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl))
 
 	foo, fooFound := lr.Attributes().Get("foo")
 	assert.True(t, fooFound)
@@ -368,7 +368,7 @@ func TestPIIRegexRules(t *testing.T) {
 	lr.Attributes().PutStr("message", "This is a phone number: 925-555-1212")
 
 	tc := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
-	transformations.ExecuteLogTransforms(logger, nil, tc)
+	transformations.ExecuteLogTransforms(logger, nil, nil, tc)
 
 	// check if body has been updated with cc
 	body := lr.Body().Str()
@@ -424,7 +424,7 @@ func TestTeamAssociations(t *testing.T) {
 	rm1 := pmetric.NewResourceMetrics()
 	rm1.Resource().Attributes().PutStr("service.name", "service1")
 	tc := ottlresource.NewTransformContext(rm1.Resource(), rm1)
-	transformations.ExecuteResourceTransforms(logger, nil, tc)
+	transformations.ExecuteResourceTransforms(logger, nil, nil, tc)
 
 	// check if rm1 attributes have been updated with team = "cardinal"
 	team, found := rm1.Resource().Attributes().Get("team")

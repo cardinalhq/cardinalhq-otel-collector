@@ -65,7 +65,7 @@ func TestFilterRule_ResourceConditionLog(t *testing.T) {
 	ll := createTestLogRecord()
 
 	transformCtx := ottllog.NewTransformContext(ll, sl.Scope(), rl.Resource(), sl, rl)
-	transformations.ExecuteLogTransforms(logger, nil, transformCtx)
+	transformations.ExecuteLogTransforms(logger, nil, nil, transformCtx)
 
 	dropped, exists := ll.Attributes().Get("dropped")
 	require.True(t, exists)

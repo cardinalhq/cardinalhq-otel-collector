@@ -65,6 +65,8 @@ func (e *extractor) extractMetricsFromSpans(ctx context.Context, pt ptrace.Trace
 
 			newMetric.SetName(spanExtractor.MetricName)
 			newMetric.SetUnit(spanExtractor.MetricUnit)
+			newMetric.Sum().SetAggregationTemporality(pmetric.AggregationTemporalityDelta)
+			newMetric.Sum().SetIsMonotonic(false)
 
 			var dpSlice = pmetric.NewNumberDataPointSlice()
 			switch spanExtractor.MetricType {

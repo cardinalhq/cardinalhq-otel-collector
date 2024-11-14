@@ -16,8 +16,6 @@ package pitbullprocessor
 
 import (
 	"context"
-	"strings"
-
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
@@ -37,22 +35,6 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 	transformations := e.metricTransformations.Load()
 	lookups := e.metricsLookupConfigs.Load()
 	// Iterate over md.ResourceMetrics and look for a metricName
-
-	for i := 0; i < md.ResourceMetrics().Len(); i++ {
-		rm := md.ResourceMetrics().At(i)
-		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
-			sm := rm.ScopeMetrics().At(j)
-			for k := 0; k < sm.Metrics().Len(); k++ {
-				m := sm.Metrics().At(k)
-				metricName := m.Name()
-				// If the metricName is found, apply the transformations and lookups
-				if strings.Contains(metricName, "android") {
-					e.logger.Info("Found metric", zap.String("metric_name", metricName))
-				}
-			}
-		}
-	}
-
 	if transformations == nil && lookups == nil {
 		return md, nil
 	}

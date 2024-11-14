@@ -117,7 +117,11 @@ func (e *statsProc) sendSpanStatsWithExemplars(bucketpile *map[uint64][]*chqpb.S
 		for bucketKey, items := range *bucketpile {
 			itemsWithValidExemplars := items[:0]
 			for _, item := range items {
-				marshalled, err := e.jsonMarshaller.tracesMarshaler.MarshalTraces(e.traceExemplars[item.Fingerprint])
+				e.exemplarsMu.RLock()
+				exemplar := e.traceExemplars[item.Fingerprint]
+				e.exemplarsMu.RUnlock()
+
+				marshalled, err := e.jsonMarshaller.tracesMarshaler.MarshalTraces(exemplar)
 				if err != nil {
 					continue
 				}
@@ -130,8 +134,11 @@ func (e *statsProc) sendSpanStatsWithExemplars(bucketpile *map[uint64][]*chqpb.S
 				delete(*bucketpile, bucketKey)
 			}
 		}
+
 		// clear the logExemplars map
+		e.exemplarsMu.Lock()
 		e.traceExemplars = make(map[int64]ptrace.Traces)
+		e.exemplarsMu.Unlock()
 
 		// TODO should send this to a channel and have a separate goroutine send it
 		go e.sendSpanStats(context.Background(), now, bucketpile)
@@ -139,7 +146,10 @@ func (e *statsProc) sendSpanStatsWithExemplars(bucketpile *map[uint64][]*chqpb.S
 }
 
 func (e *statsProc) addSpanExemplar(td ptrace.Traces, fingerprint int64) {
+	e.exemplarsMu.RLock()
 	_, found := e.traceExemplars[fingerprint]
+	e.exemplarsMu.RUnlock()
+
 	if !found {
 		copyObj := ptrace.NewTraces()
 		td.CopyTo(copyObj)
@@ -154,7 +164,9 @@ func (e *statsProc) addSpanExemplar(td ptrace.Traces, fingerprint int64) {
 			return rsp.ScopeSpans().Len() == 0
 		})
 		if copyObj.ResourceSpans().Len() > 0 {
+			e.exemplarsMu.Lock()
 			e.traceExemplars[fingerprint] = copyObj
+			e.exemplarsMu.Unlock()
 		}
 	}
 }

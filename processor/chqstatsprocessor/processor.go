@@ -22,6 +22,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"net/http"
 	"os"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -72,6 +73,7 @@ type statsProc struct {
 	spanStats   *stats.StatsCombiner[*chqpb.SpanStats]
 	metricstats *stats.StatsCombiner[*MetricStat]
 
+	exemplarsMu     sync.RWMutex
 	logExemplars    map[int64]plog.Logs
 	traceExemplars  map[int64]ptrace.Traces
 	metricExemplars map[string]pmetric.Metrics

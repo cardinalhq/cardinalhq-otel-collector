@@ -106,29 +106,31 @@ func (e *statsProc) recordDatapoint(lm pmetric.Metrics, now time.Time, metricNam
 		"scope":    sattr,
 		"metric":   dpAttr,
 	})
+	e.addMetricsExemplar(lm, serviceName, metricName, metricType)
+
 	rattr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(lm, now, metricName, metricType, serviceName, k, v.AsString(), "resource", attributes, 1))
+			errs = multierr.Append(errs, e.recordMetric(now, metricName, metricType, serviceName, k, v.AsString(), "resource", attributes, 1))
 		}
 		return true
 	})
 	sattr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(lm, now, metricName, metricType, serviceName, k, v.AsString(), "scope", attributes, 1))
+			errs = multierr.Append(errs, e.recordMetric(now, metricName, metricType, serviceName, k, v.AsString(), "scope", attributes, 1))
 		}
 		return true
 	})
 	dpAttr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(lm, now, metricName, metricType, serviceName, k, v.AsString(), "datapoint", attributes, 1))
+			errs = multierr.Append(errs, e.recordMetric(now, metricName, metricType, serviceName, k, v.AsString(), "datapoint", attributes, 1))
 		}
 		return true
 	})
-	errs = multierr.Append(errs, e.recordMetric(lm, now, metricName, metricType, serviceName, translate.CardinalFieldTID, strconv.FormatInt(tid, 10), "metric", attributes, 1))
+	errs = multierr.Append(errs, e.recordMetric(now, metricName, metricType, serviceName, translate.CardinalFieldTID, strconv.FormatInt(tid, 10), "metric", attributes, 1))
 	return errs
 }
 
-func (e *statsProc) recordMetric(lm pmetric.Metrics, now time.Time, metricName string, metricType string, serviceName string, tagName, tagValue string, tagScope string, attributes []*chqpb.Attribute, count int) error {
+func (e *statsProc) recordMetric(now time.Time, metricName string, metricType string, serviceName string, tagName, tagValue string, tagScope string, attributes []*chqpb.Attribute, count int) error {
 	rec := &MetricStat{
 		MetricName:  metricName,
 		TagName:     tagName,
@@ -141,13 +143,13 @@ func (e *statsProc) recordMetric(lm pmetric.Metrics, now time.Time, metricName s
 		Attributes:  attributes,
 	}
 
-	e.addMetricsExemplar(lm, serviceName, metricName, metricType)
-
 	bucketpile, err := e.metricstats.Record(now, rec, tagValue, count, 0)
 	if err != nil {
 		return err
 	}
-	if bucketpile != nil {
+	if bucketpile != nil && len(*bucketpile) > 0 {
+		e.exemplarsMu.RLock()
+
 		var marshalledExemplars []*chqpb.MetricExemplar
 		for fingerprint, exemplar := range e.metricExemplars {
 			b, err := e.jsonMarshaller.metricsMarshaler.MarshalMetrics(exemplar)
@@ -163,9 +165,12 @@ func (e *statsProc) recordMetric(lm pmetric.Metrics, now time.Time, metricName s
 				Exemplar:    b,
 			})
 		}
+		e.exemplarsMu.RUnlock()
 
 		// clear exemplars map for next batch
+		e.exemplarsMu.Lock()
 		e.metricExemplars = make(map[string]pmetric.Metrics)
+		e.exemplarsMu.Unlock()
 
 		// TODO should send this to a channel and have a separate goroutine send it
 		go e.sendMetricStats(context.Background(), now, bucketpile, marshalledExemplars)
@@ -175,7 +180,10 @@ func (e *statsProc) recordMetric(lm pmetric.Metrics, now time.Time, metricName s
 
 func (e *statsProc) addMetricsExemplar(lm pmetric.Metrics, serviceName, metricName, metricType string) {
 	fingerprint := serviceName + ":" + metricName + ":" + metricType
+	e.exemplarsMu.RLock()
 	_, found := e.metricExemplars[fingerprint]
+	e.exemplarsMu.RUnlock()
+
 	if !found {
 		copyObj := pmetric.NewMetrics()
 		lm.CopyTo(copyObj)
@@ -225,7 +233,9 @@ func (e *statsProc) addMetricsExemplar(lm pmetric.Metrics, serviceName, metricNa
 		})
 
 		if copyObj.ResourceMetrics().Len() > 0 {
+			e.exemplarsMu.Lock()
 			e.metricExemplars[fingerprint] = copyObj
+			e.exemplarsMu.Unlock()
 		}
 	}
 }

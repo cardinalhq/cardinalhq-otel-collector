@@ -106,7 +106,11 @@ func (e *statsProc) sendLogStatsWithExemplars(bucketpile *map[uint64][]*chqpb.Lo
 		for bucketKey, items := range *bucketpile {
 			itemsWithValidExemplars := items[:0]
 			for _, item := range items {
-				marshalled, err := e.jsonMarshaller.logsMarshaler.MarshalLogs(e.logExemplars[item.Fingerprint])
+				e.exemplarsMu.RLock()
+				exemplar := e.logExemplars[item.Fingerprint]
+				e.exemplarsMu.RUnlock()
+
+				marshalled, err := e.jsonMarshaller.logsMarshaler.MarshalLogs(exemplar)
 				if err != nil {
 					continue
 				}
@@ -119,8 +123,11 @@ func (e *statsProc) sendLogStatsWithExemplars(bucketpile *map[uint64][]*chqpb.Lo
 				delete(*bucketpile, bucketKey)
 			}
 		}
+
 		// clear the logExemplars map
+		e.exemplarsMu.Lock()
 		e.logExemplars = make(map[int64]plog.Logs)
+		e.exemplarsMu.Unlock()
 
 		// TODO should send this to a channel and have a separate goroutine send it
 		go e.sendLogStats(context.Background(), now, bucketpile)
@@ -128,7 +135,10 @@ func (e *statsProc) sendLogStatsWithExemplars(bucketpile *map[uint64][]*chqpb.Lo
 }
 
 func (e *statsProc) addLogExemplar(ld plog.Logs, fingerprint int64) {
+	e.exemplarsMu.RLock()
 	_, found := e.logExemplars[fingerprint]
+	e.exemplarsMu.RUnlock()
+
 	if !found {
 		copyObj := plog.NewLogs()
 		ld.CopyTo(copyObj)
@@ -144,7 +154,9 @@ func (e *statsProc) addLogExemplar(ld plog.Logs, fingerprint int64) {
 		})
 
 		if copyObj.ResourceLogs().Len() > 0 {
+			e.exemplarsMu.Lock()
 			e.logExemplars[fingerprint] = copyObj
+			e.exemplarsMu.Unlock()
 		}
 	}
 }

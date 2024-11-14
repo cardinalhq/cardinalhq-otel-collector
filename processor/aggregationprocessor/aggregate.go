@@ -59,8 +59,8 @@ func (e *aggregationProcessor) emitSetI(set *ottl.AggregationSet[int64]) {
 			m.SetEmptyGauge()
 			dp = m.Gauge().DataPoints().AppendEmpty()
 		}
-
-		ts := pcommon.Timestamp(set.StartTime)
+		tstime := time.UnixMilli(set.StartTime)
+		ts := pcommon.Timestamp(pcommon.NewTimestampFromTime(tstime))
 		dp.SetTimestamp(ts)
 		dp.SetStartTimestamp(ts)
 		dp.SetIntValue(agg.Value()[0])

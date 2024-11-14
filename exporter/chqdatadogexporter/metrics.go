@@ -124,9 +124,6 @@ func (e *datadogExporter) convertSumMetric(_ context.Context, metric pmetric.Met
 		}
 		dp := s.DataPoints().At(i)
 		value := valueAsFloat64(dp)
-		if strings.Contains(metric.Name(), "android") {
-			e.logger.Info("DD Exporter saw metric", zap.String("name", metric.Name()), zap.Float64("value", value))
-		}
 		lAttr := dp.Attributes()
 		interval, hasInterval := getInterval(lAttr)
 		if hasInterval {
@@ -152,6 +149,10 @@ func (e *datadogExporter) convertSumMetric(_ context.Context, metric pmetric.Met
 			Value:     value,
 		})
 		ret = append(ret, m)
+		if strings.Contains(m.Metric, "android") {
+			e.logger.Info("DD Exporter saw metric", zap.String("name", metric.Name()), zap.Float64("value", value), zap.Bool("hasInterval", hasInterval),
+				zap.String("tags", strings.Join(tags, ",")))
+		}
 	}
 	return ret
 }

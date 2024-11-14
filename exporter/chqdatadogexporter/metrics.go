@@ -85,7 +85,7 @@ func valueAsFloat64(dp pmetric.NumberDataPoint) float64 {
 }
 
 func (e *datadogExporter) convertGaugeMetric(_ context.Context, metric pmetric.Metric, rAttr, sAttr pcommon.Map, g pmetric.Gauge) []*ddpb.MetricPayload_MetricSeries {
-	ret := []*ddpb.MetricPayload_MetricSeries{}
+	var ret []*ddpb.MetricPayload_MetricSeries
 	for i := 0; i < g.DataPoints().Len(); i++ {
 		m := &ddpb.MetricPayload_MetricSeries{
 			Metric: metric.Name(),
@@ -115,7 +115,7 @@ func (e *datadogExporter) convertGaugeMetric(_ context.Context, metric pmetric.M
 }
 
 func (e *datadogExporter) convertSumMetric(_ context.Context, metric pmetric.Metric, rAttr, sAttr pcommon.Map, s pmetric.Sum) []*ddpb.MetricPayload_MetricSeries {
-	ret := []*ddpb.MetricPayload_MetricSeries{}
+	var ret []*ddpb.MetricPayload_MetricSeries
 	for i := 0; i < s.DataPoints().Len(); i++ {
 		m := &ddpb.MetricPayload_MetricSeries{
 			Metric: metric.Name(),
@@ -124,6 +124,9 @@ func (e *datadogExporter) convertSumMetric(_ context.Context, metric pmetric.Met
 		}
 		dp := s.DataPoints().At(i)
 		value := valueAsFloat64(dp)
+		if strings.Contains(metric.Name(), "android") {
+			e.logger.Info("DD Exporter saw metric", zap.String("name", metric.Name()), zap.Float64("value", value))
+		}
 		lAttr := dp.Attributes()
 		interval, hasInterval := getInterval(lAttr)
 		if hasInterval {

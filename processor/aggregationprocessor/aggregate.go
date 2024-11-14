@@ -104,7 +104,7 @@ func (e *aggregationProcessor) emitSetF(set *ottl.AggregationSet[float64]) {
 		if err != nil {
 			e.logger.Error("Error emitting metrics", zap.Error(err))
 		}
-		e.logger.Info("Emitted metrics", zap.Time("timestamp", ts.AsTime()), zap.String("name", agg.Name()), zap.Float64("value", agg.Value()[0]), zap.String("tags", fmt.Sprintf("%v", agg.Tags())))
+		e.logger.Debug("Emitted metrics", zap.Time("timestamp", ts.AsTime()), zap.String("name", agg.Name()), zap.Float64("value", agg.Value()[0]), zap.String("tags", fmt.Sprintf("%v", agg.Tags())))
 	}
 }
 

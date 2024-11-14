@@ -43,7 +43,7 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 		rattr := rm.Resource().Attributes()
 		transformCtx := ottlresource.NewTransformContext(rm.Resource(), rm)
 		if transformations != nil {
-			transformations.ExecuteResourceTransforms(e.logger, e.ottlProcessed, transformCtx)
+			transformations.ExecuteResourceTransforms(e.logger, e.ottlProcessed, e.histogram, transformCtx)
 			if _, found := rattr.Get(translate.CardinalFieldDropMarker); found {
 				return true
 			}
@@ -53,7 +53,7 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 			sattr := ilm.Scope().Attributes()
 			transformCtx := ottlscope.NewTransformContext(ilm.Scope(), rm.Resource(), rm)
 			if transformations != nil {
-				transformations.ExecuteScopeTransforms(e.logger, e.ottlProcessed, transformCtx)
+				transformations.ExecuteScopeTransforms(e.logger, e.ottlProcessed, e.histogram, transformCtx)
 				if _, found := sattr.Get(translate.CardinalFieldDropMarker); found {
 					return true
 				}
@@ -70,7 +70,7 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						if transformations == nil {
 							return false
 						}
-						transformations.ExecuteDatapointTransforms(e.logger, e.ottlProcessed, transformCtx)
+						transformations.ExecuteDatapointTransforms(e.logger, e.ottlProcessed, e.histogram, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
 					})
@@ -83,7 +83,7 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						if transformations == nil {
 							return false
 						}
-						transformations.ExecuteDatapointTransforms(e.logger, e.ottlProcessed, transformCtx)
+						transformations.ExecuteDatapointTransforms(e.logger, e.ottlProcessed, e.histogram, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
 					})
@@ -96,7 +96,7 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						if transformations == nil {
 							return false
 						}
-						transformations.ExecuteDatapointTransforms(e.logger, e.ottlProcessed, transformCtx)
+						transformations.ExecuteDatapointTransforms(e.logger, e.ottlProcessed, e.histogram, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
 					})
@@ -109,7 +109,7 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						if transformations == nil {
 							return false
 						}
-						transformations.ExecuteDatapointTransforms(e.logger, e.ottlProcessed, transformCtx)
+						transformations.ExecuteDatapointTransforms(e.logger, e.ottlProcessed, e.histogram, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
 					})
@@ -122,7 +122,7 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						if transformations == nil {
 							return false
 						}
-						transformations.ExecuteDatapointTransforms(e.logger, e.ottlProcessed, transformCtx)
+						transformations.ExecuteDatapointTransforms(e.logger, e.ottlProcessed, e.histogram, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
 					})

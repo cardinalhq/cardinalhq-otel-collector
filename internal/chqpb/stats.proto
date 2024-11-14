@@ -32,17 +32,13 @@ message Attribute {
 	string key = 5;
 }
 
-message LogExemplar {
-	repeated Attribute attributes = 1;
-}
-
 message LogStats {
 	string serviceName = 1;
 	int64 fingerprint = 2;
 	Phase phase = 3;
 	int64 count = 4;
 	int64 logSize = 5;
-	LogExemplar exemplar = 6;
+	bytes exemplar = 6;
 	string processorId = 7;
 	repeated Attribute attributes = 8;
 }
@@ -52,10 +48,6 @@ message SpanStatsReport {
 	repeated SpanStats stats = 2;
 }
 
-message SpanExemplar {
-	string traceId = 1;
-	repeated Attribute attributes = 2;
-}
 
 message SpanStats {
 	string serviceName = 1;
@@ -63,15 +55,22 @@ message SpanStats {
 	Phase phase = 3;
 	int64 count = 4;
 	int64 spanSize = 5;
-	SpanExemplar exemplar = 6;
+	bytes exemplar = 6;
 	string processorId = 7;
 	repeated Attribute attributes = 8;
 }
 
+message MetricExemplar {
+	string metricName = 1;
+	string serviceName = 2;
+	string metricType = 3;
+	bytes exemplar = 4;
+}
 
 message MetricStatsReport {
 	int64 submittedAt = 1;
 	repeated MetricStats stats = 2;
+	repeated MetricExemplar exemplars = 3;
 }
 
 message MetricStats {
@@ -84,6 +83,8 @@ message MetricStats {
 	int64 count = 7;
 	string processorId = 8;
 	repeated Attribute attributes = 9;
+	string tagScope = 10;
+	string metricType = 11;
 }
 
 enum Phase {

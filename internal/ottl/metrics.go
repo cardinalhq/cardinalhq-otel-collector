@@ -67,9 +67,6 @@ func timebox(t time.Time, interval int64) int64 {
 
 func (m *MetricAggregatorImpl[T]) add(logger *zap.Logger, t time.Time, name string, buckets []T, values []T, aggregationType AggregationType, tags map[string]string) error {
 	startTime := timebox(t, m.interval)
-	if strings.Contains(name, "android") {
-		logger.Info("Incoming timestamp", zap.Int64("incoming", t.UTC().UnixMilli()), zap.Int64("truncated", startTime))
-	}
 	m.setsLock.Lock()
 	defer m.setsLock.Unlock()
 	set, ok := m.sets[startTime]

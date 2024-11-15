@@ -24,8 +24,8 @@ import (
 	"go.opentelemetry.io/collector/processor/processorhelper"
 	"go.uber.org/zap"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
+	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl"
+	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate"
 )
 
 func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {

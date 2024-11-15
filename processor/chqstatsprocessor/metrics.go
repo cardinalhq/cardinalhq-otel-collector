@@ -31,7 +31,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
+	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate"
 )
 
 func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {

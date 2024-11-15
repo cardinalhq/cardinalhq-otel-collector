@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
+	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor/internal/metadata"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -32,7 +32,7 @@ import (
 	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl"
 )
 
 func TestExtractMetricsFromLogs_MultipleLogsMatchingCondition(t *testing.T) {

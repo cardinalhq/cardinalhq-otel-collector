@@ -17,14 +17,15 @@ package chqstatsprocessor
 import (
 	"context"
 	"errors"
-	"go.opentelemetry.io/collector/pdata/plog"
-	"go.opentelemetry.io/collector/pdata/pmetric"
-	"go.opentelemetry.io/collector/pdata/ptrace"
 	"net/http"
 	"os"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"go.opentelemetry.io/collector/pdata/plog"
+	"go.opentelemetry.io/collector/pdata/pmetric"
+	"go.opentelemetry.io/collector/pdata/ptrace"
 
 	"github.com/hashicorp/go-multierror"
 	"go.opentelemetry.io/collector/component"
@@ -36,8 +37,8 @@ import (
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
+	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl"
 )
 
 func newMarshaller() otelJsonMarshaller {

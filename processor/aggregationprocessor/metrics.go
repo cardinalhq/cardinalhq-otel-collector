@@ -24,9 +24,9 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
+	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl"
+	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry"
+	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate"
 )
 
 func (e *aggregationProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {

@@ -32,13 +32,13 @@ import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.27.0"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl/functions"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
+	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl/functions"
+	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry"
+	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate"
 )
 
 type resourceTransform struct {

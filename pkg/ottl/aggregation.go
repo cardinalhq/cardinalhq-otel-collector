@@ -17,7 +17,7 @@ package ottl
 import (
 	"fmt"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl/accumulator"
+	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl/accumulator"
 )
 
 type AggregationType int

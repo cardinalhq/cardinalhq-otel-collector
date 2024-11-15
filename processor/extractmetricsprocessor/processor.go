@@ -18,12 +18,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/telemetry"
+	"strconv"
+	"sync/atomic"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor/internal/metadata"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	"strconv"
-	"sync/atomic"
 
 	"github.com/observiq/bindplane-agent/receiver/routereceiver"
 	"go.opentelemetry.io/collector/component"
@@ -33,7 +34,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/ottl"
+	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl"
 )
 
 type extractor struct {

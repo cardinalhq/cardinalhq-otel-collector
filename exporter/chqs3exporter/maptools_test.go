@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/boxer"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
+	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate"
 )
 
 func TestCustomerIDFromMap(t *testing.T) {

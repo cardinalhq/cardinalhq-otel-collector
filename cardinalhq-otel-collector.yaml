@@ -100,4 +100,7 @@ connectors:
 # note: these are releative to the build directory, which is "./distribution"
 replaces:
   - github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
-  #- github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awsfirehosereceiver v0.110.0 => github.com/cardinalhq/opentelemetry-collector-contrib/receiver/awsfirehosereceiver 8037a9c9c12a6eeb87001cc81f7eebe9b4121eb6
+  - github.com/cardinalhq/cardinalhq-otel-collector/pkg/filereader => ../pkg/filereader
+  - github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl => ../pkg/ottl
+  - github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry => ../pkg/telemetry
+  - github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate => ../pkg/translate

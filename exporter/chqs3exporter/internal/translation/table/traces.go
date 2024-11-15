@@ -19,7 +19,7 @@ import (
 
 	"go.opentelemetry.io/collector/pdata/ptrace"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/translate"
+	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate"
 )
 
 func (l *TableTranslator) TracesFromOtel(ot *ptrace.Traces, environment translate.Environment) ([]map[string]any, error) {

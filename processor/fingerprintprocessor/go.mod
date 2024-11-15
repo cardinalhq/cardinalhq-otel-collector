@@ -4,6 +4,7 @@ go 1.22.3
 
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate v0.0.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/stretchr/testify v1.9.0
 	go.opentelemetry.io/collector/component v0.111.0
@@ -117,4 +118,8 @@ require (
 replace (
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.0.0 => ../../extension/chqconfigextension
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 => ../../internal
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/filereader v0.0.0 => ../../pkg/filereader
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl v0.0.0 => ../../pkg/ottl
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry v0.0.0 => ../../pkg/telemetry
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate v0.0.0 => ../../pkg/translate
 )

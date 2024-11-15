@@ -145,8 +145,16 @@ func (e *statsProc) addLogExemplar(ld plog.Logs, fingerprint int64) {
 		// iterate over all 3 levels, and just filter any log records that don't match the fingerprint
 		copyObj.ResourceLogs().RemoveIf(func(rsp plog.ResourceLogs) bool {
 			rsp.ScopeLogs().RemoveIf(func(ss plog.ScopeLogs) bool {
+				foundFp := false // make sure we only add one record matching the fingerprint.
 				ss.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
-					return getFingerprint(lr.Attributes()) != fingerprint
+					if getFingerprint(lr.Attributes()) == fingerprint {
+						if !foundFp {
+							foundFp = true
+							return false
+						}
+						return true
+					}
+					return true
 				})
 				return ss.LogRecords().Len() == 0
 			})

@@ -5,13 +5,14 @@ go 1.22.3
 toolchain go1.22.4
 
 require (
-	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/filereader v0.0.0
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl v0.0.0
 	github.com/stretchr/testify v1.9.0
 	go.opentelemetry.io/collector/component v0.111.0
 	go.opentelemetry.io/collector/config/confighttp v0.111.0
 	go.opentelemetry.io/collector/extension v0.111.0
-	go.opentelemetry.io/otel/metric v1.31.0
-	go.opentelemetry.io/otel/trace v1.31.0
+	go.opentelemetry.io/otel/metric v1.32.0
+	go.opentelemetry.io/otel/trace v1.32.0
 	go.uber.org/zap v1.27.0
 )
 
@@ -19,6 +20,8 @@ require (
 	github.com/alecthomas/participle/v2 v2.1.1 // indirect
 	github.com/antchfx/xmlquery v1.4.2 // indirect
 	github.com/antchfx/xpath v1.3.2 // indirect
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry v0.0.0 // indirect
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate v0.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/elastic/go-grok v0.3.1 // indirect
@@ -58,7 +61,7 @@ require (
 	go.opentelemetry.io/collector/pdata v1.17.0 // indirect
 	go.opentelemetry.io/collector/semconv v0.111.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.55.0 // indirect
-	go.opentelemetry.io/otel v1.31.0 // indirect
+	go.opentelemetry.io/otel v1.32.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c // indirect
 	golang.org/x/net v0.30.0 // indirect
@@ -71,4 +74,10 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 => ../../internal
+replace (
+	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 => ../../internal
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/filereader v0.0.0 => ../../pkg/filereader
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl v0.0.0 => ../../pkg/ottl
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry v0.0.0 => ../../pkg/telemetry
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate v0.0.0 => ../../pkg/translate
+)

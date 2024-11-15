@@ -8,6 +8,7 @@ require (
 	github.com/DataDog/sketches-go v1.4.6
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate v0.0.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/parquet-go/parquet-go v0.23.0
 	github.com/rs/xid v1.6.0
@@ -131,4 +132,10 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 => ../../internal
+replace (
+	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 => ../../internal
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/filereader v0.0.0 => ../../pkg/filereader
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl v0.0.0 => ../../pkg/ottl
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry v0.0.0 => ../../pkg/telemetry
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate v0.0.0 => ../../pkg/translate
+)

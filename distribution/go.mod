@@ -194,6 +194,10 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/briandowns/spinner v1.23.0 // indirect
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 // indirect
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/filereader v0.0.0 // indirect
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl v0.0.0 // indirect
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry v0.0.0 // indirect
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate v0.0.0 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -450,7 +454,7 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.55.0 // indirect
 	go.opentelemetry.io/contrib/propagators/b3 v1.30.0 // indirect
 	go.opentelemetry.io/contrib/zpages v0.55.0 // indirect
-	go.opentelemetry.io/otel v1.31.0 // indirect
+	go.opentelemetry.io/otel v1.32.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.7.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.31.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.31.0 // indirect
@@ -462,11 +466,11 @@ require (
 	go.opentelemetry.io/otel/exporters/stdout/stdoutmetric v1.31.0 // indirect
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.31.0 // indirect
 	go.opentelemetry.io/otel/log v0.7.0 // indirect
-	go.opentelemetry.io/otel/metric v1.31.0 // indirect
+	go.opentelemetry.io/otel/metric v1.32.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.31.0 // indirect
 	go.opentelemetry.io/otel/sdk/log v0.7.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.31.0 // indirect
-	go.opentelemetry.io/otel/trace v1.31.0 // indirect
+	go.opentelemetry.io/otel/trace v1.32.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.3.1 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/dig v1.17.1 // indirect
@@ -534,3 +538,11 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitpr
 replace github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.110.0 => ../processor/extractmetricsprocessor
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
+
+replace github.com/cardinalhq/cardinalhq-otel-collector/pkg/filereader => ../pkg/filereader
+
+replace github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl => ../pkg/ottl
+
+replace github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry => ../pkg/telemetry
+
+replace github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate => ../pkg/translate

@@ -3,9 +3,9 @@ module github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl
 go 1.22.3
 
 require (
-	github.com/cardinalhq/cardinalhq-otel-collector/pkg/filereader v0.0.0-00010101000000-000000000000
-	github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry v0.0.0-00010101000000-000000000000
-	github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate v0.0.0-00010101000000-000000000000
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/filereader v0.0.0
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry v0.0.0
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate v0.0.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/elastic/go-grok v0.3.1
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl v0.111.0
@@ -55,7 +55,7 @@ require (
 )
 
 replace (
-	github.com/cardinalhq/cardinalhq-otel-collector/pkg/filereader => ../filereader
-	github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry => ../telemetry
-	github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate => ../translate
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/filereader v0.0.0 => ../../pkg/filereader
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry v0.0.0 => ../../pkg/telemetry
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate v0.0.0 => ../../pkg/translate
 )

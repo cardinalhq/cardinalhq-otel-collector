@@ -6,6 +6,8 @@ require (
 	github.com/apache/datasketches-go v0.0.0-20240723070244-57d8af6c2e71
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.0.0
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl v0.0.0
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate v0.0.0
 	github.com/cespare/xxhash v1.1.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/stretchr/testify v1.9.0
@@ -17,9 +19,9 @@ require (
 	go.opentelemetry.io/collector/otelcol/otelcoltest v0.111.0
 	go.opentelemetry.io/collector/pdata v1.17.0
 	go.opentelemetry.io/collector/processor v0.111.0
-	go.opentelemetry.io/otel v1.31.0
-	go.opentelemetry.io/otel/metric v1.31.0
-	go.opentelemetry.io/otel/trace v1.31.0
+	go.opentelemetry.io/otel v1.32.0
+	go.opentelemetry.io/otel/metric v1.32.0
+	go.opentelemetry.io/otel/trace v1.32.0
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0
 	google.golang.org/protobuf v1.35.1
@@ -30,6 +32,8 @@ require (
 	github.com/antchfx/xmlquery v1.4.2 // indirect
 	github.com/antchfx/xpath v1.3.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/filereader v0.0.0 // indirect
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry v0.0.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -152,4 +156,8 @@ require (
 replace (
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.0.0 => ../../extension/chqconfigextension
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 => ../../internal
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/filereader v0.0.0 => ../../pkg/filereader
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl v0.0.0 => ../../pkg/ottl
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry v0.0.0 => ../../pkg/telemetry
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate v0.0.0 => ../../pkg/translate
 )

@@ -6,7 +6,9 @@ toolchain go1.23.2
 
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.0.0
-	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl v0.0.0
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry v0.0.0
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate v0.0.0
 	github.com/observiq/bindplane-agent/receiver/routereceiver v1.62.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl v0.111.0
 	github.com/stretchr/testify v1.9.0
@@ -14,9 +16,9 @@ require (
 	go.opentelemetry.io/collector/consumer v0.111.0
 	go.opentelemetry.io/collector/pdata v1.17.0
 	go.opentelemetry.io/collector/processor v0.111.0
-	go.opentelemetry.io/otel v1.31.0
-	go.opentelemetry.io/otel/metric v1.31.0
-	go.opentelemetry.io/otel/trace v1.31.0
+	go.opentelemetry.io/otel v1.32.0
+	go.opentelemetry.io/otel/metric v1.32.0
+	go.opentelemetry.io/otel/trace v1.32.0
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0
 )
@@ -25,6 +27,7 @@ require (
 	github.com/alecthomas/participle/v2 v2.1.1 // indirect
 	github.com/antchfx/xmlquery v1.4.2 // indirect
 	github.com/antchfx/xpath v1.3.2 // indirect
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/filereader v0.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/elastic/go-grok v0.3.1 // indirect
@@ -83,4 +86,8 @@ require (
 replace (
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.0.0 => ../../extension/chqconfigextension
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 => ../../internal
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/filereader v0.0.0 => ../../pkg/filereader
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl v0.0.0 => ../../pkg/ottl
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry v0.0.0 => ../../pkg/telemetry
+	github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate v0.0.0 => ../../pkg/translate
 )

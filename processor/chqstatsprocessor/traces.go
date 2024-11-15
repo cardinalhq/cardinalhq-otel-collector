@@ -156,13 +156,8 @@ func (e *statsProc) addSpanExemplar(td ptrace.Traces, fingerprint int64) {
 		// iterate over all 3 levels, and just filter any span records that don't match the fingerprint
 		copyObj.ResourceSpans().RemoveIf(func(rsp ptrace.ResourceSpans) bool {
 			rsp.ScopeSpans().RemoveIf(func(ss ptrace.ScopeSpans) bool {
-				var numAdded int
 				ss.Spans().RemoveIf(func(sr ptrace.Span) bool {
-					incorrectFp := getFingerprint(sr.Attributes()) != fingerprint
-					if !incorrectFp {
-						numAdded++
-					}
-					return incorrectFp || numAdded > 0
+					return getFingerprint(sr.Attributes()) != fingerprint
 				})
 				return ss.Spans().Len() == 0
 			})

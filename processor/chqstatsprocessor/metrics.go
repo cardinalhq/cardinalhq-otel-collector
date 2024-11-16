@@ -190,42 +190,18 @@ func (e *statsProc) addMetricsExemplar(lm pmetric.Metrics, serviceName, metricNa
 		// iterate over all 3 levels, and just filter any metrics records that don't match the fingerprint
 		copyObj.ResourceMetrics().RemoveIf(func(rsp pmetric.ResourceMetrics) bool {
 			rsp.ScopeMetrics().RemoveIf(func(ss pmetric.ScopeMetrics) bool {
+				foundFp := false // make sure we only add one record matching the fingerprint.
+				incomingServiceName := getServiceName(rsp.Resource().Attributes())
 				ss.Metrics().RemoveIf(func(lr pmetric.Metric) bool {
-					if lr.Name() != metricName {
+					incomingFingerprint := incomingServiceName + ":" + lr.Name() + ":" + lr.Type().String()
+					if incomingFingerprint == fingerprint {
+						if !foundFp {
+							foundFp = true
+							return false
+						}
 						return true
 					}
-					switch lr.Type() {
-					case pmetric.MetricTypeGauge:
-						lr.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
-							return metricType != pmetric.MetricTypeGauge.String()
-						})
-						return lr.Gauge().DataPoints().Len() == 0
-
-					case pmetric.MetricTypeSum:
-						lr.Sum().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
-							return metricType != pmetric.MetricTypeSum.String()
-						})
-						return lr.Sum().DataPoints().Len() == 0
-
-					case pmetric.MetricTypeHistogram:
-						lr.Histogram().DataPoints().RemoveIf(func(dp pmetric.HistogramDataPoint) bool {
-							return metricType != pmetric.MetricTypeHistogram.String()
-						})
-						return lr.Histogram().DataPoints().Len() == 0
-
-					case pmetric.MetricTypeSummary:
-						lr.Summary().DataPoints().RemoveIf(func(dp pmetric.SummaryDataPoint) bool {
-							return metricType != pmetric.MetricTypeSummary.String()
-						})
-						return lr.Summary().DataPoints().Len() == 0
-
-					case pmetric.MetricTypeExponentialHistogram:
-						lr.ExponentialHistogram().DataPoints().RemoveIf(func(dp pmetric.ExponentialHistogramDataPoint) bool {
-							return metricType != pmetric.MetricTypeExponentialHistogram.String()
-						})
-						return lr.ExponentialHistogram().DataPoints().Len() == 0
-					}
-					return false
+					return true
 				})
 				return ss.Metrics().Len() == 0
 			})

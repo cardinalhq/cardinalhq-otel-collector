@@ -66,10 +66,12 @@ func (e *serviceGraphExporter) ConsumeMetrics(ctx context.Context, md pmetric.Me
 	}
 	edges := e.edgeCache.flush()
 	if len(edges) > 0 {
-		err := e.postEdges(ctx, edges)
-		if err != nil {
-			e.logger.Error("Failed to send edges", zap.Error(err))
-		}
+		go func() {
+			err := e.postEdges(ctx, edges)
+			if err != nil {
+				e.logger.Error("Failed to send edges", zap.Error(err))
+			}
+		}()
 	}
 	return nil
 }

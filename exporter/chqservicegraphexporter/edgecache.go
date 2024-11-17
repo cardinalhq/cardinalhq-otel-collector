@@ -29,20 +29,22 @@ type Edge struct {
 // EdgeCache holds edges and provides Add and Flush methods
 type EdgeCache struct {
 	sync.Mutex
-	interval     time.Duration
-	cutoff       int64
-	Edges        map[Edge]int64
-	lastFlush    int64
-	timeProvider func() int64 // Function to get current time in nanoseconds
+	interval          time.Duration
+	cutoff            int64
+	Edges             map[Edge]int64
+	lastFlush         int64
+	timeProvider      func() int64 // Function to get current time in nanoseconds
+	republishInterval int64
 }
 
 // Add adds an Edge to the cache if it doesn't already exist
 func (e *EdgeCache) Add(edge Edge) {
 	e.Lock()
 	defer e.Unlock()
+	now := e.timeProvider()
 
-	if _, exists := e.Edges[edge]; !exists {
-		e.Edges[edge] = e.timeProvider()
+	if ts, exists := e.Edges[edge]; !exists || now-ts > e.republishInterval {
+		e.Edges[edge] = now
 	}
 }
 
@@ -78,10 +80,11 @@ func NewEdgeCache(interval time.Duration, timeProvider func() int64) *EdgeCache 
 	}
 	now := timeProvider()
 	return &EdgeCache{
-		interval:     interval,
-		cutoff:       now,
-		Edges:        make(map[Edge]int64),
-		lastFlush:    now,
-		timeProvider: timeProvider,
+		interval:          interval,
+		cutoff:            now,
+		Edges:             make(map[Edge]int64),
+		lastFlush:         now,
+		timeProvider:      timeProvider,
+		republishInterval: 10 * 60 * 1e9, // 10 minutes
 	}
 }

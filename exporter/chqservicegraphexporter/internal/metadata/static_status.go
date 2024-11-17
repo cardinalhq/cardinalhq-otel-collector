@@ -29,9 +29,9 @@ const (
 )
 
 func Meter(settings component.TelemetrySettings) metric.Meter {
-	return settings.MeterProvider.Meter("otelcol/chqdatadog")
+	return settings.MeterProvider.Meter("otelcol/chqservicegraph")
 }
 
 func Tracer(settings component.TelemetrySettings) trace.Tracer {
-	return settings.TracerProvider.Tracer("otelcol/chqdatadog")
+	return settings.TracerProvider.Tracer("otelcol/chqservicegraph")
 }

@@ -15,34 +15,9 @@
 package chqservicegraphexporter
 
 import (
-	"errors"
 	"go.opentelemetry.io/collector/config/confighttp"
-	"go.opentelemetry.io/collector/config/configopaque"
-	"go.opentelemetry.io/collector/config/configretry"
-	"go.opentelemetry.io/collector/exporter/exporterhelper"
 )
 
 type Config struct {
-	exporterhelper.TimeoutConfig `mapstructure:",squash"`
-	QueueConfig                  exporterhelper.QueueConfig `mapstructure:"sending_queue"`
-	RetryConfig                  configretry.BackOffConfig  `mapstructure:"retry_on_failure"`
-	APIKey                       configopaque.String        `mapstructure:"api_key"`
-	ServiceGraphExportConfig     ServiceGraphExportConfig   `mapstructure:"serviceGraphExporterConfig"`
-}
-
-var errAPIKeyMissing = errors.New("api_key must be specified")
-
-func (c *Config) Validate() error {
-	if c.APIKey == "" {
-		return errAPIKeyMissing
-	}
-	if c.ServiceGraphExportConfig.APIKey == "" {
-		c.ServiceGraphExportConfig.APIKey = c.APIKey
-	}
-	return nil
-}
-
-type ServiceGraphExportConfig struct {
 	confighttp.ClientConfig `mapstructure:",squash"`
-	APIKey                  configopaque.String `mapstructure:"api_key"`
 }

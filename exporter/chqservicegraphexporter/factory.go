@@ -21,7 +21,6 @@ import (
 	"go.opentelemetry.io/collector/config/configcompression"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/config/configopaque"
-	"go.opentelemetry.io/collector/config/configretry"
 	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/collector/exporter/exporterhelper"
 	"time"
@@ -35,24 +34,14 @@ func NewFactory() exporter.Factory {
 	)
 }
 
-const defaultClientTimeout = 5 * time.Second
-const defaultEndpoint = "https://intake.cardinalhq.io"
-const userAgent = "cardinalhq-otel-collector-chqservicegraphexporter"
-
 func createDefaultConfig() component.Config {
 	return &Config{
-		TimeoutConfig: exporterhelper.NewDefaultTimeoutConfig(),
-		RetryConfig:   configretry.NewDefaultBackOffConfig(),
-		QueueConfig:   exporterhelper.NewDefaultQueueConfig(),
-		ServiceGraphExportConfig: ServiceGraphExportConfig{
-			ClientConfig: confighttp.ClientConfig{
-				Timeout:  defaultClientTimeout,
-				Endpoint: defaultEndpoint,
-				Headers: map[string]configopaque.String{
-					"User-Agent": userAgent,
-				},
-				Compression: configcompression.TypeGzip,
+		ClientConfig: confighttp.ClientConfig{
+			Timeout: 5 * time.Second,
+			Headers: map[string]configopaque.String{
+				"User-Agent": "cardinalhq-otel-collector",
 			},
+			Compression: configcompression.TypeGzip,
 		},
 	}
 }
@@ -63,15 +52,10 @@ func createMetricsExporter(ctx context.Context, params exporter.Settings, config
 	exp, err := exporterhelper.NewMetricsExporter(
 		ctx, params, config,
 		e.ConsumeMetrics,
-		exporterhelper.WithTimeout(exporterhelper.TimeoutConfig{Timeout: 0}),
-		exporterhelper.WithRetry(cfg.RetryConfig),
-		exporterhelper.WithQueue(cfg.QueueConfig),
 		exporterhelper.WithStart(e.Start),
 		exporterhelper.WithCapabilities(e.Capabilities()))
 	if err != nil {
 		return nil, err
 	}
-	e.apiKey = string(e.config.ServiceGraphExportConfig.APIKey)
-	e.endpoint = e.config.ServiceGraphExportConfig.Endpoint
 	return exp, nil
 }

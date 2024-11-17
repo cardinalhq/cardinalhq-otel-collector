@@ -31,7 +31,6 @@ const (
 	client         = "client"
 	server         = "server"
 	connectionType = "connection_type"
-	apiKeyHeader   = "x-cardinalhq-api-key"
 )
 
 func (e *serviceGraphExporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
@@ -76,7 +75,7 @@ func (e *serviceGraphExporter) ConsumeMetrics(ctx context.Context, md pmetric.Me
 }
 
 func (e *serviceGraphExporter) postEdges(ctx context.Context, edges []Edge) error {
-	endpoint := e.config.ServiceGraphExportConfig.Endpoint + "/api/v1/edges"
+	endpoint := e.config.Endpoint + "/api/v1/edges"
 	// marshal edges to json
 	b, err := json.Marshal(edges)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
@@ -84,7 +83,6 @@ func (e *serviceGraphExporter) postEdges(ctx context.Context, edges []Edge) erro
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set(apiKeyHeader, e.apiKey)
 
 	resp, err := e.httpClient.Do(req)
 	if err != nil {

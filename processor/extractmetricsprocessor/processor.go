@@ -46,6 +46,8 @@ type extractor struct {
 	ttype             string
 	telemetrySettings component.TelemetrySettings
 	rulesEvaluated    *telemetry.DeferrableInt64Counter
+	ruleErrors        *telemetry.DeferrableInt64Counter
+	ruleEvalTime      *telemetry.DeferrableInt64Histogram
 
 	configCallbackID int
 	logExtractors    atomic.Pointer[[]*ottl.LogExtractor]
@@ -65,8 +67,8 @@ func newExtractor(config *Config, ttype string, set processor.Settings) (*extrac
 		attribute.String("processor", set.ID.String()),
 		attribute.String("signal", ttype),
 	)
-	counter, err := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
-		"extract_metric_rules_evaluated",
+	counter, counterError := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
+		"ottl_rules_processed",
 		[]metric.Int64CounterOption{
 			metric.WithDescription("The number of rules evaluated"),
 			metric.WithUnit("1"),
@@ -75,10 +77,37 @@ func newExtractor(config *Config, ttype string, set processor.Settings) (*extrac
 			metric.WithAttributeSet(attrset),
 		},
 	)
-	if err != nil {
-		return nil, err
+	if counterError != nil {
+		return nil, counterError
 	}
 	e.rulesEvaluated = counter
+
+	errorCounter, errorCounterError := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
+		"ottl_rule_eval_errors",
+		[]metric.Int64CounterOption{
+			metric.WithDescription("The number of rules evaluated"),
+			metric.WithUnit("1"),
+		},
+		[]metric.AddOption{
+			metric.WithAttributeSet(attrset),
+		},
+	)
+	if errorCounterError != nil {
+		return nil, counterError
+	}
+	e.ruleErrors = errorCounter
+
+	histogram, histogramError := telemetry.NewDeferrableHistogram(metadata.Meter(set.TelemetrySettings),
+		"ottl_rule_eval_time",
+		[]metric.Int64HistogramOption{},
+		[]metric.RecordOption{
+			metric.WithAttributeSet(attrset),
+		},
+	)
+	if histogramError != nil {
+		return nil, histogramError
+	}
+	e.ruleEvalTime = histogram
 
 	return e, nil
 }

@@ -60,7 +60,7 @@ func (e *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 	ld.ResourceLogs().RemoveIf(func(rl plog.ResourceLogs) bool {
 		transformCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
 		if transformations != nil {
-			transformations.ExecuteResourceTransforms(e.logger, e.ottlProcessed, e.histogram, transformCtx)
+			transformations.ExecuteResourceTransforms(e.logger, e.ottlProcessed, e.ottlErrors, e.histogram, transformCtx)
 			if _, found := rl.Resource().Attributes().Get(translate.CardinalFieldDropMarker); found {
 				return true
 			}
@@ -69,7 +69,7 @@ func (e *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 		rl.ScopeLogs().RemoveIf(func(sl plog.ScopeLogs) bool {
 			transformCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), rl)
 			if transformations != nil {
-				transformations.ExecuteScopeTransforms(e.logger, e.ottlProcessed, e.histogram, transformCtx)
+				transformations.ExecuteScopeTransforms(e.logger, e.ottlProcessed, e.ottlErrors, e.histogram, transformCtx)
 				if _, found := sl.Scope().Attributes().Get(translate.CardinalFieldDropMarker); found {
 					return true
 				}
@@ -85,7 +85,7 @@ func (e *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 				if transformations == nil {
 					return false
 				}
-				transformations.ExecuteLogTransforms(e.logger, e.ottlProcessed, e.histogram, transformCtx)
+				transformations.ExecuteLogTransforms(e.logger, e.ottlProcessed, e.ottlErrors, e.histogram, transformCtx)
 				_, dropMe := lr.Attributes().Get(translate.CardinalFieldDropMarker)
 				return dropMe
 			})

@@ -16,12 +16,11 @@ package fingerprintprocessor
 
 import (
 	"context"
-	"strings"
-
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.uber.org/zap"
+	"strings"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate"
 )
@@ -47,7 +46,7 @@ func (e *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plo
 					continue
 				}
 				lr.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)
-				if lr.SeverityText() == "" {
+				if lr.SeverityNumber() == plog.SeverityNumberUnspecified {
 					lr.SetSeverityText(strings.ToUpper(level))
 				}
 				lr.Attributes().PutStr(translate.CardinalFieldLevel, level)

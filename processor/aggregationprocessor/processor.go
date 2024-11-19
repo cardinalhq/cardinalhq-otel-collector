@@ -88,7 +88,7 @@ func (e *aggregationProcessor) Capabilities() consumer.Capabilities {
 
 func (e *aggregationProcessor) setupMetricTelemetry(set processor.Settings, attrset attribute.Set) error {
 	counter, err := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
-		"aggregation.datapoints.processed",
+		"aggregation_datapoints_processed",
 		[]metric.Int64CounterOption{
 			metric.WithDescription("The number of datapoints processed by the aggregation processor"),
 			metric.WithUnit("1"),

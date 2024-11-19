@@ -117,7 +117,7 @@ func newSpansTestExtractor(logExtractors []*ottl.SpanExtractor) *extractor {
 		attribute.String("signal", "logs"),
 	)
 	set.MeterProvider = mockMeterProvider{}
-	counter, err := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
+	counter, _ := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
 		"extract_metric_rules_evaluated",
 		[]metric.Int64CounterOption{
 			metric.WithDescription("The number of rules evaluated"),
@@ -127,11 +127,27 @@ func newSpansTestExtractor(logExtractors []*ottl.SpanExtractor) *extractor {
 			metric.WithAttributeSet(attrset),
 		},
 	)
-	if err != nil {
-		return nil
-	}
-
+	errorCounter, _ := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
+		"errors",
+		[]metric.Int64CounterOption{
+			metric.WithDescription("The number of errors"),
+			metric.WithUnit("1"),
+		},
+		[]metric.AddOption{
+			metric.WithAttributeSet(attrset),
+		},
+	)
+	histogram, _ := telemetry.NewDeferrableHistogram(metadata.Meter(set.TelemetrySettings),
+		"ottl_rule_eval_time",
+		[]metric.Int64HistogramOption{},
+		[]metric.RecordOption{
+			metric.WithAttributeSet(attrset),
+		},
+	)
+	e.ruleEvalTime = histogram
 	e.rulesEvaluated = counter
+	e.ruleErrors = errorCounter
+
 	e.spanExtractors.Store(&logExtractors)
 	return e
 }

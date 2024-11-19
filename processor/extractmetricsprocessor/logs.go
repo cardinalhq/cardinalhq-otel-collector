@@ -48,6 +48,8 @@ func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []
 		return totalMetrics
 	}
 	for _, logExtractor := range *extractors {
+		startTime := time.Now()
+
 		metrics := pmetric.NewMetrics()
 
 		resourceLogs := pl.ResourceLogs()
@@ -87,11 +89,20 @@ func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []
 					matches, err := logExtractor.EvalLogConditions(ctx, logCtx)
 					if err != nil {
 						e.logger.Error("Failed when executing ottl match statement.", zap.Error(err))
+						attrset := attribute.NewSet(attribute.String("ruleId", logExtractor.RuleID),
+							attribute.String("metricName", logExtractor.MetricName),
+							attribute.String("metricType", logExtractor.MetricType),
+							attribute.String("stage", "conditionEval"),
+							attribute.String("error_msg", err.Error()))
+						telemetry.CounterAdd(e.ruleErrors, 1, metric.WithAttributeSet(attrset))
 						continue
 					}
 
 					if !matches {
-						attrset := attribute.NewSet(attribute.String("ruleId", logExtractor.RuleID), attribute.String("metricName", logExtractor.MetricName), attribute.String("metricType", logExtractor.MetricType), attribute.Bool("conditionsEvaluated", false))
+						attrset := attribute.NewSet(attribute.String("ruleId", logExtractor.RuleID),
+							attribute.String("metricName", logExtractor.MetricName),
+							attribute.String("metricType", logExtractor.MetricType),
+							attribute.Bool("conditionsEvaluated", false))
 						telemetry.CounterAdd(e.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 						continue
 					}
@@ -108,6 +119,8 @@ func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []
 		if metrics.ResourceMetrics().Len() > 0 {
 			totalMetrics = append(totalMetrics, metrics)
 		}
+		telemetry.HistogramAdd(e.ruleEvalTime, time.Since(startTime).Nanoseconds(),
+			metric.WithAttributes(attribute.String("rule_id", logExtractor.RuleID)))
 	}
 	return totalMetrics
 }
@@ -119,6 +132,13 @@ func (e *extractor) logRecordToDataPoint(ctx context.Context, lex *ottl.LogExtra
 		computedValue, _, err := lex.MetricValue.Execute(ctx, logCtx)
 		if err != nil {
 			e.logger.Error("Failed when extracting value.", zap.Error(err))
+			attrset := attribute.NewSet(attribute.String("ruleId", lex.RuleID),
+				attribute.String("metricName", lex.MetricName),
+				attribute.String("metricType", lex.MetricType),
+				attribute.String("stage", "metricValueExtraction"),
+				attribute.String("error", err.Error()))
+
+			telemetry.CounterAdd(e.ruleErrors, 1, metric.WithAttributeSet(attrset))
 			return
 		}
 		val = computedValue
@@ -133,6 +153,12 @@ func (e *extractor) logRecordToDataPoint(ctx context.Context, lex *ottl.LogExtra
 
 	if err != nil {
 		e.logger.Error("Failed when setting attributes.", zap.Error(err))
+		attrset := attribute.NewSet(attribute.String("ruleId", lex.RuleID),
+			attribute.String("metricName", lex.MetricName),
+			attribute.String("metricType", lex.MetricType),
+			attribute.String("stage", "attributeExtraction"),
+			attribute.String("error_msg", err.Error()))
+		telemetry.CounterAdd(e.ruleErrors, 1, metric.WithAttributeSet(attrset))
 		return
 	}
 

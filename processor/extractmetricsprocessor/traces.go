@@ -34,21 +34,22 @@ import (
 
 func (e *extractor) ConsumeTraces(ctx context.Context, pt ptrace.Traces) (ptrace.Traces, error) {
 	metrics := e.extractMetricsFromSpans(ctx, pt)
-	for _, metric := range metrics {
-		e.sendMetrics(ctx, e.config.Route, metric)
-
+	for _, sendMetric := range metrics {
+		e.sendMetrics(ctx, e.config.Route, sendMetric)
 	}
 	return pt, nil
 }
 
 func (e *extractor) extractMetricsFromSpans(ctx context.Context, pt ptrace.Traces) []pmetric.Metrics {
-	var totalMetrics = []pmetric.Metrics{}
+	var totalMetrics []pmetric.Metrics
 
 	extractors := e.spanExtractors.Load()
 	if extractors == nil {
 		return totalMetrics
 	}
 	for _, spanExtractor := range *extractors {
+		startTime := time.Now()
+
 		metrics := pmetric.NewMetrics()
 
 		resourceSpans := pt.ResourceSpans()
@@ -88,11 +89,20 @@ func (e *extractor) extractMetricsFromSpans(ctx context.Context, pt ptrace.Trace
 					matches, err := spanExtractor.EvalSpanConditions(ctx, spanCtx)
 					if err != nil {
 						e.logger.Error("Failed when executing ottl match statement.", zap.Error(err))
+						attrset := attribute.NewSet(attribute.String("ruleId", spanExtractor.RuleID),
+							attribute.String("metricName", spanExtractor.MetricName),
+							attribute.String("metricType", spanExtractor.MetricType),
+							attribute.String("stage", "conditionEval"),
+							attribute.String("error_msg", err.Error()))
+						telemetry.CounterAdd(e.ruleErrors, 1, metric.WithAttributeSet(attrset))
 						continue
 					}
 
 					if !matches {
-						attrset := attribute.NewSet(attribute.String("ruleId", spanExtractor.RuleID), attribute.String("metricName", spanExtractor.MetricName), attribute.String("metricType", spanExtractor.MetricType), attribute.Bool("conditionsEvaluated", false))
+						attrset := attribute.NewSet(attribute.String("ruleId", spanExtractor.RuleID),
+							attribute.String("metricName", spanExtractor.MetricName),
+							attribute.String("metricType", spanExtractor.MetricType),
+							attribute.Bool("conditionsEvaluated", false))
 						telemetry.CounterAdd(e.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 						continue
 					}
@@ -109,6 +119,8 @@ func (e *extractor) extractMetricsFromSpans(ctx context.Context, pt ptrace.Trace
 		if metrics.ResourceMetrics().Len() > 0 {
 			totalMetrics = append(totalMetrics, metrics)
 		}
+		telemetry.HistogramAdd(e.ruleEvalTime, time.Since(startTime).Nanoseconds(),
+			metric.WithAttributes(attribute.String("rule_id", spanExtractor.RuleID)))
 	}
 	return totalMetrics
 }
@@ -120,6 +132,13 @@ func (e *extractor) spanRecordToDataPoint(ctx context.Context, se *ottl.SpanExtr
 		computedValue, _, err := se.MetricValue.Execute(ctx, spanCtx)
 		if err != nil {
 			e.logger.Error("Failed when extracting value.", zap.Error(err))
+			attrset := attribute.NewSet(attribute.String("ruleId", se.RuleID),
+				attribute.String("metricName", se.MetricName),
+				attribute.String("metricType", se.MetricType),
+				attribute.String("stage", "metricValueExtraction"),
+				attribute.String("error", err.Error()))
+
+			telemetry.CounterAdd(e.ruleErrors, 1, metric.WithAttributeSet(attrset))
 			return
 		}
 		val = computedValue
@@ -134,6 +153,12 @@ func (e *extractor) spanRecordToDataPoint(ctx context.Context, se *ottl.SpanExtr
 
 	if err != nil {
 		e.logger.Error("Failed when setting attributes.", zap.Error(err))
+		attrset := attribute.NewSet(attribute.String("ruleId", se.RuleID),
+			attribute.String("metricName", se.MetricName),
+			attribute.String("metricType", se.MetricType),
+			attribute.String("stage", "attributeExtraction"),
+			attribute.String("error_msg", err.Error()))
+		telemetry.CounterAdd(e.ruleErrors, 1, metric.WithAttributeSet(attrset))
 		return
 	}
 

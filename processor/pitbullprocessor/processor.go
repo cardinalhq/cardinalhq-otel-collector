@@ -48,6 +48,7 @@ type pitbull struct {
 	metricTransformations atomic.Pointer[ottl.Transformations]
 	metricsLookupConfigs  atomic.Pointer[[]ottl.LookupConfig]
 	ottlProcessed         *telemetry.DeferrableInt64Counter
+	ottlErrors            *telemetry.DeferrableInt64Counter
 	histogram             *telemetry.DeferrableInt64Histogram
 }
 
@@ -65,7 +66,7 @@ func newPitbull(config *Config, ttype string, set processor.Settings) (*pitbull,
 		attribute.String("signal", ttype),
 	)
 	counter, counterError := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
-		"ottl_processed",
+		"ottl_rules_processed",
 		[]metric.Int64CounterOption{
 			metric.WithDescription("The results of OTTL processing"),
 			metric.WithUnit("1"),
@@ -79,8 +80,23 @@ func newPitbull(config *Config, ttype string, set processor.Settings) (*pitbull,
 	}
 	dog.ottlProcessed = counter
 
+	errorCounter, errCounterError := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
+		"ottl_rule_eval_errors",
+		[]metric.Int64CounterOption{
+			metric.WithDescription("The number of errors encountered during OTTL processing"),
+			metric.WithUnit("1"),
+		},
+		[]metric.AddOption{
+			metric.WithAttributeSet(attrset),
+		},
+	)
+	if errCounterError != nil {
+		return nil, errCounterError
+	}
+	dog.ottlErrors = errorCounter
+
 	histogram, histogramError := telemetry.NewDeferrableHistogram(metadata.Meter(set.TelemetrySettings),
-		"ottl_time_to_process",
+		"ottl_rule_eval_time",
 		[]metric.Int64HistogramOption{},
 		[]metric.RecordOption{
 			metric.WithAttributeSet(attrset),

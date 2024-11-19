@@ -70,6 +70,12 @@ const (
 	CardinalFieldCollectorID       = CardinalFieldPrefixDot + "collector_id"
 	CardinalFieldDropMarker        = CardinalFieldPrefixDot + "drop_marker"
 	CardinalFieldReceiverType      = CardinalFieldPrefixDot + "receiver_type"
+	ConditionsMatched              = "conditions_matched"
+	StatementsEvaluated            = "statements_evaluated"
+	SamplerAllowed                 = "sampler_allowed"
+	RuleId                         = "rule_id"
+	Stage                          = "stage"
+	ErrorMsg                       = "errorMsg"
 
 	CardinalMetricTypeCount                = "count"
 	CardinalMetricTypeExponentialHistogram = "exponential_histogram"

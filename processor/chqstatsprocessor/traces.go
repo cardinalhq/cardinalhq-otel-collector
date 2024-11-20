@@ -180,18 +180,39 @@ func (e *statsProc) addSpanExemplar(td ptrace.Traces, fingerprint int64) {
 }
 
 func (e *statsProc) sendSpanStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*chqpb.SpanStats) {
-	wrapper := &chqpb.SpanStatsReport{
+	baseWrapper := &chqpb.SpanStatsReport{
 		SubmittedAt: now.UnixMilli(),
-		Stats:       []*chqpb.SpanStats{},
 	}
+
+	var currentBatch []*chqpb.SpanStats
+
 	for _, items := range *bucketpile {
-		wrapper.Stats = append(wrapper.Stats, items...)
+		for _, spanStat := range items {
+			currentBatch = append(currentBatch, spanStat)
+
+			if len(currentBatch) >= maxBatchSize {
+				e.sendSpanStatsBatch(ctx, baseWrapper, currentBatch)
+				currentBatch = currentBatch[:0] // Reset the batch
+			}
+		}
+	}
+
+	if len(currentBatch) > 0 {
+		e.sendSpanStatsBatch(ctx, baseWrapper, currentBatch)
+	}
+}
+
+func (e *statsProc) sendSpanStatsBatch(ctx context.Context, baseWrapper *chqpb.SpanStatsReport, batch []*chqpb.SpanStats) {
+	wrapper := &chqpb.SpanStatsReport{
+		SubmittedAt: baseWrapper.SubmittedAt,
+		Stats:       batch,
 	}
 
 	if err := e.postSpanStats(ctx, wrapper); err != nil {
-		e.logger.Error("Failed to send span stats", zap.Error(err))
+		e.logger.Error("Failed to send span stats batch", zap.Error(err))
+	} else {
+		e.logger.Debug("Sent span stats batch", zap.Int("count", len(batch)))
 	}
-	e.logger.Debug("Sent log stats", zap.Int("count", len(wrapper.Stats)))
 }
 
 func (e *statsProc) postSpanStats(ctx context.Context, wrapper *chqpb.SpanStatsReport) error {
@@ -199,6 +220,7 @@ func (e *statsProc) postSpanStats(ctx context.Context, wrapper *chqpb.SpanStatsR
 	if err != nil {
 		return err
 	}
+	e.statsBatchSize.Record(int64(len(b)))
 	e.logger.Debug("Sending span stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
 	endpoint := e.config.Statistics.Endpoint + "/api/v1/spanstats"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))

@@ -17,6 +17,10 @@ package chqstatsprocessor
 import (
 	"context"
 	"errors"
+	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry"
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor/internal/metadata"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"net/http"
 	"os"
 	"sync"
@@ -40,6 +44,8 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
 	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl"
 )
+
+const maxBatchSize = 100
 
 func newMarshaller() otelJsonMarshaller {
 	return otelJsonMarshaller{
@@ -84,6 +90,7 @@ type statsProc struct {
 	logStatsEnrichments     atomic.Pointer[[]ottl.StatsEnrichment]
 	metricsStatsEnrichments atomic.Pointer[[]ottl.StatsEnrichment]
 	tracesStatsEnrichments  atomic.Pointer[[]ottl.StatsEnrichment]
+	statsBatchSize          *telemetry.DeferrableInt64Histogram
 }
 
 func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsProc, error) {
@@ -119,6 +126,22 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 		dog.spanStats = stats.NewStatsCombiner[*chqpb.SpanStats](now, config.Statistics.Interval)
 		dog.logger.Info("sending span statistics", zap.Duration("interval", config.Statistics.Interval))
 	}
+
+	attrset := attribute.NewSet(
+		attribute.String("processor", set.ID.String()),
+		attribute.String("signal", ttype),
+	)
+	histogram, histogramError := telemetry.NewDeferrableHistogram(metadata.Meter(set.TelemetrySettings),
+		"stats_batch_size",
+		[]metric.Int64HistogramOption{},
+		[]metric.RecordOption{
+			metric.WithAttributeSet(attrset),
+		},
+	)
+	if histogramError != nil {
+		return nil, histogramError
+	}
+	dog.statsBatchSize = histogram
 
 	return dog, nil
 }

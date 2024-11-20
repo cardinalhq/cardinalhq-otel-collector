@@ -86,7 +86,6 @@ func (e *serviceGraphExporter) ConsumeMetrics(ctx context.Context, md pmetric.Me
 
 func (e *serviceGraphExporter) postEdges(ctx context.Context, edges []Edge) error {
 	endpoint := e.config.Endpoint + "/api/v1/edges"
-	// marshal edges to json
 	b, err := json.Marshal(edges)
 	if err != nil {
 		return err
@@ -102,10 +101,7 @@ func (e *serviceGraphExporter) postEdges(ctx context.Context, edges []Edge) erro
 		return err
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
+	body, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 		e.logger.Error("Failed to send edges", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))

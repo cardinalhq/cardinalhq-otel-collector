@@ -4,11 +4,12 @@ module go.opentelemetry.io/collector/cmd/builder
 
 go 1.22.7
 
-toolchain go1.23.3
+toolchain go1.23.2
 
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.110.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v0.110.0
+	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.110.0
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.110.0
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.110.0
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.110.0
@@ -22,6 +23,7 @@ require (
 	github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.110.0
 	github.com/observiq/bindplane-agent/receiver/routereceiver v1.62.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/connector/datadogconnector v0.110.0
+	github.com/open-telemetry/opentelemetry-collector-contrib/connector/servicegraphconnector v0.110.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/connector/spanmetricsconnector v0.110.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/datadogexporter v0.110.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.110.0
@@ -525,6 +527,8 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsrec
 replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v0.110.0 => ../exporter/chqs3exporter
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.110.0 => ../exporter/chqdatadogexporter
+
+replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.110.0 => ../exporter/chqservicegraphexporter
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.110.0 => ../processor/aggregationprocessor
 

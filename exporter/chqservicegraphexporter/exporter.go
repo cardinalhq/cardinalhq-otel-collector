@@ -16,21 +16,20 @@ package chqservicegraphexporter
 
 import (
 	"context"
+	"net/http"
+	"time"
+
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
-	"net/http"
-	"time"
 )
 
 type serviceGraphExporter struct {
 	config     *Config
 	httpClient *http.Client
-	apiKey     string
-	endpoint   string
 
 	edgeCache          *EdgeCache
 	httpClientSettings confighttp.ClientConfig

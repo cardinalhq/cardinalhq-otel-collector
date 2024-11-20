@@ -20,7 +20,7 @@ import (
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 func addAttributes(m map[string]any, attrs pcommon.Map, prefix string) {

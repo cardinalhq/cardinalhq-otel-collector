@@ -50,7 +50,7 @@ func createDefaultConfig() component.Config {
 func createMetricsExporter(ctx context.Context, params exporter.Settings, config component.Config) (exporter.Metrics, error) {
 	cfg := config.(*Config)
 	e := newServiceGraphExporter(cfg, params)
-	exp, err := exporterhelper.NewMetricsExporter(
+	exp, err := exporterhelper.NewMetrics(
 		ctx, params, config,
 		e.ConsumeMetrics,
 		exporterhelper.WithStart(e.Start),

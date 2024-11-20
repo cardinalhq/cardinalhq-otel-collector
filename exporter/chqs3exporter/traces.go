@@ -20,7 +20,7 @@ import (
 
 	"go.opentelemetry.io/collector/pdata/ptrace"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 func (e *s3Exporter) ConsumeTraces(ctx context.Context, traces ptrace.Traces) error {

@@ -25,8 +25,8 @@ import (
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl"
-	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate"
+	"github.com/cardinalhq/oteltools/pkg/ottl"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 var _ ottl.MetricAggregator[float64] = &MockAggregator[float64]{}

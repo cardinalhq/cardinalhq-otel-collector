@@ -16,13 +16,14 @@ package fingerprintprocessor
 
 import (
 	"context"
+	"strings"
+
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.uber.org/zap"
-	"strings"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 func getServiceName(r pcommon.Map) string {

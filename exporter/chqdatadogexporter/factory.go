@@ -84,7 +84,7 @@ func createDefaultConfig() component.Config {
 func createLogsExporter(ctx context.Context, params exporter.Settings, config component.Config) (exporter.Logs, error) {
 	cfg := config.(*Config)
 	e := newDatadogExporter(cfg, params, "logs")
-	exp, err := exporterhelper.NewLogsExporter(
+	exp, err := exporterhelper.NewLogs(
 		ctx, params, config,
 		e.ConsumeLogs,
 		exporterhelper.WithTimeout(exporterhelper.TimeoutConfig{Timeout: 0}),
@@ -103,7 +103,7 @@ func createLogsExporter(ctx context.Context, params exporter.Settings, config co
 func createMetricsExporter(ctx context.Context, params exporter.Settings, config component.Config) (exporter.Metrics, error) {
 	cfg := config.(*Config)
 	e := newDatadogExporter(cfg, params, "metrics")
-	exp, err := exporterhelper.NewMetricsExporter(
+	exp, err := exporterhelper.NewMetrics(
 		ctx, params, config,
 		e.ConsumeMetrics,
 		exporterhelper.WithTimeout(exporterhelper.TimeoutConfig{Timeout: 0}),
@@ -122,7 +122,7 @@ func createMetricsExporter(ctx context.Context, params exporter.Settings, config
 func createTracesExporter(ctx context.Context, params exporter.Settings, config component.Config) (exporter.Traces, error) {
 	cfg := config.(*Config)
 	e := newDatadogExporter(cfg, params, "traces")
-	exp, err := exporterhelper.NewTracesExporter(
+	exp, err := exporterhelper.NewTraces(
 		ctx, params, config,
 		e.ConsumeTraces,
 		exporterhelper.WithTimeout(exporterhelper.TimeoutConfig{Timeout: 0}),

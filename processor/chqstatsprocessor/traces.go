@@ -28,7 +28,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
-	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 func (e *statsProc) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
@@ -118,9 +118,11 @@ func (e *statsProc) sendSpanStatsWithExemplars(bucketpile *map[uint64][]*chqpb.S
 			itemsWithValidExemplars := items[:0]
 			for _, item := range items {
 				e.exemplarsMu.RLock()
-				exemplar := e.traceExemplars[item.Fingerprint]
+				exemplar, found := e.traceExemplars[item.Fingerprint]
 				e.exemplarsMu.RUnlock()
-
+				if !found {
+					continue
+				}
 				marshalled, err := e.jsonMarshaller.tracesMarshaler.MarshalTraces(exemplar)
 				if err != nil {
 					continue

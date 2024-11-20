@@ -19,7 +19,7 @@ import (
 
 	"go.opentelemetry.io/collector/client"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 type AuthEnv struct {

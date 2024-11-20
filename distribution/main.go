@@ -19,8 +19,8 @@ import (
 func main() {
 	info := component.BuildInfo{
 		Command:     "cardinalhq-otel-collector",
-		Description: "Custom OpenTelemetry Collector distribution",
-		Version:     "1.0.0",
+		Description: "",
+		Version:     "",
 	}
 
 	set := otelcol.CollectorSettings{

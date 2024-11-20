@@ -43,7 +43,7 @@ func createLogsExporter(ctx context.Context, params exporter.Settings, config co
 	if err != nil {
 		return nil, err
 	}
-	return exporterhelper.NewLogsExporter(ctx, params,
+	return exporterhelper.NewLogs(ctx, params,
 		config,
 		exp.ConsumeLogs,
 		exporterhelper.WithStart(exp.Start),
@@ -56,7 +56,7 @@ func createMetricsExporter(ctx context.Context, params exporter.Settings, config
 	if err != nil {
 		return nil, err
 	}
-	return exporterhelper.NewMetricsExporter(ctx, params,
+	return exporterhelper.NewMetrics(ctx, params,
 		config,
 		exp.ConsumeMetrics,
 		exporterhelper.WithStart(exp.Start),
@@ -69,7 +69,7 @@ func createTracesExporter(ctx context.Context, params exporter.Settings, config 
 	if err != nil {
 		return nil, err
 	}
-	return exporterhelper.NewTracesExporter(ctx,
+	return exporterhelper.NewTraces(ctx,
 		params,
 		config,
 		exp.ConsumeTraces,

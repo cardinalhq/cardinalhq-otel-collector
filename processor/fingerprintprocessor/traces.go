@@ -22,7 +22,7 @@ import (
 	"github.com/cespare/xxhash/v2"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 const (

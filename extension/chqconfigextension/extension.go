@@ -25,8 +25,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension/internal/metadata"
-	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/filereader"
-	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl"
+	"github.com/cardinalhq/oteltools/pkg/filereader"
+	"github.com/cardinalhq/oteltools/pkg/ottl"
 )
 
 type CHQConfigExtension struct {

@@ -42,8 +42,9 @@ type serviceGraphExporter struct {
 
 func newServiceGraphExporter(config *Config, params exporter.Settings) *serviceGraphExporter {
 	e := &serviceGraphExporter{
-		config:            config,
-		telemetrySettings: params.TelemetrySettings,
+		config:             config,
+		httpClientSettings: config.ClientConfig,
+		telemetrySettings:  params.TelemetrySettings,
 		edgeCache: NewEdgeCache(30*time.Second, func() int64 {
 			return time.Now().UnixNano()
 		}),

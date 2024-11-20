@@ -31,7 +31,6 @@ const (
 	defaultHTTPClientTimeout = 10 * time.Second
 )
 
-// NewFactory creates a factory for the static bearer token Authenticator extension.
 func NewFactory() extension.Factory {
 	return extension.NewFactory(
 		metadata.Type,

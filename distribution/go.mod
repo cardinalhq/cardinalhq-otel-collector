@@ -63,12 +63,12 @@ require (
 	go.opentelemetry.io/collector/confmap/provider/httpsprovider v1.17.0
 	go.opentelemetry.io/collector/confmap/provider/yamlprovider v1.20.0
 	go.opentelemetry.io/collector/connector v0.114.0
-	go.opentelemetry.io/collector/connector/forwardconnector v0.111.0
+	go.opentelemetry.io/collector/connector/forwardconnector v0.114.0
 	go.opentelemetry.io/collector/exporter v0.114.0
 	go.opentelemetry.io/collector/exporter/debugexporter v0.114.0
-	go.opentelemetry.io/collector/exporter/nopexporter v0.111.0
+	go.opentelemetry.io/collector/exporter/nopexporter v0.114.0
 	go.opentelemetry.io/collector/exporter/otlpexporter v0.114.0
-	go.opentelemetry.io/collector/exporter/otlphttpexporter v0.111.0
+	go.opentelemetry.io/collector/exporter/otlphttpexporter v0.114.0
 	go.opentelemetry.io/collector/extension v0.114.0
 	go.opentelemetry.io/collector/extension/zpagesextension v0.114.0
 	go.opentelemetry.io/collector/otelcol v0.114.0
@@ -76,7 +76,7 @@ require (
 	go.opentelemetry.io/collector/processor/batchprocessor v0.114.0
 	go.opentelemetry.io/collector/processor/memorylimiterprocessor v0.114.0
 	go.opentelemetry.io/collector/receiver v0.114.0
-	go.opentelemetry.io/collector/receiver/nopreceiver v0.111.0
+	go.opentelemetry.io/collector/receiver/nopreceiver v0.114.0
 	go.opentelemetry.io/collector/receiver/otlpreceiver v0.114.0
 	golang.org/x/sys v0.27.0
 )
@@ -555,3 +555,5 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitpr
 replace github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.114.0 => ../processor/extractmetricsprocessor
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
+
+replace go.opentelemetry.io/contrib/config => go.opentelemetry.io/contrib/config v0.10.0

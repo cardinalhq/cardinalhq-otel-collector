@@ -46,8 +46,6 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/ottl"
 )
 
-const maxBatchSize = 100
-
 func newMarshaller() otelJsonMarshaller {
 	return otelJsonMarshaller{
 		logsMarshaler:    &plog.JSONMarshaler{},

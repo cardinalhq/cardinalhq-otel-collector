@@ -170,40 +170,18 @@ func (e *statsProc) addLogExemplar(ld plog.Logs, fingerprint int64) {
 }
 
 func (e *statsProc) sendLogStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*chqpb.LogStats) {
-	baseWrapper := &chqpb.LogStatsReport{
-		SubmittedAt: now.UnixMilli(),
-	}
-
-	var currentBatch []*chqpb.LogStats
-
-	for _, items := range *bucketpile {
-		for _, logStat := range items {
-			currentBatch = append(currentBatch, logStat)
-
-			if len(currentBatch) >= maxBatchSize {
-				e.sendLogStatsBatch(ctx, baseWrapper, currentBatch)
-				currentBatch = currentBatch[:0] // Reset the batch
-			}
-		}
-	}
-
-	// Send any remaining items in the last batch
-	if len(currentBatch) > 0 {
-		e.sendLogStatsBatch(ctx, baseWrapper, currentBatch)
-	}
-}
-
-func (e *statsProc) sendLogStatsBatch(ctx context.Context, baseWrapper *chqpb.LogStatsReport, batch []*chqpb.LogStats) {
 	wrapper := &chqpb.LogStatsReport{
-		SubmittedAt: baseWrapper.SubmittedAt,
-		Stats:       batch,
+		SubmittedAt: now.UnixMilli(),
+		Stats:       []*chqpb.LogStats{},
+	}
+	for _, items := range *bucketpile {
+		wrapper.Stats = append(wrapper.Stats, items...)
 	}
 
 	if err := e.postLogStats(ctx, wrapper); err != nil {
-		e.logger.Error("Failed to send log stats batch", zap.Error(err))
-	} else {
-		e.logger.Debug("Sent log stats batch", zap.Int("count", len(batch)))
+		e.logger.Error("Failed to send log stats", zap.Error(err))
 	}
+	e.logger.Debug("Sent log stats", zap.Int("count", len(wrapper.Stats)))
 }
 
 func (e *statsProc) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsReport) error {
@@ -211,7 +189,9 @@ func (e *statsProc) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsRep
 	if err != nil {
 		return err
 	}
-	e.statsBatchSize.Record(int64(len(b)))
+	if e.statsBatchSize != nil {
+		e.statsBatchSize.Record(int64(len(b)))
+	}
 	e.logger.Debug("Sending log stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
 	endpoint := e.config.Statistics.Endpoint + "/api/v1/logstats"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))

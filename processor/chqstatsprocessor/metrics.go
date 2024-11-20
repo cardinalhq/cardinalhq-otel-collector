@@ -188,10 +188,10 @@ func (e *statsProc) addMetricsExemplar(lm pmetric.Metrics, serviceName, metricNa
 		copyObj := pmetric.NewMetrics()
 		lm.CopyTo(copyObj)
 		// iterate over all 3 levels, and just filter any metrics records that don't match the fingerprint
+		foundFp := false // make sure we only add one record matching the fingerprint.
 		copyObj.ResourceMetrics().RemoveIf(func(rsp pmetric.ResourceMetrics) bool {
+			incomingServiceName := getServiceName(rsp.Resource().Attributes())
 			rsp.ScopeMetrics().RemoveIf(func(ss pmetric.ScopeMetrics) bool {
-				foundFp := false // make sure we only add one record matching the fingerprint.
-				incomingServiceName := getServiceName(rsp.Resource().Attributes())
 				ss.Metrics().RemoveIf(func(lr pmetric.Metric) bool {
 					incomingFingerprint := incomingServiceName + ":" + lr.Name() + ":" + lr.Type().String()
 					if incomingFingerprint == fingerprint {
@@ -217,12 +217,11 @@ func (e *statsProc) addMetricsExemplar(lm pmetric.Metrics, serviceName, metricNa
 }
 
 func (e *statsProc) sendMetricStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*MetricStat, marshalledExemplars []*chqpb.MetricExemplar) {
-	baseWrapper := &chqpb.MetricStatsReport{
+	wrapper := &chqpb.MetricStatsReport{
 		SubmittedAt: now.UnixMilli(),
+		Stats:       []*chqpb.MetricStats{},
 		Exemplars:   marshalledExemplars,
 	}
-
-	var currentBatch []*chqpb.MetricStats
 
 	for _, stats := range *bucketpile {
 		for _, ms := range stats {
@@ -249,33 +248,14 @@ func (e *statsProc) sendMetricStats(ctx context.Context, now time.Time, bucketpi
 				Hll:                 b,
 				Attributes:          ms.Attributes,
 			}
-			currentBatch = append(currentBatch, item)
-
-			if len(currentBatch) >= maxBatchSize {
-				e.sendBatch(ctx, baseWrapper, currentBatch)
-				currentBatch = currentBatch[:0] // Reset batch
-			}
+			wrapper.Stats = append(wrapper.Stats, item)
 		}
 	}
 
-	// Send any remaining items in the last batch
-	if len(currentBatch) > 0 {
-		e.sendBatch(ctx, baseWrapper, currentBatch)
-	}
-}
-
-func (e *statsProc) sendBatch(ctx context.Context, baseWrapper *chqpb.MetricStatsReport, batch []*chqpb.MetricStats) {
-	wrapper := &chqpb.MetricStatsReport{
-		SubmittedAt: baseWrapper.SubmittedAt,
-		Exemplars:   baseWrapper.Exemplars,
-		Stats:       batch,
-	}
-
 	if err := e.postMetricStats(ctx, wrapper); err != nil {
-		e.logger.Error("Failed to send metric stats batch", zap.Error(err))
-	} else {
-		e.logger.Debug("Sent metric stats batch", zap.Int("count", len(batch)))
+		e.logger.Error("Failed to send metric stats", zap.Error(err))
 	}
+	e.logger.Debug("Sent metric stats", zap.Int("count", len(wrapper.Stats)))
 }
 
 func (e *statsProc) postMetricStats(ctx context.Context, wrapper *chqpb.MetricStatsReport) error {

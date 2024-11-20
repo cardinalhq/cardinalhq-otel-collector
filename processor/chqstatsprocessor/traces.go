@@ -191,7 +191,7 @@ func (e *statsProc) sendSpanStats(ctx context.Context, now time.Time, bucketpile
 	if err := e.postSpanStats(ctx, wrapper); err != nil {
 		e.logger.Error("Failed to send span stats", zap.Error(err))
 	}
-	e.logger.Info("Sent log stats", zap.Int("count", len(wrapper.Stats)))
+	e.logger.Debug("Sent log stats", zap.Int("count", len(wrapper.Stats)))
 }
 
 func (e *statsProc) postSpanStats(ctx context.Context, wrapper *chqpb.SpanStatsReport) error {
@@ -199,7 +199,7 @@ func (e *statsProc) postSpanStats(ctx context.Context, wrapper *chqpb.SpanStatsR
 	if err != nil {
 		return err
 	}
-	e.logger.Info("Sending span stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
+	e.logger.Debug("Sending span stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
 	endpoint := e.config.Statistics.Endpoint + "/api/v1/spanstats"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
 	if err != nil {

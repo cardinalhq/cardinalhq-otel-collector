@@ -255,7 +255,7 @@ func (e *statsProc) sendMetricStats(ctx context.Context, now time.Time, bucketpi
 	if err := e.postMetricStats(ctx, wrapper); err != nil {
 		e.logger.Error("Failed to send metric stats", zap.Error(err))
 	}
-	e.logger.Info("Sent metric stats", zap.Int("count", len(wrapper.Stats)))
+	e.logger.Debug("Sent metric stats", zap.Int("count", len(wrapper.Stats)))
 }
 
 func (e *statsProc) postMetricStats(ctx context.Context, wrapper *chqpb.MetricStatsReport) error {
@@ -263,7 +263,7 @@ func (e *statsProc) postMetricStats(ctx context.Context, wrapper *chqpb.MetricSt
 	if err != nil {
 		return err
 	}
-	e.logger.Info("Sending metric stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
+	e.logger.Debug("Sending metric stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
 	endpoint := e.config.Statistics.Endpoint + "/api/v1/metricstats"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
 	if err != nil {

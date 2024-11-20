@@ -181,7 +181,7 @@ func (e *statsProc) sendLogStats(ctx context.Context, now time.Time, bucketpile 
 	if err := e.postLogStats(ctx, wrapper); err != nil {
 		e.logger.Error("Failed to send log stats", zap.Error(err))
 	}
-	e.logger.Info("Sent log stats", zap.Int("count", len(wrapper.Stats)))
+	e.logger.Debug("Sent log stats", zap.Int("count", len(wrapper.Stats)))
 }
 
 func (e *statsProc) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsReport) error {
@@ -189,7 +189,7 @@ func (e *statsProc) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsRep
 	if err != nil {
 		return err
 	}
-	e.logger.Info("Sending log stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
+	e.logger.Debug("Sending log stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
 	endpoint := e.config.Statistics.Endpoint + "/api/v1/logstats"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
 	if err != nil {

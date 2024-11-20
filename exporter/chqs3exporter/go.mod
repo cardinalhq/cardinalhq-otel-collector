@@ -137,4 +137,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 => ../../internal
+replace (
+	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 => ../../internal
+	// see main yaml config for when to remove this
+	go.opentelemetry.io/contrib/config v0.12.0 => go.opentelemetry.io/contrib/config v0.10.0
+)

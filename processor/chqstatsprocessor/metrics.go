@@ -283,7 +283,9 @@ func (e *statsProc) postMetricStats(ctx context.Context, wrapper *chqpb.MetricSt
 	if err != nil {
 		return err
 	}
-	e.statsBatchSize.Record(int64(len(b)))
+	if e.statsBatchSize != nil {
+		e.statsBatchSize.Record(int64(len(b)))
+	}
 	e.logger.Debug("Sending metric stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
 	endpoint := e.config.Statistics.Endpoint + "/api/v1/metricstats"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))

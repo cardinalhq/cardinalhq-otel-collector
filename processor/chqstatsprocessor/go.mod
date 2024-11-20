@@ -162,4 +162,6 @@ require (
 replace (
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.0.0 => ../../extension/chqconfigextension
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 => ../../internal
+	// see main yaml config for when to remove this
+	go.opentelemetry.io/contrib/config v0.12.0 => go.opentelemetry.io/contrib/config v0.10.0
 )

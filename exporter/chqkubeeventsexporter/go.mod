@@ -3,7 +3,7 @@ module github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexport
 go 1.22.3
 
 require (
-	github.com/jonboulle/clockwork v0.4.0
+	github.com/stretchr/testify v1.9.0
 	go.opentelemetry.io/collector/component v0.111.0
 	go.opentelemetry.io/collector/config/configcompression v1.17.0
 	go.opentelemetry.io/collector/config/confighttp v0.111.0
@@ -33,7 +33,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
 	github.com/rs/cors v1.11.1 // indirect
-	github.com/stretchr/testify v1.9.0 // indirect
 	go.opentelemetry.io/collector/client v1.17.0 // indirect
 	go.opentelemetry.io/collector/config/configauth v0.111.0 // indirect
 	go.opentelemetry.io/collector/config/configretry v1.17.0 // indirect

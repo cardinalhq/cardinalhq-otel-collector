@@ -8,8 +8,8 @@ github.com/antchfx/xmlquery v1.4.2 h1:MZKd9+wblwxfQ1zd1AdrTsqVaMjMCwow3IqkCSe00K
 github.com/antchfx/xmlquery v1.4.2/go.mod h1:QXhvf5ldTuGqhd1SHNvvtlhhdQLks4dD0awIVhXIDTA=
 github.com/antchfx/xpath v1.3.2 h1:LNjzlsSjinu3bQpw9hWMY9ocB80oLOWuQqFvO6xt51U=
 github.com/antchfx/xpath v1.3.2/go.mod h1:i54GszH55fYfBmoZXapTHN8T8tkcHfRgLyVwwqzXNcs=
-github.com/cardinalhq/oteltools v0.0.0-20241120181106-8e12f903d910 h1:bQL24afgKXUoXYpJvHTSgevwd/aOhY0jHnx6X33uDaU=
-github.com/cardinalhq/oteltools v0.0.0-20241120181106-8e12f903d910/go.mod h1:9dgnM4uPIyeyf8Be2fY3oGTOE62t266BStf21RrepJ4=
+github.com/cardinalhq/oteltools v0.0.2 h1:ETTwKQ4YfD06H1ApA0MNDYfmyyyk0L/6Htvy9YVhzQU=
+github.com/cardinalhq/oteltools v0.0.2/go.mod h1:5ejpHFnCRzf+fC1YhPu5SNdetNTJH8RtoXAHE37qep0=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

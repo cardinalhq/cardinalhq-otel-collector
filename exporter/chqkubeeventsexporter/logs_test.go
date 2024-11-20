@@ -92,7 +92,8 @@ func TestKubeEventsExporter_ConsumeLogs_WarningEvent(t *testing.T) {
 	err := json.Unmarshal([]byte(payload), &body)
 	assert.NoError(t, err)
 
-	logRecord.Body().SetEmptyMap().FromRaw(body)
+	err = logRecord.Body().SetEmptyMap().FromRaw(body)
+	assert.NoError(t, err)
 
 	exporter := &kubeEventsExporter{
 		logger: zap.NewNop(),
@@ -116,11 +117,11 @@ func TestKubeEventsExporter_ConsumeLogs_WarningEvent(t *testing.T) {
 		assert.Equal(t, expectedKubeEvent, event)
 	}
 	exporter.exportEvents = mockSend
+
 	err = exporter.ConsumeLogs(context.Background(), logs)
 	assert.True(t, funcCalled)
 	assert.NoError(t, err)
 }
-
 func TestKubeEventsExporter_ConsumeLogs_NormalEvent(t *testing.T) {
 	payload := `{
 		"object": {
@@ -189,7 +190,8 @@ func TestKubeEventsExporter_ConsumeLogs_NormalEvent(t *testing.T) {
 	err := json.Unmarshal([]byte(payload), &body)
 	assert.NoError(t, err)
 
-	logRecord.Body().SetEmptyMap().FromRaw(body)
+	err = logRecord.Body().SetEmptyMap().FromRaw(body)
+	assert.NoError(t, err)
 
 	exporter := &kubeEventsExporter{
 		logger: zap.NewNop(),
@@ -290,7 +292,8 @@ func TestKubeEventsExporter_ConsumeLogs_NoActionOnRegularEvent(t *testing.T) {
 	err := json.Unmarshal([]byte(payload), &body)
 	assert.NoError(t, err)
 
-	logRecord.Body().SetEmptyMap().FromRaw(body)
+	err = logRecord.Body().SetEmptyMap().FromRaw(body)
+	assert.NoError(t, err)
 
 	exporter := &kubeEventsExporter{
 		logger: zap.NewNop(),

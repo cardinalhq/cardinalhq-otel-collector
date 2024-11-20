@@ -356,6 +356,6 @@ func (e *s3Exporter) upload(f io.ReadSeeker, writer filewriter, ids string, inte
 	now := e.boxer.TimeForInterval(interval)
 	prefix := e.telemetryType + "_" + strconv.FormatInt(now.UnixMilli(), 10)
 	customerID, clusterID := splitCustomerID(ids)
-	e.logger.Info("Uploading file", zap.String("customerID", customerID), zap.String("clusterID", clusterID), zap.String("prefix", prefix))
+	e.logger.Debug("Uploading file", zap.String("customerID", customerID), zap.String("clusterID", clusterID), zap.String("prefix", prefix))
 	return writer.writeBuffer(context.Background(), now, f, e.config, prefix, parquetFormat, e.metadata, ids)
 }

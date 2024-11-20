@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
@@ -68,6 +69,12 @@ func (e *serviceGraphExporter) ConsumeMetrics(ctx context.Context, md pmetric.Me
 	edges := e.edgeCache.flush()
 	if len(edges) > 0 {
 		go func() {
+			timeout := e.config.Timeout
+			if timeout == 0 {
+				timeout = 5 * time.Second
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			defer cancel()
 			err := e.postEdges(ctx, edges)
 			if err != nil {
 				e.logger.Error("Failed to send edges", zap.Error(err))

@@ -20,7 +20,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 func (e *fingerprintProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {

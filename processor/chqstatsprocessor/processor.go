@@ -42,7 +42,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
-	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl"
+	"github.com/cardinalhq/oteltools/pkg/ottl"
 )
 
 const maxBatchSize = 100

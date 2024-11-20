@@ -19,91 +19,87 @@ dist:
   #version: v0.0.0-dev
 
 receivers:
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awsfirehosereceiver v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/fluentforwardreceiver v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/githubreceiver v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudmonitoringreceiver v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/hostmetricsreceiver v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/influxdbreceiver v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8sobjectsreceiver v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/kafkametricsreceiver v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/splunkhecreceiver v0.110.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awsfirehosereceiver v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/fluentforwardreceiver v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/githubreceiver v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudmonitoringreceiver v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/hostmetricsreceiver v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/influxdbreceiver v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8sobjectsreceiver v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/kafkametricsreceiver v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/splunkhecreceiver v0.114.0
   - gomod: go.opentelemetry.io/collector/receiver/nopreceiver v0.111.0
   - gomod: go.opentelemetry.io/collector/receiver/otlpreceiver v0.111.0
   - gomod: github.com/observiq/bindplane-agent/receiver/routereceiver v1.62.0
-  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver v0.110.0
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver v0.114.0
     path: ./receiver/chqdatadogreceiver
-  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.110.0
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.114.0
     path: ./receiver/githubeventsreceiver
 
 exporters:
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/exporter/datadogexporter v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/exporter/splunkhecexporter v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/exporter/prometheusremotewriteexporter v0.110.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/exporter/datadogexporter v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/exporter/splunkhecexporter v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/exporter/prometheusremotewriteexporter v0.114.0
   - gomod: go.opentelemetry.io/collector/exporter/debugexporter v0.111.0
   - gomod: go.opentelemetry.io/collector/exporter/nopexporter v0.111.0
   - gomod: go.opentelemetry.io/collector/exporter/otlpexporter v0.111.0
   - gomod: go.opentelemetry.io/collector/exporter/otlphttpexporter v0.111.0
-  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v0.110.0
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v0.114.0
     path: ./exporter/chqs3exporter
-  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.110.0
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.114.0
     path: ./exporter/chqdatadogexporter
-  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.110.0
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.114.0
     path: ./exporter/chqservicegraphexporter
 
 extensions:
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/healthcheckextension v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/pprofextension v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/filestorage v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/headerssetterextension v0.110.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/healthcheckextension v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/pprofextension v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/filestorage v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/headerssetterextension v0.114.0
   - gomod: go.opentelemetry.io/collector/extension/zpagesextension v0.111.0
-  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.110.0
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.114.0
     path: ./extension/chqauthextension
-  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.110.0
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.114.0
     path: ./extension/chqconfigextension
-  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.110.0
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.114.0
     path: ./extension/chqtagcacheextension
 
 processors:
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/attributesprocessor v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/cumulativetodeltaprocessor v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/deltatocumulativeprocessor v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/filterprocessor v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/groupbytraceprocessor v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/probabilisticsamplerprocessor v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/resourcedetectionprocessor v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/resourceprocessor v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/spanprocessor v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/tailsamplingprocessor v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/transformprocessor v0.110.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/attributesprocessor v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/cumulativetodeltaprocessor v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/deltatocumulativeprocessor v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/filterprocessor v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/groupbytraceprocessor v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/probabilisticsamplerprocessor v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/redactionprocessor v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/resourcedetectionprocessor v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/resourceprocessor v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/spanprocessor v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/tailsamplingprocessor v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/transformprocessor v0.114.0
   - gomod: go.opentelemetry.io/collector/processor/batchprocessor v0.111.0
   - gomod: go.opentelemetry.io/collector/processor/memorylimiterprocessor v0.111.0
-  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.110.0
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.114.0
     path: ./processor/aggregationprocessor
-  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor v0.110.0
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor v0.114.0
     path: ./processor/chqstatsprocessor
-  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.110.0
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.114.0
     path: ./processor/pitbullprocessor
-  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor v0.110.0
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor v0.114.0
     path: ./processor/fingerprintprocessor
-  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.110.0
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.114.0
     path: ./processor/summarysplitprocessor
-  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.110.0
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.114.0
     path: ./processor/extractmetricsprocessor
 
 connectors:
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/connector/datadogconnector v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/connector/spanmetricsconnector v0.110.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/connector/servicegraphconnector v0.110.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/connector/datadogconnector v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/connector/spanmetricsconnector v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/connector/servicegraphconnector v0.114.0
   - gomod: go.opentelemetry.io/collector/connector/forwardconnector v0.111.0
 
 # note: these are releative to the build directory, which is "./distribution"
 replaces:
   - github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
-  - github.com/cardinalhq/cardinalhq-otel-collector/pkg/filereader => ../pkg/filereader
-  - github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl => ../pkg/ottl
-  - github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry => ../pkg/telemetry
-  - github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate => ../pkg/translate

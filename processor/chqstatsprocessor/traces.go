@@ -28,7 +28,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
-	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 func (e *statsProc) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {

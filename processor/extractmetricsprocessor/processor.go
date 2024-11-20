@@ -21,8 +21,8 @@ import (
 	"strconv"
 	"sync/atomic"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor/internal/metadata"
+	"github.com/cardinalhq/oteltools/pkg/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
@@ -34,7 +34,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
-	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl"
+	"github.com/cardinalhq/oteltools/pkg/ottl"
 )
 
 type extractor struct {

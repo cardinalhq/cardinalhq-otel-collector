@@ -18,8 +18,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry"
-	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/translate"
+	"github.com/cardinalhq/oteltools/pkg/telemetry"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
@@ -29,7 +29,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.uber.org/zap"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl"
+	"github.com/cardinalhq/oteltools/pkg/ottl"
 )
 
 func (e *extractor) ConsumeTraces(ctx context.Context, pt ptrace.Traces) (ptrace.Traces, error) {

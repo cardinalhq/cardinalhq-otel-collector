@@ -27,9 +27,9 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
-	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl"
-	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/telemetry"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor/internal/metadata"
+	"github.com/cardinalhq/oteltools/pkg/ottl"
+	"github.com/cardinalhq/oteltools/pkg/telemetry"
 )
 
 type pitbull struct {

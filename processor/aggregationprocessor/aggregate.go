@@ -23,7 +23,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/pkg/ottl"
+	"github.com/cardinalhq/oteltools/pkg/ottl"
 )
 
 func (e *aggregationProcessor) emit(now time.Time) {

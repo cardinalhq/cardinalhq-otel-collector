@@ -16,14 +16,15 @@ package chqkubeeventsexporter
 
 import (
 	"context"
-	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter/internal/metadata"
+	"time"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqkubeeventsexporter/internal/metadata"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/configcompression"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/config/configopaque"
 	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/collector/exporter/exporterhelper"
-	"time"
 )
 
 func NewFactory() exporter.Factory {
@@ -49,7 +50,7 @@ func createDefaultConfig() component.Config {
 func createEventsExporter(ctx context.Context, params exporter.Settings, config component.Config) (exporter.Logs, error) {
 	cfg := config.(*Config)
 	e := newKubeEventsExporter(cfg, params)
-	exp, err := exporterhelper.NewLogsExporter(
+	exp, err := exporterhelper.NewLogs(
 		ctx, params, config,
 		e.ConsumeLogs,
 		exporterhelper.WithStart(e.Start),

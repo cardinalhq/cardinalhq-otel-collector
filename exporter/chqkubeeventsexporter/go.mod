@@ -1,4 +1,4 @@
-module github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter
+module github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqkubeeventsexporter
 
 go 1.22.7
 

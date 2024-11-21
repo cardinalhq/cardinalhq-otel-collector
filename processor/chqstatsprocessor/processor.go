@@ -89,7 +89,7 @@ type statsProc struct {
 	logStatsEnrichments     atomic.Pointer[[]ottl.StatsEnrichment]
 	metricsStatsEnrichments atomic.Pointer[[]ottl.StatsEnrichment]
 	tracesStatsEnrichments  atomic.Pointer[[]ottl.StatsEnrichment]
-	statsBatchSize          *telemetry.DeferrableInt64Histogram
+	statsBatchSize          telemetry.DeferrableHistogram
 }
 
 func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsProc, error) {

@@ -107,6 +107,9 @@ func removeAllCardinalFields(attr pcommon.Map) {
 }
 
 func (e *pitbull) updateLogTransformations(sc *ottl.PitbullProcessorConfig, logger *zap.Logger) {
+	if sc == nil {
+		return
+	}
 	e.logger.Info("Updating log transformations", zap.Int("num_decorators", len(sc.LogStatements)))
 	newTransformations := ottl.NewTransformations()
 

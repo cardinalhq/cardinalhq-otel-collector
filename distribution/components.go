@@ -64,6 +64,7 @@ import (
 	kafkametricsreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/kafkametricsreceiver"
 	prometheusreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver"
 	splunkhecreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/splunkhecreceiver"
+	tcplogreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/tcplogreceiver"
 	nopreceiver "go.opentelemetry.io/collector/receiver/nopreceiver"
 	otlpreceiver "go.opentelemetry.io/collector/receiver/otlpreceiver"
 	routereceiver "github.com/observiq/bindplane-agent/receiver/routereceiver"
@@ -109,6 +110,7 @@ func components() (otelcol.Factories, error) {
 		kafkametricsreceiver.NewFactory(),
 		prometheusreceiver.NewFactory(),
 		splunkhecreceiver.NewFactory(),
+		tcplogreceiver.NewFactory(),
 		nopreceiver.NewFactory(),
 		otlpreceiver.NewFactory(),
 		routereceiver.NewFactory(),
@@ -129,9 +131,10 @@ func components() (otelcol.Factories, error) {
 	factories.ReceiverModules[kafkametricsreceiver.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/kafkametricsreceiver v0.114.0"
 	factories.ReceiverModules[prometheusreceiver.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver v0.114.0"
 	factories.ReceiverModules[splunkhecreceiver.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/splunkhecreceiver v0.114.0"
+	factories.ReceiverModules[tcplogreceiver.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/tcplogreceiver v0.114.0"
 	factories.ReceiverModules[nopreceiver.NewFactory().Type()] = "go.opentelemetry.io/collector/receiver/nopreceiver v0.114.0"
 	factories.ReceiverModules[otlpreceiver.NewFactory().Type()] = "go.opentelemetry.io/collector/receiver/otlpreceiver v0.114.0"
-	factories.ReceiverModules[routereceiver.NewFactory().Type()] = "github.com/observiq/bindplane-agent/receiver/routereceiver v1.62.0"
+	factories.ReceiverModules[routereceiver.NewFactory().Type()] = "github.com/observiq/bindplane-agent/receiver/routereceiver v1.65.0"
 	factories.ReceiverModules[chqdatadogreceiver.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver v0.114.0"
 	factories.ReceiverModules[githubeventsreceiver.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.114.0"
 

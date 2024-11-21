@@ -8,7 +8,7 @@ require (
 	github.com/apache/datasketches-go v0.0.0-20240723070244-57d8af6c2e71
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.0.0
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
-	github.com/cardinalhq/oteltools v0.0.7
+	github.com/cardinalhq/oteltools v0.0.8
 	github.com/cespare/xxhash v1.1.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/stretchr/testify v1.9.0

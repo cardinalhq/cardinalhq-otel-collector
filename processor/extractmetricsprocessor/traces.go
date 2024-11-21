@@ -119,7 +119,7 @@ func (e *extractor) extractMetricsFromSpans(ctx context.Context, pt ptrace.Trace
 		if metrics.ResourceMetrics().Len() > 0 {
 			totalMetrics = append(totalMetrics, metrics)
 		}
-		telemetry.HistogramAdd(e.ruleEvalTime, time.Since(startTime).Nanoseconds(),
+		telemetry.HistogramRecord(e.ruleEvalTime, time.Since(startTime).Nanoseconds(),
 			metric.WithAttributes(attribute.String("rule_id", spanExtractor.RuleID)))
 	}
 	return totalMetrics

@@ -29,6 +29,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
+	"github.com/cardinalhq/oteltools/pkg/telemetry"
 	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
@@ -189,9 +190,7 @@ func (e *statsProc) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsRep
 	if err != nil {
 		return err
 	}
-	if e.statsBatchSize != nil {
-		e.statsBatchSize.Record(int64(len(b)))
-	}
+	telemetry.HistogramRecord(e.statsBatchSize, int64(len(b)))
 	e.logger.Debug("Sending log stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
 	endpoint := e.config.Statistics.Endpoint + "/api/v1/logstats"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))

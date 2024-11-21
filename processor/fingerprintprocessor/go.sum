@@ -1,7 +1,7 @@
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
-github.com/cardinalhq/oteltools v0.0.7 h1:OrB20YtTEv/TO+mGfbznw1y2iNDaLByN1fHVQCvfKHc=
-github.com/cardinalhq/oteltools v0.0.7/go.mod h1:5ejpHFnCRzf+fC1YhPu5SNdetNTJH8RtoXAHE37qep0=
+github.com/cardinalhq/oteltools v0.0.8 h1:gWXEkRdjfOJpCNS20UqDITwHHJwfwOg4XWVCw3tmcnk=
+github.com/cardinalhq/oteltools v0.0.8/go.mod h1:5ejpHFnCRzf+fC1YhPu5SNdetNTJH8RtoXAHE37qep0=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
 github.com/cenkalti/backoff/v4 v4.3.0/go.mod h1:Y3VNntkOUPxTVeUxJ/G5vcM//AlwfmyYozVcomhLiZE=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=

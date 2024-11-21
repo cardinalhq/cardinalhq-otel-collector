@@ -119,7 +119,7 @@ func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []
 		if metrics.ResourceMetrics().Len() > 0 {
 			totalMetrics = append(totalMetrics, metrics)
 		}
-		telemetry.HistogramAdd(e.ruleEvalTime, time.Since(startTime).Nanoseconds(),
+		telemetry.HistogramRecord(e.ruleEvalTime, time.Since(startTime).Nanoseconds(),
 			metric.WithAttributes(attribute.String("rule_id", logExtractor.RuleID)))
 	}
 	return totalMetrics

@@ -190,6 +190,9 @@ func (e *extractor) sendMetrics(ctx context.Context, route string, metrics pmetr
 
 func (e *extractor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 	configs := sc.ExtractMetrics[e.id.Name()]
+	if configs == nil {
+		return
+	}
 
 	switch e.ttype {
 	case "logs":

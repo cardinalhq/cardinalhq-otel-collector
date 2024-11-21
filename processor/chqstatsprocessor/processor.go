@@ -215,6 +215,10 @@ func toAttribute(contextId string, k string, v pcommon.Value, isAttribute bool) 
 
 func (e *statsProc) configUpdateCallback(cpc ottl.ControlPlaneConfig) {
 	configs := cpc.Stats[e.id.Name()]
+	if configs == nil {
+		return
+	}
+
 	switch e.ttype {
 	case "logs":
 		e.logStatsEnrichments.Store(&configs.LogEnrichments)

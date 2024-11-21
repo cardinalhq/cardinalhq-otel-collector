@@ -8,6 +8,7 @@ toolchain go1.23.3
 
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.114.0
+	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqkubeeventsexporter v0.114.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v0.114.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.114.0
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.114.0
@@ -541,6 +542,8 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v
 replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.114.0 => ../exporter/chqdatadogexporter
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.114.0 => ../exporter/chqservicegraphexporter
+
+replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqkubeeventsexporter v0.114.0 => ../exporter/chqkubeeventsexporter
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.114.0 => ../processor/aggregationprocessor
 

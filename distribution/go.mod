@@ -21,7 +21,7 @@ require (
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.114.0
 	github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver v0.114.0
 	github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.114.0
-	github.com/observiq/bindplane-agent/receiver/routereceiver v1.64.0
+	github.com/observiq/bindplane-agent/receiver/routereceiver v1.65.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/connector/datadogconnector v0.114.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/connector/servicegraphconnector v0.114.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/connector/spanmetricsconnector v0.114.0
@@ -201,7 +201,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/briandowns/spinner v1.23.0 // indirect
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 // indirect
-	github.com/cardinalhq/oteltools v0.0.8 // indirect
+	github.com/cardinalhq/oteltools v0.1.0 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect

@@ -337,8 +337,8 @@ github.com/bmatcuk/doublestar/v4 v4.7.1 h1:fdDeAqgT47acgwd9bd9HxJRDmc9UAmPpc+2m0
 github.com/bmatcuk/doublestar/v4 v4.7.1/go.mod h1:xBQ8jztBU6kakFMg+8WGxn0c6z1fTSPVIjEY1Wr7jzc=
 github.com/briandowns/spinner v1.23.0 h1:alDF2guRWqa/FOZZYWjlMIx2L6H0wyewPxo/CH4Pt2A=
 github.com/briandowns/spinner v1.23.0/go.mod h1:rPG4gmXeN3wQV/TsAY4w8lPdIM6RX3yqeBQJSrbXjuE=
-github.com/cardinalhq/oteltools v0.0.8 h1:gWXEkRdjfOJpCNS20UqDITwHHJwfwOg4XWVCw3tmcnk=
-github.com/cardinalhq/oteltools v0.0.8/go.mod h1:5ejpHFnCRzf+fC1YhPu5SNdetNTJH8RtoXAHE37qep0=
+github.com/cardinalhq/oteltools v0.1.0 h1:w94bMgYhMvdnkBojKmafFWKe7DlGyj4eTA5HIFoEQMw=
+github.com/cardinalhq/oteltools v0.1.0/go.mod h1:5ejpHFnCRzf+fC1YhPu5SNdetNTJH8RtoXAHE37qep0=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
 github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
@@ -892,8 +892,8 @@ github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f/go.mod h1:ZdcZmHo+
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/oapi-codegen/runtime v1.0.0 h1:P4rqFX5fMFWqRzY9M/3YF9+aPSPPB06IzP2P7oOxrWo=
 github.com/oapi-codegen/runtime v1.0.0/go.mod h1:LmCUMQuPB4M/nLXilQXhHw+BLZdDb18B34OO356yJ/A=
-github.com/observiq/bindplane-agent/receiver/routereceiver v1.64.0 h1:mG81bSulNX9wMlIxTve+WYLll9Oa+9Qv3CXtxOaGNFE=
-github.com/observiq/bindplane-agent/receiver/routereceiver v1.64.0/go.mod h1:ojF1PrCx+esuL8A8hiyWS4hSe+t8JZuwtKRagKuH4gw=
+github.com/observiq/bindplane-agent/receiver/routereceiver v1.65.0 h1:K20UKCQ9DNell3btT8sbdXo9gtpx2a18ZQ5W5kWN/Nw=
+github.com/observiq/bindplane-agent/receiver/routereceiver v1.65.0/go.mod h1:VQHMZ08mxN+oy51vFCk6lMWsqJ3iTSAnKMiIeWaGJPk=
 github.com/oklog/ulid v1.3.1 h1:EGfNDEx6MqHz8B3uNV6QAib1UR2Lm97sHi3ocA6ESJ4=
 github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn4U=
 github.com/olekukonko/tablewriter v0.0.5 h1:P2Ga83D34wi1o9J6Wh1mRuqd4mF/x/lgBS7N7AbDhec=

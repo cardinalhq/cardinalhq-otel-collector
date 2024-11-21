@@ -151,7 +151,7 @@ func (e *pitbull) evaluateLookupTables(transformCtx ottldatapoint.TransformConte
 	}
 }
 
-func (e *pitbull) updateMetricTransformation(sc ottl.PitbullProcessorConfig, logger *zap.Logger) {
+func (e *pitbull) updateMetricTransformation(sc *ottl.PitbullProcessorConfig, logger *zap.Logger) {
 	e.logger.Info("Updating metrics transformations", zap.Int("num_decorators", len(sc.MetricStatements)))
 	newTransformations := ottl.NewTransformations()
 

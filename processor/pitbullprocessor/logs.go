@@ -106,7 +106,7 @@ func removeAllCardinalFields(attr pcommon.Map) {
 	})
 }
 
-func (e *pitbull) updateLogTransformations(sc ottl.PitbullProcessorConfig, logger *zap.Logger) {
+func (e *pitbull) updateLogTransformations(sc *ottl.PitbullProcessorConfig, logger *zap.Logger) {
 	e.logger.Info("Updating log transformations", zap.Int("num_decorators", len(sc.LogStatements)))
 	newTransformations := ottl.NewTransformations()
 

@@ -8,8 +8,8 @@ github.com/antchfx/xmlquery v1.4.2 h1:MZKd9+wblwxfQ1zd1AdrTsqVaMjMCwow3IqkCSe00K
 github.com/antchfx/xmlquery v1.4.2/go.mod h1:QXhvf5ldTuGqhd1SHNvvtlhhdQLks4dD0awIVhXIDTA=
 github.com/antchfx/xpath v1.3.2 h1:LNjzlsSjinu3bQpw9hWMY9ocB80oLOWuQqFvO6xt51U=
 github.com/antchfx/xpath v1.3.2/go.mod h1:i54GszH55fYfBmoZXapTHN8T8tkcHfRgLyVwwqzXNcs=
-github.com/cardinalhq/oteltools v0.0.8 h1:gWXEkRdjfOJpCNS20UqDITwHHJwfwOg4XWVCw3tmcnk=
-github.com/cardinalhq/oteltools v0.0.8/go.mod h1:5ejpHFnCRzf+fC1YhPu5SNdetNTJH8RtoXAHE37qep0=
+github.com/cardinalhq/oteltools v0.1.0 h1:w94bMgYhMvdnkBojKmafFWKe7DlGyj4eTA5HIFoEQMw=
+github.com/cardinalhq/oteltools v0.1.0/go.mod h1:5ejpHFnCRzf+fC1YhPu5SNdetNTJH8RtoXAHE37qep0=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -69,8 +69,8 @@ github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd h1:TRLaZ9cD/w
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/reflect2 v1.0.2 h1:xBagoLtFs94CBntxluKeaWgTMpvLxC4ur3nMaC9Gz0M=
 github.com/modern-go/reflect2 v1.0.2/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjYzDa0/r8luk=
-github.com/observiq/bindplane-agent/receiver/routereceiver v1.64.0 h1:mG81bSulNX9wMlIxTve+WYLll9Oa+9Qv3CXtxOaGNFE=
-github.com/observiq/bindplane-agent/receiver/routereceiver v1.64.0/go.mod h1:ojF1PrCx+esuL8A8hiyWS4hSe+t8JZuwtKRagKuH4gw=
+github.com/observiq/bindplane-agent/receiver/routereceiver v1.65.0 h1:K20UKCQ9DNell3btT8sbdXo9gtpx2a18ZQ5W5kWN/Nw=
+github.com/observiq/bindplane-agent/receiver/routereceiver v1.65.0/go.mod h1:VQHMZ08mxN+oy51vFCk6lMWsqJ3iTSAnKMiIeWaGJPk=
 github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal v0.114.0 h1:d2wCLlENxH4I2axQWaogivx/5ZIjDYgn9MIf6sFxlJ4=
 github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal v0.114.0/go.mod h1:Psyligv8GKL9WI3TraW3BLwkOX4TRxaaa1BBQQyICzA=
 github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl v0.114.0 h1:G6U2eHR2CGSYb2btot6l05o+mdqsC0ZN7dH8QssXSdk=

@@ -81,7 +81,7 @@ func (e *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 	return td, nil
 }
 
-func (e *pitbull) updateTraceTransformations(sc ottl.PitbullProcessorConfig, logger *zap.Logger) {
+func (e *pitbull) updateTraceTransformations(sc *ottl.PitbullProcessorConfig, logger *zap.Logger) {
 	e.logger.Info("Updating trace transformations", zap.Int("num_decorators", len(sc.SpanStatements)))
 	newTransformations := ottl.NewTransformations()
 

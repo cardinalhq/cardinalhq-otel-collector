@@ -22,7 +22,8 @@ import (
 )
 
 type Config struct {
-	MetricAggregation MetricAggregationConfig `mapstructure:"metric_aggregation"`
+	MetricAggregation    MetricAggregationConfig `mapstructure:"metric_aggregation"`
+	AdditionalAttributes map[string]string       `mapstructure:"additional_attributes"`
 }
 
 type MetricAggregationConfig struct {

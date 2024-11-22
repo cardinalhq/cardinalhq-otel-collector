@@ -17,7 +17,6 @@ package aggregationprocessor
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -68,8 +67,6 @@ func (e *aggregationProcessor) emitSetI(set *ottl.AggregationSet[int64]) {
 
 		setTags(res, sm, m, dp, agg.Tags())
 
-		dp.Attributes().PutStr("pod_ip_address", os.Getenv("POD_IP"))
-
 		err := e.nextMetricReceiver.ConsumeMetrics(context.Background(), mmetrics)
 		if err != nil {
 			e.logger.Error("Error emitting metrics", zap.Error(err))
@@ -102,8 +99,6 @@ func (e *aggregationProcessor) emitSetF(set *ottl.AggregationSet[float64]) {
 		dp.SetDoubleValue(agg.Value()[0])
 
 		setTags(res, sm, m, dp, agg.Tags())
-
-		dp.Attributes().PutStr("pod_ip_address", os.Getenv("POD_IP"))
 
 		err := e.nextMetricReceiver.ConsumeMetrics(context.Background(), mmetrics)
 		if err != nil {

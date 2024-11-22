@@ -48,7 +48,7 @@ func (cfg *Config) Validate() error {
 	if err := cfg.Source.Validate(); err != nil {
 		return err
 	}
-	if cfg.CheckInterval < 1*time.Minute {
+	if cfg.CheckInterval < 10*time.Second {
 		return errCheckIntervalTooShort
 	}
 	return nil

@@ -67,6 +67,10 @@ func (e *aggregationProcessor) emitSetI(set *ottl.AggregationSet[int64]) {
 
 		setTags(res, sm, m, dp, agg.Tags())
 
+		for k, v := range e.config.AdditionalAttributes {
+			dp.Attributes().PutStr(k, v)
+		}
+
 		err := e.nextMetricReceiver.ConsumeMetrics(context.Background(), mmetrics)
 		if err != nil {
 			e.logger.Error("Error emitting metrics", zap.Error(err))
@@ -99,6 +103,10 @@ func (e *aggregationProcessor) emitSetF(set *ottl.AggregationSet[float64]) {
 		dp.SetDoubleValue(agg.Value()[0])
 
 		setTags(res, sm, m, dp, agg.Tags())
+
+		for k, v := range e.config.AdditionalAttributes {
+			dp.Attributes().PutStr(k, v)
+		}
 
 		err := e.nextMetricReceiver.ConsumeMetrics(context.Background(), mmetrics)
 		if err != nil {

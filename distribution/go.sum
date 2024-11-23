@@ -337,8 +337,8 @@ github.com/bmatcuk/doublestar/v4 v4.7.1 h1:fdDeAqgT47acgwd9bd9HxJRDmc9UAmPpc+2m0
 github.com/bmatcuk/doublestar/v4 v4.7.1/go.mod h1:xBQ8jztBU6kakFMg+8WGxn0c6z1fTSPVIjEY1Wr7jzc=
 github.com/briandowns/spinner v1.23.0 h1:alDF2guRWqa/FOZZYWjlMIx2L6H0wyewPxo/CH4Pt2A=
 github.com/briandowns/spinner v1.23.0/go.mod h1:rPG4gmXeN3wQV/TsAY4w8lPdIM6RX3yqeBQJSrbXjuE=
-github.com/cardinalhq/oteltools v0.2.0 h1:MNzi7+NrBQjtBEIad7bVRDU03qW7cT3GHSzj8iceCdA=
-github.com/cardinalhq/oteltools v0.2.0/go.mod h1:3LDvMih6/c8eTDrk4yCzAv1AKf+rYgU5swGZut2pMfg=
+github.com/cardinalhq/oteltools v0.2.1 h1:gaW9NerI13bNPIagYYqj2JTV+a1Ni1uKpSqWN7psB0I=
+github.com/cardinalhq/oteltools v0.2.1/go.mod h1:3LDvMih6/c8eTDrk4yCzAv1AKf+rYgU5swGZut2pMfg=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
 github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=

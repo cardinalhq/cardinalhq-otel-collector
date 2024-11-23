@@ -20,8 +20,8 @@ import (
 	"github.com/apache/datasketches-go/hll"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
+	"github.com/cardinalhq/oteltools/pkg/chqpb"
+	"github.com/cardinalhq/oteltools/pkg/stats"
 )
 
 func TestMetricStat_Key(t *testing.T) {

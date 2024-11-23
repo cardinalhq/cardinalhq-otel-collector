@@ -18,8 +18,8 @@ import (
 	"github.com/apache/datasketches-go/hll"
 	"github.com/cespare/xxhash"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/stats"
+	"github.com/cardinalhq/oteltools/pkg/chqpb"
+	"github.com/cardinalhq/oteltools/pkg/stats"
 )
 
 type MetricStat struct {

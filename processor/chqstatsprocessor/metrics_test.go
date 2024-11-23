@@ -26,7 +26,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/chqpb"
+	"github.com/cardinalhq/oteltools/pkg/chqpb"
 )
 
 func TestPostMetricStats(t *testing.T) {

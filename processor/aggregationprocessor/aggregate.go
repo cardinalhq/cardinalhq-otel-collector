@@ -67,7 +67,7 @@ func (e *aggregationProcessor) emitSetI(set *ottl.AggregationSet[int64]) {
 
 		setTags(res, sm, m, dp, agg.Tags())
 
-		for k, v := range e.config.AdditionalAttributes {
+		for k, v := range e.additionalAttributes {
 			dp.Attributes().PutStr(k, v)
 		}
 
@@ -104,7 +104,7 @@ func (e *aggregationProcessor) emitSetF(set *ottl.AggregationSet[float64]) {
 
 		setTags(res, sm, m, dp, agg.Tags())
 
-		for k, v := range e.config.AdditionalAttributes {
+		for k, v := range e.additionalAttributes {
 			dp.Attributes().PutStr(k, v)
 		}
 

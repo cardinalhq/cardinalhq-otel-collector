@@ -46,6 +46,8 @@ type aggregationProcessor struct {
 	ttype             string
 	telemetrySettings component.TelemetrySettings
 
+	additionalAttributes map[string]string
+
 	// for metrics
 	nextMetricReceiver   MetricsConsumer
 	aggregationInterval  time.Duration
@@ -57,12 +59,13 @@ type aggregationProcessor struct {
 
 func newPitbull(config *Config, ttype string, set processor.Settings, nextConsumer consumer.Metrics) (*aggregationProcessor, error) {
 	dog := &aggregationProcessor{
-		id:                 set.ID,
-		ttype:              ttype,
-		config:             config,
-		telemetrySettings:  set.TelemetrySettings,
-		logger:             set.Logger,
-		nextMetricReceiver: nextConsumer,
+		id:                   set.ID,
+		ttype:                ttype,
+		config:               config,
+		telemetrySettings:    set.TelemetrySettings,
+		additionalAttributes: config.AdditionalAttributes,
+		logger:               set.Logger,
+		nextMetricReceiver:   nextConsumer,
 	}
 
 	attrset := attribute.NewSet(

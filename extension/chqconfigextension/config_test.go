@@ -48,7 +48,7 @@ func TestConfig_Validate(t *testing.T) {
 						Endpoint: "http://example.com",
 					},
 				},
-				CheckInterval: 30 * time.Second,
+				CheckInterval: 3 * time.Second,
 			},
 			errExpected: errCheckIntervalTooShort,
 		},

@@ -41,7 +41,7 @@ var (
 	errMissingEndpoint       = errors.New("auth.endpoint must be set")
 	errInvalidEndpoint       = errors.New("auth.endpoint must be a valid URL")
 	errInvalidScheme         = errors.New("auth.endpoint: supported schemes: " + strings.Join(sourceSchemes, ", "))
-	errCheckIntervalTooShort = errors.New("check_interval must be set to a positive value greater than 1 minute")
+	errCheckIntervalTooShort = errors.New("check_interval must be set to a positive value greater than 10s")
 )
 
 func (cfg *Config) Validate() error {

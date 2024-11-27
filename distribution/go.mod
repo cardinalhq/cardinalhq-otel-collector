@@ -567,4 +567,4 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
 
 replace go.opentelemetry.io/contrib/config => go.opentelemetry.io/contrib/config v0.10.0
 
-replace github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver => github.com/cardinalhq/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver v0.0.0-20241127184547-bf63da49beb3
+replace github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver => github.com/cardinalhq/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver v0.0.0-20241127201255-b2e2aa5982ab

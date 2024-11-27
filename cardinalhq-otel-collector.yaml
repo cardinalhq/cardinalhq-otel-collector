@@ -28,6 +28,7 @@ receivers:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8sobjectsreceiver v0.114.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/kafkametricsreceiver v0.114.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver v0.114.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver v0.114.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/splunkhecreceiver v0.114.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/tcplogreceiver v0.114.0
   - gomod: go.opentelemetry.io/collector/receiver/nopreceiver v0.114.0
@@ -108,3 +109,5 @@ replaces:
   - github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
   # see https://github.com/open-telemetry/opentelemetry-collector/issues/11478
   - go.opentelemetry.io/contrib/config => go.opentelemetry.io/contrib/config v0.10.0
+  # Until the real receiver is done, we will use our replacement
+  - github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver => github.com/cardinalhq/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver v0.0.0-20241127152528-e41feea9d07d

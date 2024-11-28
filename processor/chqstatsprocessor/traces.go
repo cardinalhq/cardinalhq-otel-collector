@@ -204,7 +204,7 @@ func (e *statsProc) postSpanStats(ctx context.Context, wrapper *chqpb.EventStats
 	}
 	telemetry.HistogramRecord(e.statsBatchSize, int64(len(b)))
 	e.logger.Debug("Sending span stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
-	endpoint := e.config.Statistics.Endpoint + "/api/v1/spanstats"
+	endpoint := e.config.Endpoint + "/api/v1/spanstats"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
 	if err != nil {
 		return err

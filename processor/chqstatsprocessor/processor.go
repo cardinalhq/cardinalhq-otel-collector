@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"go.etcd.io/bbolt"
-	"google.golang.org/protobuf/proto"
 	"net/http"
 	"os"
 	"sync"
@@ -62,12 +61,6 @@ type otelJsonMarshaller struct {
 	metricsMarshaler pmetric.Marshaler
 }
 
-func deserializeMetricsStats(data []byte) (*chqpb.MetricStats, error) {
-	stats := &chqpb.MetricStats{}
-	err := proto.Unmarshal(data, stats)
-	return stats, err
-}
-
 type statsProc struct {
 	config          *Config
 	httpClient      *http.Client
@@ -105,7 +98,7 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 		id:                 set.ID,
 		ttype:              ttype,
 		config:             config,
-		httpClientSettings: config.Statistics.ClientConfig,
+		httpClientSettings: config.ClientConfig,
 		telemetrySettings:  set.TelemetrySettings,
 		jsonMarshaller:     newMarshaller(),
 		logExemplars:       make(map[int64]plog.Logs),

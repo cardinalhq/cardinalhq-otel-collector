@@ -16,21 +16,20 @@ package chqstatsprocessor
 
 import (
 	"errors"
+	"go.opentelemetry.io/collector/config/confighttp"
 	"time"
 
 	"go.opentelemetry.io/collector/component"
-	"go.opentelemetry.io/collector/config/confighttp"
 	"go.uber.org/multierr"
 )
 
 type Config struct {
-	Statistics             StatisticsConfig `mapstructure:"statistics"`
-	ConfigurationExtension *component.ID    `mapstructure:"configuration_extension"`
+	confighttp.ClientConfig `mapstructure:",squash"`
+	Statistics              StatisticsConfig `mapstructure:"statistics"`
+	ConfigurationExtension  *component.ID    `mapstructure:"configuration_extension"`
 }
 
 type StatisticsConfig struct {
-	confighttp.ClientConfig `mapstructure:",squash"`
-
 	Interval time.Duration `mapstructure:"interval"`
 	Phase    string        `mapstructure:"phase"`
 }

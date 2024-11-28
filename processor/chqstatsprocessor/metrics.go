@@ -270,7 +270,7 @@ func (e *statsProc) postMetricStats(ctx context.Context, wrapper *chqpb.MetricSt
 	}
 	telemetry.HistogramRecord(e.statsBatchSize, int64(len(b)))
 	e.logger.Debug("Sending metric stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
-	endpoint := e.config.Statistics.Endpoint + "/api/v1/metricstats"
+	endpoint := e.config.Endpoint + "/api/v1/metricstats"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
 	if err != nil {
 		return err

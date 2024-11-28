@@ -27,3 +27,4 @@ buildtime
 bin
 
 dist/
+distribution/my-otel-collector

@@ -21,6 +21,7 @@ require (
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.114.0
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.114.0
 	github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver v0.114.0
+	github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqnewrelicreceiver v0.114.0
 	github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.114.0
 	github.com/observiq/bindplane-agent/receiver/routereceiver v1.65.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/connector/datadogconnector v0.114.0
@@ -540,6 +541,8 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigexten
 replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.114.0 => ../extension/chqtagcacheextension
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver v0.114.0 => ../receiver/chqdatadogreceiver
+
+replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqnewrelicreceiver v0.114.0 => ../receiver/chqnewrelicreceiver
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.114.0 => ../receiver/githubeventsreceiver
 

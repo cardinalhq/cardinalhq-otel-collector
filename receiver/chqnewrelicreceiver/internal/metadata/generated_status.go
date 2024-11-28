@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	Type = component.MustNewType("chqdatadog")
+	Type = component.MustNewType("chqnewrelicreceiver")
 )
 
 const (

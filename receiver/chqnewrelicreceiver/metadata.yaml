@@ -1,0 +1,4 @@
+type: "receiver"
+name: "chqnewrelicreceiver"
+description: "Custom New Relic receiver for OpenTelemetry."
+status: "alpha"

@@ -36,6 +36,8 @@ receivers:
   - gomod: github.com/observiq/bindplane-agent/receiver/routereceiver v1.65.0
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver v0.114.0
     path: ./receiver/chqdatadogreceiver
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqnewrelicreceiver v0.114.0
+    path: ./receiver/chqnewrelicreceiver
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.114.0
     path: ./receiver/githubeventsreceiver
 

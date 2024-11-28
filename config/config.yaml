@@ -1,0 +1,13 @@
+receivers:
+  chqnewrelicreceiver:
+    endpoint: "0.0.0.0:4317"
+    api_key: "ffd79faab056bc20859543784b232ab1FFFFNRAL"
+
+exporters:
+  debug: {}
+
+service:
+  pipelines:
+    logs:
+      receivers: [chqnewrelicreceiver]
+      exporters: [debug]

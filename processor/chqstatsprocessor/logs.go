@@ -82,13 +82,13 @@ func (e *statsProc) recordLog(ld plog.Logs, now time.Time, serviceName string, f
 		"log":      lr.Attributes(),
 	})
 
-	rec := &chqpb.LogStats{
+	rec := &chqpb.EventStats{
 		ServiceName: serviceName,
 		Fingerprint: fingerprint,
 		Phase:       e.pbPhase,
 		ProcessorId: e.id.Name(),
 		Count:       1,
-		LogSize:     logSize,
+		Size:        logSize,
 		Attributes:  enrichmentAttributes,
 	}
 
@@ -102,9 +102,9 @@ func (e *statsProc) recordLog(ld plog.Logs, now time.Time, serviceName string, f
 	return nil
 }
 
-func (e *statsProc) sendLogStatsWithExemplars(bucketpile *map[uint64][]*chqpb.LogStats, now time.Time) {
-	if bucketpile != nil && len(*bucketpile) > 0 {
-		for bucketKey, items := range *bucketpile {
+func (e *statsProc) sendLogStatsWithExemplars(bucketpile map[uint64][]*chqpb.EventStats, now time.Time) {
+	if bucketpile != nil && len(bucketpile) > 0 {
+		for bucketKey, items := range bucketpile {
 			itemsWithValidExemplars := items[:0]
 			for _, item := range items {
 				e.exemplarsMu.RLock()
@@ -119,9 +119,9 @@ func (e *statsProc) sendLogStatsWithExemplars(bucketpile *map[uint64][]*chqpb.Lo
 				itemsWithValidExemplars = append(itemsWithValidExemplars, item)
 			}
 			if len(itemsWithValidExemplars) > 0 {
-				(*bucketpile)[bucketKey] = itemsWithValidExemplars
+				(bucketpile)[bucketKey] = itemsWithValidExemplars
 			} else {
-				delete(*bucketpile, bucketKey)
+				delete(bucketpile, bucketKey)
 			}
 		}
 
@@ -170,12 +170,12 @@ func (e *statsProc) addLogExemplar(ld plog.Logs, fingerprint int64) {
 	}
 }
 
-func (e *statsProc) sendLogStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*chqpb.LogStats) {
-	wrapper := &chqpb.LogStatsReport{
+func (e *statsProc) sendLogStats(ctx context.Context, now time.Time, bucketpile map[uint64][]*chqpb.EventStats) {
+	wrapper := &chqpb.EventStatsReport{
 		SubmittedAt: now.UnixMilli(),
-		Stats:       []*chqpb.LogStats{},
+		Stats:       []*chqpb.EventStats{},
 	}
-	for _, items := range *bucketpile {
+	for _, items := range bucketpile {
 		wrapper.Stats = append(wrapper.Stats, items...)
 	}
 
@@ -185,7 +185,7 @@ func (e *statsProc) sendLogStats(ctx context.Context, now time.Time, bucketpile 
 	e.logger.Debug("Sent log stats", zap.Int("count", len(wrapper.Stats)))
 }
 
-func (e *statsProc) postLogStats(ctx context.Context, wrapper *chqpb.LogStatsReport) error {
+func (e *statsProc) postLogStats(ctx context.Context, wrapper *chqpb.EventStatsReport) error {
 	b, err := proto.Marshal(wrapper)
 	if err != nil {
 		return err

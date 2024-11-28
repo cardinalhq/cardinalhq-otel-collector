@@ -5,12 +5,11 @@ go 1.23
 toolchain go1.23.3
 
 require (
-	github.com/apache/datasketches-go v0.0.0-20240723070244-57d8af6c2e71
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.0.0
-	github.com/cardinalhq/oteltools v0.2.1
-	github.com/cespare/xxhash v1.1.0
+	github.com/cardinalhq/oteltools v0.2.8
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/stretchr/testify v1.9.0
+	go.etcd.io/bbolt v1.3.11
 	go.opentelemetry.io/collector/component v0.114.0
 	go.opentelemetry.io/collector/config/configcompression v1.20.0
 	go.opentelemetry.io/collector/config/confighttp v0.114.0
@@ -31,8 +30,10 @@ require (
 	github.com/alecthomas/participle/v2 v2.1.1 // indirect
 	github.com/antchfx/xmlquery v1.4.2 // indirect
 	github.com/antchfx/xpath v1.3.2 // indirect
+	github.com/apache/datasketches-go v0.0.0-20240723070244-57d8af6c2e71 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/ebitengine/purego v0.8.1 // indirect

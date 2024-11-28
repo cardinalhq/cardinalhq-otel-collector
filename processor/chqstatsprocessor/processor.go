@@ -17,6 +17,8 @@ package chqstatsprocessor
 import (
 	"context"
 	"errors"
+	"go.etcd.io/bbolt"
+	"google.golang.org/protobuf/proto"
 	"net/http"
 	"os"
 	"sync"
@@ -60,6 +62,12 @@ type otelJsonMarshaller struct {
 	metricsMarshaler pmetric.Marshaler
 }
 
+func deserializeMetricsStats(data []byte) (*chqpb.MetricStats, error) {
+	stats := &chqpb.MetricStats{}
+	err := proto.Unmarshal(data, stats)
+	return stats, err
+}
+
 type statsProc struct {
 	config          *Config
 	httpClient      *http.Client
@@ -75,9 +83,9 @@ type statsProc struct {
 
 	configCallbackID int
 
-	logstats    *stats.StatsCombiner[*chqpb.LogStats]
-	spanStats   *stats.StatsCombiner[*chqpb.SpanStats]
-	metricstats *stats.StatsCombiner[*MetricStat]
+	logstats    *stats.StatsCombiner[*chqpb.EventStats]
+	spanStats   *stats.StatsCombiner[*chqpb.EventStats]
+	metricstats *stats.StatsCombiner[*chqpb.MetricStatsWrapper]
 
 	exemplarsMu     sync.RWMutex
 	logExemplars    map[int64]plog.Logs
@@ -93,7 +101,6 @@ type statsProc struct {
 }
 
 func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsProc, error) {
-	now := time.Now()
 	dog := &statsProc{
 		id:                 set.ID,
 		ttype:              ttype,
@@ -116,14 +123,40 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 
 	switch ttype {
 	case "logs":
-		dog.logstats = stats.NewStatsCombiner[*chqpb.LogStats](now, config.Statistics.Interval)
+		db, err := bbolt.Open("db/logStats", 0666, nil)
+		if err != nil {
+			return nil, err
+		}
+		dog.logstats = stats.NewStatsCombiner[*chqpb.EventStats](db,
+			"logs",
+			time.Now(),
+			config.Statistics.Interval,
+			chqpb.SerializeEventStats,
+			chqpb.DeserializeEventStats)
 		dog.logger.Info("sending log statistics", zap.Duration("interval", config.Statistics.Interval))
 	case "metrics":
-		dog.metricstats = stats.NewStatsCombiner[*MetricStat](now, config.Statistics.Interval)
+		db, err := bbolt.Open("db/metricStats", 0666, nil)
+		if err != nil {
+			return nil, err
+		}
+		dog.metricstats = stats.NewStatsCombiner[*chqpb.MetricStatsWrapper](db,
+			"metrics",
+			time.Now(),
+			config.Statistics.Interval,
+			chqpb.SerializeMetricsStats,
+			chqpb.DeserializeMetricsStats)
 		dog.logger.Info("sending metric statistics", zap.Duration("interval", config.Statistics.Interval))
 	case "traces":
-		dog.spanStats = stats.NewStatsCombiner[*chqpb.SpanStats](now, config.Statistics.Interval)
-		dog.logger.Info("sending span statistics", zap.Duration("interval", config.Statistics.Interval))
+		db, err := bbolt.Open("db/spanStats", 0666, nil)
+		if err != nil {
+			return nil, err
+		}
+		dog.spanStats = stats.NewStatsCombiner[*chqpb.EventStats](db,
+			"traces",
+			time.Now(),
+			config.Statistics.Interval,
+			chqpb.SerializeEventStats,
+			chqpb.DeserializeEventStats)
 	}
 
 	attrset := attribute.NewSet(

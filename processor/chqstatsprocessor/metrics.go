@@ -132,7 +132,7 @@ func (e *statsProc) recordDatapoint(lm pmetric.Metrics, now time.Time, metricNam
 }
 
 func (e *statsProc) recordMetric(now time.Time, metricName string, metricType string, serviceName string, tagName, tagValue string, tagScope string, attributes []*chqpb.Attribute, count int) error {
-	rec := &MetricStat{
+	rec := &chqpb.MetricStats{
 		MetricName:  metricName,
 		TagName:     tagName,
 		TagScope:    tagScope,
@@ -144,11 +144,15 @@ func (e *statsProc) recordMetric(now time.Time, metricName string, metricType st
 		Attributes:  attributes,
 	}
 
-	bucketpile, err := e.metricstats.Record(now, rec, tagValue, count, 0)
+	wrapper := &chqpb.MetricStatsWrapper{
+		Stats: rec,
+	}
+
+	bucketpile, err := e.metricstats.Record(now, wrapper, tagValue, count, 0)
 	if err != nil {
 		return err
 	}
-	if bucketpile != nil && len(*bucketpile) > 0 {
+	if bucketpile != nil && len(bucketpile) > 0 {
 		e.exemplarsMu.RLock()
 
 		var marshalledExemplars []*chqpb.MetricExemplar
@@ -217,37 +221,37 @@ func (e *statsProc) addMetricsExemplar(lm pmetric.Metrics, serviceName, metricNa
 	}
 }
 
-func (e *statsProc) sendMetricStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*MetricStat, marshalledExemplars []*chqpb.MetricExemplar) {
+func (e *statsProc) sendMetricStats(ctx context.Context, now time.Time, bucketpile map[uint64][]*chqpb.MetricStatsWrapper, marshalledExemplars []*chqpb.MetricExemplar) {
 	wrapper := &chqpb.MetricStatsReport{
 		SubmittedAt: now.UnixMilli(),
 		Stats:       []*chqpb.MetricStats{},
 		Exemplars:   marshalledExemplars,
 	}
 
-	for _, stats := range *bucketpile {
+	for _, stats := range bucketpile {
 		for _, ms := range stats {
-			if ms.HLL == nil {
+			if ms.Hll == nil {
 				e.logger.Error("HLL is nil", zap.Any("metric", ms))
 				continue
 			}
-			estimate, _ := ms.HLL.GetEstimate() // ignore error for now
-			b, err := ms.HLL.ToCompactSlice()
+			estimate, _ := ms.Hll.GetEstimate() // ignore error for now
+			b, err := ms.Hll.ToCompactSlice()
 			if err != nil {
 				e.logger.Error("Failed to convert HLL to compact slice", zap.Error(err))
 				continue
 			}
 			item := &chqpb.MetricStats{
-				MetricName:          ms.MetricName,
-				ServiceName:         ms.ServiceName,
-				TagName:             ms.TagName,
-				TagScope:            ms.TagScope,
-				MetricType:          ms.MetricType,
-				Phase:               ms.Phase,
-				Count:               ms.Count,
-				ProcessorId:         ms.ProcessorId,
+				MetricName:          ms.Stats.MetricName,
+				ServiceName:         ms.Stats.ServiceName,
+				TagName:             ms.Stats.TagName,
+				TagScope:            ms.Stats.TagScope,
+				MetricType:          ms.Stats.MetricType,
+				Phase:               ms.Stats.Phase,
+				Count:               ms.Stats.Count,
+				ProcessorId:         ms.Stats.ProcessorId,
 				CardinalityEstimate: estimate,
 				Hll:                 b,
-				Attributes:          ms.Attributes,
+				Attributes:          ms.Stats.Attributes,
 			}
 			wrapper.Stats = append(wrapper.Stats, item)
 		}

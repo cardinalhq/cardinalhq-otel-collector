@@ -5,9 +5,7 @@ go 1.23
 toolchain go1.23.3
 
 require (
-	github.com/apache/datasketches-go v0.0.0-20240723070244-57d8af6c2e71
 	github.com/cardinalhq/oteltools v0.2.1
-	github.com/cespare/xxhash v1.1.0
 	github.com/stretchr/testify v1.9.0
 	go.opentelemetry.io/collector/component v0.114.0
 	go.opentelemetry.io/collector/consumer v0.114.0
@@ -69,12 +67,10 @@ require (
 	github.com/prometheus/common v0.60.1 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/shirou/gopsutil/v4 v4.24.10 // indirect
-	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/cobra v1.8.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
 	github.com/tklauser/numcpus v0.9.0 // indirect
-	github.com/twmb/murmur3 v1.1.8 // indirect
 	github.com/ua-parser/uap-go v0.0.0-20241012191800-bbb40edc15aa // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/collector/component/componentstatus v0.114.0 // indirect

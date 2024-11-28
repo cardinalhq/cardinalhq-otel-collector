@@ -95,7 +95,7 @@ func (e *statsProc) recordSpan(
 	enrichmentAttributes = append(enrichmentAttributes, isSlowAttribute)
 	enrichmentAttributes = append(enrichmentAttributes, spanKindAttribute)
 
-	rec := &chqpb.SpanStats{
+	rec := &chqpb.EventStats{
 		ServiceName: serviceName,
 		Fingerprint: fingerprint,
 		Phase:       e.pbPhase,
@@ -113,9 +113,9 @@ func (e *statsProc) recordSpan(
 	return nil
 }
 
-func (e *statsProc) sendSpanStatsWithExemplars(bucketpile *map[uint64][]*chqpb.SpanStats, now time.Time) {
-	if bucketpile != nil && len(*bucketpile) > 0 {
-		for bucketKey, items := range *bucketpile {
+func (e *statsProc) sendSpanStatsWithExemplars(bucketpile map[uint64][]*chqpb.EventStats, now time.Time) {
+	if bucketpile != nil && len(bucketpile) > 0 {
+		for bucketKey, items := range bucketpile {
 			itemsWithValidExemplars := items[:0]
 			for _, item := range items {
 				e.exemplarsMu.RLock()
@@ -132,9 +132,9 @@ func (e *statsProc) sendSpanStatsWithExemplars(bucketpile *map[uint64][]*chqpb.S
 				itemsWithValidExemplars = append(itemsWithValidExemplars, item)
 			}
 			if len(itemsWithValidExemplars) > 0 {
-				(*bucketpile)[bucketKey] = itemsWithValidExemplars
+				bucketpile[bucketKey] = itemsWithValidExemplars
 			} else {
-				delete(*bucketpile, bucketKey)
+				delete(bucketpile, bucketKey)
 			}
 		}
 
@@ -182,12 +182,12 @@ func (e *statsProc) addSpanExemplar(td ptrace.Traces, fingerprint int64) {
 	}
 }
 
-func (e *statsProc) sendSpanStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*chqpb.SpanStats) {
-	wrapper := &chqpb.SpanStatsReport{
+func (e *statsProc) sendSpanStats(ctx context.Context, now time.Time, bucketpile map[uint64][]*chqpb.EventStats) {
+	wrapper := &chqpb.EventStatsReport{
 		SubmittedAt: now.UnixMilli(),
-		Stats:       []*chqpb.SpanStats{},
+		Stats:       []*chqpb.EventStats{},
 	}
-	for _, items := range *bucketpile {
+	for _, items := range bucketpile {
 		wrapper.Stats = append(wrapper.Stats, items...)
 	}
 
@@ -197,7 +197,7 @@ func (e *statsProc) sendSpanStats(ctx context.Context, now time.Time, bucketpile
 	e.logger.Debug("Sent log stats", zap.Int("count", len(wrapper.Stats)))
 }
 
-func (e *statsProc) postSpanStats(ctx context.Context, wrapper *chqpb.SpanStatsReport) error {
+func (e *statsProc) postSpanStats(ctx context.Context, wrapper *chqpb.EventStatsReport) error {
 	b, err := proto.Marshal(wrapper)
 	if err != nil {
 		return err

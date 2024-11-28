@@ -26,3 +26,7 @@ Cardinal is use-case focused, so instead of building a pipeline, you are configu
 solve real-world telemetry problems.
 
 See <url here> for more, including how to begin using Cardinal's collector and ecosystem.
+
+To run the chqnewrelicreceiver binary file 
+cd distribution
+GOOS=linux GOARCH=amd64 go build -o my-otel-collector .

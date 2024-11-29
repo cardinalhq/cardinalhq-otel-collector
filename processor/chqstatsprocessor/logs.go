@@ -202,8 +202,8 @@ func (e *statsProc) postLogStats(ctx context.Context, wrapper *chqpb.EventStatsR
 		return err
 	}
 	telemetry.HistogramRecord(e.statsBatchSize, int64(len(b)))
-	e.logger.Debug("Sending log stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
 	endpoint := e.config.Endpoint + "/api/v1/logstats"
+	e.logger.Info("Sending log stats", zap.String("endpoint", endpoint), zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
 	if err != nil {
 		return err

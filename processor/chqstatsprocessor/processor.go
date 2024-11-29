@@ -17,10 +17,10 @@ package chqstatsprocessor
 import (
 	"context"
 	"errors"
+	"fmt"
 	"go.etcd.io/bbolt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -95,9 +95,14 @@ type statsProc struct {
 }
 
 func getBoltDb(dbName string) (*bbolt.DB, error) {
-	tempDir := os.TempDir()
-	tempFile := filepath.Join(tempDir, dbName)
-	return bbolt.Open(tempFile, 0666, nil)
+	tmpDir := "/tmp"
+	if _, err := os.Stat(tmpDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(tmpDir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create /tmp directory: %w", err)
+		}
+	}
+	dbPath := tmpDir + "/metricStats.db"
+	return bbolt.Open(dbPath, 0666, nil)
 }
 
 func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsProc, error) {

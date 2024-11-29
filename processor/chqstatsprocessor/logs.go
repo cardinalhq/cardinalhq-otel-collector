@@ -82,6 +82,16 @@ func (e *statsProc) recordLog(ld plog.Logs, now time.Time, serviceName string, f
 		"log":      lr.Attributes(),
 	})
 
+	if lr.SeverityNumber() != plog.SeverityNumberUnspecified {
+		enrichmentAttributes = append(enrichmentAttributes, &chqpb.Attribute{
+			ContextId:   "log",
+			IsAttribute: false,
+			Type:        int32(pcommon.ValueTypeStr),
+			Key:         "severity",
+			Value:       lr.SeverityText(),
+		})
+	}
+
 	rec := &chqpb.EventStats{
 		ServiceName: serviceName,
 		Fingerprint: fingerprint,

@@ -20,6 +20,7 @@ import (
 	"go.etcd.io/bbolt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -93,6 +94,12 @@ type statsProc struct {
 	statsBatchSize          telemetry.DeferrableHistogram
 }
 
+func getBoltDb(dbName string) (*bbolt.DB, error) {
+	tempDir := os.TempDir()
+	tempFile := filepath.Join(tempDir, dbName)
+	return bbolt.Open(tempFile, 0666, nil)
+}
+
 func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsProc, error) {
 	dog := &statsProc{
 		id:                 set.ID,
@@ -116,7 +123,7 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 
 	switch ttype {
 	case "logs":
-		db, err := bbolt.Open("db/logStats", 0666, nil)
+		db, err := getBoltDb("logStats")
 		if err != nil {
 			return nil, err
 		}
@@ -128,7 +135,7 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 			chqpb.DeserializeEventStats)
 		dog.logger.Info("sending log statistics", zap.Duration("interval", config.Statistics.Interval))
 	case "metrics":
-		db, err := bbolt.Open("db/metricStats", 0666, nil)
+		db, err := getBoltDb("metricStats")
 		if err != nil {
 			return nil, err
 		}
@@ -140,7 +147,7 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 			chqpb.DeserializeMetricsStats)
 		dog.logger.Info("sending metric statistics", zap.Duration("interval", config.Statistics.Interval))
 	case "traces":
-		db, err := bbolt.Open("db/spanStats", 0666, nil)
+		db, err := getBoltDb("spanStats")
 		if err != nil {
 			return nil, err
 		}

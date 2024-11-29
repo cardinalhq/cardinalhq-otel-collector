@@ -95,7 +95,7 @@ type statsProc struct {
 }
 
 func getBoltDb(dbName string) (*bbolt.DB, error) {
-	tempDir := os.TempDir()
+	tempDir := "/app/scratch"
 	dbPath := filepath.Join(tempDir, dbName)
 	return bbolt.Open(dbPath, 0666, nil)
 }

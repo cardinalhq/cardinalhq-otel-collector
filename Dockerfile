@@ -18,7 +18,6 @@ RUN apk --update add ca-certificates
 FROM scratch
 
 ARG USER_UID=2000
-RUN mkdir -p /tmp && chmod 1777 /tmp
 USER ${USER_UID}:${USER_UID}
 
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt

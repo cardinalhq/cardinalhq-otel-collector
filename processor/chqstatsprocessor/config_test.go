@@ -22,9 +22,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/component"
-	"go.opentelemetry.io/collector/config/configcompression"
-	"go.opentelemetry.io/collector/config/confighttp"
-	"go.opentelemetry.io/collector/config/configopaque"
 	"go.opentelemetry.io/collector/otelcol/otelcoltest"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor/internal/metadata"
@@ -67,15 +64,6 @@ func TestConfig(t *testing.T) {
 	assert.NotNil(t, e.Statistics)
 	expected := &Config{
 		Statistics: StatisticsConfig{
-			ClientConfig: confighttp.ClientConfig{
-				Timeout:     500 * time.Millisecond,
-				Endpoint:    "http://localhost:8080",
-				Compression: configcompression.TypeZstd,
-				Headers: map[string]configopaque.String{
-					"Alice":      "Bob",
-					"User-Agent": "cardinalhq-otel-collector",
-				},
-			},
 			Interval: 100 * time.Second,
 			Phase:    "presample",
 		},

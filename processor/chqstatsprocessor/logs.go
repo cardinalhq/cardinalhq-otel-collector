@@ -90,6 +90,7 @@ func (e *statsProc) recordLog(ld plog.Logs, now time.Time, serviceName string, f
 		Count:       1,
 		Size:        logSize,
 		Attributes:  enrichmentAttributes,
+		TsHour:      now.Truncate(time.Hour).Unix(),
 	}
 
 	e.addLogExemplar(ld, fingerprint)

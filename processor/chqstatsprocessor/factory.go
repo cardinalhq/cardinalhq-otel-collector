@@ -19,9 +19,6 @@ import (
 	"time"
 
 	"go.opentelemetry.io/collector/component"
-	"go.opentelemetry.io/collector/config/configcompression"
-	"go.opentelemetry.io/collector/config/confighttp"
-	"go.opentelemetry.io/collector/config/configopaque"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/collector/processor/processorhelper"
@@ -49,13 +46,6 @@ func createDefaultConfig() component.Config {
 		Statistics: StatisticsConfig{
 			Phase:    "postsample",
 			Interval: defaultStatisticsInterval,
-			ClientConfig: confighttp.ClientConfig{
-				Timeout: 5 * time.Second,
-				Headers: map[string]configopaque.String{
-					"User-Agent": "cardinalhq-otel-collector",
-				},
-				Compression: configcompression.TypeGzip,
-			},
 		},
 	}
 }

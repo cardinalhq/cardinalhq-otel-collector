@@ -15,15 +15,12 @@
 package chqstatsprocessor
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"go.opentelemetry.io/collector/config/confighttp"
-	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
@@ -57,38 +54,4 @@ func TestPostMetricStats(t *testing.T) {
 
 	defer server.Close()
 
-	// Create a statsExporter instance with the mock server's URL and API key
-	processor := &statsProc{
-		config: &Config{
-			Statistics: StatisticsConfig{
-				ClientConfig: confighttp.ClientConfig{
-					Endpoint: server.URL,
-				},
-			},
-		},
-		httpClient: server.Client(),
-		logger:     zap.NewNop(),
-	}
-
-	// Create a mock MetricStatsReport
-	report := &chqpb.MetricStatsReport{
-		SubmittedAt: 1234567890,
-		Stats: []*chqpb.MetricStats{
-			{
-				MetricName:  "metric_name",
-				TagName:     "tag_name",
-				ServiceName: "service_name",
-				Phase:       2,
-				Count:       3,
-				//CardinalityEstimate: 4,
-				Hll: []byte{10, 20, 30},
-			},
-		},
-	}
-
-	// Call the postMetricStats function
-	err := processor.postMetricStats(context.Background(), report)
-
-	// Verify that no error occurred
-	assert.NoError(t, err)
 }

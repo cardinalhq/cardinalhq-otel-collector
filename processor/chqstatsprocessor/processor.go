@@ -94,6 +94,15 @@ type statsProc struct {
 	statsBatchSize          telemetry.DeferrableHistogram
 }
 
+func getBoltDb(processorId, dbName string) (*bbolt.DB, error) {
+	tempDir := "/app/scratch"
+	dbPath := filepath.Join(tempDir, processorId, dbName)
+	if err := os.MkdirAll(filepath.Dir(dbPath), 0755); err != nil {
+		return nil, err
+	}
+	return bbolt.Open(dbPath, 0666, nil)
+}
+
 func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsProc, error) {
 	dog := &statsProc{
 		id:                 set.ID,
@@ -114,13 +123,11 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 	} else {
 		dog.pbPhase = chqpb.Phase_POST
 	}
-	tempDir := "/app/scratch"
 
+	processorId := set.ID.String()
 	switch ttype {
 	case "logs":
-		dbPath := filepath.Join(tempDir, "logStats")
-		db, err := bbolt.Open(dbPath, 0666, nil)
-		dog.logger.Info("Opened log stats db", zap.String("path", dbPath), zap.Bool("exists", err == nil))
+		db, err := getBoltDb(processorId, "logStats")
 		if err != nil {
 			return nil, err
 		}
@@ -132,9 +139,7 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 			chqpb.DeserializeEventStats)
 		dog.logger.Info("sending log statistics", zap.Duration("interval", config.Statistics.Interval))
 	case "metrics":
-		dbPath := filepath.Join(tempDir, "metricStats")
-		db, err := bbolt.Open(dbPath, 0666, nil)
-		dog.logger.Info("Opened metric stats db", zap.String("path", dbPath), zap.Bool("exists", err == nil))
+		db, err := getBoltDb(processorId, "metricStats")
 		if err != nil {
 			return nil, err
 		}
@@ -146,9 +151,7 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 			chqpb.DeserializeMetricsStats)
 		dog.logger.Info("sending metric statistics", zap.Duration("interval", config.Statistics.Interval))
 	case "traces":
-		dbPath := filepath.Join(tempDir, "spanStats")
-		db, err := bbolt.Open(dbPath, 0666, nil)
-		dog.logger.Info("Opened trace stats db", zap.String("path", dbPath), zap.Bool("exists", err == nil))
+		db, err := getBoltDb(processorId, "spanStats")
 		if err != nil {
 			return nil, err
 		}
@@ -161,7 +164,7 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 	}
 
 	attrset := attribute.NewSet(
-		attribute.String("processor", set.ID.String()),
+		attribute.String("processor", processorId),
 		attribute.String("signal", ttype),
 	)
 	histogram, histogramError := telemetry.NewDeferrableHistogram(metadata.Meter(set.TelemetrySettings),

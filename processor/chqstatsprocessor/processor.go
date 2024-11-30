@@ -94,12 +94,6 @@ type statsProc struct {
 	statsBatchSize          telemetry.DeferrableHistogram
 }
 
-func getBoltDb(dbName string) (*bbolt.DB, error) {
-	tempDir := "/app/scratch"
-	dbPath := filepath.Join(tempDir, dbName)
-	return bbolt.Open(dbPath, 0666, nil)
-}
-
 func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsProc, error) {
 	dog := &statsProc{
 		id:                 set.ID,
@@ -120,10 +114,13 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 	} else {
 		dog.pbPhase = chqpb.Phase_POST
 	}
+	tempDir := "/app/scratch"
 
 	switch ttype {
 	case "logs":
-		db, err := getBoltDb("logStats")
+		dbPath := filepath.Join(tempDir, "logStats")
+		db, err := bbolt.Open(dbPath, 0666, nil)
+		dog.logger.Info("Opened log stats db", zap.String("path", dbPath), zap.Bool("exists", err == nil))
 		if err != nil {
 			return nil, err
 		}
@@ -135,7 +132,9 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 			chqpb.DeserializeEventStats)
 		dog.logger.Info("sending log statistics", zap.Duration("interval", config.Statistics.Interval))
 	case "metrics":
-		db, err := getBoltDb("metricStats")
+		dbPath := filepath.Join(tempDir, "metricStats")
+		db, err := bbolt.Open(dbPath, 0666, nil)
+		dog.logger.Info("Opened metric stats db", zap.String("path", dbPath), zap.Bool("exists", err == nil))
 		if err != nil {
 			return nil, err
 		}
@@ -147,7 +146,9 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 			chqpb.DeserializeMetricsStats)
 		dog.logger.Info("sending metric statistics", zap.Duration("interval", config.Statistics.Interval))
 	case "traces":
-		db, err := getBoltDb("spanStats")
+		dbPath := filepath.Join(tempDir, "spanStats")
+		db, err := bbolt.Open(dbPath, 0666, nil)
+		dog.logger.Info("Opened trace stats db", zap.String("path", dbPath), zap.Bool("exists", err == nil))
 		if err != nil {
 			return nil, err
 		}

@@ -253,7 +253,7 @@ func (e *statsProc) sendMetricStats(ctx context.Context, now time.Time, bucketpi
 				CardinalityEstimate: estimate,
 				Hll:                 b,
 				Attributes:          ms.Stats.Attributes,
-				TsHour:              now.Truncate(time.Hour).Unix(),
+				TsHour:              now.Truncate(time.Hour).UnixMilli(),
 			}
 			wrapper.Stats = append(wrapper.Stats, item)
 		}

@@ -139,11 +139,6 @@ func (e *statsProc) sendLogStatsWithExemplars(bucketpile map[uint64][]*chqpb.Eve
 			}
 		}
 
-		// clear the logExemplars map
-		e.exemplarsMu.Lock()
-		e.logExemplars = make(map[int64]plog.Logs)
-		e.exemplarsMu.Unlock()
-
 		// TODO should send this to a channel and have a separate goroutine send it
 		go e.sendLogStats(context.Background(), now, bucketpile)
 	}

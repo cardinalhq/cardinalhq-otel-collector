@@ -29,28 +29,29 @@ import (
 
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 func (e *statsProc) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
-	//now := time.Now()
-	//for i := 0; i < td.ResourceSpans().Len(); i++ {
-	//	rs := td.ResourceSpans().At(i)
-	//	serviceName := getServiceName(rs.Resource().Attributes())
-	//	for j := 0; j < rs.ScopeSpans().Len(); j++ {
-	//		iss := rs.ScopeSpans().At(j)
-	//		for k := 0; k < iss.Spans().Len(); k++ {
-	//			sr := iss.Spans().At(k)
-	//			isSlow := false
-	//			if isslowValue, found := sr.Attributes().Get(translate.CardinalFieldSpanIsSlow); found {
-	//				isSlow = isslowValue.Bool()
-	//			}
-	//			fingerprint := getFingerprint(sr.Attributes())
-	//			if err := e.recordSpan(td, now, serviceName, fingerprint, isSlow, sr, iss, rs); err != nil {
-	//				e.logger.Error("Failed to record span", zap.Error(err))
-	//			}
-	//		}
-	//	}
-	//}
+	now := time.Now()
+	for i := 0; i < td.ResourceSpans().Len(); i++ {
+		rs := td.ResourceSpans().At(i)
+		serviceName := getServiceName(rs.Resource().Attributes())
+		for j := 0; j < rs.ScopeSpans().Len(); j++ {
+			iss := rs.ScopeSpans().At(j)
+			for k := 0; k < iss.Spans().Len(); k++ {
+				sr := iss.Spans().At(k)
+				isSlow := false
+				if isslowValue, found := sr.Attributes().Get(translate.CardinalFieldSpanIsSlow); found {
+					isSlow = isslowValue.Bool()
+				}
+				fingerprint := getFingerprint(sr.Attributes())
+				if err := e.recordSpan(td, now, serviceName, fingerprint, isSlow, sr, iss, rs); err != nil {
+					e.logger.Error("Failed to record span", zap.Error(err))
+				}
+			}
+		}
+	}
 
 	return td, nil
 }
@@ -114,9 +115,9 @@ func (e *statsProc) recordSpan(
 	return nil
 }
 
-func (e *statsProc) sendSpanStatsWithExemplars(bucketpile map[uint64][]*chqpb.EventStats, now time.Time) {
-	if bucketpile != nil && len(bucketpile) > 0 {
-		for bucketKey, items := range bucketpile {
+func (e *statsProc) sendSpanStatsWithExemplars(bucketpile *map[uint64][]*chqpb.EventStats, now time.Time) {
+	if bucketpile != nil && len(*bucketpile) > 0 {
+		for bucketKey, items := range *bucketpile {
 			itemsWithValidExemplars := items[:0]
 			for _, item := range items {
 				e.exemplarsMu.RLock()
@@ -133,9 +134,9 @@ func (e *statsProc) sendSpanStatsWithExemplars(bucketpile map[uint64][]*chqpb.Ev
 				itemsWithValidExemplars = append(itemsWithValidExemplars, item)
 			}
 			if len(itemsWithValidExemplars) > 0 {
-				bucketpile[bucketKey] = itemsWithValidExemplars
+				(*bucketpile)[bucketKey] = itemsWithValidExemplars
 			} else {
-				delete(bucketpile, bucketKey)
+				delete(*bucketpile, bucketKey)
 			}
 		}
 
@@ -178,12 +179,12 @@ func (e *statsProc) addSpanExemplar(td ptrace.Traces, fingerprint int64) {
 	}
 }
 
-func (e *statsProc) sendSpanStats(ctx context.Context, now time.Time, bucketpile map[uint64][]*chqpb.EventStats) {
+func (e *statsProc) sendSpanStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*chqpb.EventStats) {
 	wrapper := &chqpb.EventStatsReport{
 		SubmittedAt: now.UnixMilli(),
 		Stats:       []*chqpb.EventStats{},
 	}
-	for _, items := range bucketpile {
+	for _, items := range *bucketpile {
 		wrapper.Stats = append(wrapper.Stats, items...)
 	}
 

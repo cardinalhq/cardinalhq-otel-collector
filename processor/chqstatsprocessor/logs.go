@@ -50,22 +50,22 @@ func getFingerprint(l pcommon.Map) int64 {
 }
 
 func (e *statsProc) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
-	//now := time.Now()
+	now := time.Now()
 
-	//for i := 0; i < ld.ResourceLogs().Len(); i++ {
-	//	rl := ld.ResourceLogs().At(i)
-	//	serviceName := getServiceName(rl.Resource().Attributes())
-	//	for j := 0; j < rl.ScopeLogs().Len(); j++ {
-	//		sl := rl.ScopeLogs().At(j)
-	//		for k := 0; k < sl.LogRecords().Len(); k++ {
-	//			lr := sl.LogRecords().At(k)
-	//			fp := getFingerprint(lr.Attributes())
-	//			if err := e.recordLog(ld, now, serviceName, fp, rl, sl, lr); err != nil {
-	//				e.logger.Error("Failed to record log", zap.Error(err))
-	//			}
-	//		}
-	//	}
-	//}
+	for i := 0; i < ld.ResourceLogs().Len(); i++ {
+		rl := ld.ResourceLogs().At(i)
+		serviceName := getServiceName(rl.Resource().Attributes())
+		for j := 0; j < rl.ScopeLogs().Len(); j++ {
+			sl := rl.ScopeLogs().At(j)
+			for k := 0; k < sl.LogRecords().Len(); k++ {
+				lr := sl.LogRecords().At(k)
+				fp := getFingerprint(lr.Attributes())
+				if err := e.recordLog(ld, now, serviceName, fp, rl, sl, lr); err != nil {
+					e.logger.Error("Failed to record log", zap.Error(err))
+				}
+			}
+		}
+	}
 
 	return ld, nil
 }
@@ -114,9 +114,9 @@ func (e *statsProc) recordLog(ld plog.Logs, now time.Time, serviceName string, f
 	return nil
 }
 
-func (e *statsProc) sendLogStatsWithExemplars(bucketpile map[uint64][]*chqpb.EventStats, now time.Time) {
-	if bucketpile != nil && len(bucketpile) > 0 {
-		for bucketKey, items := range bucketpile {
+func (e *statsProc) sendLogStatsWithExemplars(bucketpile *map[uint64][]*chqpb.EventStats, now time.Time) {
+	if bucketpile != nil && len(*bucketpile) > 0 {
+		for bucketKey, items := range *bucketpile {
 			itemsWithValidExemplars := items[:0]
 			for _, item := range items {
 				e.exemplarsMu.RLock()
@@ -134,9 +134,9 @@ func (e *statsProc) sendLogStatsWithExemplars(bucketpile map[uint64][]*chqpb.Eve
 				itemsWithValidExemplars = append(itemsWithValidExemplars, item)
 			}
 			if len(itemsWithValidExemplars) > 0 {
-				(bucketpile)[bucketKey] = itemsWithValidExemplars
+				(*bucketpile)[bucketKey] = itemsWithValidExemplars
 			} else {
-				delete(bucketpile, bucketKey)
+				delete(*bucketpile, bucketKey)
 			}
 		}
 
@@ -180,12 +180,12 @@ func (e *statsProc) addLogExemplar(ld plog.Logs, fingerprint int64) {
 	}
 }
 
-func (e *statsProc) sendLogStats(ctx context.Context, now time.Time, bucketpile map[uint64][]*chqpb.EventStats) {
+func (e *statsProc) sendLogStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*chqpb.EventStats) {
 	wrapper := &chqpb.EventStatsReport{
 		SubmittedAt: now.UnixMilli(),
 		Stats:       []*chqpb.EventStats{},
 	}
-	for _, items := range bucketpile {
+	for _, items := range *bucketpile {
 		wrapper.Stats = append(wrapper.Stats, items...)
 	}
 

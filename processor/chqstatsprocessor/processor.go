@@ -17,16 +17,16 @@ package chqstatsprocessor
 import (
 	"context"
 	"errors"
-	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor/internal/metadata"
-	"github.com/cardinalhq/oteltools/pkg/telemetry"
-	"go.etcd.io/bbolt"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 	"net/http"
 	"os"
-	"path/filepath"
 	"sync"
 	"sync/atomic"
+	"time"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor/internal/metadata"
+	"github.com/cardinalhq/oteltools/pkg/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/pmetric"
@@ -93,15 +93,6 @@ type statsProc struct {
 	recordLatency           telemetry.DeferrableHistogram
 }
 
-func getBoltDb(processorId, dbName string) (*bbolt.DB, error) {
-	tempDir := "/app/scratch"
-	dbPath := filepath.Join(tempDir, processorId, dbName)
-	if err := os.MkdirAll(filepath.Dir(dbPath), 0755); err != nil {
-		return nil, err
-	}
-	return bbolt.Open(dbPath, 0666, nil)
-}
-
 func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsProc, error) {
 	dog := &statsProc{
 		id:                 set.ID,
@@ -124,42 +115,17 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 	}
 
 	processorId := set.ID.String()
+	now := time.Now()
 	switch ttype {
 	case "logs":
-		//db, err := getBoltDb(processorId, "logStats")
-		//if err != nil {
-		//	return nil, err
-		//}
-		//dog.logstats = stats.NewStatsCombiner[*chqpb.EventStats](db,
-		//	"logs",
-		//	time.Now(),
-		//	config.Statistics.Interval,
-		//	chqpb.SerializeEventStats,
-		//	chqpb.DeserializeEventStats)
-		dog.logger.Info("sending log statistics", zap.Duration("interval", config.Statistics.Interval))
+		dog.logstats = stats.NewStatsCombiner[*chqpb.EventStats](now, config.Statistics.Interval)
+		dog.logger.Info("Initialized LogStats Combiner", zap.Duration("interval", config.Statistics.Interval))
 	case "metrics":
-		//db, err := getBoltDb(processorId, "metricStats")
-		//if err != nil {
-		//	return nil, err
-		//}
-		//dog.metricstats = stats.NewStatsCombiner[*chqpb.MetricStatsWrapper](db,
-		//	"metrics",
-		//	time.Now(),
-		//	config.Statistics.Interval,
-		//	chqpb.SerializeMetricsStats,
-		//	chqpb.DeserializeMetricsStats)
-		dog.logger.Info("sending metric statistics", zap.Duration("interval", config.Statistics.Interval))
+		dog.metricstats = stats.NewStatsCombiner[*chqpb.MetricStatsWrapper](now, config.Statistics.Interval)
+		dog.logger.Info("Initialized SpanStats Combiner", zap.Duration("interval", config.Statistics.Interval))
 	case "traces":
-		//db, err := getBoltDb(processorId, "spanStats")
-		//if err != nil {
-		//	return nil, err
-		//}
-		//dog.spanStats = stats.NewStatsCombiner[*chqpb.EventStats](db,
-		//	"traces",
-		//	time.Now(),
-		//	config.Statistics.Interval,
-		//	chqpb.SerializeEventStats,
-		//	chqpb.DeserializeEventStats)
+		dog.spanStats = stats.NewStatsCombiner[*chqpb.EventStats](now, config.Statistics.Interval)
+		dog.logger.Info("Initialized SpanStats Combiner", zap.Duration("interval", config.Statistics.Interval))
 	}
 
 	attrset := attribute.NewSet(

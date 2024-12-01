@@ -36,51 +36,51 @@ import (
 )
 
 func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
-	now := time.Now()
-	environment := translate.EnvironmentFromEnv()
-
-	for i := 0; i < md.ResourceMetrics().Len(); i++ {
-		rm := md.ResourceMetrics().At(i)
-		serviceName := getServiceName(rm.Resource().Attributes())
-		rattr := rm.Resource().Attributes()
-		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
-			ilm := rm.ScopeMetrics().At(j)
-			sattr := ilm.Scope().Attributes()
-			for k := 0; k < ilm.Metrics().Len(); k++ {
-				m := ilm.Metrics().At(k)
-				metricName := m.Name()
-				extra := map[string]string{"name": m.Name()}
-
-				switch m.Type() {
-				case pmetric.MetricTypeGauge:
-					for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
-						dp := m.Gauge().DataPoints().At(l)
-						e.processDatapoint(md, now, metricName, pmetric.MetricTypeGauge.String(), serviceName, extra, environment, rattr, sattr, dp.Attributes())
-					}
-				case pmetric.MetricTypeSum:
-					for l := 0; l < m.Sum().DataPoints().Len(); l++ {
-						dp := m.Sum().DataPoints().At(l)
-						e.processDatapoint(md, now, metricName, pmetric.MetricTypeSum.String(), serviceName, extra, environment, rattr, sattr, dp.Attributes())
-					}
-				case pmetric.MetricTypeHistogram:
-					for l := 0; l < m.Histogram().DataPoints().Len(); l++ {
-						dp := m.Histogram().DataPoints().At(l)
-						e.processDatapoint(md, now, metricName, pmetric.MetricTypeHistogram.String(), serviceName, extra, environment, rattr, sattr, dp.Attributes())
-					}
-				case pmetric.MetricTypeSummary:
-					for l := 0; l < m.Summary().DataPoints().Len(); l++ {
-						dp := m.Summary().DataPoints().At(l)
-						e.processDatapoint(md, now, metricName, pmetric.MetricTypeSummary.String(), serviceName, extra, environment, rattr, sattr, dp.Attributes())
-					}
-				case pmetric.MetricTypeExponentialHistogram:
-					for l := 0; l < m.ExponentialHistogram().DataPoints().Len(); l++ {
-						dp := m.ExponentialHistogram().DataPoints().At(l)
-						e.processDatapoint(md, now, metricName, pmetric.MetricTypeExponentialHistogram.String(), serviceName, extra, environment, rattr, sattr, dp.Attributes())
-					}
-				}
-			}
-		}
-	}
+	//now := time.Now()
+	//environment := translate.EnvironmentFromEnv()
+	//
+	//for i := 0; i < md.ResourceMetrics().Len(); i++ {
+	//	rm := md.ResourceMetrics().At(i)
+	//	serviceName := getServiceName(rm.Resource().Attributes())
+	//	rattr := rm.Resource().Attributes()
+	//	for j := 0; j < rm.ScopeMetrics().Len(); j++ {
+	//		ilm := rm.ScopeMetrics().At(j)
+	//		sattr := ilm.Scope().Attributes()
+	//		for k := 0; k < ilm.Metrics().Len(); k++ {
+	//			m := ilm.Metrics().At(k)
+	//			metricName := m.Name()
+	//			extra := map[string]string{"name": m.Name()}
+	//
+	//			switch m.Type() {
+	//			case pmetric.MetricTypeGauge:
+	//				for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
+	//					dp := m.Gauge().DataPoints().At(l)
+	//					e.processDatapoint(md, now, metricName, pmetric.MetricTypeGauge.String(), serviceName, extra, environment, rattr, sattr, dp.Attributes())
+	//				}
+	//			case pmetric.MetricTypeSum:
+	//				for l := 0; l < m.Sum().DataPoints().Len(); l++ {
+	//					dp := m.Sum().DataPoints().At(l)
+	//					e.processDatapoint(md, now, metricName, pmetric.MetricTypeSum.String(), serviceName, extra, environment, rattr, sattr, dp.Attributes())
+	//				}
+	//			case pmetric.MetricTypeHistogram:
+	//				for l := 0; l < m.Histogram().DataPoints().Len(); l++ {
+	//					dp := m.Histogram().DataPoints().At(l)
+	//					e.processDatapoint(md, now, metricName, pmetric.MetricTypeHistogram.String(), serviceName, extra, environment, rattr, sattr, dp.Attributes())
+	//				}
+	//			case pmetric.MetricTypeSummary:
+	//				for l := 0; l < m.Summary().DataPoints().Len(); l++ {
+	//					dp := m.Summary().DataPoints().At(l)
+	//					e.processDatapoint(md, now, metricName, pmetric.MetricTypeSummary.String(), serviceName, extra, environment, rattr, sattr, dp.Attributes())
+	//				}
+	//			case pmetric.MetricTypeExponentialHistogram:
+	//				for l := 0; l < m.ExponentialHistogram().DataPoints().Len(); l++ {
+	//					dp := m.ExponentialHistogram().DataPoints().At(l)
+	//					e.processDatapoint(md, now, metricName, pmetric.MetricTypeExponentialHistogram.String(), serviceName, extra, environment, rattr, sattr, dp.Attributes())
+	//				}
+	//			}
+	//		}
+	//	}
+	//}
 
 	return md, nil
 }

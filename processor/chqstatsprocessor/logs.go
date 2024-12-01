@@ -50,22 +50,22 @@ func getFingerprint(l pcommon.Map) int64 {
 }
 
 func (e *statsProc) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
-	now := time.Now()
-
-	for i := 0; i < ld.ResourceLogs().Len(); i++ {
-		rl := ld.ResourceLogs().At(i)
-		serviceName := getServiceName(rl.Resource().Attributes())
-		for j := 0; j < rl.ScopeLogs().Len(); j++ {
-			sl := rl.ScopeLogs().At(j)
-			for k := 0; k < sl.LogRecords().Len(); k++ {
-				lr := sl.LogRecords().At(k)
-				fp := getFingerprint(lr.Attributes())
-				if err := e.recordLog(ld, now, serviceName, fp, rl, sl, lr); err != nil {
-					e.logger.Error("Failed to record log", zap.Error(err))
-				}
-			}
-		}
-	}
+	//now := time.Now()
+	//
+	//for i := 0; i < ld.ResourceLogs().Len(); i++ {
+	//	rl := ld.ResourceLogs().At(i)
+	//	serviceName := getServiceName(rl.Resource().Attributes())
+	//	for j := 0; j < rl.ScopeLogs().Len(); j++ {
+	//		sl := rl.ScopeLogs().At(j)
+	//		for k := 0; k < sl.LogRecords().Len(); k++ {
+	//			lr := sl.LogRecords().At(k)
+	//			fp := getFingerprint(lr.Attributes())
+	//			if err := e.recordLog(ld, now, serviceName, fp, rl, sl, lr); err != nil {
+	//				e.logger.Error("Failed to record log", zap.Error(err))
+	//			}
+	//		}
+	//	}
+	//}
 
 	return ld, nil
 }

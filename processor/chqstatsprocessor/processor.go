@@ -92,6 +92,7 @@ type statsProc struct {
 	metricsStatsEnrichments atomic.Pointer[[]ottl.StatsEnrichment]
 	tracesStatsEnrichments  atomic.Pointer[[]ottl.StatsEnrichment]
 	statsBatchSize          telemetry.DeferrableHistogram
+	recordLatency           telemetry.DeferrableHistogram
 }
 
 func getBoltDb(processorId, dbName string) (*bbolt.DB, error) {
@@ -178,6 +179,18 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 		return nil, histogramError
 	}
 	dog.statsBatchSize = histogram
+
+	recordLatencyHistogram, recordLatencyHistogramError := telemetry.NewDeferrableHistogram(metadata.Meter(set.TelemetrySettings),
+		"record_latency",
+		[]metric.Int64HistogramOption{},
+		[]metric.RecordOption{
+			metric.WithAttributeSet(attrset),
+		},
+	)
+	if recordLatencyHistogramError != nil {
+		return nil, recordLatencyHistogramError
+	}
+	dog.recordLatency = recordLatencyHistogram
 
 	return dog, nil
 }

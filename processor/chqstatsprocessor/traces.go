@@ -107,6 +107,7 @@ func (e *statsProc) recordSpan(
 	e.addSpanExemplar(td, fingerprint)
 
 	bucketpile, err := e.spanStats.Record(now, rec, "", 1, spanSize)
+	telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
 	if err != nil {
 		return err
 	}

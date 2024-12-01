@@ -150,6 +150,7 @@ func (e *statsProc) recordMetric(now time.Time, metricName string, metricType st
 	}
 
 	bucketpile, err := e.metricstats.Record(now, wrapper, tagValue, count, 0)
+	telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
 	if err != nil {
 		return err
 	}

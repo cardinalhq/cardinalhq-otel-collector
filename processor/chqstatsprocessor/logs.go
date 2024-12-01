@@ -119,8 +119,11 @@ func (e *statsProc) sendLogStatsWithExemplars(bucketpile map[uint64][]*chqpb.Eve
 			itemsWithValidExemplars := items[:0]
 			for _, item := range items {
 				e.exemplarsMu.RLock()
-				exemplar := e.logExemplars[item.Fingerprint]
+				exemplar, found := e.logExemplars[item.Fingerprint]
 				e.exemplarsMu.RUnlock()
+				if !found {
+					continue
+				}
 
 				marshalled, err := e.jsonMarshaller.logsMarshaler.MarshalLogs(exemplar)
 				if err != nil {

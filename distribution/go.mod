@@ -4,7 +4,7 @@ module go.opentelemetry.io/collector/cmd/builder
 
 go 1.23
 
-toolchain go1.23.2
+toolchain go1.23.3
 
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.114.0

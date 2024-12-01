@@ -29,28 +29,29 @@ import (
 
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 func (e *statsProc) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
-	//now := time.Now()
-	//for i := 0; i < td.ResourceSpans().Len(); i++ {
-	//	rs := td.ResourceSpans().At(i)
-	//	serviceName := getServiceName(rs.Resource().Attributes())
-	//	for j := 0; j < rs.ScopeSpans().Len(); j++ {
-	//		iss := rs.ScopeSpans().At(j)
-	//		for k := 0; k < iss.Spans().Len(); k++ {
-	//			sr := iss.Spans().At(k)
-	//			isSlow := false
-	//			if isslowValue, found := sr.Attributes().Get(translate.CardinalFieldSpanIsSlow); found {
-	//				isSlow = isslowValue.Bool()
-	//			}
-	//			fingerprint := getFingerprint(sr.Attributes())
-	//			if err := e.recordSpan(td, now, serviceName, fingerprint, isSlow, sr, iss, rs); err != nil {
-	//				e.logger.Error("Failed to record span", zap.Error(err))
-	//			}
-	//		}
-	//	}
-	//}
+	now := time.Now()
+	for i := 0; i < td.ResourceSpans().Len(); i++ {
+		rs := td.ResourceSpans().At(i)
+		serviceName := getServiceName(rs.Resource().Attributes())
+		for j := 0; j < rs.ScopeSpans().Len(); j++ {
+			iss := rs.ScopeSpans().At(j)
+			for k := 0; k < iss.Spans().Len(); k++ {
+				sr := iss.Spans().At(k)
+				isSlow := false
+				if isslowValue, found := sr.Attributes().Get(translate.CardinalFieldSpanIsSlow); found {
+					isSlow = isslowValue.Bool()
+				}
+				fingerprint := getFingerprint(sr.Attributes())
+				if err := e.recordSpan(td, now, serviceName, fingerprint, isSlow, sr, iss, rs); err != nil {
+					e.logger.Error("Failed to record span", zap.Error(err))
+				}
+			}
+		}
+	}
 
 	return td, nil
 }

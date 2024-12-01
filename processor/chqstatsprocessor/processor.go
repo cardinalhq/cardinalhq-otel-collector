@@ -17,18 +17,16 @@ package chqstatsprocessor
 import (
 	"context"
 	"errors"
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor/internal/metadata"
+	"github.com/cardinalhq/oteltools/pkg/telemetry"
 	"go.etcd.io/bbolt"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
-	"time"
-
-	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor/internal/metadata"
-	"github.com/cardinalhq/oteltools/pkg/telemetry"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/pmetric"
@@ -128,40 +126,40 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 	processorId := set.ID.String()
 	switch ttype {
 	case "logs":
-		db, err := getBoltDb(processorId, "logStats")
-		if err != nil {
-			return nil, err
-		}
-		dog.logstats = stats.NewStatsCombiner[*chqpb.EventStats](db,
-			"logs",
-			time.Now(),
-			config.Statistics.Interval,
-			chqpb.SerializeEventStats,
-			chqpb.DeserializeEventStats)
+		//db, err := getBoltDb(processorId, "logStats")
+		//if err != nil {
+		//	return nil, err
+		//}
+		//dog.logstats = stats.NewStatsCombiner[*chqpb.EventStats](db,
+		//	"logs",
+		//	time.Now(),
+		//	config.Statistics.Interval,
+		//	chqpb.SerializeEventStats,
+		//	chqpb.DeserializeEventStats)
 		dog.logger.Info("sending log statistics", zap.Duration("interval", config.Statistics.Interval))
 	case "metrics":
-		db, err := getBoltDb(processorId, "metricStats")
-		if err != nil {
-			return nil, err
-		}
-		dog.metricstats = stats.NewStatsCombiner[*chqpb.MetricStatsWrapper](db,
-			"metrics",
-			time.Now(),
-			config.Statistics.Interval,
-			chqpb.SerializeMetricsStats,
-			chqpb.DeserializeMetricsStats)
+		//db, err := getBoltDb(processorId, "metricStats")
+		//if err != nil {
+		//	return nil, err
+		//}
+		//dog.metricstats = stats.NewStatsCombiner[*chqpb.MetricStatsWrapper](db,
+		//	"metrics",
+		//	time.Now(),
+		//	config.Statistics.Interval,
+		//	chqpb.SerializeMetricsStats,
+		//	chqpb.DeserializeMetricsStats)
 		dog.logger.Info("sending metric statistics", zap.Duration("interval", config.Statistics.Interval))
 	case "traces":
-		db, err := getBoltDb(processorId, "spanStats")
-		if err != nil {
-			return nil, err
-		}
-		dog.spanStats = stats.NewStatsCombiner[*chqpb.EventStats](db,
-			"traces",
-			time.Now(),
-			config.Statistics.Interval,
-			chqpb.SerializeEventStats,
-			chqpb.DeserializeEventStats)
+		//db, err := getBoltDb(processorId, "spanStats")
+		//if err != nil {
+		//	return nil, err
+		//}
+		//dog.spanStats = stats.NewStatsCombiner[*chqpb.EventStats](db,
+		//	"traces",
+		//	time.Now(),
+		//	config.Statistics.Interval,
+		//	chqpb.SerializeEventStats,
+		//	chqpb.DeserializeEventStats)
 	}
 
 	attrset := attribute.NewSet(

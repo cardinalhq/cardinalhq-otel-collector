@@ -337,8 +337,8 @@ github.com/bmatcuk/doublestar/v4 v4.7.1 h1:fdDeAqgT47acgwd9bd9HxJRDmc9UAmPpc+2m0
 github.com/bmatcuk/doublestar/v4 v4.7.1/go.mod h1:xBQ8jztBU6kakFMg+8WGxn0c6z1fTSPVIjEY1Wr7jzc=
 github.com/briandowns/spinner v1.23.0 h1:alDF2guRWqa/FOZZYWjlMIx2L6H0wyewPxo/CH4Pt2A=
 github.com/briandowns/spinner v1.23.0/go.mod h1:rPG4gmXeN3wQV/TsAY4w8lPdIM6RX3yqeBQJSrbXjuE=
-github.com/cardinalhq/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver v0.0.0-20241127201255-b2e2aa5982ab h1:ihu/mxx2bjQyNo+gCqe8jNDeIY/CCfW6HcgiLewRPvc=
-github.com/cardinalhq/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver v0.0.0-20241127201255-b2e2aa5982ab/go.mod h1:zAQtfADDmycqUKMJGVtZp3ttU2L4PZ3GgSBl8jp9Jek=
+github.com/cardinalhq/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver v0.0.0-20241201191338-311da71f0df5 h1:iGRMAiKEeg2XNu8hcYmoGFLS/6lnotiTV6IUK6EdsTA=
+github.com/cardinalhq/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver v0.0.0-20241201191338-311da71f0df5/go.mod h1:zAQtfADDmycqUKMJGVtZp3ttU2L4PZ3GgSBl8jp9Jek=
 github.com/cardinalhq/oteltools v0.2.13 h1:fGvaXUbSTwWUYDhFRk5TBIzJNQ85HZ6GvGtWMLSH1MU=
 github.com/cardinalhq/oteltools v0.2.13/go.mod h1:Ze17zD25bmVcXGOddsQJTX9ExtUhxNomX0he2kKSmK8=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=

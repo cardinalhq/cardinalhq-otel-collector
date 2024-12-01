@@ -7,7 +7,7 @@ toolchain go1.23.3
 require (
 	github.com/DataDog/datadog-agent/pkg/proto v0.59.0
 	github.com/barweiss/go-tuple v1.1.2
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	github.com/vmihailenco/msgpack/v4 v4.3.13
 	go.opentelemetry.io/collector/component v0.114.0
 	go.opentelemetry.io/collector/config/confighttp v0.114.0

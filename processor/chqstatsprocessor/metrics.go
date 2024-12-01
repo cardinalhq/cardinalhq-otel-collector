@@ -142,6 +142,7 @@ func (e *statsProc) recordMetric(now time.Time, metricName string, metricType st
 		ProcessorId: e.id.Name(),
 		Count:       int64(count),
 		Attributes:  attributes,
+		TsHour:      now.Truncate(time.Hour).UnixMilli(),
 	}
 
 	wrapper := &chqpb.MetricStatsWrapper{

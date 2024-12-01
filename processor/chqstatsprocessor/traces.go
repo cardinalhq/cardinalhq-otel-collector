@@ -102,7 +102,7 @@ func (e *statsProc) recordSpan(
 		ProcessorId: e.id.Name(),
 		Count:       1,
 		Attributes:  enrichmentAttributes,
-		TsHour:      now.Truncate(time.Hour).Unix(),
+		TsHour:      now.Truncate(time.Hour).UnixMilli(),
 	}
 	e.addSpanExemplar(td, fingerprint)
 

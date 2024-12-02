@@ -107,7 +107,7 @@ func (e *statsProc) recordDatapoint(lm pmetric.Metrics, now time.Time, metricNam
 		"scope":    sattr,
 		"metric":   dpAttr,
 	})
-	e.addMetricsExemplar(lm, serviceName, metricName, metricType)
+	//e.addMetricsExemplar(lm, serviceName, metricName, metricType)
 
 	rattr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {

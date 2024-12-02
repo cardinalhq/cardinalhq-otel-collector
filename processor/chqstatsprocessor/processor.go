@@ -77,7 +77,7 @@ type statsProc struct {
 
 	logstats    *stats.StatsCombiner[*chqpb.EventStats]
 	spanStats   *stats.StatsCombiner[*chqpb.EventStats]
-	metricstats *stats.StatsCombiner[*chqpb.MetricStatsWrapper]
+	metricstats *chqpb.MetricStatsCache
 
 	exemplarsMu     sync.RWMutex
 	logExemplars    map[int64]plog.Logs
@@ -121,8 +121,8 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 		dog.logstats = stats.NewStatsCombiner[*chqpb.EventStats](now, config.Statistics.Interval)
 		dog.logger.Info("Initialized LogStats Combiner", zap.Duration("interval", config.Statistics.Interval))
 	case "metrics":
-		dog.metricstats = stats.NewStatsCombiner[*chqpb.MetricStatsWrapper](now, config.Statistics.Interval)
-		dog.logger.Info("Initialized SpanStats Combiner", zap.Duration("interval", config.Statistics.Interval))
+		dog.metricstats = chqpb.NewMetricStatsCache()
+		dog.logger.Info("Initialized MetricStatsCache", zap.Duration("interval", config.Statistics.Interval))
 	case "traces":
 		dog.spanStats = stats.NewStatsCombiner[*chqpb.EventStats](now, config.Statistics.Interval)
 		dog.logger.Info("Initialized SpanStats Combiner", zap.Duration("interval", config.Statistics.Interval))

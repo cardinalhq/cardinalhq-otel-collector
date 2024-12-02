@@ -107,7 +107,7 @@ func (e *statsProc) recordDatapoint(lm pmetric.Metrics, now time.Time, metricNam
 		"scope":    sattr,
 		"metric":   dpAttr,
 	})
-	//e.addMetricsExemplar(lm, serviceName, metricName, metricType)
+	e.addMetricsExemplar(lm, serviceName, metricName, metricType)
 
 	rattr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
@@ -151,29 +151,57 @@ func (e *statsProc) recordMetric(now time.Time, metricName string, metricType st
 		return err
 	}
 	if stats != nil && len(stats) > 0 {
-		//e.exemplarsMu.RLock()
-		//
-		//var marshalledExemplars []*chqpb.MetricExemplar
-		//for fingerprint, exemplar := range e.metricExemplars {
-		//	b, err := e.jsonMarshaller.metricsMarshaler.MarshalMetrics(exemplar)
-		//	if err != nil {
-		//		e.logger.Error("Failed to marshal metric exemplars", zap.Error(err))
-		//		continue
-		//	}
-		//	split := strings.Split(fingerprint, ":")
-		//	marshalledExemplars = append(marshalledExemplars, &chqpb.MetricExemplar{
-		//		ServiceName: split[0],
-		//		MetricName:  split[1],
-		//		MetricType:  split[2],
-		//		Exemplar:    b,
-		//	})
-		//}
-		//e.exemplarsMu.RUnlock()
+		e.exemplarsMu.RLock()
+		var marshalledExemplars []*chqpb.MetricExemplar
+		for fingerprint, exemplar := range e.metricExemplars {
+			split := strings.Split(fingerprint, ":")
+			sName := split[0]
+			mName := split[1]
+			mType := split[2]
+
+			copyObj := pmetric.NewMetrics()
+			exemplar.CopyTo(copyObj)
+			// iterate over all 3 levels, and just filter any metrics records that don't match the fingerprint
+			foundFp := false // make sure we only add one record matching the fingerprint.
+			copyObj.ResourceMetrics().RemoveIf(func(rsp pmetric.ResourceMetrics) bool {
+				incomingServiceName := getServiceName(rsp.Resource().Attributes())
+				rsp.ScopeMetrics().RemoveIf(func(ss pmetric.ScopeMetrics) bool {
+					ss.Metrics().RemoveIf(func(lr pmetric.Metric) bool {
+						matched := incomingServiceName == sName && lr.Name() == mName && lr.Type().String() == mType
+						if matched {
+							if !foundFp {
+								foundFp = true
+								return false
+							}
+							return true
+						}
+						return true
+					})
+					return ss.Metrics().Len() == 0
+				})
+				return rsp.ScopeMetrics().Len() == 0
+			})
+
+			if copyObj.ResourceMetrics().Len() > 0 {
+				e.exemplarsMu.Lock()
+				marshalled, me := e.jsonMarshaller.metricsMarshaler.MarshalMetrics(copyObj)
+				if me == nil {
+					marshalledExemplars = append(marshalledExemplars, &chqpb.MetricExemplar{
+						ServiceName: sName,
+						MetricName:  mName,
+						MetricType:  mType,
+						Exemplar:    marshalled,
+					})
+				}
+				e.exemplarsMu.Unlock()
+			}
+		}
+		e.exemplarsMu.RUnlock()
 
 		statsReport := &chqpb.MetricStatsReport{
 			SubmittedAt: now.UnixMilli(),
 			Stats:       stats,
-			//Exemplars:   marshalledExemplars,
+			Exemplars:   marshalledExemplars,
 		}
 		// TODO should send this to a channel and have a separate goroutine send it
 		go func() {
@@ -189,39 +217,10 @@ func (e *statsProc) recordMetric(now time.Time, metricName string, metricType st
 func (e *statsProc) addMetricsExemplar(lm pmetric.Metrics, serviceName, metricName, metricType string) {
 	fingerprint := serviceName + ":" + metricName + ":" + metricType
 	e.exemplarsMu.RLock()
-	_, found := e.metricExemplars[fingerprint]
-	e.exemplarsMu.RUnlock()
-
-	if !found {
-		copyObj := pmetric.NewMetrics()
-		lm.CopyTo(copyObj)
-		// iterate over all 3 levels, and just filter any metrics records that don't match the fingerprint
-		foundFp := false // make sure we only add one record matching the fingerprint.
-		copyObj.ResourceMetrics().RemoveIf(func(rsp pmetric.ResourceMetrics) bool {
-			incomingServiceName := getServiceName(rsp.Resource().Attributes())
-			rsp.ScopeMetrics().RemoveIf(func(ss pmetric.ScopeMetrics) bool {
-				ss.Metrics().RemoveIf(func(lr pmetric.Metric) bool {
-					incomingFingerprint := incomingServiceName + ":" + lr.Name() + ":" + lr.Type().String()
-					if incomingFingerprint == fingerprint {
-						if !foundFp {
-							foundFp = true
-							return false
-						}
-						return true
-					}
-					return true
-				})
-				return ss.Metrics().Len() == 0
-			})
-			return rsp.ScopeMetrics().Len() == 0
-		})
-
-		if copyObj.ResourceMetrics().Len() > 0 {
-			e.exemplarsMu.Lock()
-			e.metricExemplars[fingerprint] = copyObj
-			e.exemplarsMu.Unlock()
-		}
+	if _, found := e.metricExemplars[fingerprint]; !found {
+		e.metricExemplars[fingerprint] = lm
 	}
+	e.exemplarsMu.RUnlock()
 }
 
 func (e *statsProc) postMetricStats(ctx context.Context, wrapper *chqpb.MetricStatsReport) error {

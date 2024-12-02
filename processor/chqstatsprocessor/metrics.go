@@ -191,6 +191,7 @@ func (e *statsProc) recordMetric(now time.Time, metricName string, metricType st
 						ServiceName: sName,
 						MetricName:  mName,
 						MetricType:  mType,
+						ProcessorId: e.id.Name(),
 						Exemplar:    marshalled,
 					})
 				}

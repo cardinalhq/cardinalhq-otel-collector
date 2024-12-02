@@ -151,7 +151,9 @@ func (e *statsProc) recordMetric(now time.Time, metricName string, metricType st
 		return err
 	}
 	if stats != nil && len(stats) > 0 {
-		e.exemplarsMu.RLock()
+		e.exemplarsMu.Lock()
+		defer e.exemplarsMu.Unlock()
+
 		var marshalledExemplars []*chqpb.MetricExemplar
 		for fingerprint, exemplar := range e.metricExemplars {
 			split := strings.Split(fingerprint, ":")
@@ -183,7 +185,6 @@ func (e *statsProc) recordMetric(now time.Time, metricName string, metricType st
 			})
 
 			if copyObj.ResourceMetrics().Len() > 0 {
-				e.exemplarsMu.Lock()
 				marshalled, me := e.jsonMarshaller.metricsMarshaler.MarshalMetrics(copyObj)
 				if me == nil {
 					marshalledExemplars = append(marshalledExemplars, &chqpb.MetricExemplar{
@@ -193,10 +194,8 @@ func (e *statsProc) recordMetric(now time.Time, metricName string, metricType st
 						Exemplar:    marshalled,
 					})
 				}
-				e.exemplarsMu.Unlock()
 			}
 		}
-		e.exemplarsMu.RUnlock()
 
 		statsReport := &chqpb.MetricStatsReport{
 			SubmittedAt: now.UnixMilli(),
@@ -216,11 +215,11 @@ func (e *statsProc) recordMetric(now time.Time, metricName string, metricType st
 
 func (e *statsProc) addMetricsExemplar(lm pmetric.Metrics, serviceName, metricName, metricType string) {
 	fingerprint := serviceName + ":" + metricName + ":" + metricType
-	e.exemplarsMu.RLock()
+	e.exemplarsMu.Lock()
+	defer e.exemplarsMu.Unlock()
 	if _, found := e.metricExemplars[fingerprint]; !found {
 		e.metricExemplars[fingerprint] = lm
 	}
-	e.exemplarsMu.RUnlock()
 }
 
 func (e *statsProc) postMetricStats(ctx context.Context, wrapper *chqpb.MetricStatsReport) error {

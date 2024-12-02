@@ -132,57 +132,57 @@ func (e *statsProc) recordDatapoint(lm pmetric.Metrics, now time.Time, metricNam
 }
 
 func (e *statsProc) recordMetric(now time.Time, metricName string, metricType string, serviceName string, tagName, tagValue string, tagScope string, attributes []*chqpb.Attribute, count int) error {
-	//rec := &chqpb.MetricStats{
-	//	MetricName:  metricName,
-	//	TagName:     tagName,
-	//	TagScope:    tagScope,
-	//	MetricType:  metricType,
-	//	ServiceName: serviceName,
-	//	Phase:       e.pbPhase,
-	//	ProcessorId: e.id.Name(),
-	//	Count:       int64(count),
-	//	Attributes:  attributes,
-	//	TsHour:      now.Truncate(time.Hour).UnixMilli(),
-	//}
+	rec := &chqpb.MetricStats{
+		MetricName:  metricName,
+		TagName:     tagName,
+		TagScope:    tagScope,
+		MetricType:  metricType,
+		ServiceName: serviceName,
+		Phase:       e.pbPhase,
+		ProcessorId: e.id.Name(),
+		Count:       int64(count),
+		Attributes:  attributes,
+		TsHour:      now.Truncate(time.Hour).UnixMilli(),
+	}
 
-	//stats, err := e.metricstats.Record(rec, tagValue, now)
-	//telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
-	//if err != nil {
-	//	return err
-	//}
-	//if stats != nil && len(stats) > 0 {
-	//	e.exemplarsMu.RLock()
-	//
-	//	var marshalledExemplars []*chqpb.MetricExemplar
-	//	for fingerprint, exemplar := range e.metricExemplars {
-	//		b, err := e.jsonMarshaller.metricsMarshaler.MarshalMetrics(exemplar)
-	//		if err != nil {
-	//			e.logger.Error("Failed to marshal metric exemplars", zap.Error(err))
-	//			continue
-	//		}
-	//		split := strings.Split(fingerprint, ":")
-	//		marshalledExemplars = append(marshalledExemplars, &chqpb.MetricExemplar{
-	//			ServiceName: split[0],
-	//			MetricName:  split[1],
-	//			MetricType:  split[2],
-	//			Exemplar:    b,
-	//		})
-	//	}
-	//	e.exemplarsMu.RUnlock()
-	//
-	//	statsReport := &chqpb.MetricStatsReport{
-	//		SubmittedAt: now.UnixMilli(),
-	//		Stats:       stats,
-	//		Exemplars:   marshalledExemplars,
-	//	}
-	//	// TODO should send this to a channel and have a separate goroutine send it
-	//	go func() {
-	//		err := e.postMetricStats(context.Background(), statsReport)
-	//		if err != nil {
-	//			e.logger.Error("Failed to send metric stats", zap.Error(err))
-	//		}
-	//	}()
-	//}
+	stats, err := e.metricstats.Record(rec, tagValue, now)
+	telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
+	if err != nil {
+		return err
+	}
+	if stats != nil && len(stats) > 0 {
+		//e.exemplarsMu.RLock()
+		//
+		//var marshalledExemplars []*chqpb.MetricExemplar
+		//for fingerprint, exemplar := range e.metricExemplars {
+		//	b, err := e.jsonMarshaller.metricsMarshaler.MarshalMetrics(exemplar)
+		//	if err != nil {
+		//		e.logger.Error("Failed to marshal metric exemplars", zap.Error(err))
+		//		continue
+		//	}
+		//	split := strings.Split(fingerprint, ":")
+		//	marshalledExemplars = append(marshalledExemplars, &chqpb.MetricExemplar{
+		//		ServiceName: split[0],
+		//		MetricName:  split[1],
+		//		MetricType:  split[2],
+		//		Exemplar:    b,
+		//	})
+		//}
+		//e.exemplarsMu.RUnlock()
+
+		statsReport := &chqpb.MetricStatsReport{
+			SubmittedAt: now.UnixMilli(),
+			Stats:       stats,
+			//Exemplars:   marshalledExemplars,
+		}
+		// TODO should send this to a channel and have a separate goroutine send it
+		go func() {
+			err := e.postMetricStats(context.Background(), statsReport)
+			if err != nil {
+				e.logger.Error("Failed to send metric stats", zap.Error(err))
+			}
+		}()
+	}
 	return nil
 }
 

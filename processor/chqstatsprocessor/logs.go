@@ -114,19 +114,45 @@ func (e *statsProc) recordLog(ld plog.Logs, now time.Time, serviceName string, f
 	return nil
 }
 
+func (e *statsProc) cleanupLogExemplar(fingerprint int64, ld plog.Logs) plog.Logs {
+	copyObj := plog.NewLogs()
+	ld.CopyTo(copyObj)
+	// iterate over all 3 levels, and just filter any log records that don't match the fingerprint
+	copyObj.ResourceLogs().RemoveIf(func(rsp plog.ResourceLogs) bool {
+		rsp.ScopeLogs().RemoveIf(func(ss plog.ScopeLogs) bool {
+			foundFp := false // make sure we only add one record matching the fingerprint.
+			ss.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
+				if getFingerprint(lr.Attributes()) == fingerprint {
+					if !foundFp {
+						foundFp = true
+						return false
+					}
+					return true
+				}
+				return true
+			})
+			return ss.LogRecords().Len() == 0
+		})
+		return rsp.ScopeLogs().Len() == 0
+	})
+	return copyObj
+}
+
 func (e *statsProc) sendLogStatsWithExemplars(bucketpile *map[uint64][]*chqpb.EventStats, now time.Time) {
 	if bucketpile != nil && len(*bucketpile) > 0 {
+		e.exemplarsMu.Lock()
+		defer e.exemplarsMu.Unlock()
+
 		for bucketKey, items := range *bucketpile {
 			itemsWithValidExemplars := items[:0]
 			for _, item := range items {
-				e.exemplarsMu.RLock()
 				exemplar, found := e.logExemplars[item.Fingerprint]
-				e.exemplarsMu.RUnlock()
 				if !found {
 					continue
 				}
 
-				marshalled, err := e.jsonMarshaller.logsMarshaler.MarshalLogs(exemplar)
+				cleaned := e.cleanupLogExemplar(item.Fingerprint, exemplar)
+				marshalled, err := e.jsonMarshaller.logsMarshaler.MarshalLogs(cleaned)
 				if err != nil {
 					continue
 				}
@@ -146,37 +172,10 @@ func (e *statsProc) sendLogStatsWithExemplars(bucketpile *map[uint64][]*chqpb.Ev
 }
 
 func (e *statsProc) addLogExemplar(ld plog.Logs, fingerprint int64) {
-	e.exemplarsMu.RLock()
-	_, found := e.logExemplars[fingerprint]
-	e.exemplarsMu.RUnlock()
-
-	if !found {
-		copyObj := plog.NewLogs()
-		ld.CopyTo(copyObj)
-		// iterate over all 3 levels, and just filter any log records that don't match the fingerprint
-		copyObj.ResourceLogs().RemoveIf(func(rsp plog.ResourceLogs) bool {
-			rsp.ScopeLogs().RemoveIf(func(ss plog.ScopeLogs) bool {
-				foundFp := false // make sure we only add one record matching the fingerprint.
-				ss.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
-					if getFingerprint(lr.Attributes()) == fingerprint {
-						if !foundFp {
-							foundFp = true
-							return false
-						}
-						return true
-					}
-					return true
-				})
-				return ss.LogRecords().Len() == 0
-			})
-			return rsp.ScopeLogs().Len() == 0
-		})
-
-		if copyObj.ResourceLogs().Len() > 0 {
-			e.exemplarsMu.Lock()
-			e.logExemplars[fingerprint] = copyObj
-			e.exemplarsMu.Unlock()
-		}
+	e.exemplarsMu.Lock()
+	defer e.exemplarsMu.Unlock()
+	if _, found := e.logExemplars[fingerprint]; !found {
+		e.logExemplars[fingerprint] = ld
 	}
 }
 

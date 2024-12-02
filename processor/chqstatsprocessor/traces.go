@@ -117,16 +117,18 @@ func (e *statsProc) recordSpan(
 
 func (e *statsProc) sendSpanStatsWithExemplars(bucketpile *map[uint64][]*chqpb.EventStats, now time.Time) {
 	if bucketpile != nil && len(*bucketpile) > 0 {
+		e.exemplarsMu.Lock()
+		defer e.exemplarsMu.Unlock()
+
 		for bucketKey, items := range *bucketpile {
 			itemsWithValidExemplars := items[:0]
 			for _, item := range items {
-				e.exemplarsMu.RLock()
 				exemplar, found := e.traceExemplars[item.Fingerprint]
-				e.exemplarsMu.RUnlock()
 				if !found {
 					continue
 				}
-				marshalled, err := e.jsonMarshaller.tracesMarshaler.MarshalTraces(exemplar)
+				cleaned := e.cleanupTraceExemplar(exemplar, item.Fingerprint)
+				marshalled, err := e.jsonMarshaller.tracesMarshaler.MarshalTraces(cleaned)
 				if err != nil {
 					continue
 				}
@@ -145,37 +147,36 @@ func (e *statsProc) sendSpanStatsWithExemplars(bucketpile *map[uint64][]*chqpb.E
 	}
 }
 
-func (e *statsProc) addSpanExemplar(td ptrace.Traces, fingerprint int64) {
-	e.exemplarsMu.RLock()
-	_, found := e.traceExemplars[fingerprint]
-	e.exemplarsMu.RUnlock()
-
-	if !found {
-		copyObj := ptrace.NewTraces()
-		td.CopyTo(copyObj)
-		// iterate over all 3 levels, and just filter any span records that don't match the fingerprint
-		copyObj.ResourceSpans().RemoveIf(func(rsp ptrace.ResourceSpans) bool {
-			rsp.ScopeSpans().RemoveIf(func(ss ptrace.ScopeSpans) bool {
-				foundFp := false
-				ss.Spans().RemoveIf(func(sr ptrace.Span) bool {
-					if getFingerprint(sr.Attributes()) == fingerprint {
-						if !foundFp {
-							foundFp = true
-							return false
-						}
-						return true
+func (e *statsProc) cleanupTraceExemplar(td ptrace.Traces, fingerprint int64) ptrace.Traces {
+	copyObj := ptrace.NewTraces()
+	td.CopyTo(copyObj)
+	// iterate over all 3 levels, and just filter any span records that don't match the fingerprint
+	copyObj.ResourceSpans().RemoveIf(func(rsp ptrace.ResourceSpans) bool {
+		rsp.ScopeSpans().RemoveIf(func(ss ptrace.ScopeSpans) bool {
+			foundFp := false
+			ss.Spans().RemoveIf(func(sr ptrace.Span) bool {
+				if getFingerprint(sr.Attributes()) == fingerprint {
+					if !foundFp {
+						foundFp = true
+						return false
 					}
 					return true
-				})
-				return ss.Spans().Len() == 0
+				}
+				return true
 			})
-			return rsp.ScopeSpans().Len() == 0
+			return ss.Spans().Len() == 0
 		})
-		if copyObj.ResourceSpans().Len() > 0 {
-			e.exemplarsMu.Lock()
-			e.traceExemplars[fingerprint] = copyObj
-			e.exemplarsMu.Unlock()
-		}
+		return rsp.ScopeSpans().Len() == 0
+	})
+	return copyObj
+}
+
+func (e *statsProc) addSpanExemplar(td ptrace.Traces, fingerprint int64) {
+	e.exemplarsMu.Lock()
+	defer e.exemplarsMu.Unlock()
+
+	if _, found := e.traceExemplars[fingerprint]; !found {
+		e.traceExemplars[fingerprint] = td
 	}
 }
 

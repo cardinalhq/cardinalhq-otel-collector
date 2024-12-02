@@ -79,7 +79,7 @@ type statsProc struct {
 	spanStats   *stats.StatsCombiner[*chqpb.EventStats]
 	metricstats *chqpb.MetricStatsCache
 
-	exemplarsMu     sync.Mutex
+	exemplarsMu     sync.RWMutex
 	logExemplars    map[int64]plog.Logs
 	traceExemplars  map[int64]ptrace.Traces
 	metricExemplars map[string]pmetric.Metrics

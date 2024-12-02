@@ -176,7 +176,12 @@ func (e *statsProc) recordMetric(now time.Time, metricName string, metricType st
 			Exemplars:   marshalledExemplars,
 		}
 		// TODO should send this to a channel and have a separate goroutine send it
-		go e.postMetricStats(context.Background(), statsReport)
+		go func() {
+			err := e.postMetricStats(context.Background(), statsReport)
+			if err != nil {
+				e.logger.Error("Failed to send metric stats", zap.Error(err))
+			}
+		}()
 	}
 	return nil
 }

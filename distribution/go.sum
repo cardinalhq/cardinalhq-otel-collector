@@ -55,8 +55,8 @@ github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4 v4.3
 github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4 v4.3.0/go.mod h1:Y/HgrePTmGy9HjdSGTqZNa+apUpTVIEVKXJyARP2lrk=
 github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources v1.1.1 h1:7CBQ+Ei8SP2c6ydQTGCCrS35bDxgTMfoP2miAwK++OU=
 github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources v1.1.1/go.mod h1:c/wcGeGx5FUPbM/JltUYHZcKmigwyVLJlDq+4HdtXaw=
-github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 h1:UQHMgLO+TxOElx5B5HZ4hJQsoJ/PvUvKRhJHDQXO8P8=
-github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1/go.mod h1:xomTg63KZ2rFqZQzSB4Vz2SUXa1BpHTVz9L5PTmPC4E=
+github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 h1:L/gRVlceqvL25UVaW/CKtUDjefjrs0SPonmDGUVOYP0=
+github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161/go.mod h1:xomTg63KZ2rFqZQzSB4Vz2SUXa1BpHTVz9L5PTmPC4E=
 github.com/Azure/go-autorest v14.2.0+incompatible/go.mod h1:r+4oMnoxhatjLLJ6zxSWATqVooLgysK6ZNox3g/xq24=
 github.com/Azure/go-autorest/autorest v0.11.12/go.mod h1:eipySxLmqSyC5s5k1CLupqet0PSENBEDP93LQ9a8QYw=
 github.com/Azure/go-autorest/autorest/adal v0.9.5/go.mod h1:B7KF7jKIeC9Mct5spmyCB/A8CG/sEz1vwIRGv/bbw7A=
@@ -959,6 +959,8 @@ github.com/open-telemetry/opentelemetry-collector-contrib/internal/k8stest v0.11
 github.com/open-telemetry/opentelemetry-collector-contrib/internal/k8stest v0.114.0/go.mod h1:2/6/eY8Uvg+NfYDsAbND96A4u5q4UjcDlBJolYcj6jE=
 github.com/open-telemetry/opentelemetry-collector-contrib/internal/kafka v0.114.0 h1:fOWNJU1al+oSRai8EQ9JrFzttlxAKyvNOl/XVinVIQE=
 github.com/open-telemetry/opentelemetry-collector-contrib/internal/kafka v0.114.0/go.mod h1:UtbcqL7LGIo7hoeqHsTGa0av8+K2Isjr43V0GZ8qG2M=
+github.com/open-telemetry/opentelemetry-collector-contrib/internal/kubelet v0.114.0 h1:7uqFlnCUbkouUj99rG4BmaFzNXMVsdCKm5FRHgceL/k=
+github.com/open-telemetry/opentelemetry-collector-contrib/internal/kubelet v0.114.0/go.mod h1:A1/Rr4F5s7HwFrD62jCd3RQAddai+3Ubr0Opq9E2SCQ=
 github.com/open-telemetry/opentelemetry-collector-contrib/internal/metadataproviders v0.114.0 h1:cGJRIzB5N3oe1c8vD5HqCuy4dbQE9EDJZ9C7vJn+K8U=
 github.com/open-telemetry/opentelemetry-collector-contrib/internal/metadataproviders v0.114.0/go.mod h1:p53t8aSCVoTKXVOsNx62rDLrSdEkBFB4H85yEiTWkyI=
 github.com/open-telemetry/opentelemetry-collector-contrib/internal/pdatautil v0.114.0 h1:lt87gwZaUP9Lh0EAgZFTYego0k89NU8K6Qkk82oR/n8=
@@ -1039,6 +1041,8 @@ github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8sobjectsrec
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/k8sobjectsreceiver v0.114.0/go.mod h1:Vbrmthe6Beg3u5pLmiPVjUkl6ueWv83J8N5jMTAsK1U=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/kafkametricsreceiver v0.114.0 h1:q9xqP6eec7NZOW1dQUsuYPUA+5W+9t+CM8E/vk5+TnI=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/kafkametricsreceiver v0.114.0/go.mod h1:G7fh3oOSi/PytAII/lf70o4kSGlIPeGLm+7aKOluQ4A=
+github.com/open-telemetry/opentelemetry-collector-contrib/receiver/kubeletstatsreceiver v0.114.0 h1:B1TPwkl6rr6QpZNEYuKUQF4jONYq3oh0+IhyliXovVc=
+github.com/open-telemetry/opentelemetry-collector-contrib/receiver/kubeletstatsreceiver v0.114.0/go.mod h1:2qsxsYtMITe+fNCED3E/aAsyy4SKGEXnuuUoLHveGpE=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver v0.114.0 h1:gdljk66vBTT3lWfSdP4Hl7FaABdH1YPhUCH6jnG2+qY=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver v0.114.0/go.mod h1:T1p6ShTr8farkE4qUB2TyGUIvRSN3s17D0qY7rMqCRM=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/splunkhecreceiver v0.114.0 h1:lAwrFCp3BKhFtTfFOrJaxtMIOqkwUClnuCbULHzPjrQ=
@@ -1952,6 +1956,8 @@ k8s.io/klog/v2 v2.130.1/go.mod h1:3Jpz1GvMt720eyJH1ckRHK1EDfpxISzJ7I9OYgaDtPE=
 k8s.io/kube-openapi v0.0.0-20210305001622-591a79e4bda7/go.mod h1:wXW5VT87nVfh/iLV8FpR2uDvrFyomxbtb1KivDbvPTE=
 k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 h1:BZqlfIlq5YbRMFko6/PM7FjZpUb45WallggurYhKGag=
 k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340/go.mod h1:yD4MZYeKMBwQKVht279WycxKyM84kkAx2DPrTXaeb98=
+k8s.io/kubelet v0.31.2 h1:6Hytyw4LqWqhgzoi7sPfpDGClu2UfxmPmaiXPC4FRgI=
+k8s.io/kubelet v0.31.2/go.mod h1:0E4++3cMWi2cJxOwuaQP3eMBa7PSOvAFgkTPlVc/2FA=
 k8s.io/utils v0.0.0-20201110183641-67b214c5f920/go.mod h1:jPW/WVKK9YHAvNhRxK0md/EJ228hCsBRufyofKtW8HA=
 k8s.io/utils v0.0.0-20240711033017-18e509b52bc8 h1:pUdcCO1Lk/tbT5ztQWOBi5HBgbBP1J8+AsQnQCKsi8A=
 k8s.io/utils v0.0.0-20240711033017-18e509b52bc8/go.mod h1:OLgZIPagt7ERELqWJFomSt595RzquPNLL48iOWgYOg0=

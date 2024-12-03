@@ -210,6 +210,7 @@ func (e *statsProc) recordMetric(now time.Time, metricName string, metricType st
 				e.logger.Error("Failed to send metric stats", zap.Error(err))
 			}
 		}()
+		e.metricExemplars = make(map[string]pmetric.Metrics)
 	}
 	return nil
 }

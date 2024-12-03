@@ -143,21 +143,21 @@ func (e *statsProc) sendLogStatsWithExemplars(bucketpile *map[uint64][]*chqpb.Ev
 		e.exemplarsMu.Lock()
 		defer e.exemplarsMu.Unlock()
 
-		for bucketKey, items := range *bucketpile {
-			itemsWithValidExemplars := items[:0]
-			for _, item := range items {
-				exemplar, found := e.logExemplars[item.Fingerprint]
+		for bucketKey, eventsStatsList := range *bucketpile {
+			itemsWithValidExemplars := eventsStatsList[:0]
+			for _, eventStats := range eventsStatsList {
+				exemplar, found := e.logExemplars[eventStats.Fingerprint]
 				if !found {
 					continue
 				}
 
-				cleaned := e.cleanupLogExemplar(item.Fingerprint, exemplar)
+				cleaned := e.cleanupLogExemplar(eventStats.Fingerprint, exemplar)
 				marshalled, err := e.jsonMarshaller.logsMarshaler.MarshalLogs(cleaned)
 				if err != nil {
 					continue
 				}
-				item.Exemplar = marshalled
-				itemsWithValidExemplars = append(itemsWithValidExemplars, item)
+				eventStats.Exemplar = marshalled
+				itemsWithValidExemplars = append(itemsWithValidExemplars, eventStats)
 			}
 			if len(itemsWithValidExemplars) > 0 {
 				(*bucketpile)[bucketKey] = itemsWithValidExemplars
@@ -168,6 +168,7 @@ func (e *statsProc) sendLogStatsWithExemplars(bucketpile *map[uint64][]*chqpb.Ev
 
 		// TODO should send this to a channel and have a separate goroutine send it
 		go e.sendLogStats(context.Background(), now, bucketpile)
+		e.logExemplars = make(map[int64]plog.Logs)
 	}
 }
 

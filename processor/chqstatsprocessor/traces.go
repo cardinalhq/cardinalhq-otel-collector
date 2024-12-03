@@ -144,6 +144,7 @@ func (e *statsProc) sendSpanStatsWithExemplars(bucketpile *map[uint64][]*chqpb.E
 
 		// TODO should send this to a channel and have a separate goroutine send it
 		go e.sendSpanStats(context.Background(), now, bucketpile)
+		e.traceExemplars = make(map[int64]ptrace.Traces)
 	}
 }
 

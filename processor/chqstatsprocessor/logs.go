@@ -103,7 +103,7 @@ func (e *statsProc) recordLog(ld plog.Logs, now time.Time, serviceName string, f
 		TsHour:      now.Truncate(time.Hour).UnixMilli(),
 	}
 
-	e.addLogExemplar(ld, serviceName, fingerprint)
+	e.addLogExemplar(ld, rec)
 
 	bucketpile, err := e.logstats.Record(now, rec, "", 1, logSize)
 	if err != nil {
@@ -152,9 +152,9 @@ func (e *statsProc) sendLogStatsWithExemplars(bucketpile *map[uint64][]*chqpb.Ev
 		defer e.exemplarsMu.Unlock()
 
 		for bucketKey, eventsStatsList := range *bucketpile {
-			itemsWithValidExemplars := eventsStatsList[:0]
+			var itemsWithValidExemplars []*chqpb.EventStats
 			for _, eventStats := range eventsStatsList {
-				exemplar, found := e.logExemplars[toEventExemplarKey(eventStats.ServiceName, eventStats.Fingerprint)]
+				exemplar, found := e.logExemplars[eventStats.Key()]
 				if !found {
 					continue
 				}
@@ -179,10 +179,10 @@ func (e *statsProc) sendLogStatsWithExemplars(bucketpile *map[uint64][]*chqpb.Ev
 	}
 }
 
-func (e *statsProc) addLogExemplar(ld plog.Logs, serviceName string, fingerprint int64) {
+func (e *statsProc) addLogExemplar(ld plog.Logs, stat *chqpb.EventStats) {
 	e.exemplarsMu.Lock()
 	defer e.exemplarsMu.Unlock()
-	key := toEventExemplarKey(serviceName, fingerprint)
+	key := stat.Key()
 	if _, found := e.logExemplars[key]; !found {
 		e.logExemplars[key] = LogExemplarState{
 			Exemplar:  ld,
@@ -196,11 +196,6 @@ func (e *statsProc) addLogExemplar(ld plog.Logs, serviceName string, fingerprint
 		nle.Cleaned = false
 		nle.CleanedAt = time.Now()
 	}
-}
-
-func toEventExemplarKey(serviceName string, fingerprint int64) string {
-	key := fmt.Sprintf("%s:%d", serviceName, fingerprint)
-	return key
 }
 
 func (e *statsProc) sendLogStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*chqpb.EventStats) {

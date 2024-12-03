@@ -103,7 +103,7 @@ func (e *statsProc) recordLog(ld plog.Logs, now time.Time, serviceName string, f
 		TsHour:      now.Truncate(time.Hour).UnixMilli(),
 	}
 
-	e.addLogExemplar(ld, fingerprint)
+	e.addLogExemplar(ld, serviceName, fingerprint)
 
 	bucketpile, err := e.logstats.Record(now, rec, "", 1, logSize)
 	if err != nil {
@@ -114,11 +114,19 @@ func (e *statsProc) recordLog(ld plog.Logs, now time.Time, serviceName string, f
 	return nil
 }
 
-func (e *statsProc) cleanupLogExemplar(fingerprint int64, ld plog.Logs) plog.Logs {
+func (l *LogExemplarState) tidy(serviceName string, fingerprint int64) plog.Logs {
+	if l.Cleaned {
+		return l.Exemplar
+	}
+
 	copyObj := plog.NewLogs()
-	ld.CopyTo(copyObj)
+	l.Exemplar.CopyTo(copyObj)
 	// iterate over all 3 levels, and just filter any log records that don't match the fingerprint
 	copyObj.ResourceLogs().RemoveIf(func(rsp plog.ResourceLogs) bool {
+		incomingServiceName := getServiceName(rsp.Resource().Attributes())
+		if incomingServiceName != serviceName {
+			return true
+		}
 		rsp.ScopeLogs().RemoveIf(func(ss plog.ScopeLogs) bool {
 			foundFp := false // make sure we only add one record matching the fingerprint.
 			ss.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
@@ -146,12 +154,12 @@ func (e *statsProc) sendLogStatsWithExemplars(bucketpile *map[uint64][]*chqpb.Ev
 		for bucketKey, eventsStatsList := range *bucketpile {
 			itemsWithValidExemplars := eventsStatsList[:0]
 			for _, eventStats := range eventsStatsList {
-				exemplar, found := e.logExemplars[eventStats.Fingerprint]
+				exemplar, found := e.logExemplars[toEventExemplarKey(eventStats.ServiceName, eventStats.Fingerprint)]
 				if !found {
 					continue
 				}
 
-				cleaned := e.cleanupLogExemplar(eventStats.Fingerprint, exemplar)
+				cleaned := exemplar.tidy(eventStats.ServiceName, eventStats.Fingerprint)
 				marshalled, err := e.jsonMarshaller.logsMarshaler.MarshalLogs(cleaned)
 				if err != nil {
 					continue
@@ -168,16 +176,31 @@ func (e *statsProc) sendLogStatsWithExemplars(bucketpile *map[uint64][]*chqpb.Ev
 
 		// TODO should send this to a channel and have a separate goroutine send it
 		go e.sendLogStats(context.Background(), now, bucketpile)
-		e.logExemplars = make(map[int64]plog.Logs)
 	}
 }
 
-func (e *statsProc) addLogExemplar(ld plog.Logs, fingerprint int64) {
+func (e *statsProc) addLogExemplar(ld plog.Logs, serviceName string, fingerprint int64) {
 	e.exemplarsMu.Lock()
 	defer e.exemplarsMu.Unlock()
-	if _, found := e.logExemplars[fingerprint]; !found {
-		e.logExemplars[fingerprint] = ld
+	key := toEventExemplarKey(serviceName, fingerprint)
+	if _, found := e.logExemplars[key]; !found {
+		e.logExemplars[key] = LogExemplarState{
+			Exemplar:  ld,
+			Cleaned:   false,
+			CleanedAt: time.Now(),
+		}
 	}
+	nle := e.logExemplars[key]
+	if nle.Cleaned && time.Since(nle.CleanedAt) > 5*time.Minute {
+		nle.Exemplar = ld
+		nle.Cleaned = false
+		nle.CleanedAt = time.Now()
+	}
+}
+
+func toEventExemplarKey(serviceName string, fingerprint int64) string {
+	key := fmt.Sprintf("%s:%d", serviceName, fingerprint)
+	return key
 }
 
 func (e *statsProc) sendLogStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*chqpb.EventStats) {

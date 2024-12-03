@@ -110,4 +110,4 @@ replaces:
   # see https://github.com/open-telemetry/opentelemetry-collector/issues/11478
   - go.opentelemetry.io/contrib/config => go.opentelemetry.io/contrib/config v0.10.0
   # Until the real receiver is done, we will use our replacement
-  - github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver => github.com/cardinalhq/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver v0.0.0-20241202232258-9b8ac5cc4cfb
+  - github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver => github.com/cardinalhq/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver v0.0.0-20241203001733-e11858009bd5

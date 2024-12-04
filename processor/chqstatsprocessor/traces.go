@@ -46,7 +46,7 @@ func (e *statsProc) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace
 					isSlow = isslowValue.Bool()
 				}
 				fingerprint := getFingerprint(sr.Attributes())
-				if err := e.recordSpan(td, now, serviceName, fingerprint, isSlow, sr, iss, rs); err != nil {
+				if err := e.recordSpan(now, serviceName, fingerprint, isSlow, sr, iss, rs); err != nil {
 					e.logger.Error("Failed to record span", zap.Error(err))
 				}
 			}
@@ -65,7 +65,6 @@ func toSize(attributes map[string]interface{}) int64 {
 }
 
 func (e *statsProc) recordSpan(
-	td ptrace.Traces,
 	now time.Time,
 	serviceName string,
 	fingerprint int64,
@@ -104,7 +103,7 @@ func (e *statsProc) recordSpan(
 		Attributes:  enrichmentAttributes,
 		TsHour:      now.Truncate(time.Hour).UnixMilli(),
 	}
-	e.addSpanExemplar(td, fingerprint)
+	e.addSpanExemplar(rs, iss, span, fingerprint)
 
 	bucketpile, err := e.spanStats.Record(now, rec, "", 1, spanSize)
 	telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
@@ -146,36 +145,19 @@ func (e *statsProc) sendSpanStatsWithExemplars(bucketpile *map[uint64][]*chqpb.E
 	}
 }
 
-func (e *statsProc) stripTraceExemplar(fingerprint int64, td ptrace.Traces) ptrace.Traces {
-	copyObj := ptrace.NewTraces()
-	td.CopyTo(copyObj)
-	// iterate over all 3 levels, and just filter any span records that don't match the fingerprint
-	copyObj.ResourceSpans().RemoveIf(func(rsp ptrace.ResourceSpans) bool {
-		rsp.ScopeSpans().RemoveIf(func(ss ptrace.ScopeSpans) bool {
-			foundFp := false
-			ss.Spans().RemoveIf(func(sr ptrace.Span) bool {
-				if getFingerprint(sr.Attributes()) == fingerprint {
-					if !foundFp {
-						foundFp = true
-						return false
-					}
-					return true
-				}
-				return true
-			})
-			return ss.Spans().Len() == 0
-		})
-		return rsp.ScopeSpans().Len() == 0
-	})
-	return copyObj
-}
-
-func (e *statsProc) addSpanExemplar(td ptrace.Traces, fingerprint int64) {
+func (e *statsProc) addSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span, fingerprint int64) {
 	e.exemplarsMu.Lock()
 	defer e.exemplarsMu.Unlock()
 
 	if _, found := e.traceExemplars[fingerprint]; !found {
-		e.traceExemplars[fingerprint] = e.stripTraceExemplar(fingerprint, td)
+		exemplarLd := ptrace.NewTraces()
+		copyRl := exemplarLd.ResourceSpans().AppendEmpty()
+		rs.Resource().CopyTo(copyRl.Resource())
+		copySl := copyRl.ScopeSpans().AppendEmpty()
+		ss.Scope().CopyTo(copySl.Scope())
+		copyLr := copySl.Spans().AppendEmpty()
+		sr.CopyTo(copyLr)
+		e.traceExemplars[fingerprint] = exemplarLd
 	}
 }
 

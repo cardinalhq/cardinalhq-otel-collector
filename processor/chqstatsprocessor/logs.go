@@ -60,7 +60,7 @@ func (e *statsProc) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, err
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				lr := sl.LogRecords().At(k)
 				fp := getFingerprint(lr.Attributes())
-				if err := e.recordLog(ld, now, serviceName, fp, rl, sl, lr); err != nil {
+				if err := e.recordLog(now, serviceName, fp, rl, sl, lr); err != nil {
 					e.logger.Error("Failed to record log", zap.Error(err))
 				}
 			}
@@ -70,7 +70,7 @@ func (e *statsProc) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, err
 	return ld, nil
 }
 
-func (e *statsProc) recordLog(ld plog.Logs, now time.Time, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) error {
+func (e *statsProc) recordLog(now time.Time, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) error {
 	message := lr.Body().AsString()
 	logSize := int64(len(message))
 
@@ -103,7 +103,7 @@ func (e *statsProc) recordLog(ld plog.Logs, now time.Time, serviceName string, f
 		TsHour:      now.Truncate(time.Hour).UnixMilli(),
 	}
 
-	e.addLogExemplar(ld, fingerprint)
+	e.addLogExemplar(rl, sl, lr, fingerprint)
 
 	bucketpile, err := e.logstats.Record(now, rec, "", 1, logSize)
 	if err != nil {
@@ -112,31 +112,6 @@ func (e *statsProc) recordLog(ld plog.Logs, now time.Time, serviceName string, f
 	e.sendLogStatsWithExemplars(bucketpile, now)
 	telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
 	return nil
-}
-
-func (e *statsProc) stripLogExemplar(fingerprint int64, ld plog.Logs) plog.Logs {
-	copyObj := plog.NewLogs()
-	ld.CopyTo(copyObj)
-	// iterate over all 3 levels, and just filter any log records that don't match the fingerprint
-
-	copyObj.ResourceLogs().RemoveIf(func(rsp plog.ResourceLogs) bool {
-		rsp.ScopeLogs().RemoveIf(func(ss plog.ScopeLogs) bool {
-			foundFp := false // make sure we only add one record matching the fingerprint.
-			ss.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
-				if getFingerprint(lr.Attributes()) == fingerprint {
-					if !foundFp {
-						foundFp = true
-						return false
-					}
-					return true
-				}
-				return true
-			})
-			return ss.LogRecords().Len() == 0
-		})
-		return rsp.ScopeLogs().Len() == 0
-	})
-	return copyObj
 }
 
 func (e *statsProc) sendLogStatsWithExemplars(bucketpile *map[uint64][]*chqpb.EventStats, now time.Time) {
@@ -171,11 +146,18 @@ func (e *statsProc) sendLogStatsWithExemplars(bucketpile *map[uint64][]*chqpb.Ev
 	}
 }
 
-func (e *statsProc) addLogExemplar(ld plog.Logs, fingerprint int64) {
+func (e *statsProc) addLogExemplar(rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord, fingerprint int64) {
 	e.exemplarsMu.Lock()
 	defer e.exemplarsMu.Unlock()
 	if _, found := e.logExemplars[fingerprint]; !found {
-		e.logExemplars[fingerprint] = e.stripLogExemplar(fingerprint, ld)
+		exemplarLd := plog.NewLogs()
+		copyRl := exemplarLd.ResourceLogs().AppendEmpty()
+		rl.Resource().CopyTo(copyRl.Resource())
+		copySl := copyRl.ScopeLogs().AppendEmpty()
+		sl.Scope().CopyTo(copySl.Scope())
+		copyLr := copySl.LogRecords().AppendEmpty()
+		lr.CopyTo(copyLr)
+		e.logExemplars[fingerprint] = exemplarLd
 	}
 }
 

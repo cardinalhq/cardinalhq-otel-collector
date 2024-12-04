@@ -119,10 +119,6 @@ func (e *statsProc) stripLogExemplar(fingerprint int64, ld plog.Logs) plog.Logs 
 	ld.CopyTo(copyObj)
 	// iterate over all 3 levels, and just filter any log records that don't match the fingerprint
 
-	if copyObj.ResourceLogs().Len() == 0 {
-		e.logger.Error("No resource logs found")
-	}
-
 	copyObj.ResourceLogs().RemoveIf(func(rsp plog.ResourceLogs) bool {
 		rsp.ScopeLogs().RemoveIf(func(ss plog.ScopeLogs) bool {
 			foundFp := false // make sure we only add one record matching the fingerprint.
@@ -156,8 +152,7 @@ func (e *statsProc) sendLogStatsWithExemplars(bucketpile *map[uint64][]*chqpb.Ev
 					continue
 				}
 
-				cleaned := e.stripLogExemplar(item.Fingerprint, exemplar)
-				marshalled, err := e.jsonMarshaller.logsMarshaler.MarshalLogs(cleaned)
+				marshalled, err := e.jsonMarshaller.logsMarshaler.MarshalLogs(exemplar)
 				if err != nil {
 					continue
 				}
@@ -180,7 +175,7 @@ func (e *statsProc) addLogExemplar(ld plog.Logs, fingerprint int64) {
 	e.exemplarsMu.Lock()
 	defer e.exemplarsMu.Unlock()
 	if _, found := e.logExemplars[fingerprint]; !found {
-		e.logExemplars[fingerprint] = ld
+		e.logExemplars[fingerprint] = e.stripLogExemplar(fingerprint, ld)
 	}
 }
 

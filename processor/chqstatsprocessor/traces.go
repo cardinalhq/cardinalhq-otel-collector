@@ -127,8 +127,7 @@ func (e *statsProc) sendSpanStatsWithExemplars(bucketpile *map[uint64][]*chqpb.E
 				if !found {
 					continue
 				}
-				cleaned := e.cleanupTraceExemplar(exemplar, item.Fingerprint)
-				marshalled, err := e.jsonMarshaller.tracesMarshaler.MarshalTraces(cleaned)
+				marshalled, err := e.jsonMarshaller.tracesMarshaler.MarshalTraces(exemplar)
 				if err != nil {
 					continue
 				}
@@ -147,7 +146,7 @@ func (e *statsProc) sendSpanStatsWithExemplars(bucketpile *map[uint64][]*chqpb.E
 	}
 }
 
-func (e *statsProc) cleanupTraceExemplar(td ptrace.Traces, fingerprint int64) ptrace.Traces {
+func (e *statsProc) stripTraceExemplar(fingerprint int64, td ptrace.Traces) ptrace.Traces {
 	copyObj := ptrace.NewTraces()
 	td.CopyTo(copyObj)
 	// iterate over all 3 levels, and just filter any span records that don't match the fingerprint
@@ -176,7 +175,7 @@ func (e *statsProc) addSpanExemplar(td ptrace.Traces, fingerprint int64) {
 	defer e.exemplarsMu.Unlock()
 
 	if _, found := e.traceExemplars[fingerprint]; !found {
-		e.traceExemplars[fingerprint] = td
+		e.traceExemplars[fingerprint] = e.stripTraceExemplar(fingerprint, td)
 	}
 }
 

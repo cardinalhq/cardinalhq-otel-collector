@@ -160,6 +160,9 @@ func (e *statsProc) sendLogStatsWithExemplars(bucketpile *map[uint64][]*chqpb.Ev
 				}
 
 				cleaned := exemplar.tidy(eventStats.ServiceName, eventStats.Fingerprint)
+				if cleaned.LogRecordCount() == 0 {
+					e.logger.Error("Empty exemplar found", zap.Int64("fingerprint", eventStats.Fingerprint), zap.String("serviceName", eventStats.ServiceName))
+				}
 				marshalled, err := e.jsonMarshaller.logsMarshaler.MarshalLogs(cleaned)
 				if err != nil {
 					continue

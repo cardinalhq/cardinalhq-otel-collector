@@ -60,12 +60,6 @@ type otelJsonMarshaller struct {
 	metricsMarshaler pmetric.Marshaler
 }
 
-type LogExemplarState struct {
-	Exemplar  plog.Logs
-	Cleaned   bool
-	CleanedAt time.Time
-}
-
 type statsProc struct {
 	config          *Config
 	httpClient      *http.Client
@@ -86,7 +80,7 @@ type statsProc struct {
 	metricstats *chqpb.MetricStatsCache
 
 	exemplarsMu     sync.RWMutex
-	logExemplars    map[uint64]LogExemplarState
+	logExemplars    map[int64]plog.Logs
 	traceExemplars  map[int64]ptrace.Traces
 	metricExemplars map[string]pmetric.Metrics
 
@@ -107,7 +101,7 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 		httpClientSettings: config.ClientConfig,
 		telemetrySettings:  set.TelemetrySettings,
 		jsonMarshaller:     newMarshaller(),
-		logExemplars:       make(map[uint64]LogExemplarState),
+		logExemplars:       make(map[int64]plog.Logs),
 		traceExemplars:     make(map[int64]ptrace.Traces),
 		metricExemplars:    make(map[string]pmetric.Metrics),
 		logger:             set.Logger,

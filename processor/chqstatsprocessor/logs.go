@@ -103,7 +103,7 @@ func (e *statsProc) recordLog(ld plog.Logs, now time.Time, serviceName string, f
 		TsHour:      now.Truncate(time.Hour).UnixMilli(),
 	}
 
-	e.addLogExemplar(ld, rec)
+	e.addLogExemplar(ld, fingerprint)
 
 	bucketpile, err := e.logstats.Record(now, rec, "", 1, logSize)
 	if err != nil {
@@ -114,19 +114,16 @@ func (e *statsProc) recordLog(ld plog.Logs, now time.Time, serviceName string, f
 	return nil
 }
 
-func (l *LogExemplarState) tidy(serviceName string, fingerprint int64) plog.Logs {
-	if l.Cleaned {
-		return l.Exemplar
+func (e *statsProc) stripLogExemplar(fingerprint int64, ld plog.Logs) plog.Logs {
+	copyObj := plog.NewLogs()
+	ld.CopyTo(copyObj)
+	// iterate over all 3 levels, and just filter any log records that don't match the fingerprint
+
+	if copyObj.ResourceLogs().Len() == 0 {
+		e.logger.Error("No resource logs found")
 	}
 
-	copyObj := plog.NewLogs()
-	l.Exemplar.CopyTo(copyObj)
-	// iterate over all 3 levels, and just filter any log records that don't match the fingerprint
 	copyObj.ResourceLogs().RemoveIf(func(rsp plog.ResourceLogs) bool {
-		incomingServiceName := getServiceName(rsp.Resource().Attributes())
-		if incomingServiceName != serviceName {
-			return true
-		}
 		rsp.ScopeLogs().RemoveIf(func(ss plog.ScopeLogs) bool {
 			foundFp := false // make sure we only add one record matching the fingerprint.
 			ss.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
@@ -151,24 +148,21 @@ func (e *statsProc) sendLogStatsWithExemplars(bucketpile *map[uint64][]*chqpb.Ev
 		e.exemplarsMu.Lock()
 		defer e.exemplarsMu.Unlock()
 
-		for bucketKey, eventsStatsList := range *bucketpile {
-			var itemsWithValidExemplars []*chqpb.EventStats
-			for _, eventStats := range eventsStatsList {
-				exemplar, found := e.logExemplars[eventStats.Key()]
+		for bucketKey, items := range *bucketpile {
+			itemsWithValidExemplars := items[:0]
+			for _, item := range items {
+				exemplar, found := e.logExemplars[item.Fingerprint]
 				if !found {
 					continue
 				}
 
-				cleaned := exemplar.tidy(eventStats.ServiceName, eventStats.Fingerprint)
+				cleaned := e.stripLogExemplar(item.Fingerprint, exemplar)
 				marshalled, err := e.jsonMarshaller.logsMarshaler.MarshalLogs(cleaned)
-				if string(marshalled) == "{}" && cleaned.ResourceLogs().Len() == 0 {
-					e.logger.Error("Empty exemplar found", zap.Int64("fingerprint", eventStats.Fingerprint), zap.String("serviceName", eventStats.ServiceName))
-				}
 				if err != nil {
 					continue
 				}
-				eventStats.Exemplar = marshalled
-				itemsWithValidExemplars = append(itemsWithValidExemplars, eventStats)
+				item.Exemplar = marshalled
+				itemsWithValidExemplars = append(itemsWithValidExemplars, item)
 			}
 			if len(itemsWithValidExemplars) > 0 {
 				(*bucketpile)[bucketKey] = itemsWithValidExemplars
@@ -182,22 +176,11 @@ func (e *statsProc) sendLogStatsWithExemplars(bucketpile *map[uint64][]*chqpb.Ev
 	}
 }
 
-func (e *statsProc) addLogExemplar(ld plog.Logs, stat *chqpb.EventStats) {
+func (e *statsProc) addLogExemplar(ld plog.Logs, fingerprint int64) {
 	e.exemplarsMu.Lock()
 	defer e.exemplarsMu.Unlock()
-	key := stat.Key()
-	if _, found := e.logExemplars[key]; !found {
-		e.logExemplars[key] = LogExemplarState{
-			Exemplar:  ld,
-			Cleaned:   false,
-			CleanedAt: time.Now(),
-		}
-	}
-	nle := e.logExemplars[key]
-	if nle.Cleaned && time.Since(nle.CleanedAt) > 5*time.Minute {
-		nle.Exemplar = ld
-		nle.Cleaned = false
-		nle.CleanedAt = time.Now()
+	if _, found := e.logExemplars[fingerprint]; !found {
+		e.logExemplars[fingerprint] = ld
 	}
 }
 

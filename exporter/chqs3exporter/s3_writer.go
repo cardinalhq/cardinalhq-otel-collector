@@ -75,11 +75,13 @@ func getSessionConfig(config *Config) *aws.Config {
 	return sessionConfig
 }
 
-func getSession(config *Config, sessionConfig *aws.Config) (*session.Session, error) {
+func getSession(config *Config, sessionConfig *aws.Config, customerID string) (*session.Session, error) {
 	sess, err := session.NewSession(sessionConfig)
 
 	if config.S3Uploader.RoleArn != "" {
-		credentials := stscreds.NewCredentials(sess, config.S3Uploader.RoleArn)
+		credentials := stscreds.NewCredentials(sess, config.S3Uploader.RoleArn, func(arp *stscreds.AssumeRoleProvider) {
+			arp.ExternalID = aws.String(customerID)
+		})
 		sess.Config.Credentials = credentials
 	}
 
@@ -97,7 +99,7 @@ func (s3writer *s3Writer) writeBuffer(_ context.Context, now time.Time, buf io.R
 	}
 
 	sessionConfig := getSessionConfig(config)
-	sess, err := getSession(config, sessionConfig)
+	sess, err := getSession(config, sessionConfig, customerID)
 
 	if err != nil {
 		return err

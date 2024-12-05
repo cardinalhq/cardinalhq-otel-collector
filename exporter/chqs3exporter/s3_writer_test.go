@@ -84,6 +84,7 @@ func TestGetSessionConfigNoEndpoint(t *testing.T) {
 func TestGetSessionConfigWithRoleArn(t *testing.T) {
 	const region = "region"
 	const roleArn = "arn:aws:iam::12345:role/s3-exportation-role"
+	const customerID = "12345"
 	config := &Config{
 		S3Uploader: S3UploaderConfig{
 			Region:  region,
@@ -92,7 +93,7 @@ func TestGetSessionConfigWithRoleArn(t *testing.T) {
 	}
 
 	sessionConfig := getSessionConfig(config)
-	sess, err := getSession(config, sessionConfig)
+	sess, err := getSession(config, sessionConfig, customerID)
 
 	creds, _ := sess.Config.Credentials.Get()
 
@@ -103,6 +104,7 @@ func TestGetSessionConfigWithRoleArn(t *testing.T) {
 
 func TestGetSessionConfigWithoutRoleArn(t *testing.T) {
 	const region = "region"
+	const customerID = "12345"
 	config := &Config{
 		S3Uploader: S3UploaderConfig{
 			Region: region,
@@ -110,7 +112,7 @@ func TestGetSessionConfigWithoutRoleArn(t *testing.T) {
 	}
 
 	sessionConfig := getSessionConfig(config)
-	sess, err := getSession(config, sessionConfig)
+	sess, err := getSession(config, sessionConfig, customerID)
 
 	creds, _ := sess.Config.Credentials.Get()
 

@@ -37,7 +37,14 @@ import (
 
 func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
 	now := time.Now()
-	environment := translate.EnvironmentFromEnv()
+	// ee.CollectorID is the customer-side name of the collector, not the UUID.
+	// ee.CustomerID is the org UUID.
+	var ee translate.Environment
+	if e.idsFromEnv {
+		ee = translate.EnvironmentFromEnv()
+	} else {
+		ee = translate.EnvironmentFromAuth(ctx)
+	}
 
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
 		rm := md.ResourceMetrics().At(i)
@@ -56,31 +63,31 @@ func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pme
 					for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
 						dp := m.Gauge().DataPoints().At(l)
 						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeGauge)
-						e.processDatapoint(now, metricName, pmetric.MetricTypeGauge.String(), serviceName, extra, environment, rattr, sattr, dp.Attributes())
+						e.processDatapoint(now, ee, metricName, pmetric.MetricTypeGauge.String(), serviceName, extra, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeSum:
 					for l := 0; l < m.Sum().DataPoints().Len(); l++ {
 						dp := m.Sum().DataPoints().At(l)
 						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeSum)
-						e.processDatapoint(now, metricName, pmetric.MetricTypeSum.String(), serviceName, extra, environment, rattr, sattr, dp.Attributes())
+						e.processDatapoint(now, ee, metricName, pmetric.MetricTypeSum.String(), serviceName, extra, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeHistogram:
 					for l := 0; l < m.Histogram().DataPoints().Len(); l++ {
 						dp := m.Histogram().DataPoints().At(l)
 						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeHistogram)
-						e.processDatapoint(now, metricName, pmetric.MetricTypeHistogram.String(), serviceName, extra, environment, rattr, sattr, dp.Attributes())
+						e.processDatapoint(now, ee, metricName, pmetric.MetricTypeHistogram.String(), serviceName, extra, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeSummary:
 					for l := 0; l < m.Summary().DataPoints().Len(); l++ {
 						dp := m.Summary().DataPoints().At(l)
 						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeSummary)
-						e.processDatapoint(now, metricName, pmetric.MetricTypeSummary.String(), serviceName, extra, environment, rattr, sattr, dp.Attributes())
+						e.processDatapoint(now, ee, metricName, pmetric.MetricTypeSummary.String(), serviceName, extra, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeExponentialHistogram:
 					for l := 0; l < m.ExponentialHistogram().DataPoints().Len(); l++ {
 						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeExponentialHistogram)
 						dp := m.ExponentialHistogram().DataPoints().At(l)
-						e.processDatapoint(now, metricName, pmetric.MetricTypeExponentialHistogram.String(), serviceName, extra, environment, rattr, sattr, dp.Attributes())
+						e.processDatapoint(now, ee, metricName, pmetric.MetricTypeExponentialHistogram.String(), serviceName, extra, rattr, sattr, dp.Attributes())
 					}
 				}
 			}
@@ -90,12 +97,14 @@ func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pme
 	return md, nil
 }
 
-func (e *statsProc) processDatapoint(now time.Time, metricName, metricType, serviceName string, extra map[string]string, environment translate.Environment, rattr, sattr, dattr pcommon.Map) {
+func (e *statsProc) processDatapoint(now time.Time, environment translate.Environment, metricName, metricType, serviceName string, extra map[string]string, rattr, sattr, dattr pcommon.Map) {
 	tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 	if err := e.recordDatapoint(now, metricName, metricType, serviceName, tid, rattr, sattr, dattr); err != nil {
 		e.logger.Error("Failed to record datapoint", zap.Error(err))
 	}
 }
+
+// TODO need to actually use environment here to record stats
 
 func computeStatsOnField(k string) bool {
 	if strings.HasPrefix(k, translate.CardinalFieldTID) {

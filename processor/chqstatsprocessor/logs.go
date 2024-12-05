@@ -105,7 +105,7 @@ func (e *statsProc) recordLog(now time.Time, serviceName string, fingerprint int
 
 	e.addLogExemplar(rl, sl, lr, fingerprint)
 
-	bucketpile, err := e.logstats.Record(now, rec, "", 1, logSize)
+	bucketpile, err := e.logstats.Record(rec, now)
 	if err != nil {
 		return err
 	}
@@ -114,35 +114,28 @@ func (e *statsProc) recordLog(now time.Time, serviceName string, fingerprint int
 	return nil
 }
 
-func (e *statsProc) sendLogStatsWithExemplars(bucketpile *map[uint64][]*chqpb.EventStats, now time.Time) {
-	if bucketpile != nil && len(*bucketpile) > 0 {
+func (e *statsProc) sendLogStatsWithExemplars(bucketpile []*chqpb.EventStats, now time.Time) {
+	if bucketpile != nil && len(bucketpile) > 0 {
 		e.exemplarsMu.Lock()
 		defer e.exemplarsMu.Unlock()
 
-		for bucketKey, items := range *bucketpile {
-			itemsWithValidExemplars := items[:0]
-			for _, item := range items {
-				exemplar, found := e.logExemplars[item.Fingerprint]
-				if !found {
-					continue
-				}
+		var itemsWithValidExemplars []*chqpb.EventStats
+		for _, item := range bucketpile {
+			exemplar, found := e.logExemplars[item.Fingerprint]
+			if !found {
+				continue
+			}
 
-				marshalled, err := e.jsonMarshaller.logsMarshaler.MarshalLogs(exemplar)
-				if err != nil {
-					continue
-				}
-				item.Exemplar = marshalled
-				itemsWithValidExemplars = append(itemsWithValidExemplars, item)
+			marshalled, err := e.jsonMarshaller.logsMarshaler.MarshalLogs(exemplar)
+			if err != nil {
+				continue
 			}
-			if len(itemsWithValidExemplars) > 0 {
-				(*bucketpile)[bucketKey] = itemsWithValidExemplars
-			} else {
-				delete(*bucketpile, bucketKey)
-			}
+			item.Exemplar = marshalled
+			itemsWithValidExemplars = append(itemsWithValidExemplars, item)
 		}
 
 		// TODO should send this to a channel and have a separate goroutine send it
-		go e.sendLogStats(context.Background(), now, bucketpile)
+		go e.sendLogStats(context.Background(), now, itemsWithValidExemplars)
 	}
 }
 
@@ -161,13 +154,13 @@ func (e *statsProc) addLogExemplar(rl plog.ResourceLogs, sl plog.ScopeLogs, lr p
 	}
 }
 
-func (e *statsProc) sendLogStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*chqpb.EventStats) {
+func (e *statsProc) sendLogStats(ctx context.Context, now time.Time, statsList []*chqpb.EventStats) {
 	wrapper := &chqpb.EventStatsReport{
 		SubmittedAt: now.UnixMilli(),
 		Stats:       []*chqpb.EventStats{},
 	}
-	for _, items := range *bucketpile {
-		wrapper.Stats = append(wrapper.Stats, items...)
+	for _, stat := range statsList {
+		wrapper.Stats = append(wrapper.Stats, stat)
 	}
 
 	if err := e.postLogStats(ctx, wrapper); err != nil {

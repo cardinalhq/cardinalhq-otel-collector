@@ -43,7 +43,6 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"github.com/cardinalhq/oteltools/pkg/ottl"
-	"github.com/cardinalhq/oteltools/pkg/stats"
 )
 
 func newMarshaller() otelJsonMarshaller {
@@ -75,8 +74,8 @@ type statsProc struct {
 
 	configCallbackID int
 
-	logstats    *stats.StatsCombiner[*chqpb.EventStats]
-	spanStats   *stats.StatsCombiner[*chqpb.EventStats]
+	logstats    *chqpb.EventStatsCache
+	spanStats   *chqpb.EventStatsCache
 	metricstats *chqpb.MetricStatsCache
 
 	exemplarsMu     sync.RWMutex
@@ -115,16 +114,15 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 	}
 
 	processorId := set.ID.String()
-	now := time.Now()
 	switch ttype {
 	case "logs":
-		dog.logstats = stats.NewStatsCombiner[*chqpb.EventStats](now, config.Statistics.Interval)
+		dog.logstats = chqpb.NewEventStatsCache(5 * time.Minute)
 		dog.logger.Info("Initialized LogStats Combiner", zap.Duration("interval", config.Statistics.Interval))
 	case "metrics":
-		dog.metricstats = chqpb.NewMetricStatsCache()
+		dog.metricstats = chqpb.NewMetricStatsCache(5 * time.Minute)
 		dog.logger.Info("Initialized MetricStatsCache", zap.Duration("interval", config.Statistics.Interval))
 	case "traces":
-		dog.spanStats = stats.NewStatsCombiner[*chqpb.EventStats](now, config.Statistics.Interval)
+		dog.spanStats = chqpb.NewEventStatsCache(5 * time.Minute)
 		dog.logger.Info("Initialized SpanStats Combiner", zap.Duration("interval", config.Statistics.Interval))
 	}
 

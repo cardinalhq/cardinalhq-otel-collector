@@ -100,12 +100,13 @@ func (e *statsProc) recordSpan(
 		Phase:       e.pbPhase,
 		ProcessorId: e.id.Name(),
 		Count:       1,
+		Size:        spanSize,
 		Attributes:  enrichmentAttributes,
 		TsHour:      now.Truncate(time.Hour).UnixMilli(),
 	}
 	e.addSpanExemplar(rs, iss, span, fingerprint)
 
-	bucketpile, err := e.spanStats.Record(now, rec, "", 1, spanSize)
+	bucketpile, err := e.spanStats.Record(rec, now)
 	telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
 	if err != nil {
 		return err
@@ -114,34 +115,27 @@ func (e *statsProc) recordSpan(
 	return nil
 }
 
-func (e *statsProc) sendSpanStatsWithExemplars(bucketpile *map[uint64][]*chqpb.EventStats, now time.Time) {
-	if bucketpile != nil && len(*bucketpile) > 0 {
+func (e *statsProc) sendSpanStatsWithExemplars(bucketpile []*chqpb.EventStats, now time.Time) {
+	if bucketpile != nil && len(bucketpile) > 0 {
 		e.exemplarsMu.Lock()
 		defer e.exemplarsMu.Unlock()
 
-		for bucketKey, items := range *bucketpile {
-			itemsWithValidExemplars := items[:0]
-			for _, item := range items {
-				exemplar, found := e.traceExemplars[item.Fingerprint]
-				if !found {
-					continue
-				}
-				marshalled, err := e.jsonMarshaller.tracesMarshaler.MarshalTraces(exemplar)
-				if err != nil {
-					continue
-				}
-				item.Exemplar = marshalled
-				itemsWithValidExemplars = append(itemsWithValidExemplars, item)
+		var itemsWithValidExemplars []*chqpb.EventStats
+		for _, item := range bucketpile {
+			exemplar, found := e.traceExemplars[item.Fingerprint]
+			if !found {
+				continue
 			}
-			if len(itemsWithValidExemplars) > 0 {
-				(*bucketpile)[bucketKey] = itemsWithValidExemplars
-			} else {
-				delete(*bucketpile, bucketKey)
+			marshalled, err := e.jsonMarshaller.tracesMarshaler.MarshalTraces(exemplar)
+			if err != nil {
+				continue
 			}
+			item.Exemplar = marshalled
+			itemsWithValidExemplars = append(itemsWithValidExemplars, item)
 		}
 
 		// TODO should send this to a channel and have a separate goroutine send it
-		go e.sendSpanStats(context.Background(), now, bucketpile)
+		go e.sendSpanStats(context.Background(), now, itemsWithValidExemplars)
 	}
 }
 
@@ -161,13 +155,13 @@ func (e *statsProc) addSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpan
 	}
 }
 
-func (e *statsProc) sendSpanStats(ctx context.Context, now time.Time, bucketpile *map[uint64][]*chqpb.EventStats) {
+func (e *statsProc) sendSpanStats(ctx context.Context, now time.Time, bucketpile []*chqpb.EventStats) {
 	wrapper := &chqpb.EventStatsReport{
 		SubmittedAt: now.UnixMilli(),
 		Stats:       []*chqpb.EventStats{},
 	}
-	for _, items := range *bucketpile {
-		wrapper.Stats = append(wrapper.Stats, items...)
+	for _, stat := range bucketpile {
+		wrapper.Stats = append(wrapper.Stats, stat)
 	}
 
 	if err := e.postSpanStats(ctx, wrapper); err != nil {

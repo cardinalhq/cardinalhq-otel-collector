@@ -28,7 +28,7 @@ func (e *s3Exporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) err
 	if e.idsFromEnv {
 		ee = translate.EnvironmentFromEnv()
 	} else {
-		ee = EnvironmentFromAuth(ctx)
+		ee = translate.EnvironmentFromAuth(ctx)
 	}
 
 	if e.config.Timeboxes.Metrics.Interval <= 0 {

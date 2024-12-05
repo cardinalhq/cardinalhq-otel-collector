@@ -16,8 +16,9 @@ package chqstatsprocessor
 
 import (
 	"errors"
-	"go.opentelemetry.io/collector/config/confighttp"
 	"time"
+
+	"go.opentelemetry.io/collector/config/confighttp"
 
 	"go.opentelemetry.io/collector/component"
 	"go.uber.org/multierr"
@@ -27,6 +28,7 @@ type Config struct {
 	confighttp.ClientConfig `mapstructure:",squash"`
 	Statistics              StatisticsConfig `mapstructure:"statistics"`
 	ConfigurationExtension  *component.ID    `mapstructure:"configuration_extension"`
+	IDSource                string           `mapstructure:"id_source"`
 }
 
 type StatisticsConfig struct {
@@ -38,6 +40,10 @@ type ContextID = string
 
 func (c *Config) Validate() error {
 	var errs error
+
+	if c.IDSource != "auth" && c.IDSource != "env" {
+		errs = multierr.Append(errs, errors.New("id_source must be either 'auth' or 'env'"))
+	}
 
 	errs = multierr.Append(errs, c.Statistics.Validate())
 

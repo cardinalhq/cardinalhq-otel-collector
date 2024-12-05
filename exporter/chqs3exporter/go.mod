@@ -8,12 +8,11 @@ require (
 	github.com/DataDog/sketches-go v1.4.6
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
-	github.com/cardinalhq/oteltools v0.2.12
+	github.com/cardinalhq/oteltools v0.2.29
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/parquet-go/parquet-go v0.24.0
 	github.com/rs/xid v1.6.0
 	github.com/stretchr/testify v1.10.0
-	go.opentelemetry.io/collector/client v1.20.0
 	go.opentelemetry.io/collector/component v0.114.0
 	go.opentelemetry.io/collector/component/componenttest v0.114.0
 	go.opentelemetry.io/collector/consumer v0.114.0
@@ -73,6 +72,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
 	github.com/tklauser/numcpus v0.9.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
+	go.opentelemetry.io/collector/client v1.20.0 // indirect
 	go.opentelemetry.io/collector/component/componentstatus v0.114.0 // indirect
 	go.opentelemetry.io/collector/config/configretry v1.20.0 // indirect
 	go.opentelemetry.io/collector/config/configtelemetry v0.114.0 // indirect

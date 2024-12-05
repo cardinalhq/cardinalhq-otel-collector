@@ -49,7 +49,16 @@ func getFingerprint(l pcommon.Map) int64 {
 	return 0
 }
 
-func (e *statsProc) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
+func (e *statsProc) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Logs, error) {
+	// ee.CollectorID is the customer-side name of the collector, not the UUID.
+	// ee.CustomerID is the org UUID.
+	var ee translate.Environment
+	if e.idsFromEnv {
+		ee = translate.EnvironmentFromEnv()
+	} else {
+		ee = translate.EnvironmentFromAuth(ctx)
+	}
+
 	now := time.Now()
 
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {

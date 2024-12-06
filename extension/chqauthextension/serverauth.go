@@ -198,11 +198,11 @@ func (chq *chqServerAuth) callValidateAPI(ctx context.Context, apiKey string) (*
 	}
 
 	return &authData{
-		apiKey:      apiKey,
-		clientID:    validateResp.CustomerID,
-		clientName:  validateResp.CustomerName,
-		collectorID: validateResp.CollectorID,
-		valid:       validateResp.Valid,
+		apiKey:       apiKey,
+		customerID:   validateResp.CustomerID,
+		customerName: validateResp.CustomerName,
+		collectorID:  validateResp.CollectorID,
+		valid:        validateResp.Valid,
 	}, nil
 }
 
@@ -239,13 +239,13 @@ func parseEnv(env string) map[string]string {
 }
 
 type authData struct {
-	apiKey      string
-	environment map[string]string
-	clientID    string
-	clientName  string
-	collectorID string
-	valid       bool
-	expiry      time.Time
+	apiKey       string
+	environment  map[string]string
+	customerID   string
+	customerName string
+	collectorID  string
+	valid        bool
+	expiry       time.Time
 }
 
 var _ client.AuthData = (*authData)(nil)
@@ -256,10 +256,10 @@ func (a *authData) GetAttribute(name string) any {
 		return a.apiKey
 	case "environment":
 		return a.environment
-	case "client_id":
-		return a.clientID
-	case "client_name":
-		return a.clientName
+	case "customer_id":
+		return a.customerID
+	case "customer_name":
+		return a.customerName
 	case "collector_id":
 		return a.collectorID
 	case "valid":
@@ -270,5 +270,5 @@ func (a *authData) GetAttribute(name string) any {
 }
 
 func (a *authData) GetAttributeNames() []string {
-	return []string{"api_key", "environment", "client_id", "client_name", "collector_id", "valid"}
+	return []string{"api_key", "environment", "customer_id", "customer_name", "collector_id", "valid"}
 }

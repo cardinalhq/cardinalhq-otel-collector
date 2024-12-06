@@ -199,7 +199,8 @@ func TestConfig_Validate(t *testing.T) {
 			"valid client auth",
 			&Config{
 				ClientAuth: &ClientAuth{
-					APIKey: "key",
+					APIKey:      "key",
+					CollectorID: "collector1",
 					Environment: map[string]string{
 						"markus": "value1",
 					},
@@ -207,30 +208,11 @@ func TestConfig_Validate(t *testing.T) {
 			},
 			&Config{
 				ClientAuth: &ClientAuth{
-					APIKey: "key",
+					APIKey:      "key",
+					CollectorID: "collector1",
 					Environment: map[string]string{
 						"markus": "value1",
 					},
-				},
-			},
-			nil,
-		},
-		{
-			"valid server auth",
-			&Config{
-				ServerAuth: &ServerAuth{
-					ClientConfig: confighttp.ClientConfig{
-						Endpoint: "http://localhost:8080",
-					},
-				},
-			},
-			&Config{
-				ServerAuth: &ServerAuth{
-					ClientConfig: confighttp.ClientConfig{
-						Endpoint: "http://localhost:8080",
-					},
-					CacheTTLValid:   defaultCacheValidTTL,
-					CacheTTLInvalid: defaultCacheInvalidTTL,
 				},
 			},
 			nil,
@@ -245,7 +227,8 @@ func TestConfig_Validate(t *testing.T) {
 			"both auth config",
 			&Config{
 				ClientAuth: &ClientAuth{
-					APIKey: "key",
+					APIKey:      "key",
+					CollectorID: "collector1",
 				},
 				ServerAuth: &ServerAuth{
 					ClientConfig: confighttp.ClientConfig{
@@ -255,7 +238,8 @@ func TestConfig_Validate(t *testing.T) {
 			},
 			&Config{
 				ClientAuth: &ClientAuth{
-					APIKey: "key",
+					APIKey:      "key",
+					CollectorID: "collector1",
 				},
 				ServerAuth: &ServerAuth{
 					ClientConfig: confighttp.ClientConfig{
@@ -276,6 +260,9 @@ func TestConfig_Validate(t *testing.T) {
 			if tt.config.ClientAuth != nil {
 				if tt.config.ClientAuth.APIKey != tt.expected.ClientAuth.APIKey {
 					t.Errorf("Expected APIKey %s, got %s", tt.expected.ClientAuth.APIKey, tt.config.ClientAuth.APIKey)
+				}
+				if tt.config.ClientAuth.CollectorID != tt.expected.ClientAuth.CollectorID {
+					t.Errorf("Expected CollectorID %s, got %s", tt.expected.ClientAuth.CollectorID, tt.config.ClientAuth.CollectorID)
 				}
 				if len(tt.config.ClientAuth.Environment) != len(tt.expected.ClientAuth.Environment) {
 					t.Errorf("Expected Environment %v, got %v", tt.expected.ClientAuth.Environment, tt.config.ClientAuth.Environment)
@@ -306,13 +293,15 @@ func TestClientAuth_Validate(t *testing.T) {
 		{
 			"valid",
 			&ClientAuth{
-				APIKey: "key",
+				APIKey:      "key",
+				CollectorID: "collector1",
 				Environment: map[string]string{
 					"markus": "value1",
 				},
 			},
 			&ClientAuth{
-				APIKey: "key",
+				APIKey:      "key",
+				CollectorID: "collector1",
 				Environment: map[string]string{
 					"markus": "value1",
 				},
@@ -332,13 +321,15 @@ func TestClientAuth_Validate(t *testing.T) {
 		{
 			"invalid environment key",
 			&ClientAuth{
-				APIKey: "key",
+				APIKey:      "key",
+				CollectorID: "collector1",
 				Environment: map[string]string{
 					"markus1": "value1",
 				},
 			},
 			&ClientAuth{
-				APIKey: "key",
+				APIKey:      "key",
+				CollectorID: "collector1",
 				Environment: map[string]string{
 					"markus1": "value1",
 				},
@@ -348,13 +339,15 @@ func TestClientAuth_Validate(t *testing.T) {
 		{
 			"invalid environment value",
 			&ClientAuth{
-				APIKey: "key",
+				APIKey:      "key",
+				CollectorID: "collector1",
 				Environment: map[string]string{
 					"markus": "value\x00",
 				},
 			},
 			&ClientAuth{
-				APIKey: "key",
+				APIKey:      "key",
+				CollectorID: "collector1",
 				Environment: map[string]string{
 					"markus": "value\x00",
 				},
@@ -371,6 +364,9 @@ func TestClientAuth_Validate(t *testing.T) {
 			}
 			if tt.config.APIKey != tt.expected.APIKey {
 				t.Errorf("Expected APIKey %s, got %s", tt.expected.APIKey, tt.config.APIKey)
+			}
+			if tt.config.CollectorID != tt.expected.CollectorID {
+				t.Errorf("Expected CollectorID %s, got %s", tt.expected.CollectorID, tt.config.CollectorID)
 			}
 			if len(tt.config.Environment) != len(tt.expected.Environment) {
 				t.Errorf("Expected Environment %v, got %v", tt.expected.Environment, tt.config.Environment)

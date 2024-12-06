@@ -51,7 +51,6 @@ var (
 	errNoClientAPIKey      = errors.New("client_auth.api_key must be set")
 	errBadEnvironemntKey   = errors.New("environment key contains invalid characters: only lowercase letters and _ are allowed")
 	errBadEnvironmentValue = errors.New("environment value contains invalid characters: only alphanumeric characters and _-.@:/, are allowed")
-	errNoCollectorID       = errors.New("client_auth.collector_id must be set")
 )
 
 func (cfg *Config) Validate() error {
@@ -75,10 +74,6 @@ func (cfg *Config) Validate() error {
 func (cfg *ClientAuth) Validate() error {
 	if cfg.APIKey == "" {
 		return errNoClientAPIKey
-	}
-
-	if cfg.CollectorID == "" {
-		return errNoCollectorID
 	}
 
 	for k, v := range cfg.Environment {

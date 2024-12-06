@@ -50,7 +50,7 @@ type chqRoundTripper struct {
 }
 
 func (chq *chqClientAuth) roundTripper(base http.RoundTripper) (http.RoundTripper, error) {
-	if chq.config.APIKey == "" || chq.config.CollectorID == "" {
+	if chq.config.APIKey == "" {
 		return base, nil
 	}
 	return &chqRoundTripper{
@@ -64,7 +64,9 @@ func (chq *chqClientAuth) roundTripper(base http.RoundTripper) (http.RoundTrippe
 func (c *chqRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	newReq := req.Clone(req.Context())
 	newReq.Header.Set(apiKeyHeader, c.apiKey)
-	newReq.Header.Set(collectorIDHeader, c.collectorID)
+	if c.collectorID != "" {
+		newReq.Header.Set(collectorIDHeader, c.collectorID)
+	}
 	newReq.Header.Set(envKeyHeader, encodeEnv(c.env))
 	return c.base.RoundTrip(newReq)
 }
@@ -76,8 +78,10 @@ type chqPerRPCAuth struct {
 
 func (chq *chqClientAuth) perRPCCredentials() (creds.PerRPCCredentials, error) {
 	metadata := map[string]string{
-		apiKeyHeader:      chq.config.APIKey,
-		collectorIDHeader: chq.config.CollectorID,
+		apiKeyHeader: chq.config.APIKey,
+	}
+	if chq.config.CollectorID != "" {
+		metadata[collectorIDHeader] = chq.config.CollectorID
 	}
 	if len(chq.env) > 0 {
 		metadata[envKeyHeader] = encodeEnv(chq.env)

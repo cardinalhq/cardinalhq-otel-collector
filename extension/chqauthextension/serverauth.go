@@ -101,10 +101,11 @@ func (chq *chqServerAuth) serverAuthenticate(ctx context.Context, headers map[st
 	if auth == "" {
 		return ctx, errNoAuthHeader
 	}
+	collectorID := getCollectorFromHeaders(headers)
 
 	envkeys := getEnvFromHeaders(headers)
 
-	authData, err := chq.authenticateAPIKey(ctx, auth)
+	authData, err := chq.authenticateAPIKey(ctx, auth, collectorID)
 	if err != nil {
 		return ctx, err
 	}
@@ -149,8 +150,8 @@ func (chq *chqServerAuth) setcache(ad *authData) {
 	chq.lookupCache[ad.apiKey] = ad
 }
 
-func (chq *chqServerAuth) authenticateAPIKey(ctx context.Context, apiKey string) (*authData, error) {
-	ad := chq.getcache(apiKey)
+func (chq *chqServerAuth) authenticateAPIKey(ctx context.Context, apiKey, collectorID string) (*authData, error) {
+	ad := chq.getcache(apiKey + ":" + collectorID)
 	if ad != nil {
 		if !ad.valid {
 			return nil, errDenied
@@ -158,7 +159,7 @@ func (chq *chqServerAuth) authenticateAPIKey(ctx context.Context, apiKey string)
 		return ad, nil
 	}
 
-	ad, err := chq.callValidateAPI(ctx, apiKey)
+	ad, err := chq.callValidateAPI(ctx, apiKey, collectorID)
 	if err != nil {
 		if errors.Is(err, errDenied) {
 			ad = &authData{
@@ -175,12 +176,15 @@ func (chq *chqServerAuth) authenticateAPIKey(ctx context.Context, apiKey string)
 	return ad, nil
 }
 
-func (chq *chqServerAuth) callValidateAPI(ctx context.Context, apiKey string) (*authData, error) {
+func (chq *chqServerAuth) callValidateAPI(ctx context.Context, apiKey, collectorID string) (*authData, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, chq.config.ServerAuth.Endpoint, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set(apiKeyHeader, apiKey)
+	if collectorID != "" {
+		req.Header.Set(collectorIDHeader, collectorID)
+	}
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := chq.httpClient.Do(req)
@@ -212,6 +216,15 @@ func getAuthHeader(h map[string][]string) string {
 			if strings.EqualFold(k, key) {
 				return v[0]
 			}
+		}
+	}
+	return ""
+}
+
+func getCollectorFromHeaders(h map[string][]string) string {
+	for k, v := range h {
+		if strings.EqualFold(k, collectorIDHeader) {
+			return v[0]
 		}
 	}
 	return ""

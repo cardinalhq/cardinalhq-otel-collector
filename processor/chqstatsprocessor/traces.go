@@ -113,19 +113,21 @@ func (e *statsProc) recordSpan(
 		Size:        spanSize,
 		Attributes:  enrichmentAttributes,
 		TsHour:      now.Truncate(time.Hour).UnixMilli(),
+		CollectorId: environment.CollectorID(),
+		CustomerId:  environment.CustomerID(),
 	}
-	e.addSpanExemplar(environment, rs, iss, span, fingerprint)
+	e.addSpanExemplar(rs, iss, span, fingerprint)
 
 	bucketpile, err := e.spanStats.Record(rec, now)
 	telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
 	if err != nil {
 		return err
 	}
-	e.sendSpanStatsWithExemplars(environment, bucketpile, now)
+	e.sendSpanStatsWithExemplars(bucketpile, now)
 	return nil
 }
 
-func (e *statsProc) sendSpanStatsWithExemplars(environment translate.Environment, bucketpile []*chqpb.EventStats, now time.Time) {
+func (e *statsProc) sendSpanStatsWithExemplars(bucketpile []*chqpb.EventStats, now time.Time) {
 	// TODO need to actually use environment here to record stats
 
 	if bucketpile != nil && len(bucketpile) > 0 {
@@ -151,7 +153,7 @@ func (e *statsProc) sendSpanStatsWithExemplars(environment translate.Environment
 	}
 }
 
-func (e *statsProc) addSpanExemplar(environment translate.Environment, rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span, fingerprint int64) {
+func (e *statsProc) addSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span, fingerprint int64) {
 	// TODO need to actually use environment here to record stats
 
 	e.exemplarsMu.Lock()

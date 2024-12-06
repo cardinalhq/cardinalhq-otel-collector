@@ -112,6 +112,8 @@ func (e *statsProc) recordLog(now time.Time, environment translate.Environment, 
 		Size:        logSize,
 		Attributes:  enrichmentAttributes,
 		TsHour:      now.Truncate(time.Hour).UnixMilli(),
+		CollectorId: environment.CollectorID(),
+		CustomerId:  environment.CustomerID(),
 	}
 
 	e.addLogExemplar(rl, sl, lr, fingerprint)

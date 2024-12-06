@@ -50,8 +50,6 @@ func getFingerprint(l pcommon.Map) int64 {
 }
 
 func (e *statsProc) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Logs, error) {
-	// ee.CollectorID is the customer-side name of the collector, not the UUID.
-	// ee.CustomerID is the org UUID.
 	var ee translate.Environment
 	if e.idsFromEnv {
 		ee = translate.EnvironmentFromEnv()

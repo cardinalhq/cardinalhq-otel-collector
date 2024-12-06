@@ -37,8 +37,6 @@ import (
 
 func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
 	now := time.Now()
-	// ee.CollectorID is the customer-side name of the collector, not the UUID.
-	// ee.CustomerID is the org UUID.
 	var ee translate.Environment
 	if e.idsFromEnv {
 		ee = translate.EnvironmentFromEnv()
@@ -99,7 +97,7 @@ func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pme
 
 func (e *statsProc) processDatapoint(now time.Time, environment translate.Environment, metricName, metricType, serviceName string, extra map[string]string, rattr, sattr, dattr pcommon.Map) {
 	tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
-	if err := e.recordDatapoint(now, metricName, metricType, serviceName, tid, rattr, sattr, dattr); err != nil {
+	if err := e.recordDatapoint(now, environment, metricName, metricType, serviceName, tid, rattr, sattr, dattr); err != nil {
 		e.logger.Error("Failed to record datapoint", zap.Error(err))
 	}
 }
@@ -113,7 +111,7 @@ func computeStatsOnField(k string) bool {
 	return !strings.HasPrefix(k, translate.CardinalFieldPrefixDot)
 }
 
-func (e *statsProc) recordDatapoint(now time.Time, metricName, metricType, serviceName string, tid int64, rattr, sattr, dpAttr pcommon.Map) error {
+func (e *statsProc) recordDatapoint(now time.Time, environment translate.Environment, metricName, metricType, serviceName string, tid int64, rattr, sattr, dpAttr pcommon.Map) error {
 	var errs error
 
 	attributes := e.processEnrichments(map[string]pcommon.Map{
@@ -124,27 +122,27 @@ func (e *statsProc) recordDatapoint(now time.Time, metricName, metricType, servi
 
 	rattr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(now, metricName, metricType, serviceName, k, v.AsString(), "resource", attributes, 1))
+			errs = multierr.Append(errs, e.recordMetric(now, environment, metricName, metricType, serviceName, k, v.AsString(), "resource", attributes, 1))
 		}
 		return true
 	})
 	sattr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(now, metricName, metricType, serviceName, k, v.AsString(), "scope", attributes, 1))
+			errs = multierr.Append(errs, e.recordMetric(now, environment, metricName, metricType, serviceName, k, v.AsString(), "scope", attributes, 1))
 		}
 		return true
 	})
 	dpAttr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(now, metricName, metricType, serviceName, k, v.AsString(), "datapoint", attributes, 1))
+			errs = multierr.Append(errs, e.recordMetric(now, environment, metricName, metricType, serviceName, k, v.AsString(), "datapoint", attributes, 1))
 		}
 		return true
 	})
-	errs = multierr.Append(errs, e.recordMetric(now, metricName, metricType, serviceName, translate.CardinalFieldTID, strconv.FormatInt(tid, 10), "metric", attributes, 1))
+	errs = multierr.Append(errs, e.recordMetric(now, environment, metricName, metricType, serviceName, translate.CardinalFieldTID, strconv.FormatInt(tid, 10), "metric", attributes, 1))
 	return errs
 }
 
-func (e *statsProc) recordMetric(now time.Time, metricName string, metricType string, serviceName string, tagName, tagValue string, tagScope string, attributes []*chqpb.Attribute, count int) error {
+func (e *statsProc) recordMetric(now time.Time, environment translate.Environment, metricName string, metricType string, serviceName string, tagName, tagValue string, tagScope string, attributes []*chqpb.Attribute, count int) error {
 	rec := &chqpb.MetricStats{
 		MetricName:  metricName,
 		TagName:     tagName,
@@ -156,6 +154,8 @@ func (e *statsProc) recordMetric(now time.Time, metricName string, metricType st
 		Count:       int64(count),
 		Attributes:  attributes,
 		TsHour:      now.Truncate(time.Hour).UnixMilli(),
+		CustomerId:  environment.CustomerID(),
+		CollectorId: environment.CollectorID(),
 	}
 
 	stats, err := e.metricstats.Record(rec, tagValue, now)

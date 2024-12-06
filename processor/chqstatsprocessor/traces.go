@@ -34,8 +34,6 @@ import (
 
 func (e *statsProc) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
 	now := time.Now()
-	// ee.CollectorID is the customer-side name of the collector, not the UUID.
-	// ee.CustomerID is the org UUID.
 	var ee translate.Environment
 	if e.idsFromEnv {
 		ee = translate.EnvironmentFromEnv()

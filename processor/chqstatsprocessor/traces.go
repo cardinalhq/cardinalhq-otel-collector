@@ -34,6 +34,13 @@ import (
 
 func (e *statsProc) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
 	now := time.Now()
+	var ee translate.Environment
+	if e.idsFromEnv {
+		ee = translate.EnvironmentFromEnv()
+	} else {
+		ee = translate.EnvironmentFromAuth(ctx)
+	}
+
 	for i := 0; i < td.ResourceSpans().Len(); i++ {
 		rs := td.ResourceSpans().At(i)
 		serviceName := getServiceName(rs.Resource().Attributes())
@@ -46,7 +53,7 @@ func (e *statsProc) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace
 					isSlow = isslowValue.Bool()
 				}
 				fingerprint := getFingerprint(sr.Attributes())
-				if err := e.recordSpan(now, serviceName, fingerprint, isSlow, sr, iss, rs); err != nil {
+				if err := e.recordSpan(now, ee, serviceName, fingerprint, isSlow, sr, iss, rs); err != nil {
 					e.logger.Error("Failed to record span", zap.Error(err))
 				}
 			}
@@ -66,6 +73,7 @@ func toSize(attributes map[string]interface{}) int64 {
 
 func (e *statsProc) recordSpan(
 	now time.Time,
+	environment translate.Environment,
 	serviceName string,
 	fingerprint int64,
 	isSlow bool,
@@ -103,6 +111,8 @@ func (e *statsProc) recordSpan(
 		Size:        spanSize,
 		Attributes:  enrichmentAttributes,
 		TsHour:      now.Truncate(time.Hour).UnixMilli(),
+		CollectorId: environment.CollectorID(),
+		CustomerId:  environment.CustomerID(),
 	}
 	e.addSpanExemplar(rs, iss, span, fingerprint)
 
@@ -116,6 +126,8 @@ func (e *statsProc) recordSpan(
 }
 
 func (e *statsProc) sendSpanStatsWithExemplars(bucketpile []*chqpb.EventStats, now time.Time) {
+	// TODO need to actually use environment here to record stats
+
 	if bucketpile != nil && len(bucketpile) > 0 {
 		e.exemplarsMu.Lock()
 		defer e.exemplarsMu.Unlock()
@@ -140,6 +152,8 @@ func (e *statsProc) sendSpanStatsWithExemplars(bucketpile []*chqpb.EventStats, n
 }
 
 func (e *statsProc) addSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span, fingerprint int64) {
+	// TODO need to actually use environment here to record stats
+
 	e.exemplarsMu.Lock()
 	defer e.exemplarsMu.Unlock()
 

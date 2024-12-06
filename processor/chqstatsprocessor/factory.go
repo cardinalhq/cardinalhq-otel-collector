@@ -43,6 +43,7 @@ const (
 
 func createDefaultConfig() component.Config {
 	return &Config{
+		IDSource: "env",
 		Statistics: StatisticsConfig{
 			Phase:    "postsample",
 			Interval: defaultStatisticsInterval,

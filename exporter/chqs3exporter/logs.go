@@ -28,7 +28,7 @@ func (e *s3Exporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {
 	if e.idsFromEnv {
 		ee = translate.EnvironmentFromEnv()
 	} else {
-		ee = EnvironmentFromAuth(ctx)
+		ee = translate.EnvironmentFromAuth(ctx)
 	}
 
 	if e.config.Timeboxes.Logs.Interval <= 0 {

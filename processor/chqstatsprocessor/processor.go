@@ -72,6 +72,8 @@ type statsProc struct {
 	pbPhase            chqpb.Phase
 	podName            string
 
+	idsFromEnv bool
+
 	configCallbackID int
 
 	logstats    *chqpb.EventStatsCache
@@ -178,6 +180,8 @@ func (e *statsProc) Start(ctx context.Context, host component.Host) error {
 	}
 	e.configExtension = cext
 	e.configCallbackID = e.configExtension.RegisterCallback(e.id.String()+"/"+e.ttype, e.configUpdateCallback)
+
+	e.idsFromEnv = e.config.IDSource == "env"
 
 	return nil
 }

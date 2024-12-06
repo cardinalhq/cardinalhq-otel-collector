@@ -6,7 +6,7 @@ toolchain go1.23.3
 
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
-	github.com/cardinalhq/oteltools v0.2.12
+	github.com/cardinalhq/oteltools v0.3.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/collector/component v0.114.0
@@ -59,6 +59,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
 	github.com/tklauser/numcpus v0.9.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
+	go.opentelemetry.io/collector/client v1.20.0 // indirect
 	go.opentelemetry.io/collector/component/componentstatus v0.114.0 // indirect
 	go.opentelemetry.io/collector/component/componenttest v0.114.0 // indirect
 	go.opentelemetry.io/collector/config/configtelemetry v0.114.0 // indirect

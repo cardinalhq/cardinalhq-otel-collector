@@ -16,9 +16,10 @@ package chqauthextension
 
 const (
 	apiKeyHeader         = "x-cardinalhq-api-key"
+	collectorIDHeader    = "x-cardinalhq-collector-id"
 	ddApiKeyHeader       = "dd-api-key"
-	firehoseApiKeyHeader = "x-amz-firehose-access-key"
 	envKeyHeader         = "x-cardinalhq-environment"
+	firehoseApiKeyHeader = "x-amz-firehose-access-key"
 )
 
 var (

@@ -28,7 +28,7 @@ func (e *s3Exporter) ConsumeTraces(ctx context.Context, traces ptrace.Traces) er
 	if e.idsFromEnv {
 		ee = translate.EnvironmentFromEnv()
 	} else {
-		ee = EnvironmentFromAuth(ctx)
+		ee = translate.EnvironmentFromAuth(ctx)
 	}
 
 	if e.config.Timeboxes.Traces.Interval <= 0 {

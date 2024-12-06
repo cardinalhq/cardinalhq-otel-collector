@@ -37,7 +37,12 @@ import (
 
 func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
 	now := time.Now()
-	environment := translate.EnvironmentFromEnv()
+	var ee translate.Environment
+	if e.idsFromEnv {
+		ee = translate.EnvironmentFromEnv()
+	} else {
+		ee = translate.EnvironmentFromAuth(ctx)
+	}
 
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
 		rm := md.ResourceMetrics().At(i)
@@ -56,31 +61,31 @@ func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pme
 					for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
 						dp := m.Gauge().DataPoints().At(l)
 						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeGauge)
-						e.processDatapoint(now, metricName, pmetric.MetricTypeGauge.String(), serviceName, extra, environment, rattr, sattr, dp.Attributes())
+						e.processDatapoint(now, ee, metricName, pmetric.MetricTypeGauge.String(), serviceName, extra, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeSum:
 					for l := 0; l < m.Sum().DataPoints().Len(); l++ {
 						dp := m.Sum().DataPoints().At(l)
 						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeSum)
-						e.processDatapoint(now, metricName, pmetric.MetricTypeSum.String(), serviceName, extra, environment, rattr, sattr, dp.Attributes())
+						e.processDatapoint(now, ee, metricName, pmetric.MetricTypeSum.String(), serviceName, extra, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeHistogram:
 					for l := 0; l < m.Histogram().DataPoints().Len(); l++ {
 						dp := m.Histogram().DataPoints().At(l)
 						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeHistogram)
-						e.processDatapoint(now, metricName, pmetric.MetricTypeHistogram.String(), serviceName, extra, environment, rattr, sattr, dp.Attributes())
+						e.processDatapoint(now, ee, metricName, pmetric.MetricTypeHistogram.String(), serviceName, extra, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeSummary:
 					for l := 0; l < m.Summary().DataPoints().Len(); l++ {
 						dp := m.Summary().DataPoints().At(l)
 						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeSummary)
-						e.processDatapoint(now, metricName, pmetric.MetricTypeSummary.String(), serviceName, extra, environment, rattr, sattr, dp.Attributes())
+						e.processDatapoint(now, ee, metricName, pmetric.MetricTypeSummary.String(), serviceName, extra, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeExponentialHistogram:
 					for l := 0; l < m.ExponentialHistogram().DataPoints().Len(); l++ {
 						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeExponentialHistogram)
 						dp := m.ExponentialHistogram().DataPoints().At(l)
-						e.processDatapoint(now, metricName, pmetric.MetricTypeExponentialHistogram.String(), serviceName, extra, environment, rattr, sattr, dp.Attributes())
+						e.processDatapoint(now, ee, metricName, pmetric.MetricTypeExponentialHistogram.String(), serviceName, extra, rattr, sattr, dp.Attributes())
 					}
 				}
 			}
@@ -90,12 +95,14 @@ func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pme
 	return md, nil
 }
 
-func (e *statsProc) processDatapoint(now time.Time, metricName, metricType, serviceName string, extra map[string]string, environment translate.Environment, rattr, sattr, dattr pcommon.Map) {
+func (e *statsProc) processDatapoint(now time.Time, environment translate.Environment, metricName, metricType, serviceName string, extra map[string]string, rattr, sattr, dattr pcommon.Map) {
 	tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
-	if err := e.recordDatapoint(now, metricName, metricType, serviceName, tid, rattr, sattr, dattr); err != nil {
+	if err := e.recordDatapoint(now, environment, metricName, metricType, serviceName, tid, rattr, sattr, dattr); err != nil {
 		e.logger.Error("Failed to record datapoint", zap.Error(err))
 	}
 }
+
+// TODO need to actually use environment here to record stats
 
 func computeStatsOnField(k string) bool {
 	if strings.HasPrefix(k, translate.CardinalFieldTID) {
@@ -104,7 +111,7 @@ func computeStatsOnField(k string) bool {
 	return !strings.HasPrefix(k, translate.CardinalFieldPrefixDot)
 }
 
-func (e *statsProc) recordDatapoint(now time.Time, metricName, metricType, serviceName string, tid int64, rattr, sattr, dpAttr pcommon.Map) error {
+func (e *statsProc) recordDatapoint(now time.Time, environment translate.Environment, metricName, metricType, serviceName string, tid int64, rattr, sattr, dpAttr pcommon.Map) error {
 	var errs error
 
 	attributes := e.processEnrichments(map[string]pcommon.Map{
@@ -115,27 +122,27 @@ func (e *statsProc) recordDatapoint(now time.Time, metricName, metricType, servi
 
 	rattr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(now, metricName, metricType, serviceName, k, v.AsString(), "resource", attributes, 1))
+			errs = multierr.Append(errs, e.recordMetric(now, environment, metricName, metricType, serviceName, k, v.AsString(), "resource", attributes, 1))
 		}
 		return true
 	})
 	sattr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(now, metricName, metricType, serviceName, k, v.AsString(), "scope", attributes, 1))
+			errs = multierr.Append(errs, e.recordMetric(now, environment, metricName, metricType, serviceName, k, v.AsString(), "scope", attributes, 1))
 		}
 		return true
 	})
 	dpAttr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(now, metricName, metricType, serviceName, k, v.AsString(), "datapoint", attributes, 1))
+			errs = multierr.Append(errs, e.recordMetric(now, environment, metricName, metricType, serviceName, k, v.AsString(), "datapoint", attributes, 1))
 		}
 		return true
 	})
-	errs = multierr.Append(errs, e.recordMetric(now, metricName, metricType, serviceName, translate.CardinalFieldTID, strconv.FormatInt(tid, 10), "metric", attributes, 1))
+	errs = multierr.Append(errs, e.recordMetric(now, environment, metricName, metricType, serviceName, translate.CardinalFieldTID, strconv.FormatInt(tid, 10), "metric", attributes, 1))
 	return errs
 }
 
-func (e *statsProc) recordMetric(now time.Time, metricName string, metricType string, serviceName string, tagName, tagValue string, tagScope string, attributes []*chqpb.Attribute, count int) error {
+func (e *statsProc) recordMetric(now time.Time, environment translate.Environment, metricName string, metricType string, serviceName string, tagName, tagValue string, tagScope string, attributes []*chqpb.Attribute, count int) error {
 	rec := &chqpb.MetricStats{
 		MetricName:  metricName,
 		TagName:     tagName,
@@ -147,6 +154,8 @@ func (e *statsProc) recordMetric(now time.Time, metricName string, metricType st
 		Count:       int64(count),
 		Attributes:  attributes,
 		TsHour:      now.Truncate(time.Hour).UnixMilli(),
+		CustomerId:  environment.CustomerID(),
+		CollectorId: environment.CollectorID(),
 	}
 
 	stats, err := e.metricstats.Record(rec, tagValue, now)

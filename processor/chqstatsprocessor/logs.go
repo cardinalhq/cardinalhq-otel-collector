@@ -49,7 +49,14 @@ func getFingerprint(l pcommon.Map) int64 {
 	return 0
 }
 
-func (e *statsProc) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
+func (e *statsProc) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Logs, error) {
+	var ee translate.Environment
+	if e.idsFromEnv {
+		ee = translate.EnvironmentFromEnv()
+	} else {
+		ee = translate.EnvironmentFromAuth(ctx)
+	}
+
 	now := time.Now()
 
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
@@ -60,7 +67,7 @@ func (e *statsProc) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, err
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				lr := sl.LogRecords().At(k)
 				fp := getFingerprint(lr.Attributes())
-				if err := e.recordLog(now, serviceName, fp, rl, sl, lr); err != nil {
+				if err := e.recordLog(now, ee, serviceName, fp, rl, sl, lr); err != nil {
 					e.logger.Error("Failed to record log", zap.Error(err))
 				}
 			}
@@ -70,9 +77,11 @@ func (e *statsProc) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, err
 	return ld, nil
 }
 
-func (e *statsProc) recordLog(now time.Time, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) error {
+func (e *statsProc) recordLog(now time.Time, environment translate.Environment, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) error {
 	message := lr.Body().AsString()
 	logSize := int64(len(message))
+
+	// TODO need to actually use environment here to record stats
 
 	// Derive tags from e.config.LogsConfig.StatsEnrichments based on the contextId, and then add tags to the LogStats.Tags Map
 
@@ -101,6 +110,8 @@ func (e *statsProc) recordLog(now time.Time, serviceName string, fingerprint int
 		Size:        logSize,
 		Attributes:  enrichmentAttributes,
 		TsHour:      now.Truncate(time.Hour).UnixMilli(),
+		CollectorId: environment.CollectorID(),
+		CustomerId:  environment.CustomerID(),
 	}
 
 	e.addLogExemplar(rl, sl, lr, fingerprint)

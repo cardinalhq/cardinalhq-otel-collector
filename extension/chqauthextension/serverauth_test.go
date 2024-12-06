@@ -94,11 +94,11 @@ func TestGetCache(t *testing.T) {
 func TestSetCache(t *testing.T) {
 	chq := newchq()
 	ad := &authData{
-		apiKey:     "key1",
-		clientID:   "client1",
-		clientName: "John Doe",
-		valid:      true,
-		expiry:     time.Now().Add(time.Hour),
+		apiKey:       "key1",
+		customerID:   "client1",
+		customerName: "John Doe",
+		valid:        true,
+		expiry:       time.Now().Add(time.Hour),
 	}
 
 	chq.setcache(ad)
@@ -107,13 +107,13 @@ func TestSetCache(t *testing.T) {
 
 func TestGetAttribute(t *testing.T) {
 	ad := &authData{
-		apiKey:      "key1",
-		environment: map[string]string{"env1": "value1"},
-		clientID:    "client1",
-		clientName:  "John Doe",
-		collectorID: "collector1",
-		valid:       true,
-		expiry:      time.Now().Add(time.Hour),
+		apiKey:       "key1",
+		environment:  map[string]string{"env1": "value1"},
+		customerID:   "client1",
+		customerName: "John Doe",
+		collectorID:  "collector1",
+		valid:        true,
+		expiry:       time.Now().Add(time.Hour),
 	}
 
 	tests := []struct {
@@ -129,11 +129,11 @@ func TestGetAttribute(t *testing.T) {
 			map[string]string{"env1": "value1"},
 		},
 		{
-			"client_id",
+			"customer_id",
 			"client1",
 		},
 		{
-			"client_name",
+			"customer_name",
 			"John Doe",
 		},
 		{
@@ -159,7 +159,7 @@ func TestGetAttribute(t *testing.T) {
 
 func TestGetAttributeNames(t *testing.T) {
 	ad := &authData{}
-	expected := []string{"api_key", "environment", "client_id", "client_name", "collector_id", "valid"}
+	expected := []string{"api_key", "environment", "customer_id", "customer_name", "collector_id", "valid"}
 	names := ad.GetAttributeNames()
 	assert.ElementsMatch(t, expected, names)
 }

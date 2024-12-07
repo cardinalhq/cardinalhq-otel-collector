@@ -334,7 +334,7 @@ func TestClientAuth_Validate(t *testing.T) {
 					"markus1": "value1",
 				},
 			},
-			errBadEnvironemntKey,
+			errBadEnvironmentKey,
 		},
 		{
 			"invalid environment value",

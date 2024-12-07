@@ -163,9 +163,10 @@ func (chq *chqServerAuth) authenticateAPIKey(ctx context.Context, apiKey, collec
 	if err != nil {
 		if errors.Is(err, errDenied) {
 			ad = &authData{
-				apiKey: apiKey,
-				valid:  false,
-				expiry: time.Now().Add(chq.config.ServerAuth.CacheTTLInvalid),
+				apiKey:      apiKey,
+				collectorID: collectorID,
+				valid:       false,
+				expiry:      time.Now().Add(chq.config.ServerAuth.CacheTTLInvalid),
 			}
 			chq.setcache(ad)
 		}

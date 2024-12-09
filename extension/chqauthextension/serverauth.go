@@ -149,6 +149,7 @@ func getCacheKey(apiKey, collectorID string) string {
 
 func (chq *chqServerAuth) setcache(ad *authData) {
 	chq.authCacheAdds.Add(context.Background(), 1)
+	chq.logger.Info("setcache", zap.String("cacheKey", getCacheKey(ad.apiKey, ad.collectorID)))
 	chq.cacheLock.Lock()
 	defer chq.cacheLock.Unlock()
 	chq.lookupCache[getCacheKey(ad.apiKey, ad.collectorID)] = ad

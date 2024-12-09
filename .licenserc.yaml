@@ -35,6 +35,7 @@ header:
     - exporter/chqs3exporter/config_test.go
     - exporter/chqs3exporter/factory_test.go
     - exporter/chqs3exporter/internal/metadata/generated_status.go
+    - examples/prometheus/remote-write.conf
 
   comment: on-failure
 

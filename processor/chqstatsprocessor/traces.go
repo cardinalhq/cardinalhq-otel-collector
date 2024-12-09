@@ -128,7 +128,7 @@ func (e *statsProc) recordSpan(
 func (e *statsProc) sendSpanStatsWithExemplars(bucketpile []*chqpb.EventStats, now time.Time) {
 	// TODO need to actually use environment here to record stats
 
-	if bucketpile != nil && len(bucketpile) > 0 {
+	if len(bucketpile) > 0 {
 		e.exemplarsMu.Lock()
 		defer e.exemplarsMu.Unlock()
 
@@ -174,9 +174,7 @@ func (e *statsProc) sendSpanStats(ctx context.Context, now time.Time, bucketpile
 		SubmittedAt: now.UnixMilli(),
 		Stats:       []*chqpb.EventStats{},
 	}
-	for _, stat := range bucketpile {
-		wrapper.Stats = append(wrapper.Stats, stat)
-	}
+	wrapper.Stats = append(wrapper.Stats, bucketpile...)
 
 	if err := e.postSpanStats(ctx, wrapper); err != nil {
 		e.logger.Error("Failed to send span stats", zap.Error(err))

@@ -63,6 +63,7 @@ func TestConfig(t *testing.T) {
 	assert.NoError(t, e.Validate())
 	assert.NotNil(t, e.Statistics)
 	expected := &Config{
+		IDSource: "env",
 		Statistics: StatisticsConfig{
 			Interval: 100 * time.Second,
 			Phase:    "presample",

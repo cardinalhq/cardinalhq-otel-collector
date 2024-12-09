@@ -163,7 +163,7 @@ func (e *statsProc) recordMetric(now time.Time, environment translate.Environmen
 	if err != nil {
 		return err
 	}
-	if stats != nil && len(stats) > 0 {
+	if len(stats) > 0 {
 		e.exemplarsMu.Lock()
 		defer e.exemplarsMu.Unlock()
 

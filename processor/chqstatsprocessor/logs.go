@@ -126,7 +126,7 @@ func (e *statsProc) recordLog(now time.Time, environment translate.Environment, 
 }
 
 func (e *statsProc) sendLogStatsWithExemplars(bucketpile []*chqpb.EventStats, now time.Time) {
-	if bucketpile != nil && len(bucketpile) > 0 {
+	if len(bucketpile) > 0 {
 		e.exemplarsMu.Lock()
 		defer e.exemplarsMu.Unlock()
 
@@ -170,9 +170,7 @@ func (e *statsProc) sendLogStats(ctx context.Context, now time.Time, statsList [
 		SubmittedAt: now.UnixMilli(),
 		Stats:       []*chqpb.EventStats{},
 	}
-	for _, stat := range statsList {
-		wrapper.Stats = append(wrapper.Stats, stat)
-	}
+	wrapper.Stats = append(wrapper.Stats, statsList...)
 
 	if err := e.postLogStats(ctx, wrapper); err != nil {
 		e.logger.Error("Failed to send log stats", zap.Error(err))

@@ -123,10 +123,10 @@ type validateResponse struct {
 	Valid        bool   `json:"valid"`
 }
 
-func (chq *chqServerAuth) getcache(apiKey string) *authData {
+func (chq *chqServerAuth) getcache(cacheKey string) *authData {
 	chq.cacheLock.Lock()
 	defer chq.cacheLock.Unlock()
-	ad, ok := chq.lookupCache[apiKey]
+	ad, ok := chq.lookupCache[cacheKey]
 	if !ok {
 		attrs := metric.WithAttributes(attribute.String("cache", "miss"))
 		chq.authCacheLookups.Add(context.Background(), 1, attrs)
@@ -135,7 +135,7 @@ func (chq *chqServerAuth) getcache(apiKey string) *authData {
 	if ad.expiry.Before(time.Now()) {
 		attrs := metric.WithAttributes(attribute.String("cache", "expired"))
 		chq.authCacheLookups.Add(context.Background(), 1, attrs)
-		delete(chq.lookupCache, apiKey)
+		delete(chq.lookupCache, cacheKey)
 		return nil
 	}
 	attrs := metric.WithAttributes(attribute.String("cache", "hit"))
@@ -147,7 +147,7 @@ func (chq *chqServerAuth) setcache(ad *authData) {
 	chq.authCacheAdds.Add(context.Background(), 1)
 	chq.cacheLock.Lock()
 	defer chq.cacheLock.Unlock()
-	chq.lookupCache[ad.apiKey] = ad
+	chq.lookupCache[ad.getCacheKey()] = ad
 }
 
 func (chq *chqServerAuth) authenticateAPIKey(ctx context.Context, apiKey, collectorID string) (*authData, error) {
@@ -267,6 +267,10 @@ type authData struct {
 }
 
 var _ client.AuthData = (*authData)(nil)
+
+func (a *authData) getCacheKey() string {
+	return a.apiKey + ":" + a.collectorID
+}
 
 func (a *authData) GetAttribute(name string) any {
 	switch name {

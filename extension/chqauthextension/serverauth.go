@@ -154,8 +154,10 @@ func (chq *chqServerAuth) authenticateAPIKey(ctx context.Context, apiKey, collec
 	ad := chq.getcache(apiKey + ":" + collectorID)
 	if ad != nil {
 		if !ad.valid {
+			chq.logger.Info("cached auth denied", zap.String("customerID", ad.customerID), zap.String("customerName", ad.customerName), zap.String("collectorID", ad.collectorID))
 			return nil, errDenied
 		}
+		chq.logger.Info("cached auth granted", zap.String("customerID", ad.customerID), zap.String("customerName", ad.customerName), zap.String("collectorID", ad.collectorID))
 		return ad, nil
 	}
 
@@ -169,11 +171,13 @@ func (chq *chqServerAuth) authenticateAPIKey(ctx context.Context, apiKey, collec
 				expiry:      time.Now().Add(chq.config.ServerAuth.CacheTTLInvalid),
 			}
 			chq.setcache(ad)
+			chq.logger.Info("auth denied", zap.String("customerID", ad.customerID), zap.String("customerName", ad.customerName), zap.String("collectorID", ad.collectorID))
 		}
 		return nil, err
 	}
 	ad.expiry = time.Now().Add(chq.config.ServerAuth.CacheTTLValid)
 	chq.setcache(ad)
+	chq.logger.Info("auth granted", zap.String("customerID", ad.customerID), zap.String("customerName", ad.customerName), zap.String("collectorID", ad.collectorID))
 	return ad, nil
 }
 

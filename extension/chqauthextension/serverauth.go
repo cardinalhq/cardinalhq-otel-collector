@@ -236,7 +236,7 @@ func getAuthHeader(h map[string][]string) string {
 
 func getCollectorFromHeaders(h map[string][]string) string {
 	for k, v := range h {
-		slog.Info("header", zap.String("key", k), zap.Any("value", v))
+		slog.Info("header", slog.String("key", k), slog.Any("value", v))
 		if strings.EqualFold(k, collectorIDHeader) {
 			return v[0]
 		}

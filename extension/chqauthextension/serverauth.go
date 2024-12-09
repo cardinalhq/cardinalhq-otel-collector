@@ -143,15 +143,19 @@ func (chq *chqServerAuth) getcache(cacheKey string) *authData {
 	return ad
 }
 
+func getCacheKey(apiKey, collectorID string) string {
+	return apiKey + ":" + collectorID
+}
+
 func (chq *chqServerAuth) setcache(ad *authData) {
 	chq.authCacheAdds.Add(context.Background(), 1)
 	chq.cacheLock.Lock()
 	defer chq.cacheLock.Unlock()
-	chq.lookupCache[ad.getCacheKey()] = ad
+	chq.lookupCache[getCacheKey(ad.apiKey, ad.collectorID)] = ad
 }
 
 func (chq *chqServerAuth) authenticateAPIKey(ctx context.Context, apiKey, collectorID string) (*authData, error) {
-	ad := chq.getcache(apiKey + ":" + collectorID)
+	ad := chq.getcache(getCacheKey(apiKey, collectorID))
 	if ad != nil {
 		if !ad.valid {
 			chq.logger.Info("cached auth denied", zap.String("customerID", ad.customerID), zap.String("customerName", ad.customerName), zap.String("collectorID", ad.collectorID))
@@ -205,6 +209,8 @@ func (chq *chqServerAuth) callValidateAPI(ctx context.Context, apiKey, collector
 	if err := json.NewDecoder(resp.Body).Decode(&validateResp); err != nil {
 		return nil, err
 	}
+
+	chq.logger.Info("authResponse", zap.Any("validateResp", validateResp))
 
 	return &authData{
 		apiKey:       apiKey,
@@ -267,10 +273,6 @@ type authData struct {
 }
 
 var _ client.AuthData = (*authData)(nil)
-
-func (a *authData) getCacheKey() string {
-	return a.apiKey + ":" + a.collectorID
-}
 
 func (a *authData) GetAttribute(name string) any {
 	switch name {

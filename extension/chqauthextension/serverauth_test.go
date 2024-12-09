@@ -102,7 +102,7 @@ func TestSetCache(t *testing.T) {
 	}
 
 	chq.setcache(ad)
-	assert.Equal(t, ad, chq.lookupCache["key1"])
+	assert.Equal(t, ad, chq.lookupCache[getCacheKey(ad.apiKey, ad.collectorID)])
 }
 
 func TestGetAttribute(t *testing.T) {
@@ -159,7 +159,7 @@ func TestGetAttribute(t *testing.T) {
 
 func TestGetAttributeNames(t *testing.T) {
 	ad := &authData{}
-	expected := []string{"api_key", "environment", "customer_id", "customer_name", "collector_id", "valid"}
+	expected := []string{"api_key", "environment", "customer_id", "customer_name", "collector_id", "collector_name", "valid"}
 	names := ad.GetAttributeNames()
 	assert.ElementsMatch(t, expected, names)
 }

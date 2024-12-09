@@ -117,10 +117,11 @@ func (chq *chqServerAuth) serverAuthenticate(ctx context.Context, headers map[st
 }
 
 type validateResponse struct {
-	CustomerID   string `json:"customer_id"`
-	CustomerName string `json:"customer_name"`
-	CollectorID  string `json:"collector_id"`
-	Valid        bool   `json:"valid"`
+	CustomerID    string `json:"customer_id"`
+	CustomerName  string `json:"customer_name"`
+	CollectorID   string `json:"collector_id"`
+	CollectorName string `json:"collector_name"`
+	Valid         bool   `json:"valid"`
 }
 
 func (chq *chqServerAuth) getcache(cacheKey string) *authData {
@@ -207,11 +208,12 @@ func (chq *chqServerAuth) callValidateAPI(ctx context.Context, apiKey, collector
 	}
 
 	return &authData{
-		apiKey:       apiKey,
-		customerID:   validateResp.CustomerID,
-		customerName: validateResp.CustomerName,
-		collectorID:  validateResp.CollectorID,
-		valid:        validateResp.Valid,
+		apiKey:        apiKey,
+		customerID:    validateResp.CustomerID,
+		customerName:  validateResp.CustomerName,
+		collectorID:   validateResp.CollectorID,
+		collectorName: validateResp.CollectorName,
+		valid:         validateResp.Valid,
 	}, nil
 }
 
@@ -257,13 +259,14 @@ func parseEnv(env string) map[string]string {
 }
 
 type authData struct {
-	apiKey       string
-	environment  map[string]string
-	customerID   string
-	customerName string
-	collectorID  string
-	valid        bool
-	expiry       time.Time
+	apiKey        string
+	environment   map[string]string
+	customerID    string
+	customerName  string
+	collectorID   string
+	collectorName string
+	valid         bool
+	expiry        time.Time
 }
 
 var _ client.AuthData = (*authData)(nil)
@@ -280,6 +283,8 @@ func (a *authData) GetAttribute(name string) any {
 		return a.customerName
 	case "collector_id":
 		return a.collectorID
+	case "collector_name":
+		return a.collectorName
 	case "valid":
 		return a.valid
 	default:
@@ -288,5 +293,5 @@ func (a *authData) GetAttribute(name string) any {
 }
 
 func (a *authData) GetAttributeNames() []string {
-	return []string{"api_key", "environment", "customer_id", "customer_name", "collector_id", "valid"}
+	return []string{"api_key", "environment", "customer_id", "customer_name", "collector_id", "collector_name", "valid"}
 }

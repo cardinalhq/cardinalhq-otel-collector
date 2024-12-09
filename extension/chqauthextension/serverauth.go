@@ -194,6 +194,7 @@ func (chq *chqServerAuth) callValidateAPI(ctx context.Context, apiKey, collector
 	if collectorID != "" {
 		req.Header.Set(collectorIDHeader, collectorID)
 	}
+	chq.logger.Info("collectorID", zap.String("collectorID", collectorID))
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := chq.httpClient.Do(req)
@@ -211,7 +212,6 @@ func (chq *chqServerAuth) callValidateAPI(ctx context.Context, apiKey, collector
 	}
 
 	chq.logger.Info("authResponse", zap.Any("validateResp", validateResp))
-	chq.logger.Info("collectorID", zap.String("collectorID", collectorID))
 
 	return &authData{
 		apiKey:       apiKey,

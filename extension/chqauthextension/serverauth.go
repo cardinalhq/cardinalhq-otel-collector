@@ -211,6 +211,7 @@ func (chq *chqServerAuth) callValidateAPI(ctx context.Context, apiKey, collector
 	}
 
 	chq.logger.Info("authResponse", zap.Any("validateResp", validateResp))
+	chq.logger.Info("collectorID", zap.String("collectorID", collectorID))
 
 	return &authData{
 		apiKey:       apiKey,

@@ -53,5 +53,4 @@ func TestPostMetricStats(t *testing.T) {
 	}))
 
 	defer server.Close()
-
 }

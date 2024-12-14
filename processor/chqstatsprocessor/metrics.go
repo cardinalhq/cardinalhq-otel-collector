@@ -44,6 +44,7 @@ func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pme
 		ee = translate.EnvironmentFromAuth(ctx)
 	}
 
+	newFingerprintsDetected := make([]string, 0)
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
 		rm := md.ResourceMetrics().At(i)
 		serviceName := getServiceName(rm.Resource().Attributes())
@@ -60,36 +61,40 @@ func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pme
 				case pmetric.MetricTypeGauge:
 					for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
 						dp := m.Gauge().DataPoints().At(l)
-						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeGauge)
+						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeGauge, &newFingerprintsDetected)
 						e.processDatapoint(now, ee, metricName, pmetric.MetricTypeGauge.String(), serviceName, extra, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeSum:
 					for l := 0; l < m.Sum().DataPoints().Len(); l++ {
 						dp := m.Sum().DataPoints().At(l)
-						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeSum)
+						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeSum, &newFingerprintsDetected)
 						e.processDatapoint(now, ee, metricName, pmetric.MetricTypeSum.String(), serviceName, extra, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeHistogram:
 					for l := 0; l < m.Histogram().DataPoints().Len(); l++ {
 						dp := m.Histogram().DataPoints().At(l)
-						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeHistogram)
+						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeHistogram, &newFingerprintsDetected)
 						e.processDatapoint(now, ee, metricName, pmetric.MetricTypeHistogram.String(), serviceName, extra, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeSummary:
 					for l := 0; l < m.Summary().DataPoints().Len(); l++ {
 						dp := m.Summary().DataPoints().At(l)
-						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeSummary)
+						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeSummary, &newFingerprintsDetected)
 						e.processDatapoint(now, ee, metricName, pmetric.MetricTypeSummary.String(), serviceName, extra, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeExponentialHistogram:
 					for l := 0; l < m.ExponentialHistogram().DataPoints().Len(); l++ {
-						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeExponentialHistogram)
+						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeExponentialHistogram, &newFingerprintsDetected)
 						dp := m.ExponentialHistogram().DataPoints().At(l)
 						e.processDatapoint(now, ee, metricName, pmetric.MetricTypeExponentialHistogram.String(), serviceName, extra, rattr, sattr, dp.Attributes())
 					}
 				}
 			}
 		}
+	}
+
+	if len(newFingerprintsDetected) > 0 {
+		e.postExemplars(newFingerprintsDetected)
 	}
 
 	return md, nil
@@ -158,36 +163,43 @@ func (e *statsProc) recordMetric(now time.Time, environment translate.Environmen
 		CollectorId: environment.CollectorID(),
 	}
 
-	stats, err := e.metricstats.Record(rec, tagValue, now)
+	_, err := e.metricstats.Record(rec, tagValue, now)
 	telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
 	if err != nil {
 		return err
 	}
-	//if len(stats) > 0 {
+
+	return nil
+}
+
+func (e *statsProc) postExemplars(fingerprints []string) {
 	e.exemplarsMu.Lock()
 	defer e.exemplarsMu.Unlock()
 
 	var marshalledExemplars []*chqpb.MetricExemplar
-	for fingerprint, exemplar := range e.metricExemplars {
+	for _, fingerprint := range fingerprints {
 		split := strings.Split(fingerprint, ":")
 		sName := split[0]
 		mName := split[1]
 		mType := split[2]
-		marshalled, me := e.jsonMarshaller.metricsMarshaler.MarshalMetrics(exemplar)
-		if me == nil {
-			marshalledExemplars = append(marshalledExemplars, &chqpb.MetricExemplar{
-				ServiceName: sName,
-				MetricName:  mName,
-				MetricType:  mType,
-				ProcessorId: e.id.Name(),
-				Exemplar:    marshalled,
-			})
+		exemplar, found := e.metricExemplars[fingerprint]
+		if found {
+			marshalled, me := e.jsonMarshaller.metricsMarshaler.MarshalMetrics(exemplar)
+			if me == nil {
+				marshalledExemplars = append(marshalledExemplars, &chqpb.MetricExemplar{
+					ServiceName: sName,
+					MetricName:  mName,
+					MetricType:  mType,
+					ProcessorId: e.id.Name(),
+					Exemplar:    marshalled,
+				})
+			}
 		}
 	}
 
 	statsReport := &chqpb.MetricStatsReport{
-		SubmittedAt: now.UnixMilli(),
-		Stats:       stats,
+		SubmittedAt: time.Now().UnixMilli(),
+		Stats:       []*chqpb.MetricStats{},
 		Exemplars:   marshalledExemplars,
 	}
 	// TODO should send this to a channel and have a separate goroutine send it
@@ -197,11 +209,9 @@ func (e *statsProc) recordMetric(now time.Time, environment translate.Environmen
 			e.logger.Error("Failed to send metric stats", zap.Error(err))
 		}
 	}()
-	//}
-	return nil
 }
 
-func (e *statsProc) addMetricsExemplar(rm pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, mm pmetric.Metric, serviceName, metricName string, metricType pmetric.MetricType) {
+func (e *statsProc) addMetricsExemplar(rm pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, mm pmetric.Metric, serviceName, metricName string, metricType pmetric.MetricType, newExemplars *[]string) {
 	fingerprint := serviceName + ":" + metricName + ":" + metricType.String()
 	e.exemplarsMu.Lock()
 	defer e.exemplarsMu.Unlock()
@@ -232,6 +242,7 @@ func (e *statsProc) addMetricsExemplar(rm pmetric.ResourceMetrics, sm pmetric.Sc
 		default:
 		}
 		e.metricExemplars[fingerprint] = exemplarLm
+		*newExemplars = append(*newExemplars, fingerprint)
 	}
 }
 

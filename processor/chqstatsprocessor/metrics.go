@@ -113,6 +113,7 @@ func computeStatsOnField(k string) bool {
 
 func (e *statsProc) recordDatapoint(now time.Time, environment translate.Environment, metricName, metricType, serviceName string, tid int64, rattr, sattr, dpAttr pcommon.Map) error {
 	var errs error
+	flushList := make([]*chqpb.MetricStats, 0)
 
 	attributes := e.processEnrichments(map[string]pcommon.Map{
 		"resource": rattr,
@@ -122,27 +123,27 @@ func (e *statsProc) recordDatapoint(now time.Time, environment translate.Environ
 
 	rattr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(now, environment, metricName, metricType, serviceName, k, v.AsString(), "resource", attributes, 1))
+			errs = multierr.Append(errs, e.recordMetric(&flushList, now, environment, metricName, metricType, serviceName, k, v.AsString(), "resource", attributes, 1))
 		}
 		return true
 	})
 	sattr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(now, environment, metricName, metricType, serviceName, k, v.AsString(), "scope", attributes, 1))
+			errs = multierr.Append(errs, e.recordMetric(&flushList, now, environment, metricName, metricType, serviceName, k, v.AsString(), "scope", attributes, 1))
 		}
 		return true
 	})
 	dpAttr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(now, environment, metricName, metricType, serviceName, k, v.AsString(), "datapoint", attributes, 1))
+			errs = multierr.Append(errs, e.recordMetric(&flushList, now, environment, metricName, metricType, serviceName, k, v.AsString(), "datapoint", attributes, 1))
 		}
 		return true
 	})
-	errs = multierr.Append(errs, e.recordMetric(now, environment, metricName, metricType, serviceName, translate.CardinalFieldTID, strconv.FormatInt(tid, 10), "metric", attributes, 1))
+	errs = multierr.Append(errs, e.recordMetric(&flushList, now, environment, metricName, metricType, serviceName, translate.CardinalFieldTID, strconv.FormatInt(tid, 10), "metric", attributes, 1))
 	return errs
 }
 
-func (e *statsProc) recordMetric(now time.Time, environment translate.Environment, metricName string, metricType string, serviceName string, tagName, tagValue string, tagScope string, attributes []*chqpb.Attribute, count int) error {
+func (e *statsProc) recordMetric(flushList *[]*chqpb.MetricStats, now time.Time, environment translate.Environment, metricName string, metricType string, serviceName string, tagName, tagValue string, tagScope string, attributes []*chqpb.Attribute, count int) error {
 	rec := &chqpb.MetricStats{
 		MetricName:  metricName,
 		TagName:     tagName,
@@ -163,41 +164,45 @@ func (e *statsProc) recordMetric(now time.Time, environment translate.Environmen
 	if err != nil {
 		return err
 	}
-	if len(stats) > 0 {
-		e.exemplarsMu.Lock()
-		defer e.exemplarsMu.Unlock()
+	if stats != nil {
+		*flushList = append(*flushList, stats)
+	}
 
-		var marshalledExemplars []*chqpb.MetricExemplar
-		for fingerprint, exemplar := range e.metricExemplars {
-			split := strings.Split(fingerprint, ":")
-			sName := split[0]
-			mName := split[1]
-			mType := split[2]
-			marshalled, me := e.jsonMarshaller.metricsMarshaler.MarshalMetrics(exemplar)
-			if me == nil {
-				marshalledExemplars = append(marshalledExemplars, &chqpb.MetricExemplar{
-					ServiceName: sName,
-					MetricName:  mName,
-					MetricType:  mType,
-					ProcessorId: e.id.Name(),
-					Exemplar:    marshalled,
-				})
+	if len(*flushList) > 0 {
+		e.exemplarsMu.Lock()
+
+		exemplars := make([]*chqpb.MetricExemplar, 0)
+
+		for _, stat := range *flushList {
+			fingerprint := fmt.Sprintf("%s:%s:%s", stat.ServiceName, stat.MetricName, stat.MetricType)
+			if exemplar, found := e.metricExemplars[fingerprint]; found {
+				marshalled, err := e.jsonMarshaller.metricsMarshaler.MarshalMetrics(exemplar)
+				if err == nil {
+					exemplars = append(exemplars, &chqpb.MetricExemplar{
+						ServiceName: stat.ServiceName,
+						MetricName:  stat.MetricName,
+						MetricType:  stat.MetricType,
+						ProcessorId: stat.ProcessorId,
+						Exemplar:    marshalled,
+					})
+				}
 			}
 		}
+		e.exemplarsMu.Unlock()
 
-		statsReport := &chqpb.MetricStatsReport{
+		metricStatsReport := &chqpb.MetricStatsReport{
 			SubmittedAt: now.UnixMilli(),
-			Stats:       stats,
-			Exemplars:   marshalledExemplars,
+			Stats:       *flushList,
+			Exemplars:   exemplars,
 		}
-		// TODO should send this to a channel and have a separate goroutine send it
 		go func() {
-			err := e.postMetricStats(context.Background(), statsReport)
+			err := e.postMetricStats(context.Background(), metricStatsReport)
 			if err != nil {
 				e.logger.Error("Failed to send metric stats", zap.Error(err))
 			}
 		}()
 	}
+
 	return nil
 }
 

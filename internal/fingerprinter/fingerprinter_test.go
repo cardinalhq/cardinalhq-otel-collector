@@ -163,6 +163,18 @@ func TestFingerprinter(t *testing.T) {
 			"",
 		},
 		{
+			"test case 1",
+			"2024-12-14T00:46:28.852Z pid=9 tid=12msap class=SearchSyncWorker jid=96322f73c635d6812fd60163 INFO: start",
+			"<ISO8601> <Identifier> <Number> tid <Identifier> class searchsyncworker <Identifier> <Loglevel> start",
+			"info",
+		},
+		{
+			"test case 2",
+			"2024-12-14T00:46:28.852Z pid=9 tid=12xsap class=SearchSyncWorker jid=96322f73c635d6812fd60163 INFO: start",
+			"<ISO8601> <Identifier> <Number> tid <Identifier> class searchsyncworker <Identifier> <Loglevel> start",
+			"info",
+		},
+		{
 			"sample log 1",
 			`2024-04-17 00:37:23.147 ERROR 1 --- [lt-dispatcher-5] c.g.d.TelemetryEmitter : Received error code 400, endpoint = /api/v10/endpoint`,
 			"<Date> <Time> <Loglevel> <Number> <Identifier> <FQDN> received error code <Number> endpoint <Path>",
@@ -184,7 +196,7 @@ func TestFingerprinter(t *testing.T) {
 		{
 			"sample log 4",
 			`Receive ListRecommendations for product ids:['OLJCESPC7Z', '6E92ZMYYFZ', '1YMWWN1N4O', 'L9ECAV7KIM', '2ZYFJ3GM2N']`,
-			"receive listrecommendations for product ids",
+			"receive listrecommendations for product ids <Identifier>",
 			"",
 		},
 		{
@@ -232,7 +244,7 @@ func TestFingerprinter(t *testing.T) {
   },
   "msg": "Received license validation request for movieId=SLWHPA"
 }`,
-			"inforeceived license validation request for movieid",
+			"inforeceived license validation request for movieid <Identifier>",
 			"info",
 		},
 	}

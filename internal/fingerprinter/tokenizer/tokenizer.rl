@@ -159,7 +159,10 @@ func (*FingerprintTokenizer) TokenString(t ragel.Token) string {
     
         wordEndOfSentence = [a-zA-Z]+ '. ';
 
-        identifier = alnum_u+ (('_' | '.' | '-' | '@' | ':')+ alnum_u+)+;
+        idchars = alnum_u | '_' | '.' | '-' | '@' | ':';
+        identifier = idchars+;
+
+        #identifier = alnum_u+ (('_' | '.' | '-' | '@' | ':')+ alnum_u+)+;
 
         goModuleAndFile = alnum_u+ '@' (alnum_u | '.' | '-' | '_')+ path ':' digit+;
 
@@ -218,12 +221,20 @@ func (*FingerprintTokenizer) TokenString(t ragel.Token) string {
             s.Emit(ts, TokenLoglevel, string(data[ts:te]))
         };
 
+        logLevels ':' {
+            s.Emit(ts, TokenLoglevel, string(data[ts:te-1]))
+        };
+
         httpmethod {
             s.Emit(ts, TokenHTTPMethod, string(data[ts:te]))
         };
 
         wordEndOfSentence {
             s.Emit(ts, TokenString, string(data[ts:te]))
+        };
+
+        identifier ':' {
+            s.Emit(ts, TokenIdentifier, string(data[ts:te-1]))
         };
 
         identifier {

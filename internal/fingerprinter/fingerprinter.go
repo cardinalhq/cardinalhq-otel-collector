@@ -151,6 +151,19 @@ func (fp *fingerprinterImpl) Tokenize(input string) (string, string, error) {
 			} else {
 				items = append(items, strings.ToLower(literal))
 			}
+		case tokenizer.TokenIdentifier:
+			if level == "" && slices.Contains(tokenizer.LogLevelNames, strings.ToLower(literal)) {
+				level = literal
+				items = append(items, "<Loglevel>")
+				continue
+			}
+			if fp.IsWord(literal) {
+				items = append(items, strings.ToLower(literal))
+				continue
+			}
+			if len(items) > 0 && items[len(items)-1] != "<Identifier>" {
+				items = append(items, "<Identifier>")
+			}
 		case tokenizer.TokenString:
 			if fp.IsWord(literal) {
 				items = append(items, strings.ToLower(literal))

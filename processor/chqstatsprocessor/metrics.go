@@ -163,10 +163,23 @@ func (e *statsProc) recordMetric(now time.Time, environment translate.Environmen
 		CollectorId: environment.CollectorID(),
 	}
 
-	_, err := e.metricstats.Record(rec, tagValue, now)
+	stats, err := e.metricstats.Record(rec, tagValue, now)
 	telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
 	if err != nil {
 		return err
+	}
+
+	if len(stats) > 0 {
+		statsReport := &chqpb.MetricStatsReport{
+			SubmittedAt: time.Now().UnixMilli(),
+			Stats:       stats,
+		}
+		go func() {
+			err := e.postMetricStats(context.Background(), statsReport)
+			if err != nil {
+				e.logger.Error("Failed to send metric stats", zap.Error(err))
+			}
+		}()
 	}
 
 	return nil
@@ -199,10 +212,8 @@ func (e *statsProc) postExemplars(fingerprints []string) {
 
 	statsReport := &chqpb.MetricStatsReport{
 		SubmittedAt: time.Now().UnixMilli(),
-		Stats:       []*chqpb.MetricStats{},
 		Exemplars:   marshalledExemplars,
 	}
-	// TODO should send this to a channel and have a separate goroutine send it
 	go func() {
 		err := e.postMetricStats(context.Background(), statsReport)
 		if err != nil {

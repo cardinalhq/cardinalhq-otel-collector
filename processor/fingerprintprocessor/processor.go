@@ -53,7 +53,7 @@ func newPitbull(config *Config, ttype string, set processor.Settings) (*fingerpr
 
 	switch ttype {
 	case "logs":
-		dog.logFingerprinter = fingerprinter.NewFingerprinter()
+		dog.logFingerprinter = fingerprinter.NewFingerprinter(fingerprinter.WithMaxTokens(30))
 
 	case "traces":
 		dog.traceFingerprinter = fingerprinter.NewFingerprinter()

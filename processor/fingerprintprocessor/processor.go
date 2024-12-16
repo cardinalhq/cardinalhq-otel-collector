@@ -21,7 +21,7 @@ import (
 	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/fingerprinter"
+	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
 )
 
 type fingerprintProcessor struct {

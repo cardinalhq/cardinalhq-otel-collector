@@ -213,37 +213,44 @@ func (e *statsProc) postExemplars(fingerprints []string) {
 
 func (e *statsProc) addMetricsExemplar(rm pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, mm pmetric.Metric, serviceName, metricName string, metricType pmetric.MetricType, newExemplars *[]string) {
 	fingerprint := serviceName + ":" + metricName + ":" + metricType.String()
+	e.exemplarsMu.RLock()
+	_, found := e.metricExemplars[fingerprint]
+	e.exemplarsMu.RUnlock()
+
+	if found {
+		return
+	}
+
 	e.exemplarsMu.Lock()
 	defer e.exemplarsMu.Unlock()
-	if _, found := e.metricExemplars[fingerprint]; !found {
-		exemplarLm := pmetric.NewMetrics()
-		copyRm := exemplarLm.ResourceMetrics().AppendEmpty()
-		rm.Resource().CopyTo(copyRm.Resource())
-		copySm := copyRm.ScopeMetrics().AppendEmpty()
-		sm.Scope().CopyTo(copySm.Scope())
-		copyMm := copySm.Metrics().AppendEmpty()
-		mm.CopyTo(copyMm)
-		switch metricType {
-		case pmetric.MetricTypeGauge:
-			ccd := copyMm.Gauge().DataPoints().AppendEmpty()
-			mm.Gauge().DataPoints().At(0).CopyTo(ccd)
-		case pmetric.MetricTypeSum:
-			ccd := copyMm.Sum().DataPoints().AppendEmpty()
-			mm.Sum().DataPoints().At(0).CopyTo(ccd)
-		case pmetric.MetricTypeHistogram:
-			ccd := copyMm.Histogram().DataPoints().AppendEmpty()
-			mm.Histogram().DataPoints().At(0).CopyTo(ccd)
-		case pmetric.MetricTypeSummary:
-			ccd := copyMm.Summary().DataPoints().AppendEmpty()
-			mm.Summary().DataPoints().At(0).CopyTo(ccd)
-		case pmetric.MetricTypeExponentialHistogram:
-			ccd := copyMm.ExponentialHistogram().DataPoints().AppendEmpty()
-			mm.ExponentialHistogram().DataPoints().At(0).CopyTo(ccd)
-		default:
-		}
-		e.metricExemplars[fingerprint] = exemplarLm
-		*newExemplars = append(*newExemplars, fingerprint)
+
+	exemplarLm := pmetric.NewMetrics()
+	copyRm := exemplarLm.ResourceMetrics().AppendEmpty()
+	rm.Resource().CopyTo(copyRm.Resource())
+	copySm := copyRm.ScopeMetrics().AppendEmpty()
+	sm.Scope().CopyTo(copySm.Scope())
+	copyMm := copySm.Metrics().AppendEmpty()
+	mm.CopyTo(copyMm)
+	switch metricType {
+	case pmetric.MetricTypeGauge:
+		ccd := copyMm.Gauge().DataPoints().AppendEmpty()
+		mm.Gauge().DataPoints().At(0).CopyTo(ccd)
+	case pmetric.MetricTypeSum:
+		ccd := copyMm.Sum().DataPoints().AppendEmpty()
+		mm.Sum().DataPoints().At(0).CopyTo(ccd)
+	case pmetric.MetricTypeHistogram:
+		ccd := copyMm.Histogram().DataPoints().AppendEmpty()
+		mm.Histogram().DataPoints().At(0).CopyTo(ccd)
+	case pmetric.MetricTypeSummary:
+		ccd := copyMm.Summary().DataPoints().AppendEmpty()
+		mm.Summary().DataPoints().At(0).CopyTo(ccd)
+	case pmetric.MetricTypeExponentialHistogram:
+		ccd := copyMm.ExponentialHistogram().DataPoints().AppendEmpty()
+		mm.ExponentialHistogram().DataPoints().At(0).CopyTo(ccd)
+	default:
 	}
+	e.metricExemplars[fingerprint] = exemplarLm
+	*newExemplars = append(*newExemplars, fingerprint)
 }
 
 func (e *statsProc) postMetricStats(ctx context.Context, wrapper *chqpb.MetricStatsReport) error {

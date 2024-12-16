@@ -6,7 +6,7 @@ toolchain go1.23.3
 
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.0.0
-	github.com/cardinalhq/oteltools v0.3.6
+	github.com/cardinalhq/oteltools v0.4.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl v0.114.0
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/collector/component v0.114.0

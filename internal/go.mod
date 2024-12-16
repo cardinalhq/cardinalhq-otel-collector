@@ -6,7 +6,6 @@ toolchain go1.23.3
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0
-	github.com/db47h/ragel/v2 v2.2.4
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/collector/component v0.114.0

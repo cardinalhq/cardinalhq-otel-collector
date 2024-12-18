@@ -88,12 +88,13 @@ func (e *statsProc) postLogExemplars(fingerprints []int64) {
 
 	statsList := make([]*chqpb.EventStats, 0)
 	for _, fingerprint := range fingerprints {
-		exemplar, found := e.logExemplars[fingerprint]
+		exemplar, found := e.logExemplars.Get(fingerprint)
 		if !found {
 			continue
 		}
 
-		marshalled, me := e.jsonMarshaller.logsMarshaler.MarshalLogs(exemplar)
+		exemplarObj := exemplar.(plog.Logs)
+		marshalled, me := e.jsonMarshaller.logsMarshaler.MarshalLogs(exemplarObj)
 		if me != nil {
 			continue
 		}
@@ -101,7 +102,7 @@ func (e *statsProc) postLogExemplars(fingerprints []int64) {
 			Fingerprint: fingerprint,
 			Exemplar:    marshalled,
 			ProcessorId: e.id.Name(),
-			ServiceName: getServiceName(exemplar.ResourceLogs().At(0).Resource().Attributes()),
+			ServiceName: getServiceName(exemplarObj.ResourceLogs().At(0).Resource().Attributes()),
 		}
 		statsList = append(statsList, stats)
 	}
@@ -163,9 +164,7 @@ func (e *statsProc) recordLog(now time.Time, environment translate.Environment, 
 
 func (e *statsProc) addLogExemplar(rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord, fingerprint int64, newFingerprintsDetected *[]int64) {
 	if e.pbPhase == chqpb.Phase_PRE {
-		e.exemplarsMu.RLock()
-		_, found := e.logExemplars[fingerprint]
-		e.exemplarsMu.RUnlock()
+		found := e.logExemplars.Contains(fingerprint)
 
 		if found {
 			return
@@ -183,7 +182,7 @@ func (e *statsProc) addLogExemplar(rl plog.ResourceLogs, sl plog.ScopeLogs, lr p
 		sl.Scope().CopyTo(copySl.Scope())
 		copyLr := copySl.LogRecords().AppendEmpty()
 		lr.CopyTo(copyLr)
-		e.logExemplars[fingerprint] = exemplarLd
+		e.logExemplars.Put(fingerprint, exemplarLd)
 	}
 }
 

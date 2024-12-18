@@ -81,7 +81,7 @@ type statsProc struct {
 	metricstats *chqpb.MetricStatsCache
 
 	exemplarsMu     sync.RWMutex
-	logExemplars    map[int64]plog.Logs
+	logExemplars    *LRUCache
 	traceExemplars  map[int64]ptrace.Traces
 	metricExemplars map[string]pmetric.Metrics
 
@@ -102,7 +102,7 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 		httpClientSettings: config.ClientConfig,
 		telemetrySettings:  set.TelemetrySettings,
 		jsonMarshaller:     newMarshaller(),
-		logExemplars:       make(map[int64]plog.Logs),
+		logExemplars:       NewLRUCache(1000),
 		traceExemplars:     make(map[int64]ptrace.Traces),
 		metricExemplars:    make(map[string]pmetric.Metrics),
 		logger:             set.Logger,

@@ -35,14 +35,14 @@ func (l *LRUCache) Contains(key int64) bool {
 
 func (l *LRUCache) Get(key int64) (interface{}, bool) {
 	l.mutex.RLock()
-	defer l.mutex.RUnlock()
+	elem, found := l.cache[key]
+	l.mutex.RUnlock()
 
-	if elem, found := l.cache[key]; found {
-		l.mutex.RUnlock()
+	if found {
 		l.mutex.Lock()
 		l.list.MoveToFront(elem)
 		l.mutex.Unlock()
-		l.mutex.RLock() // Reacquire read lock for safe return
+
 		return elem.Value.(*Entry).value, true
 	}
 	return nil, false

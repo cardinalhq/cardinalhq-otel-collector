@@ -172,9 +172,6 @@ func (e *statsProc) addLogExemplar(rl plog.ResourceLogs, sl plog.ScopeLogs, lr p
 
 		*newFingerprintsDetected = append(*newFingerprintsDetected, fingerprint)
 
-		e.exemplarsMu.Lock()
-		defer e.exemplarsMu.Unlock()
-
 		exemplarLd := plog.NewLogs()
 		copyRl := exemplarLd.ResourceLogs().AppendEmpty()
 		rl.Resource().CopyTo(copyRl.Resource())

@@ -59,6 +59,7 @@ func (e *statsProc) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Logs, e
 
 	now := time.Now()
 
+	newFingerprintsDetected := make([]int64, 0)
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
 		serviceName := getServiceName(rl.Resource().Attributes())
@@ -67,93 +68,114 @@ func (e *statsProc) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Logs, e
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				lr := sl.LogRecords().At(k)
 				fp := getFingerprint(lr.Attributes())
-				if err := e.recordLog(now, ee, serviceName, fp, rl, sl, lr); err != nil {
+				if err := e.recordLog(now, ee, serviceName, fp, rl, sl, lr, &newFingerprintsDetected); err != nil {
 					e.logger.Error("Failed to record log", zap.Error(err))
 				}
 			}
 		}
 	}
 
+	if len(newFingerprintsDetected) > 0 {
+		e.postLogExemplars(newFingerprintsDetected)
+	}
+
 	return ld, nil
 }
 
-func (e *statsProc) recordLog(now time.Time, environment translate.Environment, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) error {
-	message := lr.Body().AsString()
-	logSize := int64(len(message))
+func (e *statsProc) postLogExemplars(fingerprints []int64) {
+	e.exemplarsMu.Lock()
+	defer e.exemplarsMu.Unlock()
 
-	// TODO need to actually use environment here to record stats
+	statsList := make([]*chqpb.EventStats, 0)
+	for _, fingerprint := range fingerprints {
+		exemplar, found := e.logExemplars[fingerprint]
+		if !found {
+			continue
+		}
 
-	// Derive tags from e.config.LogsConfig.StatsEnrichments based on the contextId, and then add tags to the LogStats.Tags Map
-
-	enrichmentAttributes := e.processEnrichments(map[string]pcommon.Map{
-		"resource": rl.Resource().Attributes(),
-		"scope":    sl.Scope().Attributes(),
-		"log":      lr.Attributes(),
-	})
-
-	if lr.SeverityNumber() != plog.SeverityNumberUnspecified {
-		enrichmentAttributes = append(enrichmentAttributes, &chqpb.Attribute{
-			ContextId:   "log",
-			IsAttribute: false,
-			Type:        int32(pcommon.ValueTypeStr),
-			Key:         "severity",
-			Value:       lr.SeverityText(),
-		})
+		marshalled, me := e.jsonMarshaller.logsMarshaler.MarshalLogs(exemplar)
+		if me != nil {
+			continue
+		}
+		stats := &chqpb.EventStats{
+			Fingerprint: fingerprint,
+			Exemplar:    marshalled,
+			ProcessorId: e.id.Name(),
+			ServiceName: getServiceName(exemplar.ResourceLogs().At(0).Resource().Attributes()),
+		}
+		statsList = append(statsList, stats)
 	}
+	go func() {
+		err := e.postLogStats(context.Background(), &chqpb.EventStatsReport{Stats: statsList})
+		if err != nil {
+			e.logger.Error("Failed to send log exemplars", zap.Error(err))
+		}
+	}()
+}
 
-	rec := &chqpb.EventStats{
-		ServiceName: serviceName,
-		Fingerprint: fingerprint,
-		Phase:       e.pbPhase,
-		ProcessorId: e.id.Name(),
-		Count:       1,
-		Size:        logSize,
-		Attributes:  enrichmentAttributes,
-		TsHour:      now.Truncate(time.Hour).UnixMilli(),
-		CollectorId: environment.CollectorID(),
-		CustomerId:  environment.CustomerID(),
-	}
+func (e *statsProc) recordLog(now time.Time, environment translate.Environment, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord, newFingerprintsDetected *[]int64) error {
+	//message := lr.Body().AsString()
+	//logSize := int64(len(message))
+	//
+	//// TODO need to actually use environment here to record stats
+	//
+	//enrichmentAttributes := e.processEnrichments(map[string]pcommon.Map{
+	//	"resource": rl.Resource().Attributes(),
+	//	"scope":    sl.Scope().Attributes(),
+	//	"log":      lr.Attributes(),
+	//})
+	//
+	//if lr.SeverityNumber() != plog.SeverityNumberUnspecified {
+	//	enrichmentAttributes = append(enrichmentAttributes, &chqpb.Attribute{
+	//		ContextId:   "log",
+	//		IsAttribute: false,
+	//		Type:        int32(pcommon.ValueTypeStr),
+	//		Key:         "severity",
+	//		Value:       lr.SeverityText(),
+	//	})
+	//}
+	//
+	//rec := &chqpb.EventStats{
+	//	ServiceName: serviceName,
+	//	Fingerprint: fingerprint,
+	//	Phase:       e.pbPhase,
+	//	ProcessorId: e.id.Name(),
+	//	Count:       1,
+	//	Size:        logSize,
+	//	Attributes:  enrichmentAttributes,
+	//	TsHour:      now.Truncate(time.Hour).UnixMilli(),
+	//	CollectorId: environment.CollectorID(),
+	//	CustomerId:  environment.CustomerID(),
+	//}
 
-	e.addLogExemplar(rl, sl, lr, fingerprint)
+	e.addLogExemplar(rl, sl, lr, fingerprint, newFingerprintsDetected)
 
-	bucketpile, err := e.logstats.Record(rec, now)
-	if err != nil {
-		return err
-	}
-	e.sendLogStatsWithExemplars(bucketpile, now)
+	//bucketpile, err := e.logstats.Record(rec, now)
+	//if err != nil {
+	//	return err
+	//}
 	telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
+
+	//go e.sendLogStats(context.Background(), now, itemsWithValidExemplars)
+
 	return nil
 }
 
-func (e *statsProc) sendLogStatsWithExemplars(bucketpile []*chqpb.EventStats, now time.Time) {
-	if len(bucketpile) > 0 {
+func (e *statsProc) addLogExemplar(rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord, fingerprint int64, newFingerprintsDetected *[]int64) {
+	if e.pbPhase == chqpb.Phase_PRE {
+		e.exemplarsMu.RLock()
+		_, found := e.logExemplars[fingerprint]
+		e.exemplarsMu.RUnlock()
+
+		if found {
+			return
+		}
+
+		*newFingerprintsDetected = append(*newFingerprintsDetected, fingerprint)
+
 		e.exemplarsMu.Lock()
 		defer e.exemplarsMu.Unlock()
 
-		var itemsWithValidExemplars []*chqpb.EventStats
-		for _, item := range bucketpile {
-			exemplar, found := e.logExemplars[item.Fingerprint]
-			if !found {
-				continue
-			}
-
-			marshalled, err := e.jsonMarshaller.logsMarshaler.MarshalLogs(exemplar)
-			if err != nil {
-				continue
-			}
-			item.Exemplar = marshalled
-			itemsWithValidExemplars = append(itemsWithValidExemplars, item)
-		}
-
-		// TODO should send this to a channel and have a separate goroutine send it
-		go e.sendLogStats(context.Background(), now, itemsWithValidExemplars)
-	}
-}
-
-func (e *statsProc) addLogExemplar(rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord, fingerprint int64) {
-	e.exemplarsMu.Lock()
-	defer e.exemplarsMu.Unlock()
-	if _, found := e.logExemplars[fingerprint]; !found {
 		exemplarLd := plog.NewLogs()
 		copyRl := exemplarLd.ResourceLogs().AppendEmpty()
 		rl.Resource().CopyTo(copyRl.Resource())

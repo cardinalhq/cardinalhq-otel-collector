@@ -121,52 +121,35 @@ func (e *statsProc) recordSpan(
 	if err != nil {
 		return err
 	}
-	e.sendSpanStatsWithExemplars(bucketpile, now)
+
+	if len(bucketpile) > 0 {
+		// TODO should send this to a channel and have a separate goroutine send it
+		go e.sendSpanStats(context.Background(), now, bucketpile)
+	}
+
 	return nil
 }
 
-func (e *statsProc) sendSpanStatsWithExemplars(bucketpile []*chqpb.EventStats, now time.Time) {
-	// TODO need to actually use environment here to record stats
-
-	if len(bucketpile) > 0 {
-		e.exemplarsMu.Lock()
-		defer e.exemplarsMu.Unlock()
-
-		var itemsWithValidExemplars []*chqpb.EventStats
-		for _, item := range bucketpile {
-			exemplar, found := e.traceExemplars[item.Fingerprint]
-			if !found {
-				continue
-			}
-			marshalled, err := e.jsonMarshaller.tracesMarshaler.MarshalTraces(exemplar)
-			if err != nil {
-				continue
-			}
-			item.Exemplar = marshalled
-			itemsWithValidExemplars = append(itemsWithValidExemplars, item)
-		}
-
-		// TODO should send this to a channel and have a separate goroutine send it
-		go e.sendSpanStats(context.Background(), now, itemsWithValidExemplars)
-	}
-}
-
 func (e *statsProc) addSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span, fingerprint int64) {
-	// TODO need to actually use environment here to record stats
+	e.exemplarsMu.RLock()
+	_, found := e.traceExemplars[fingerprint]
+	e.exemplarsMu.RUnlock()
+
+	if found {
+		return
+	}
 
 	e.exemplarsMu.Lock()
 	defer e.exemplarsMu.Unlock()
 
-	if _, found := e.traceExemplars[fingerprint]; !found {
-		exemplarLd := ptrace.NewTraces()
-		copyRl := exemplarLd.ResourceSpans().AppendEmpty()
-		rs.Resource().CopyTo(copyRl.Resource())
-		copySl := copyRl.ScopeSpans().AppendEmpty()
-		ss.Scope().CopyTo(copySl.Scope())
-		copyLr := copySl.Spans().AppendEmpty()
-		sr.CopyTo(copyLr)
-		e.traceExemplars[fingerprint] = exemplarLd
-	}
+	exemplarLd := ptrace.NewTraces()
+	copyRl := exemplarLd.ResourceSpans().AppendEmpty()
+	rs.Resource().CopyTo(copyRl.Resource())
+	copySl := copyRl.ScopeSpans().AppendEmpty()
+	ss.Scope().CopyTo(copySl.Scope())
+	copyLr := copySl.Spans().AppendEmpty()
+	sr.CopyTo(copyLr)
+	e.traceExemplars[fingerprint] = exemplarLd
 }
 
 func (e *statsProc) sendSpanStats(ctx context.Context, now time.Time, bucketpile []*chqpb.EventStats) {

@@ -93,8 +93,8 @@ type statsProc struct {
 	statsBatchSize          telemetry.DeferrableHistogram
 	recordLatency           telemetry.DeferrableHistogram
 
-	enableRecordMetric bool
-	enableLogMetrics   bool
+	enableMetricMetrics bool
+	enableLogMetrics    bool
 }
 
 func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsProc, error) {
@@ -112,8 +112,8 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 		podName:            os.Getenv("POD_NAME"),
 	}
 
-	if os.Getenv("ENABLE_RECORD_METRIC") == "true" {
-		dog.enableRecordMetric = true
+	if os.Getenv("ENABLE_METRIC_METRICS") == "true" {
+		dog.enableMetricMetrics = true
 	}
 	if os.Getenv("ENABLE_LOG_METRICS") == "true" {
 		dog.enableLogMetrics = true

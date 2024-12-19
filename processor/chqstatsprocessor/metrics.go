@@ -148,7 +148,7 @@ func (e *statsProc) recordDatapoint(now time.Time, environment translate.Environ
 }
 
 func (e *statsProc) recordMetric(now time.Time, environment translate.Environment, metricName string, metricType string, serviceName string, tagName, tagValue string, tagScope string, attributes []*chqpb.Attribute, count int) error {
-	if !e.enableRecordMetric {
+	if !e.enableMetricMetrics {
 		return nil
 	}
 	rec := &chqpb.MetricStats{

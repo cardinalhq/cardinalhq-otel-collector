@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -114,10 +115,15 @@ func (e *statsProc) postLogExemplars(fingerprints []int64) {
 	}()
 }
 
+var reportLogMetricsOnce sync.Once
+
 func (e *statsProc) recordLog(now time.Time, environment translate.Environment, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord, newFingerprintsDetected *[]int64) error {
 	var rec *chqpb.EventStats
 
 	if e.enableLogMetrics {
+		reportLogMetricsOnce.Do(func() {
+			e.logger.Info("**************************************** Log metrics are enabled")
+		})
 		message := lr.Body().AsString()
 		logSize := int64(len(message))
 

@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -147,10 +148,15 @@ func (e *statsProc) recordDatapoint(now time.Time, environment translate.Environ
 	return errs
 }
 
+var reportMetricMetricsOnce sync.Once
+
 func (e *statsProc) recordMetric(now time.Time, environment translate.Environment, metricName string, metricType string, serviceName string, tagName, tagValue string, tagScope string, attributes []*chqpb.Attribute, count int) error {
 	if !e.enableMetricMetrics {
 		return nil
 	}
+	reportMetricMetricsOnce.Do(func() {
+		e.logger.Info("**************************************** Metric metrics are enabled")
+	})
 	rec := &chqpb.MetricStats{
 		MetricName:  metricName,
 		TagName:     tagName,

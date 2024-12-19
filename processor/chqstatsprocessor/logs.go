@@ -115,49 +115,54 @@ func (e *statsProc) postLogExemplars(fingerprints []int64) {
 }
 
 func (e *statsProc) recordLog(now time.Time, environment translate.Environment, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord, newFingerprintsDetected *[]int64) error {
-	//message := lr.Body().AsString()
-	//logSize := int64(len(message))
-	//
-	//// TODO need to actually use environment here to record stats
-	//
-	//enrichmentAttributes := e.processEnrichments(map[string]pcommon.Map{
-	//	"resource": rl.Resource().Attributes(),
-	//	"scope":    sl.Scope().Attributes(),
-	//	"log":      lr.Attributes(),
-	//})
-	//
-	//if lr.SeverityNumber() != plog.SeverityNumberUnspecified {
-	//	enrichmentAttributes = append(enrichmentAttributes, &chqpb.Attribute{
-	//		ContextId:   "log",
-	//		IsAttribute: false,
-	//		Type:        int32(pcommon.ValueTypeStr),
-	//		Key:         "severity",
-	//		Value:       lr.SeverityText(),
-	//	})
-	//}
-	//
-	//rec := &chqpb.EventStats{
-	//	ServiceName: serviceName,
-	//	Fingerprint: fingerprint,
-	//	Phase:       e.pbPhase,
-	//	ProcessorId: e.id.Name(),
-	//	Count:       1,
-	//	Size:        logSize,
-	//	Attributes:  enrichmentAttributes,
-	//	TsHour:      now.Truncate(time.Hour).UnixMilli(),
-	//	CollectorId: environment.CollectorID(),
-	//	CustomerId:  environment.CustomerID(),
-	//}
+	var rec *chqpb.EventStats
+
+	if e.enableLogMetrics {
+		message := lr.Body().AsString()
+		logSize := int64(len(message))
+
+		enrichmentAttributes := e.processEnrichments(map[string]pcommon.Map{
+			"resource": rl.Resource().Attributes(),
+			"scope":    sl.Scope().Attributes(),
+			"log":      lr.Attributes(),
+		})
+
+		if lr.SeverityNumber() != plog.SeverityNumberUnspecified {
+			enrichmentAttributes = append(enrichmentAttributes, &chqpb.Attribute{
+				ContextId:   "log",
+				IsAttribute: false,
+				Type:        int32(pcommon.ValueTypeStr),
+				Key:         "severity",
+				Value:       lr.SeverityText(),
+			})
+		}
+
+		rec = &chqpb.EventStats{
+			ServiceName: serviceName,
+			Fingerprint: fingerprint,
+			Phase:       e.pbPhase,
+			ProcessorId: e.id.Name(),
+			Count:       1,
+			Size:        logSize,
+			Attributes:  enrichmentAttributes,
+			TsHour:      now.Truncate(time.Hour).UnixMilli(),
+			CollectorId: environment.CollectorID(),
+			CustomerId:  environment.CustomerID(),
+		}
+	}
 
 	e.addLogExemplar(rl, sl, lr, fingerprint, newFingerprintsDetected)
 
-	//bucketpile, err := e.logstats.Record(rec, now)
-	//if err != nil {
-	//	return err
-	//}
-	telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
+	if e.enableLogMetrics {
+		bucketpile, err := e.logstats.Record(rec, now)
+		if err != nil {
+			return err
+		}
 
-	//go e.sendLogStats(context.Background(), now, itemsWithValidExemplars)
+		go e.sendLogStats(context.Background(), now, bucketpile)
+	}
+
+	telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
 
 	return nil
 }

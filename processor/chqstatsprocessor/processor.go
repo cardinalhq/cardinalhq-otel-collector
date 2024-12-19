@@ -94,6 +94,7 @@ type statsProc struct {
 	recordLatency           telemetry.DeferrableHistogram
 
 	enableRecordMetric bool
+	enableLogMetrics   bool
 }
 
 func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsProc, error) {
@@ -113,6 +114,9 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 
 	if os.Getenv("ENABLE_RECORD_METRIC") == "true" {
 		dog.enableRecordMetric = true
+	}
+	if os.Getenv("ENABLE_LOG_METRICS") == "true" {
+		dog.enableLogMetrics = true
 	}
 
 	if config.Statistics.Phase == "presample" {

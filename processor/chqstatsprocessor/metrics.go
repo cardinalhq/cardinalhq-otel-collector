@@ -148,39 +148,42 @@ func (e *statsProc) recordDatapoint(now time.Time, environment translate.Environ
 }
 
 func (e *statsProc) recordMetric(now time.Time, environment translate.Environment, metricName string, metricType string, serviceName string, tagName, tagValue string, tagScope string, attributes []*chqpb.Attribute, count int) error {
-	//rec := &chqpb.MetricStats{
-	//	MetricName:  metricName,
-	//	TagName:     tagName,
-	//	TagScope:    tagScope,
-	//	MetricType:  metricType,
-	//	ServiceName: serviceName,
-	//	Phase:       e.pbPhase,
-	//	ProcessorId: e.id.Name(),
-	//	Count:       int64(count),
-	//	Attributes:  attributes,
-	//	TsHour:      now.Truncate(time.Hour).UnixMilli(),
-	//	CustomerId:  environment.CustomerID(),
-	//	CollectorId: environment.CollectorID(),
-	//}
-	//
-	//stats, err := e.metricstats.Record(rec, tagValue, now)
-	//telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//if len(stats) > 0 {
-	//	statsReport := &chqpb.MetricStatsReport{
-	//		SubmittedAt: time.Now().UnixMilli(),
-	//		Stats:       stats,
-	//	}
-	//	go func() {
-	//		err := e.postMetricStats(context.Background(), statsReport)
-	//		if err != nil {
-	//			e.logger.Error("Failed to send metric stats", zap.Error(err))
-	//		}
-	//	}()
-	//}
+	if !e.enableRecordMetric {
+		return nil
+	}
+	rec := &chqpb.MetricStats{
+		MetricName:  metricName,
+		TagName:     tagName,
+		TagScope:    tagScope,
+		MetricType:  metricType,
+		ServiceName: serviceName,
+		Phase:       e.pbPhase,
+		ProcessorId: e.id.Name(),
+		Count:       int64(count),
+		Attributes:  attributes,
+		TsHour:      now.Truncate(time.Hour).UnixMilli(),
+		CustomerId:  environment.CustomerID(),
+		CollectorId: environment.CollectorID(),
+	}
+
+	stats, err := e.metricstats.Record(rec, tagValue, now)
+	telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
+	if err != nil {
+		return err
+	}
+
+	if len(stats) > 0 {
+		statsReport := &chqpb.MetricStatsReport{
+			SubmittedAt: time.Now().UnixMilli(),
+			Stats:       stats,
+		}
+		go func() {
+			err := e.postMetricStats(context.Background(), statsReport)
+			if err != nil {
+				e.logger.Error("Failed to send metric stats", zap.Error(err))
+			}
+		}()
+	}
 
 	return nil
 }

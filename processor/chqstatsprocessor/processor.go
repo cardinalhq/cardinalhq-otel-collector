@@ -92,6 +92,8 @@ type statsProc struct {
 	tracesStatsEnrichments  atomic.Pointer[[]ottl.StatsEnrichment]
 	statsBatchSize          telemetry.DeferrableHistogram
 	recordLatency           telemetry.DeferrableHistogram
+
+	enableRecordMetric bool
 }
 
 func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsProc, error) {
@@ -107,6 +109,10 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 		metricExemplars:    make(map[string]pmetric.Metrics),
 		logger:             set.Logger,
 		podName:            os.Getenv("POD_NAME"),
+	}
+
+	if os.Getenv("ENABLE_RECORD_METRIC") == "true" {
+		dog.enableRecordMetric = true
 	}
 
 	if config.Statistics.Phase == "presample" {

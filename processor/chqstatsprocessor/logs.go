@@ -77,13 +77,13 @@ func (e *statsProc) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Logs, e
 	}
 
 	if len(newFingerprintsDetected) > 0 {
-		e.postLogExemplars(newFingerprintsDetected)
+		e.postLogExemplars(newFingerprintsDetected, ee)
 	}
 
 	return ld, nil
 }
 
-func (e *statsProc) postLogExemplars(fingerprints []int64) {
+func (e *statsProc) postLogExemplars(fingerprints []int64, environment translate.Environment) {
 	e.exemplarsMu.Lock()
 	defer e.exemplarsMu.Unlock()
 
@@ -103,6 +103,9 @@ func (e *statsProc) postLogExemplars(fingerprints []int64) {
 			Fingerprint: fingerprint,
 			Exemplar:    marshalled,
 			ProcessorId: e.id.Name(),
+			Phase:       e.pbPhase,
+			CollectorId: environment.CollectorID(),
+			CustomerId:  environment.CustomerID(),
 			ServiceName: getServiceName(exemplarObj.ResourceLogs().At(0).Resource().Attributes()),
 		}
 		statsList = append(statsList, stats)
@@ -225,7 +228,12 @@ func (e *statsProc) postLogStats(ctx context.Context, wrapper *chqpb.EventStatsR
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			e.logger.Error("Failed to close response body", zap.Error(err))
+		}
+	}(resp.Body)
 	body, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {

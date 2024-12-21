@@ -105,7 +105,7 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 		httpClientSettings: config.ClientConfig,
 		telemetrySettings:  set.TelemetrySettings,
 		jsonMarshaller:     newMarshaller(),
-		logExemplars:       NewLRUCache(1000),
+		logExemplars:       NewLRUCache(1000, 5*time.Minute),
 		traceExemplars:     make(map[int64]ptrace.Traces),
 		metricExemplars:    make(map[string]pmetric.Metrics),
 		logger:             set.Logger,

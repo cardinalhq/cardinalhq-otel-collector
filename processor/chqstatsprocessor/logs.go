@@ -121,8 +121,6 @@ func (e *statsProc) postLogExemplars(fingerprints []int64, environment translate
 var reportLogMetricsOnce sync.Once
 
 func (e *statsProc) recordLog(now time.Time, environment translate.Environment, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord, newFingerprintsDetected *[]int64) error {
-	var rec *chqpb.EventStats
-
 	if e.enableLogMetrics {
 		reportLogMetricsOnce.Do(func() {
 			e.logger.Info("**************************************** Log metrics are enabled")
@@ -146,31 +144,15 @@ func (e *statsProc) recordLog(now time.Time, environment translate.Environment, 
 			})
 		}
 
-		rec = &chqpb.EventStats{
-			ServiceName: serviceName,
-			Fingerprint: fingerprint,
-			Phase:       e.pbPhase,
-			ProcessorId: e.id.Name(),
-			Count:       1,
-			Size:        logSize,
-			Attributes:  enrichmentAttributes,
-			TsHour:      now.Truncate(time.Hour).UnixMilli(),
-			CollectorId: environment.CollectorID(),
-			CustomerId:  environment.CustomerID(),
+		if e.enableLogMetrics {
+			err := e.logstats.Record(serviceName, fingerprint, e.pbPhase, e.id.Name(), environment.CollectorID(), environment.CustomerID(), enrichmentAttributes, 1, logSize)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	e.addLogExemplar(rl, sl, lr, fingerprint, newFingerprintsDetected)
-
-	if e.enableLogMetrics {
-		bucketpile, err := e.logstats.Record(rec, now)
-		if err != nil {
-			return err
-		}
-
-		go e.sendLogStats(context.Background(), now, bucketpile)
-	}
-
 	telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
 
 	return nil
@@ -197,17 +179,13 @@ func (e *statsProc) addLogExemplar(rl plog.ResourceLogs, sl plog.ScopeLogs, lr p
 	}
 }
 
-func (e *statsProc) sendLogStats(ctx context.Context, now time.Time, statsList []*chqpb.EventStats) {
+func (e *statsProc) sendLogStats(statsList []*chqpb.EventStats) {
 	wrapper := &chqpb.EventStatsReport{
-		SubmittedAt: now.UnixMilli(),
-		Stats:       []*chqpb.EventStats{},
-	}
-	wrapper.Stats = append(wrapper.Stats, statsList...)
-
-	if err := e.postLogStats(ctx, wrapper); err != nil {
+		SubmittedAt: time.Now().UnixMilli(),
+		Stats:       statsList}
+	if err := e.postLogStats(context.Background(), wrapper); err != nil {
 		e.logger.Error("Failed to send log stats", zap.Error(err))
 	}
-	e.logger.Debug("Sent log stats", zap.Int("count", len(wrapper.Stats)))
 }
 
 func (e *statsProc) postLogStats(ctx context.Context, wrapper *chqpb.EventStatsReport) error {

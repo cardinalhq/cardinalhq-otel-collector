@@ -102,30 +102,13 @@ func (e *statsProc) recordSpan(
 	enrichmentAttributes = append(enrichmentAttributes, isSlowAttribute)
 	enrichmentAttributes = append(enrichmentAttributes, spanKindAttribute)
 
-	rec := &chqpb.EventStats{
-		ServiceName: serviceName,
-		Fingerprint: fingerprint,
-		Phase:       e.pbPhase,
-		ProcessorId: e.id.Name(),
-		Count:       1,
-		Size:        spanSize,
-		Attributes:  enrichmentAttributes,
-		TsHour:      now.Truncate(time.Hour).UnixMilli(),
-		CollectorId: environment.CollectorID(),
-		CustomerId:  environment.CustomerID(),
-	}
-	e.addSpanExemplar(rs, iss, span, fingerprint)
-
-	bucketpile, err := e.spanStats.Record(rec, now)
-	telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
+	err := e.spanStats.Record(serviceName, fingerprint, e.pbPhase, e.id.Name(), environment.CollectorID(), environment.CustomerID(), enrichmentAttributes, 1, spanSize)
 	if err != nil {
 		return err
 	}
+	e.addSpanExemplar(rs, iss, span, fingerprint)
 
-	if len(bucketpile) > 0 {
-		// TODO should send this to a channel and have a separate goroutine send it
-		go e.sendSpanStats(context.Background(), now, bucketpile)
-	}
+	telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
 
 	return nil
 }
@@ -152,14 +135,14 @@ func (e *statsProc) addSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpan
 	e.traceExemplars[fingerprint] = exemplarLd
 }
 
-func (e *statsProc) sendSpanStats(ctx context.Context, now time.Time, bucketpile []*chqpb.EventStats) {
+func (e *statsProc) sendSpanStats(bucketpile []*chqpb.EventStats) {
 	wrapper := &chqpb.EventStatsReport{
-		SubmittedAt: now.UnixMilli(),
+		SubmittedAt: time.Now().UnixMilli(),
 		Stats:       []*chqpb.EventStats{},
 	}
 	wrapper.Stats = append(wrapper.Stats, bucketpile...)
 
-	if err := e.postSpanStats(ctx, wrapper); err != nil {
+	if err := e.postSpanStats(context.Background(), wrapper); err != nil {
 		e.logger.Error("Failed to send span stats", zap.Error(err))
 	}
 	e.logger.Debug("Sent log stats", zap.Int("count", len(wrapper.Stats)))

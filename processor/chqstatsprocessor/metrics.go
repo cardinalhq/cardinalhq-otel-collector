@@ -22,7 +22,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -128,67 +127,33 @@ func (e *statsProc) recordDatapoint(now time.Time, environment translate.Environ
 
 	rattr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(now, environment, metricName, metricType, serviceName, k, v.AsString(), "resource", attributes, 1))
+			errs = multierr.Append(errs, e.recordMetric(environment, metricName, metricType, serviceName, k, v.AsString(), "resource", attributes))
 		}
 		return true
 	})
 	sattr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(now, environment, metricName, metricType, serviceName, k, v.AsString(), "scope", attributes, 1))
+			errs = multierr.Append(errs, e.recordMetric(environment, metricName, metricType, serviceName, k, v.AsString(), "scope", attributes))
 		}
 		return true
 	})
 	dpAttr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, e.recordMetric(now, environment, metricName, metricType, serviceName, k, v.AsString(), "datapoint", attributes, 1))
+			errs = multierr.Append(errs, e.recordMetric(environment, metricName, metricType, serviceName, k, v.AsString(), "datapoint", attributes))
 		}
 		return true
 	})
-	errs = multierr.Append(errs, e.recordMetric(now, environment, metricName, metricType, serviceName, translate.CardinalFieldTID, strconv.FormatInt(tid, 10), "metric", attributes, 1))
+	errs = multierr.Append(errs, e.recordMetric(environment, metricName, metricType, serviceName, translate.CardinalFieldTID, strconv.FormatInt(tid, 10), "metric", attributes))
 	return errs
 }
 
-var reportMetricMetricsOnce sync.Once
-
-func (e *statsProc) recordMetric(now time.Time, environment translate.Environment, metricName string, metricType string, serviceName string, tagName, tagValue string, tagScope string, attributes []*chqpb.Attribute, count int) error {
+func (e *statsProc) recordMetric(environment translate.Environment, metricName, metricType, serviceName, tagName, tagValue, tagScope string, attributes []*chqpb.Attribute) error {
 	if !e.enableMetricMetrics {
 		return nil
 	}
-	reportMetricMetricsOnce.Do(func() {
-		e.logger.Info("**************************************** Metric metrics are enabled")
-	})
-	rec := &chqpb.MetricStats{
-		MetricName:  metricName,
-		TagName:     tagName,
-		TagScope:    tagScope,
-		MetricType:  metricType,
-		ServiceName: serviceName,
-		Phase:       e.pbPhase,
-		ProcessorId: e.id.Name(),
-		Count:       int64(count),
-		Attributes:  attributes,
-		TsHour:      now.Truncate(time.Hour).UnixMilli(),
-		CustomerId:  environment.CustomerID(),
-		CollectorId: environment.CollectorID(),
-	}
-
-	stats, err := e.metricstats.Record(rec, tagValue, now)
-	telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
+	err := e.metricstats.Record(e.pbPhase, metricName, metricType, tagScope, tagName, serviceName, e.id.Name(), environment.CollectorID(), environment.CustomerID(), tagValue, attributes)
 	if err != nil {
 		return err
-	}
-
-	if len(stats) > 0 {
-		statsReport := &chqpb.MetricStatsReport{
-			SubmittedAt: time.Now().UnixMilli(),
-			Stats:       stats,
-		}
-		go func() {
-			err := e.postMetricStats(context.Background(), statsReport)
-			if err != nil {
-				e.logger.Error("Failed to send metric stats", zap.Error(err))
-			}
-		}()
 	}
 
 	return nil
@@ -224,7 +189,7 @@ func (e *statsProc) postExemplars(fingerprints []string) {
 		Exemplars:   marshalledExemplars,
 	}
 	go func() {
-		err := e.postMetricStats(context.Background(), statsReport)
+		err := e.sendReport(context.Background(), statsReport)
 		if err != nil {
 			e.logger.Error("Failed to send metric stats", zap.Error(err))
 		}
@@ -275,7 +240,24 @@ func (e *statsProc) addMetricsExemplar(rm pmetric.ResourceMetrics, sm pmetric.Sc
 	}
 }
 
-func (e *statsProc) postMetricStats(ctx context.Context, wrapper *chqpb.MetricStatsReport) error {
+func (e *statsProc) sendMetricStats(wrappers []*chqpb.MetricStatsWrapper) {
+	statsList := make([]*chqpb.MetricStats, 0)
+	for _, wrapper := range wrappers {
+		if wrapper.Dirty {
+			statsList = append(statsList, wrapper.Stats)
+		}
+	}
+	wrapper := &chqpb.MetricStatsReport{
+		SubmittedAt: time.Now().UnixMilli(),
+		Stats:       statsList,
+	}
+	err := e.sendReport(context.Background(), wrapper)
+	if err != nil {
+		e.logger.Error("Failed to send metric stats", zap.Error(err))
+	}
+}
+
+func (e *statsProc) sendReport(ctx context.Context, wrapper *chqpb.MetricStatsReport) error {
 	b, err := proto.Marshal(wrapper)
 	if err != nil {
 		return err

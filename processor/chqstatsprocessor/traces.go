@@ -141,7 +141,11 @@ func (e *statsProc) sendSpanStats(bucketpile []*chqpb.EventStats) {
 		Stats:       []*chqpb.EventStats{},
 	}
 	wrapper.Stats = append(wrapper.Stats, bucketpile...)
-
+	if len(bucketpile) > 0 {
+		sampleStat := bucketpile[0]
+		e.logger.Info("Sending span stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(bucketpile)),
+			zap.String("customerId", sampleStat.CustomerId), zap.String("collectorId", sampleStat.CollectorId))
+	}
 	if err := e.postSpanStats(context.Background(), wrapper); err != nil {
 		e.logger.Error("Failed to send span stats", zap.Error(err))
 	}
@@ -154,7 +158,6 @@ func (e *statsProc) postSpanStats(ctx context.Context, wrapper *chqpb.EventStats
 		return err
 	}
 	telemetry.HistogramRecord(e.statsBatchSize, int64(len(b)))
-	e.logger.Debug("Sending span stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
 	endpoint := e.config.Endpoint + "/api/v1/spanstats"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
 	if err != nil {

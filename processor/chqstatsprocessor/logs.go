@@ -183,6 +183,11 @@ func (e *statsProc) sendLogStats(statsList []*chqpb.EventStats) {
 	wrapper := &chqpb.EventStatsReport{
 		SubmittedAt: time.Now().UnixMilli(),
 		Stats:       statsList}
+	if len(statsList) > 0 {
+		sampleStat := statsList[0]
+		e.logger.Info("Sending log stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(statsList)),
+			zap.String("customerId", sampleStat.CustomerId), zap.String("collectorId", sampleStat.CollectorId))
+	}
 	if err := e.postLogStats(context.Background(), wrapper); err != nil {
 		e.logger.Error("Failed to send log stats", zap.Error(err))
 	}
@@ -195,7 +200,6 @@ func (e *statsProc) postLogStats(ctx context.Context, wrapper *chqpb.EventStatsR
 	}
 	telemetry.HistogramRecord(e.statsBatchSize, int64(len(b)))
 	endpoint := e.config.Endpoint + "/api/v1/logstats"
-	e.logger.Debug("Sending log stats", zap.String("endpoint", endpoint), zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
 	if err != nil {
 		return err

@@ -112,12 +112,12 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 		podName:            os.Getenv("POD_NAME"),
 	}
 
-	if os.Getenv("ENABLE_METRIC_METRICS") == "true" {
-		dog.enableMetricMetrics = true
-	}
-	if os.Getenv("ENABLE_LOG_METRICS") == "true" {
-		dog.enableLogMetrics = true
-	}
+	//if os.Getenv("ENABLE_METRIC_METRICS") == "true" {
+	dog.enableMetricMetrics = true
+	//}
+	//if os.Getenv("ENABLE_LOG_METRICS") == "true" {
+	dog.enableLogMetrics = true
+	//}
 
 	if config.Statistics.Phase == "presample" {
 		dog.pbPhase = chqpb.Phase_PRE

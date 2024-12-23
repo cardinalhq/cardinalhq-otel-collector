@@ -261,9 +261,14 @@ func (e *statsProc) sendMetricStats(wrappers []*chqpb.MetricStatsWrapper) {
 		SubmittedAt: time.Now().UnixMilli(),
 		Stats:       statsList,
 	}
-	err := e.sendReport(context.Background(), wrapper)
-	if err != nil {
-		e.logger.Error("Failed to send metric stats", zap.Error(err))
+	if len(statsList) > 0 {
+		sampleStat := wrapper.GetStats()[0]
+		e.logger.Info("Sending metric stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(statsList)),
+			zap.String("customerId", sampleStat.CustomerId), zap.String("collectorId", sampleStat.CollectorId))
+		err := e.sendReport(context.Background(), wrapper)
+		if err != nil {
+			e.logger.Error("Failed to send metric stats", zap.Error(err))
+		}
 	}
 }
 
@@ -273,7 +278,6 @@ func (e *statsProc) sendReport(ctx context.Context, wrapper *chqpb.MetricStatsRe
 		return err
 	}
 	telemetry.HistogramRecord(e.statsBatchSize, int64(len(b)))
-	e.logger.Info("Sending metric stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
 	endpoint := e.config.Endpoint + "/api/v1/metricstats"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
 	if err != nil {

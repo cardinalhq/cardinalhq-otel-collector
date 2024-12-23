@@ -185,7 +185,7 @@ func (e *statsProc) sendLogStats(statsList []*chqpb.EventStats) {
 		Stats:       statsList}
 	if len(statsList) > 0 {
 		sampleStat := statsList[0]
-		e.logger.Info("Sending log stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(statsList)),
+		e.logger.Debug("Sending log stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(statsList)),
 			zap.String("customerId", sampleStat.CustomerId), zap.String("collectorId", sampleStat.CollectorId))
 	}
 	if err := e.postLogStats(context.Background(), wrapper); err != nil {

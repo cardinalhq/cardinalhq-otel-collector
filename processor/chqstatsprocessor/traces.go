@@ -143,7 +143,7 @@ func (e *statsProc) sendSpanStats(bucketpile []*chqpb.EventStats) {
 	wrapper.Stats = append(wrapper.Stats, bucketpile...)
 	if len(bucketpile) > 0 {
 		sampleStat := bucketpile[0]
-		e.logger.Info("Sending span stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(bucketpile)),
+		e.logger.Debug("Sending span stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(bucketpile)),
 			zap.String("customerId", sampleStat.CustomerId), zap.String("collectorId", sampleStat.CollectorId))
 	}
 	if err := e.postSpanStats(context.Background(), wrapper); err != nil {

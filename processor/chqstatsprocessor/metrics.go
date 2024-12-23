@@ -263,7 +263,7 @@ func (e *statsProc) sendMetricStats(wrappers []*chqpb.MetricStatsWrapper) {
 	}
 	if len(statsList) > 0 {
 		sampleStat := wrapper.GetStats()[0]
-		e.logger.Info("Sending metric stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(statsList)),
+		e.logger.Debug("Sending metric stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(statsList)),
 			zap.String("customerId", sampleStat.CustomerId), zap.String("collectorId", sampleStat.CollectorId))
 		err := e.sendReport(context.Background(), wrapper)
 		if err != nil {

@@ -127,7 +127,7 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 
 	processorId := set.ID.String()
 	clock := &chqpb.RealClock{}
-	capacity := 10000
+	capacity := 1000
 	switch ttype {
 	case "logs":
 		dog.logstats = chqpb.NewEventStatsCache(capacity, 16, 5*time.Minute, dog.sendLogStats, chqpb.InitializeEventStats, clock)

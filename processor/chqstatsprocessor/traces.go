@@ -17,6 +17,7 @@ package chqstatsprocessor
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -103,8 +104,8 @@ func (e *statsProc) recordSpan(
 	enrichmentAttributes = append(enrichmentAttributes, spanKindAttribute)
 
 	err := e.spanStats.Record(serviceName, fingerprint, e.pbPhase, e.id.Name(), environment.CollectorID(), environment.CustomerID(), enrichmentAttributes, 1, spanSize)
-	if err != nil {
-		return err
+	if err != nil && errors.Is(err, chqpb.ErrCacheFull) {
+		telemetry.CounterAdd(e.cacheFull, 1)
 	}
 	e.addSpanExemplar(rs, iss, span, fingerprint)
 

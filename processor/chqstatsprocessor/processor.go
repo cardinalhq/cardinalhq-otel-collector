@@ -92,6 +92,7 @@ type statsProc struct {
 	tracesStatsEnrichments  atomic.Pointer[[]ottl.StatsEnrichment]
 	statsBatchSize          telemetry.DeferrableHistogram
 	recordLatency           telemetry.DeferrableHistogram
+	cacheFull               telemetry.DeferrableCounter
 
 	enableMetricMetrics bool
 	enableLogMetrics    bool
@@ -158,6 +159,18 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 		return nil, histogramError
 	}
 	dog.statsBatchSize = histogram
+
+	cacheFullCounter, cacheFullErr := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
+		"cache_full",
+		[]metric.Int64CounterOption{},
+		[]metric.AddOption{
+			metric.WithAttributeSet(attrset),
+		},
+	)
+	if cacheFullErr != nil {
+		return nil, histogramError
+	}
+	dog.cacheFull = cacheFullCounter
 
 	recordLatencyHistogram, recordLatencyHistogramError := telemetry.NewDeferrableHistogram(metadata.Meter(set.TelemetrySettings),
 		"record_latency",

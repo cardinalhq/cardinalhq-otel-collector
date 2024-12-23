@@ -17,6 +17,7 @@ package chqstatsprocessor
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -146,8 +147,8 @@ func (e *statsProc) recordLog(now time.Time, environment translate.Environment, 
 
 		if e.enableLogMetrics {
 			err := e.logstats.Record(serviceName, fingerprint, e.pbPhase, e.id.Name(), environment.CollectorID(), environment.CustomerID(), enrichmentAttributes, 1, logSize)
-			if err != nil {
-				return err
+			if err != nil && errors.Is(err, chqpb.ErrCacheFull) {
+				telemetry.CounterAdd(e.cacheFull, 1)
 			}
 		}
 	}

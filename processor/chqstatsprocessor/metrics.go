@@ -244,6 +244,16 @@ func (e *statsProc) sendMetricStats(wrappers []*chqpb.MetricStatsWrapper) {
 	statsList := make([]*chqpb.MetricStats, 0)
 	for _, wrapper := range wrappers {
 		if wrapper.Dirty {
+			slice, err := wrapper.Hll.ToCompactSlice()
+			if err != nil {
+				continue
+			}
+			estimate, err := wrapper.GetEstimate()
+			if err != nil {
+				continue
+			}
+			wrapper.Stats.CardinalityEstimate = estimate
+			wrapper.Stats.Hll = slice
 			statsList = append(statsList, wrapper.Stats)
 		}
 	}
@@ -263,7 +273,7 @@ func (e *statsProc) sendReport(ctx context.Context, wrapper *chqpb.MetricStatsRe
 		return err
 	}
 	telemetry.HistogramRecord(e.statsBatchSize, int64(len(b)))
-	e.logger.Debug("Sending metric stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
+	e.logger.Info("Sending metric stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(b)))
 	endpoint := e.config.Endpoint + "/api/v1/metricstats"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
 	if err != nil {

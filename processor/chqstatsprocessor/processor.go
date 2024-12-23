@@ -130,13 +130,13 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 	capacity := 10000
 	switch ttype {
 	case "logs":
-		dog.logstats = chqpb.NewEventStatsCache(capacity, 5*time.Minute, dog.sendLogStats, clock)
+		dog.logstats = chqpb.NewEventStatsCache(capacity, 16, 5*time.Minute, dog.sendLogStats, clock)
 		dog.logger.Info("Initialized LogStats Combiner", zap.Duration("interval", config.Statistics.Interval))
 	case "metrics":
-		dog.metricstats = chqpb.NewMetricStatsCache(capacity, 10*time.Minute, dog.sendMetricStats, clock)
+		dog.metricstats = chqpb.NewMetricStatsCache(capacity, 16, 5*time.Minute, dog.sendMetricStats, clock)
 		dog.logger.Info("Initialized MetricStatsCache", zap.Duration("interval", config.Statistics.Interval))
 	case "traces":
-		dog.spanStats = chqpb.NewEventStatsCache(capacity, 5*time.Minute, dog.sendSpanStats, clock)
+		dog.spanStats = chqpb.NewEventStatsCache(capacity, 16, 5*time.Minute, dog.sendSpanStats, clock)
 		dog.logger.Info("Initialized SpanStats Combiner", zap.Duration("interval", config.Statistics.Interval))
 	}
 

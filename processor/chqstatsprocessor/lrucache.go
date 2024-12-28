@@ -101,22 +101,20 @@ func (l *LRUCache) Get(key int64) (interface{}, bool) {
 	elem, found := l.cache[key]
 	l.mutex.RUnlock()
 
-	if found {
+	if !found {
+		return nil, false
+	}
+
+	entry := elem.Value.(*Entry)
+	if time.Since(entry.timestamp) > l.expiry {
 		l.mutex.Lock()
 		defer l.mutex.Unlock()
-
-		entry := elem.Value.(*Entry)
-		if time.Since(entry.timestamp) > l.expiry {
-			l.list.Remove(elem)
-			delete(l.cache, key)
-			return nil, false
-		}
-
-		entry.timestamp = time.Now()
-		l.list.MoveToFront(elem)
-		return entry.value, true
+		l.list.Remove(elem)
+		delete(l.cache, key)
+		return nil, false
 	}
-	return nil, false
+
+	return entry.value, true
 }
 
 // Put adds a value to the cache or updates it if it already exists.

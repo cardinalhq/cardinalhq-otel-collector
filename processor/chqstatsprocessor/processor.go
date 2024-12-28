@@ -82,7 +82,7 @@ type statsProc struct {
 
 	exemplarsMu     sync.RWMutex
 	logExemplars    *LRUCache
-	traceExemplars  map[int64]ptrace.Traces
+	traceExemplars  *LRUCache
 	metricExemplars map[string]pmetric.Metrics
 
 	jsonMarshaller otelJsonMarshaller
@@ -107,7 +107,7 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 		telemetrySettings:  set.TelemetrySettings,
 		jsonMarshaller:     newMarshaller(),
 		logExemplars:       NewLRUCache(1000, 5*time.Minute),
-		traceExemplars:     make(map[int64]ptrace.Traces),
+		traceExemplars:     NewLRUCache(1000, 5*time.Minute),
 		metricExemplars:    make(map[string]pmetric.Metrics),
 		logger:             set.Logger,
 		podName:            os.Getenv("POD_NAME"),

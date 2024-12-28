@@ -115,42 +115,44 @@ func (e *statsProc) recordSpan(
 }
 
 func (e *statsProc) addSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span, fingerprint int64) {
-	e.exemplarsMu.RLock()
-	_, found := e.traceExemplars[fingerprint]
-	e.exemplarsMu.RUnlock()
+	if e.pbPhase == chqpb.Phase_PRE {
+		if e.logExemplars.Contains(fingerprint) {
+			return
+		}
 
-	if found {
-		return
+		e.exemplarsMu.Lock()
+		defer e.exemplarsMu.Unlock()
+
+		exemplarLd := ptrace.NewTraces()
+		copyRl := exemplarLd.ResourceSpans().AppendEmpty()
+		rs.Resource().CopyTo(copyRl.Resource())
+		copySl := copyRl.ScopeSpans().AppendEmpty()
+		ss.Scope().CopyTo(copySl.Scope())
+		copyLr := copySl.Spans().AppendEmpty()
+		sr.CopyTo(copyLr)
+		marshalled, me := e.jsonMarshaller.tracesMarshaler.MarshalTraces(exemplarLd)
+		if me != nil {
+			return
+		}
+		e.traceExemplars.Put(fingerprint, marshalled)
 	}
-
-	e.exemplarsMu.Lock()
-	defer e.exemplarsMu.Unlock()
-
-	exemplarLd := ptrace.NewTraces()
-	copyRl := exemplarLd.ResourceSpans().AppendEmpty()
-	rs.Resource().CopyTo(copyRl.Resource())
-	copySl := copyRl.ScopeSpans().AppendEmpty()
-	ss.Scope().CopyTo(copySl.Scope())
-	copyLr := copySl.Spans().AppendEmpty()
-	sr.CopyTo(copyLr)
-	e.traceExemplars[fingerprint] = exemplarLd
 }
 
-func (e *statsProc) sendSpanStats(bucketpile []*chqpb.EventStats) {
+func (e *statsProc) sendSpanStats(statsList []*chqpb.EventStats) {
+	for _, stat := range statsList {
+		exemplarBytes, found := e.traceExemplars.Get(stat.Fingerprint)
+		if !found {
+			continue
+		}
+		stat.Exemplar = exemplarBytes.([]byte)
+	}
 	wrapper := &chqpb.EventStatsReport{
 		SubmittedAt: time.Now().UnixMilli(),
-		Stats:       []*chqpb.EventStats{},
-	}
-	wrapper.Stats = append(wrapper.Stats, bucketpile...)
-	if len(bucketpile) > 0 {
-		sampleStat := bucketpile[0]
-		e.logger.Debug("Sending span stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(bucketpile)),
-			zap.String("customerId", sampleStat.CustomerId), zap.String("collectorId", sampleStat.CollectorId))
-	}
+		Stats:       statsList}
+
 	if err := e.postSpanStats(context.Background(), wrapper); err != nil {
 		e.logger.Error("Failed to send span stats", zap.Error(err))
 	}
-	e.logger.Debug("Sent log stats", zap.Int("count", len(wrapper.Stats)))
 }
 
 func (e *statsProc) postSpanStats(ctx context.Context, wrapper *chqpb.EventStatsReport) error {

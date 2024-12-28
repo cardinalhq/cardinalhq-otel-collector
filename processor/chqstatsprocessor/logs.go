@@ -70,7 +70,7 @@ func (e *statsProc) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Logs, e
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				lr := sl.LogRecords().At(k)
 				fp := getFingerprint(lr.Attributes())
-				if err := e.recordLog(now, ee, serviceName, fp, rl, sl, lr, &newFingerprintsDetected); err != nil {
+				if err := e.recordLog(now, ee, serviceName, fp, rl, sl, lr); err != nil {
 					e.logger.Error("Failed to record log", zap.Error(err))
 				}
 			}
@@ -121,7 +121,7 @@ func (e *statsProc) postLogExemplars(fingerprints []int64, environment translate
 
 var reportLogMetricsOnce sync.Once
 
-func (e *statsProc) recordLog(now time.Time, environment translate.Environment, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord, newFingerprintsDetected *[]int64) error {
+func (e *statsProc) recordLog(now time.Time, environment translate.Environment, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) error {
 	if e.enableLogMetrics {
 		reportLogMetricsOnce.Do(func() {
 			e.logger.Info("**************************************** Log metrics are enabled")
@@ -153,21 +153,17 @@ func (e *statsProc) recordLog(now time.Time, environment translate.Environment, 
 		}
 	}
 
-	e.addLogExemplar(rl, sl, lr, fingerprint, newFingerprintsDetected)
+	e.addLogExemplar(rl, sl, lr, fingerprint)
 	telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
 
 	return nil
 }
 
-func (e *statsProc) addLogExemplar(rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord, fingerprint int64, newFingerprintsDetected *[]int64) {
+func (e *statsProc) addLogExemplar(rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord, fingerprint int64) {
 	if e.pbPhase == chqpb.Phase_PRE {
-		found := e.logExemplars.Contains(fingerprint)
-
-		if found {
+		if e.logExemplars.Contains(fingerprint) {
 			return
 		}
-
-		*newFingerprintsDetected = append(*newFingerprintsDetected, fingerprint)
 
 		exemplarLd := plog.NewLogs()
 		copyRl := exemplarLd.ResourceLogs().AppendEmpty()
@@ -176,19 +172,27 @@ func (e *statsProc) addLogExemplar(rl plog.ResourceLogs, sl plog.ScopeLogs, lr p
 		sl.Scope().CopyTo(copySl.Scope())
 		copyLr := copySl.LogRecords().AppendEmpty()
 		lr.CopyTo(copyLr)
-		e.logExemplars.Put(fingerprint, exemplarLd)
+
+		marshalled, me := e.jsonMarshaller.logsMarshaler.MarshalLogs(exemplarLd)
+		if me != nil {
+			return
+		}
+		e.logExemplars.Put(fingerprint, marshalled)
 	}
 }
 
 func (e *statsProc) sendLogStats(statsList []*chqpb.EventStats) {
+	for _, stat := range statsList {
+		exemplarBytes, found := e.logExemplars.Get(stat.Fingerprint)
+		if !found {
+			continue
+		}
+		stat.Exemplar = exemplarBytes.([]byte)
+	}
 	wrapper := &chqpb.EventStatsReport{
 		SubmittedAt: time.Now().UnixMilli(),
 		Stats:       statsList}
-	if len(statsList) > 0 {
-		sampleStat := statsList[0]
-		e.logger.Debug("Sending log stats", zap.Int("count", len(wrapper.Stats)), zap.Int("length", len(statsList)),
-			zap.String("customerId", sampleStat.CustomerId), zap.String("collectorId", sampleStat.CollectorId))
-	}
+
 	if err := e.postLogStats(context.Background(), wrapper); err != nil {
 		e.logger.Error("Failed to send log stats", zap.Error(err))
 	}

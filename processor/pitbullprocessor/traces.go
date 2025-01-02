@@ -101,9 +101,7 @@ func (e *pitbull) updateTraceTransformations(sc *ottl.PitbullProcessorConfig, lo
 		oldTransformations.Stop()
 	}
 
-	if len(sc.SpanLookupConfigs) > 0 {
-		for _, lookupConfig := range sc.SpanLookupConfigs {
-			lookupConfig.Init(logger)
-		}
+	for _, lookupConfig := range sc.SpanLookupConfigs {
+		lookupConfig.Init(logger)
 	}
 }

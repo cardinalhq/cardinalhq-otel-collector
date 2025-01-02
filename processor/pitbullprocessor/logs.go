@@ -126,9 +126,7 @@ func (e *pitbull) updateLogTransformations(sc *ottl.PitbullProcessorConfig, logg
 		oldTransformations.Stop()
 	}
 
-	if len(sc.LogLookupConfigs) > 0 {
-		for _, lookupConfig := range sc.LogLookupConfigs {
-			lookupConfig.Init(logger)
-		}
+	for _, lookupConfig := range sc.LogLookupConfigs {
+		lookupConfig.Init(logger)
 	}
 }

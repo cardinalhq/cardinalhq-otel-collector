@@ -171,9 +171,7 @@ func (e *pitbull) updateMetricTransformation(sc *ottl.PitbullProcessorConfig, lo
 		oldTransformations.Stop()
 	}
 
-	if len(sc.MetricLookupConfigs) > 0 {
-		for _, lookupConfig := range sc.MetricLookupConfigs {
-			lookupConfig.Init(logger)
-		}
+	for _, lookupConfig := range sc.MetricLookupConfigs {
+		lookupConfig.Init(logger)
 	}
 }

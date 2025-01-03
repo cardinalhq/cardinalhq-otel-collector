@@ -13,7 +13,7 @@
 # limitations under the License.
 
 TARGETS=bin/cardinalhq-otel-collector
-OTEL_VERSION=v0.114.0
+OTEL_VERSION=v0.116.0
 
 #
 # Build targets.  Adding to these will cause magic to occur.

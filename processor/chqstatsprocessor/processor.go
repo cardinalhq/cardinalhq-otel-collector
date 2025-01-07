@@ -25,7 +25,7 @@ import (
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor/internal/metadata"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
-	"github.com/gofrs/uuid"
+	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 

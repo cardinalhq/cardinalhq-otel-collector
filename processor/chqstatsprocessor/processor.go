@@ -25,6 +25,7 @@ import (
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor/internal/metadata"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
+	"github.com/gofrs/uuid"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
@@ -259,6 +260,9 @@ func toAttribute(contextId string, k string, v pcommon.Value, isAttribute bool) 
 
 func (e *statsProc) configUpdateCallback(cpc ottl.ControlPlaneConfig) {
 	configs := cpc.Stats[e.id.Name()]
+	if configs == nil {
+		configs = cpc.Stats[uuid.Nil.String()]
+	}
 	if configs == nil {
 		return
 	}

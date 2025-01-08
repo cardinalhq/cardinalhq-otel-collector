@@ -34,7 +34,7 @@ type kubeEventsExporter struct {
 	exportedEvents     metric.Int64Counter
 	logger             *zap.Logger
 
-	exportEvents func(ctx context.Context, kubeEvent KubernetesEvent)
+	exportEvents func(ctx context.Context, kubeEvent []KubernetesEvent)
 }
 
 func newKubeEventsExporter(config *Config, params exporter.Settings) *kubeEventsExporter {

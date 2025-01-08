@@ -18,12 +18,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"regexp"
+	"time"
 )
 
 type InvolvedObject struct {
@@ -55,6 +57,7 @@ const (
 
 func (e *kubeEventsExporter) ConsumeLogs(ctx context.Context, pl plog.Logs) error {
 	resourceLogs := pl.ResourceLogs()
+	events := make([]KubernetesEvent, 0)
 	for i := 0; i < resourceLogs.Len(); i++ {
 		resourceLog := resourceLogs.At(i)
 		scopeLogs := resourceLog.ScopeLogs()
@@ -105,11 +108,11 @@ func (e *kubeEventsExporter) ConsumeLogs(ctx context.Context, pl plog.Logs) erro
 															kubeEvent.InvolvedObject.Metadata = make(map[string]string)
 														}
 														kubeEvent.InvolvedObject.Metadata["image"] = image
-														e.exportEvents(ctx, kubeEvent)
+														events = append(events, kubeEvent)
 													}
 
 												case Warning:
-													e.exportEvents(ctx, kubeEvent)
+													events = append(events, kubeEvent)
 
 												default:
 												}
@@ -124,13 +127,21 @@ func (e *kubeEventsExporter) ConsumeLogs(ctx context.Context, pl plog.Logs) erro
 			}
 		}
 	}
+
+	if len(events) > 0 {
+		e.exportEvents(ctx, events)
+	}
 	return nil
 }
-func (e *kubeEventsExporter) sendAsync(ctx context.Context, kubeEvent KubernetesEvent) {
+
+func (e *kubeEventsExporter) sendAsync(ctx context.Context, kubeEvents []KubernetesEvent) {
 	go func() {
-		err := e.postKubeEvent(ctx, kubeEvent)
+		ctxWithTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+
+		err := e.postKubeEvent(ctxWithTimeout, kubeEvents)
 		if err != nil {
-			e.logger.Error("Failed to send edges", zap.Error(err))
+			e.logger.Error("Failed to send kube event", zap.Error(err))
 		}
 	}()
 }
@@ -144,11 +155,9 @@ func extractImageURL(message string) string {
 	return ""
 }
 
-func (e *kubeEventsExporter) postKubeEvent(ctx context.Context, event KubernetesEvent) error {
+func (e *kubeEventsExporter) postKubeEvent(ctx context.Context, events []KubernetesEvent) error {
 	endpoint := e.config.Endpoint + "/api/v1/kubeEvents"
-
-	// Marshal events to JSON
-	b, err := json.Marshal(event)
+	b, err := json.Marshal(events)
 	if err != nil {
 		return fmt.Errorf("failed to marshal kube events: %w", err)
 	}
@@ -161,6 +170,10 @@ func (e *kubeEventsExporter) postKubeEvent(ctx context.Context, event Kubernetes
 
 	resp, err := e.httpClient.Do(req)
 	if err != nil {
+		if errors.Is(ctx.Err(), context.Canceled) {
+			e.logger.Warn("Request canceled", zap.Error(ctx.Err()))
+			return nil
+		}
 		return fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()

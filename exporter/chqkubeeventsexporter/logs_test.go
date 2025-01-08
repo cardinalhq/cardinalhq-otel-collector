@@ -99,7 +99,8 @@ func TestKubeEventsExporter_ConsumeLogs_WarningEvent(t *testing.T) {
 		logger: zap.NewNop(),
 	}
 
-	expectedKubeEvent := KubernetesEvent{
+	events := make([]KubernetesEvent, 0)
+	events = append(events, KubernetesEvent{
 		InvolvedObject: InvolvedObject{
 			Kind:      "Pod",
 			Name:      "memory-hog-77bc84f698-8ddlj",
@@ -109,12 +110,12 @@ func TestKubeEventsExporter_ConsumeLogs_WarningEvent(t *testing.T) {
 		Message:   "Back-off restarting failed container memory-hog in pod memory-hog-77bc84f698-8ddlj_chq-demo-apps(e69d4c5d-3334-454b-8886-f31bc5139dbe)",
 		Reason:    "BackOff",
 		Type:      "Warning",
-	}
+	})
 
 	var funcCalled bool
-	mockSend := func(ctx context.Context, event KubernetesEvent) {
+	mockSend := func(ctx context.Context, event []KubernetesEvent) {
 		funcCalled = true
-		assert.Equal(t, expectedKubeEvent, event)
+		assert.Equal(t, events, event)
 	}
 	exporter.exportEvents = mockSend
 
@@ -197,7 +198,8 @@ func TestKubeEventsExporter_ConsumeLogs_NormalEvent(t *testing.T) {
 		logger: zap.NewNop(),
 	}
 
-	expectedKubeEvent := KubernetesEvent{
+	events := make([]KubernetesEvent, 0)
+	events = append(events, KubernetesEvent{
 		InvolvedObject: InvolvedObject{
 			Kind:      "Pod",
 			Name:      "android-api-699749d6b5-86rcj",
@@ -210,12 +212,12 @@ func TestKubeEventsExporter_ConsumeLogs_NormalEvent(t *testing.T) {
 		Message:   "Successfully pulled image \"033263751764.dkr.ecr.us-east-2.amazonaws.com/cardinalhq/demo/android-api:latest\" in 5.77s (5.77s including waiting). Image size: 260589990 bytes.",
 		Reason:    "Pulled",
 		Type:      "Normal",
-	}
+	})
 
 	var funcCalled bool
-	mockSend := func(ctx context.Context, event KubernetesEvent) {
+	mockSend := func(ctx context.Context, event []KubernetesEvent) {
 		funcCalled = true
-		assert.Equal(t, expectedKubeEvent, event)
+		assert.Equal(t, events, event)
 	}
 	exporter.exportEvents = mockSend
 
@@ -300,7 +302,7 @@ func TestKubeEventsExporter_ConsumeLogs_NoActionOnRegularEvent(t *testing.T) {
 	}
 
 	var funcCalled bool
-	mockSend := func(ctx context.Context, event KubernetesEvent) {
+	mockSend := func(ctx context.Context, event []KubernetesEvent) {
 		funcCalled = true
 	}
 	exporter.exportEvents = mockSend

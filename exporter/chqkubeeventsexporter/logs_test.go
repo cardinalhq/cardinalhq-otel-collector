@@ -113,7 +113,7 @@ func TestKubeEventsExporter_ConsumeLogs_WarningEvent(t *testing.T) {
 	})
 
 	var funcCalled bool
-	mockSend := func(ctx context.Context, event []KubernetesEvent) {
+	mockSend := func(event []KubernetesEvent) {
 		funcCalled = true
 		assert.Equal(t, events, event)
 	}
@@ -215,7 +215,7 @@ func TestKubeEventsExporter_ConsumeLogs_NormalEvent(t *testing.T) {
 	})
 
 	var funcCalled bool
-	mockSend := func(ctx context.Context, event []KubernetesEvent) {
+	mockSend := func(event []KubernetesEvent) {
 		funcCalled = true
 		assert.Equal(t, events, event)
 	}
@@ -302,7 +302,7 @@ func TestKubeEventsExporter_ConsumeLogs_NoActionOnRegularEvent(t *testing.T) {
 	}
 
 	var funcCalled bool
-	mockSend := func(ctx context.Context, event []KubernetesEvent) {
+	mockSend := func(event []KubernetesEvent) {
 		funcCalled = true
 	}
 	exporter.exportEvents = mockSend

@@ -129,14 +129,14 @@ func (e *kubeEventsExporter) ConsumeLogs(ctx context.Context, pl plog.Logs) erro
 	}
 
 	if len(events) > 0 {
-		e.exportEvents(ctx, events)
+		e.exportEvents(events)
 	}
 	return nil
 }
 
-func (e *kubeEventsExporter) sendAsync(ctx context.Context, kubeEvents []KubernetesEvent) {
+func (e *kubeEventsExporter) sendAsync(kubeEvents []KubernetesEvent) {
 	go func() {
-		ctxWithTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
+		ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
 		err := e.postKubeEvent(ctxWithTimeout, kubeEvents)
@@ -157,8 +157,9 @@ func extractImageURL(message string) string {
 
 func (e *kubeEventsExporter) postKubeEvent(ctx context.Context, events []KubernetesEvent) error {
 	endpoint := e.config.Endpoint + "/api/v1/kubeEvents"
-	e.logger.Info("Sending kube events", zap.Int("count", len(events)), zap.String("endpoint", endpoint))
 	b, err := json.Marshal(events)
+	e.logger.Info("Sending kube events", zap.Int("count", len(events)), zap.String("endpoint", endpoint),
+		zap.String("events", string(b)))
 	if err != nil {
 		return fmt.Errorf("failed to marshal kube events: %w", err)
 	}

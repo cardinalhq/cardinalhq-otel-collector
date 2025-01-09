@@ -88,9 +88,9 @@ func (c *fingerprintProcessor) getHttpResource(span ptrace.Span) string {
 		resourceKeys = append(resourceKeys, route.Str())
 	} else {
 		if urlPath, exists := attrs.Get(httpUrlPath); exists {
-			urlPathStr, _, err := c.traceFingerprinter.TokenizeInput(urlPath.Str())
+			urlPathTokens, _, err := c.traceFingerprinter.TokenizeInput(urlPath.Str())
 			if err == nil {
-				resourceKeys = append(resourceKeys, urlPathStr)
+				resourceKeys = append(resourceKeys, strings.Join(urlPathTokens, " "))
 			}
 		}
 	}

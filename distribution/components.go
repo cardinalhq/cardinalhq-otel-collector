@@ -53,6 +53,7 @@ import (
 	chqstatsprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor"
 	pitbullprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor"
 	fingerprintprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor"
+	piiredactionprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor"
 	summarysplitprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor"
 	extractmetricsprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor"
 	awsfirehosereceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/awsfirehosereceiver"
@@ -196,6 +197,7 @@ func components() (otelcol.Factories, error) {
 		chqstatsprocessor.NewFactory(),
 		pitbullprocessor.NewFactory(),
 		fingerprintprocessor.NewFactory(),
+		piiredactionprocessor.NewFactory(),
 		summarysplitprocessor.NewFactory(),
 		extractmetricsprocessor.NewFactory(),
 	)
@@ -222,6 +224,7 @@ func components() (otelcol.Factories, error) {
 	factories.ProcessorModules[chqstatsprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor v0.117.0"
 	factories.ProcessorModules[pitbullprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.117.0"
 	factories.ProcessorModules[fingerprintprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor v0.117.0"
+	factories.ProcessorModules[piiredactionprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor v0.117.0"
 	factories.ProcessorModules[summarysplitprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.117.0"
 	factories.ProcessorModules[extractmetricsprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.117.0"
 

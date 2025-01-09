@@ -95,6 +95,8 @@ processors:
     path: ./processor/pitbullprocessor
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor v0.117.0
     path: ./processor/fingerprintprocessor
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor v0.117.0
+    path: ./processor/piiredactionprocessor
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.117.0
     path: ./processor/summarysplitprocessor
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.117.0

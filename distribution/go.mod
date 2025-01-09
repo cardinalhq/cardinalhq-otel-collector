@@ -18,6 +18,7 @@ require (
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor v0.117.0
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.117.0
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor v0.117.0
+	github.com/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor v0.117.0
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.117.0
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.117.0
 	github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver v0.117.0
@@ -564,6 +565,8 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsproces
 replace github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.117.0 => ../processor/pitbullprocessor
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor v0.117.0 => ../processor/fingerprintprocessor
+
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor v0.117.0 => ../processor/piiredactionprocessor
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.117.0 => ../processor/summarysplitprocessor
 

@@ -93,16 +93,16 @@ func TestGetHttpResource(t *testing.T) {
 
 type mockTraceFingerprinter struct{}
 
-func (m *mockTraceFingerprinter) TokenizeInput(input string) (string, string, error) {
-	return input, input, nil
+func (m *mockTraceFingerprinter) TokenizeInput(input string) ([]string, string, error) {
+	return []string{}, input, nil
 }
 
-func (m *mockTraceFingerprinter) Tokenize(input string) (string, string, error) {
-	return input, input, nil
+func (m *mockTraceFingerprinter) Tokenize(input string) ([]string, string, error) {
+	return []string{}, input, nil
 }
 
-func (m *mockTraceFingerprinter) Fingerprint(input string) (int64, string, error) {
-	return 555, "foo", nil
+func (m *mockTraceFingerprinter) Fingerprint(input string) (int64, []string, string, error) {
+	return 555, nil, "foo", nil
 }
 
 func (m *mockTraceFingerprinter) IsWord(token string) bool {

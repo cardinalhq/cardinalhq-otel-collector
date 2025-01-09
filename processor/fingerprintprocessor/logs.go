@@ -41,10 +41,14 @@ func (e *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plo
 			sl := rl.ScopeLogs().At(j)
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				lr := sl.LogRecords().At(k)
-				fingerprint, level, err := e.logFingerprinter.Fingerprint(lr.Body().AsString())
+				fingerprint, tokens, level, err := e.logFingerprinter.Fingerprint(lr.Body().AsString())
 				if err != nil {
 					e.logger.Debug("Error fingerprinting log", zap.Error(err))
 					continue
+				}
+				tokenSlice := lr.Attributes().PutEmptySlice(translate.CardinalFieldTokens)
+				for _, token := range tokens {
+					tokenSlice.AppendEmpty().SetStr(token)
 				}
 				lr.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)
 				if lr.SeverityNumber() == plog.SeverityNumberUnspecified {

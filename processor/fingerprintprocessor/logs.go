@@ -54,6 +54,7 @@ func (e *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plo
 						tokenSlice.AppendEmpty().SetStr(token)
 						literal := tMap.Get(index)
 						tokenMap.PutStr(strconv.Itoa(index), literal)
+						e.logger.Info("Token", zap.String("token", token), zap.String("literal", literal))
 					}
 				}
 				lr.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)

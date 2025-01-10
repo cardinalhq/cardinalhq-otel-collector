@@ -16,6 +16,7 @@ package fingerprintprocessor
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -41,14 +42,19 @@ func (e *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plo
 			sl := rl.ScopeLogs().At(j)
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				lr := sl.LogRecords().At(k)
-				fingerprint, tokens, level, err := e.logFingerprinter.Fingerprint(lr.Body().AsString())
+				fingerprint, tMap, level, err := e.logFingerprinter.Fingerprint(lr.Body().AsString())
 				if err != nil {
 					e.logger.Debug("Error fingerprinting log", zap.Error(err))
 					continue
 				}
-				tokenSlice := lr.Attributes().PutEmptySlice(translate.CardinalFieldTokens)
-				for _, token := range tokens {
-					tokenSlice.AppendEmpty().SetStr(token)
+				if len(tMap.Items) > 0 {
+					tokenSlice := lr.Attributes().PutEmptySlice(translate.CardinalFieldTokens)
+					tokenMap := lr.Attributes().PutEmptyMap(translate.CardinalFieldTokenMap)
+					for index, token := range tMap.Items {
+						tokenSlice.AppendEmpty().SetStr(token)
+						literal := tMap.Get(index)
+						tokenMap.PutStr(strconv.Itoa(index), literal)
+					}
 				}
 				lr.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)
 				if lr.SeverityNumber() == plog.SeverityNumberUnspecified {

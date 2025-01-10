@@ -19,9 +19,13 @@ import (
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/processor"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor/internal/metadata"
 	"github.com/cardinalhq/oteltools/pkg/pii"
+	"github.com/cardinalhq/oteltools/pkg/telemetry"
 )
 
 type piiRedactionProcessor struct {
@@ -31,7 +35,9 @@ type piiRedactionProcessor struct {
 	id                component.ID
 	telemetrySettings component.TelemetrySettings
 
-	detector pii.Detector
+	detector   pii.Detector
+	detections telemetry.DeferrableCounter
+	redactions telemetry.DeferrableCounter
 }
 
 func newProcessor(config *Config, set processor.Settings) (*piiRedactionProcessor, error) {
@@ -61,6 +67,32 @@ func newProcessor(config *Config, set processor.Settings) (*piiRedactionProcesso
 	}
 
 	dog.detector = pii.NewDetector(pii.WithPIITypes(types...))
+
+	attrset := attribute.NewSet(
+		attribute.String("processor", set.ID.String()),
+		attribute.String("signal", "logs"),
+	)
+
+	detections, err := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
+		"detections",
+		[]metric.Int64CounterOption{},
+		[]metric.AddOption{metric.WithAttributeSet(attrset)},
+	)
+	if err != nil {
+		return nil, err
+	}
+	dog.detections = detections
+
+	redactions, err := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
+		"redactions",
+		[]metric.Int64CounterOption{},
+		[]metric.AddOption{metric.WithAttributeSet(attrset)},
+	)
+	if err != nil {
+		return nil, err
+	}
+	dog.redactions = redactions
+
 	return dog, nil
 }
 

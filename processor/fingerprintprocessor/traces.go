@@ -90,7 +90,7 @@ func (c *fingerprintProcessor) getHttpResource(span ptrace.Span) string {
 		if urlPath, exists := attrs.Get(httpUrlPath); exists {
 			urlPathTokens, _, err := c.traceFingerprinter.TokenizeInput(urlPath.Str())
 			if err == nil {
-				resourceKeys = append(resourceKeys, strings.Join(urlPathTokens, " "))
+				resourceKeys = append(resourceKeys, strings.Join(urlPathTokens.Items, " "))
 			}
 		}
 	}

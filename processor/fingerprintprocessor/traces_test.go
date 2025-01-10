@@ -15,6 +15,7 @@
 package fingerprintprocessor
 
 import (
+	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -41,7 +42,7 @@ func TestGetHttpResource(t *testing.T) {
 				httpMethod:  "POST",
 				httpUrlPath: "/api/v1/resource/123",
 			},
-			expectedResult: "POST /api/v1/resource/123",
+			expectedResult: "POST <Path>",
 		},
 		{
 			name: "Only HTTP method",
@@ -62,7 +63,7 @@ func TestGetHttpResource(t *testing.T) {
 			attributes: map[string]interface{}{
 				httpUrlPath: "/api/v1/resource/123",
 			},
-			expectedResult: "/api/v1/resource/123",
+			expectedResult: "<Path>",
 		},
 		{
 			name:           "No attributes",
@@ -83,28 +84,10 @@ func TestGetHttpResource(t *testing.T) {
 			}
 
 			p := &fingerprintProcessor{
-				traceFingerprinter: &mockTraceFingerprinter{},
+				traceFingerprinter: fingerprinter.NewFingerprinter(fingerprinter.WithMaxTokens(30)),
 			}
 			result := p.getHttpResource(span)
 			assert.Equal(t, tt.expectedResult, result)
 		})
 	}
-}
-
-type mockTraceFingerprinter struct{}
-
-func (m *mockTraceFingerprinter) TokenizeInput(input string) ([]string, string, error) {
-	return []string{}, input, nil
-}
-
-func (m *mockTraceFingerprinter) Tokenize(input string) ([]string, string, error) {
-	return []string{}, input, nil
-}
-
-func (m *mockTraceFingerprinter) Fingerprint(input string) (int64, []string, string, error) {
-	return 555, nil, "foo", nil
-}
-
-func (m *mockTraceFingerprinter) IsWord(token string) bool {
-	return true
 }

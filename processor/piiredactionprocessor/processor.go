@@ -66,7 +66,11 @@ func newProcessor(config *Config, set processor.Settings) (*piiRedactionProcesso
 		}
 	}
 
-	dog.detector = pii.NewDetector(pii.WithPIITypes(types...))
+	dog.detector = pii.NewDetector(
+		pii.WithPIITypes(types...),
+		pii.WithDetectionStats(dog.detections),
+		pii.WithRedactionStats(dog.redactions),
+	)
 
 	attrset := attribute.NewSet(
 		attribute.String("processor", set.ID.String()),
@@ -74,7 +78,7 @@ func newProcessor(config *Config, set processor.Settings) (*piiRedactionProcesso
 	)
 
 	detections, err := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
-		"detections",
+		"otelcol_processor_pii_redaction_detections",
 		[]metric.Int64CounterOption{},
 		[]metric.AddOption{metric.WithAttributeSet(attrset)},
 	)
@@ -84,7 +88,7 @@ func newProcessor(config *Config, set processor.Settings) (*piiRedactionProcesso
 	dog.detections = detections
 
 	redactions, err := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
-		"redactions",
+		"otelcol_processor_pii_redaction_redactions",
 		[]metric.Int64CounterOption{},
 		[]metric.AddOption{metric.WithAttributeSet(attrset)},
 	)

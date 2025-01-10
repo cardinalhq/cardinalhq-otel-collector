@@ -37,7 +37,6 @@ import (
 )
 
 func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
-	now := time.Now()
 	var ee translate.Environment
 	if e.idsFromEnv {
 		ee = translate.EnvironmentFromEnv()
@@ -63,31 +62,31 @@ func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pme
 					for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
 						dp := m.Gauge().DataPoints().At(l)
 						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeGauge, &newFingerprintsDetected)
-						e.processDatapoint(now, ee, metricName, pmetric.MetricTypeGauge.String(), serviceName, extra, rattr, sattr, dp.Attributes())
+						e.processDatapoint(ee, metricName, pmetric.MetricTypeGauge.String(), serviceName, extra, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeSum:
 					for l := 0; l < m.Sum().DataPoints().Len(); l++ {
 						dp := m.Sum().DataPoints().At(l)
 						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeSum, &newFingerprintsDetected)
-						e.processDatapoint(now, ee, metricName, pmetric.MetricTypeSum.String(), serviceName, extra, rattr, sattr, dp.Attributes())
+						e.processDatapoint(ee, metricName, pmetric.MetricTypeSum.String(), serviceName, extra, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeHistogram:
 					for l := 0; l < m.Histogram().DataPoints().Len(); l++ {
 						dp := m.Histogram().DataPoints().At(l)
 						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeHistogram, &newFingerprintsDetected)
-						e.processDatapoint(now, ee, metricName, pmetric.MetricTypeHistogram.String(), serviceName, extra, rattr, sattr, dp.Attributes())
+						e.processDatapoint(ee, metricName, pmetric.MetricTypeHistogram.String(), serviceName, extra, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeSummary:
 					for l := 0; l < m.Summary().DataPoints().Len(); l++ {
 						dp := m.Summary().DataPoints().At(l)
 						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeSummary, &newFingerprintsDetected)
-						e.processDatapoint(now, ee, metricName, pmetric.MetricTypeSummary.String(), serviceName, extra, rattr, sattr, dp.Attributes())
+						e.processDatapoint(ee, metricName, pmetric.MetricTypeSummary.String(), serviceName, extra, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeExponentialHistogram:
 					for l := 0; l < m.ExponentialHistogram().DataPoints().Len(); l++ {
 						e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeExponentialHistogram, &newFingerprintsDetected)
 						dp := m.ExponentialHistogram().DataPoints().At(l)
-						e.processDatapoint(now, ee, metricName, pmetric.MetricTypeExponentialHistogram.String(), serviceName, extra, rattr, sattr, dp.Attributes())
+						e.processDatapoint(ee, metricName, pmetric.MetricTypeExponentialHistogram.String(), serviceName, extra, rattr, sattr, dp.Attributes())
 					}
 				}
 			}
@@ -101,9 +100,9 @@ func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pme
 	return md, nil
 }
 
-func (e *statsProc) processDatapoint(now time.Time, environment translate.Environment, metricName, metricType, serviceName string, extra map[string]string, rattr, sattr, dattr pcommon.Map) {
+func (e *statsProc) processDatapoint(environment translate.Environment, metricName, metricType, serviceName string, extra map[string]string, rattr, sattr, dattr pcommon.Map) {
 	tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
-	if err := e.recordDatapoint(now, environment, metricName, metricType, serviceName, tid, rattr, sattr, dattr); err != nil {
+	if err := e.recordDatapoint(environment, metricName, metricType, serviceName, tid, rattr, sattr, dattr); err != nil {
 		e.logger.Error("Failed to record datapoint", zap.Error(err))
 	}
 }
@@ -117,7 +116,7 @@ func computeStatsOnField(k string) bool {
 	return !strings.HasPrefix(k, translate.CardinalFieldPrefixDot)
 }
 
-func (e *statsProc) recordDatapoint(now time.Time, environment translate.Environment, metricName, metricType, serviceName string, tid int64, rattr, sattr, dpAttr pcommon.Map) error {
+func (e *statsProc) recordDatapoint(environment translate.Environment, metricName, metricType, serviceName string, tid int64, rattr, sattr, dpAttr pcommon.Map) error {
 	var errs error
 
 	attributes := e.processEnrichments(map[string]pcommon.Map{

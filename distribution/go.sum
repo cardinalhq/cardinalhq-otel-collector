@@ -158,8 +158,8 @@ github.com/DataDog/datadog-agent/pkg/logs/util/testutils v0.60.1 h1:V5gQ6MzOF4+h
 github.com/DataDog/datadog-agent/pkg/logs/util/testutils v0.60.1/go.mod h1:woMMfSgjgV8Zcfvhs/YxFLXK8JM21BX66Nt/cArkRgY=
 github.com/DataDog/datadog-agent/pkg/obfuscate v0.60.1 h1:JG543fsoWMXeLLERyWZpkY4/4J2Z6rMYCVRdhg6rbFg=
 github.com/DataDog/datadog-agent/pkg/obfuscate v0.60.1/go.mod h1:SPipm2vo4V7llYTcslf2oUZnvMfoZ3VIp4GAk2YlLUI=
-github.com/DataDog/datadog-agent/pkg/proto v0.60.1 h1:TPmwa8/mNDTB6dvjzc3ezjCOLAVAlGIJxIxNLohHzOM=
-github.com/DataDog/datadog-agent/pkg/proto v0.60.1/go.mod h1:ew1MYSPbe8TyjF3Utd3yA6EGNS68KB3k1LwwL6ZzJTY=
+github.com/DataDog/datadog-agent/pkg/proto v0.61.0 h1:CS0QhiHFNEWjixvNoan1c1wDCvCoCPo/eBHDOzUOdKc=
+github.com/DataDog/datadog-agent/pkg/proto v0.61.0/go.mod h1:DRlQmy6REnEngQoIWJXyARV4h1hlT2sr5N//fBOhUBU=
 github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.60.1 h1:lg/6ZRAFo49qUdWYZNcI7vM/B6iypPqzC+dj4hnVT4k=
 github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.60.1/go.mod h1:uVwr7Avl7zx+J+ct7mZBTAQpEfI6maK9IzLrGJl90DY=
 github.com/DataDog/datadog-agent/pkg/status/health v0.60.1 h1:p1Fzh/NRqY+R/IoSD00gGU/mcXXMlTKvGNeg/wdDSFA=
@@ -339,8 +339,8 @@ github.com/briandowns/spinner v1.23.0 h1:alDF2guRWqa/FOZZYWjlMIx2L6H0wyewPxo/CH4
 github.com/briandowns/spinner v1.23.0/go.mod h1:rPG4gmXeN3wQV/TsAY4w8lPdIM6RX3yqeBQJSrbXjuE=
 github.com/cardinalhq/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver v0.0.0-20241218023339-09be78c4a419 h1:jd83blQ8zskkEghG592guA2+DU5a5xqBlWMvQW4UQFc=
 github.com/cardinalhq/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver v0.0.0-20241218023339-09be78c4a419/go.mod h1:EHgHBruNR8bx3g/wwr0oLHd9z0QjKTu9DjoMc2xYBWU=
-github.com/cardinalhq/oteltools v0.5.6 h1:F28U8wlT7fygUU6un7XaoGkP2OZI3cJlK/HjrL8sH/Q=
-github.com/cardinalhq/oteltools v0.5.6/go.mod h1:55norMwFppSyXrsaCTmltG2phmyzkum2w28xJ6z4PjE=
+github.com/cardinalhq/oteltools v0.6.1 h1:EceWu6HHohhw7zDFEBngg+BlBbR87cuq2fPpGOxlilE=
+github.com/cardinalhq/oteltools v0.6.1/go.mod h1:55norMwFppSyXrsaCTmltG2phmyzkum2w28xJ6z4PjE=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
 github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
@@ -1902,8 +1902,8 @@ google.golang.org/grpc v1.28.0/go.mod h1:rpkK4SK4GF4Ach/+MFLZUBavHOvF2JJB5uozKKa
 google.golang.org/grpc v1.29.1/go.mod h1:itym6AZVZYACWQqET3MqgPpjcuV5QH3BxFS3IjizoKk=
 google.golang.org/grpc v1.30.0/go.mod h1:N36X2cJ7JwdamYAgDz+s+rVMFjt3numwzf/HckM8pak=
 google.golang.org/grpc v1.31.0/go.mod h1:N36X2cJ7JwdamYAgDz+s+rVMFjt3numwzf/HckM8pak=
-google.golang.org/grpc v1.69.2 h1:U3S9QEtbXC0bYNvRtcoklF3xGtLViumSYxWykJS+7AU=
-google.golang.org/grpc v1.69.2/go.mod h1:vyjdE6jLBI76dgpDojsFGNaHlxdjXN9ghpnd2o7JGZ4=
+google.golang.org/grpc v1.69.4 h1:MF5TftSMkd8GLw/m0KM6V8CMOCY6NZ1NQDPGFgbTt4A=
+google.golang.org/grpc v1.69.4/go.mod h1:vyjdE6jLBI76dgpDojsFGNaHlxdjXN9ghpnd2o7JGZ4=
 google.golang.org/protobuf v0.0.0-20200109180630-ec00e32a8dfd/go.mod h1:DFci5gLYBciE7Vtevhsrf46CRTquxDuWsQurQQe4oz8=
 google.golang.org/protobuf v0.0.0-20200221191635-4d8936d0db64/go.mod h1:kwYJMbMJ01Woi6D6+Kah6886xMZcty6N08ah7+eCXa0=
 google.golang.org/protobuf v0.0.0-20200228230310-ab0ca4ff8a60/go.mod h1:cfTl7dwQJ+fmap5saPgwCLgHXTUD7jkjRqWcaiX5VyM=

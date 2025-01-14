@@ -138,7 +138,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/logs/status/statusinterface v0.60.1 // indirect
 	github.com/DataDog/datadog-agent/pkg/logs/status/utils v0.60.1 // indirect
 	github.com/DataDog/datadog-agent/pkg/obfuscate v0.60.1 // indirect
-	github.com/DataDog/datadog-agent/pkg/proto v0.60.1 // indirect
+	github.com/DataDog/datadog-agent/pkg/proto v0.61.0 // indirect
 	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.60.1 // indirect
 	github.com/DataDog/datadog-agent/pkg/status/health v0.60.1 // indirect
 	github.com/DataDog/datadog-agent/pkg/telemetry v0.60.1 // indirect
@@ -207,7 +207,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/briandowns/spinner v1.23.0 // indirect
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 // indirect
-	github.com/cardinalhq/oteltools v0.5.6 // indirect
+	github.com/cardinalhq/oteltools v0.6.1 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -519,7 +519,7 @@ require (
 	google.golang.org/genproto v0.0.0-20241118233622-e639e219e697 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250106144421-5f5ef82da422 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250106144421-5f5ef82da422 // indirect
-	google.golang.org/grpc v1.69.2 // indirect
+	google.golang.org/grpc v1.69.4 // indirect
 	google.golang.org/protobuf v1.36.2 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect

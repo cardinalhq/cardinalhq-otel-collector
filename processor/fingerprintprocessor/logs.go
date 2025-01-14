@@ -42,11 +42,24 @@ func (e *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plo
 			sl := rl.ScopeLogs().At(j)
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				lr := sl.LogRecords().At(k)
-				fingerprint, tMap, level, err := e.logFingerprinter.Fingerprint(lr.Body().AsString())
+				fingerprint, tMap, level, js, err := e.logFingerprinter.Fingerprint(lr.Body().AsString())
 				if err != nil {
 					e.logger.Debug("Error fingerprinting log", zap.Error(err))
 					continue
 				}
+
+				// add JSON content to the record
+				if js == nil {
+					js = map[string]any{}
+				}
+				jsmap := lr.Attributes().PutEmptyMap(translate.CardinalFieldJSON)
+				jscm := pcommon.NewMap()
+				if err := jscm.FromRaw(js); err != nil {
+					e.logger.Debug("Error converting JSON to pdata.Map", zap.Error(err))
+				}
+				jscm.CopyTo(jsmap)
+
+				// add tokens to the record
 				if len(tMap.Items) > 0 {
 					tokenSlice := lr.Attributes().PutEmptySlice(translate.CardinalFieldTokens)
 					tokenMap := lr.Attributes().PutEmptyMap(translate.CardinalFieldTokenMap)
@@ -56,6 +69,7 @@ func (e *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plo
 						tokenMap.PutStr(strconv.Itoa(index), literal)
 					}
 				}
+
 				lr.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)
 				if lr.SeverityNumber() == plog.SeverityNumberUnspecified {
 					lr.SetSeverityText(strings.ToUpper(level))

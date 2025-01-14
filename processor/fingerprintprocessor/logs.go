@@ -16,7 +16,7 @@ package fingerprintprocessor
 
 import (
 	"context"
-	"strconv"
+	"fmt"
 	"strings"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -42,32 +42,10 @@ func (e *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plo
 			sl := rl.ScopeLogs().At(j)
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				lr := sl.LogRecords().At(k)
-				fingerprint, tMap, level, js, err := e.logFingerprinter.Fingerprint(lr.Body().AsString())
+				fingerprint, level, err := e.addTokenFields(lr)
 				if err != nil {
 					e.logger.Debug("Error fingerprinting log", zap.Error(err))
 					continue
-				}
-
-				// add JSON content to the record
-				if js == nil {
-					js = map[string]any{}
-				}
-				jsmap := lr.Attributes().PutEmptyMap(translate.CardinalFieldJSON)
-				jscm := pcommon.NewMap()
-				if err := jscm.FromRaw(js); err != nil {
-					e.logger.Debug("Error converting JSON to pdata.Map", zap.Error(err))
-				}
-				jscm.CopyTo(jsmap)
-
-				// add tokens to the record
-				if len(tMap.Items) > 0 {
-					tokenSlice := lr.Attributes().PutEmptySlice(translate.CardinalFieldTokens)
-					tokenMap := lr.Attributes().PutEmptyMap(translate.CardinalFieldTokenMap)
-					for index, token := range tMap.Items {
-						tokenSlice.AppendEmpty().SetStr(token)
-						literal := tMap.Get(index)
-						tokenMap.PutStr(strconv.Itoa(index), literal)
-					}
 				}
 
 				lr.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)
@@ -80,4 +58,44 @@ func (e *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plo
 	}
 
 	return ld, nil
+}
+
+func (e *fingerprintProcessor) addTokenFields(lr plog.LogRecord) (int64, string, error) {
+	fingerprint, tMap, level, js, err := e.logFingerprinter.Fingerprint(lr.Body().AsString())
+
+	// add JSON content to the record
+	if js == nil {
+		js = map[string]any{}
+	}
+	jsmap := lr.Attributes().PutEmptyMap(translate.CardinalFieldJSON)
+	jscm := pcommon.NewMap()
+	if err := jscm.FromRaw(js); err != nil {
+		e.logger.Debug("Error converting JSON to pdata.Map", zap.Error(err))
+	}
+	jscm.CopyTo(jsmap)
+
+	if err != nil {
+		return 0, "", err
+	}
+	if len(tMap.Items) > 0 {
+		tokenSlice := lr.Attributes().PutEmptySlice(translate.CardinalFieldTokens)
+		tokenMap := lr.Attributes().PutEmptyMap(translate.CardinalFieldTokenMap)
+		placeHolderIndexes := make(map[string]int)
+		for index, token := range tMap.Items {
+			tokenSlice.AppendEmpty().SetStr(token)
+			literal := tMap.Get(index)
+			if token[0] == '<' && token[len(token)-1] == '>' {
+				if _, found := placeHolderIndexes[token]; !found {
+					placeHolderIndexes[token] = 0
+				} else {
+					placeHolderIndexes[token]++
+				}
+				placeHolderKey := fmt.Sprintf("%s_%d", token, placeHolderIndexes[token])
+				tokenMap.PutStr(placeHolderKey, literal)
+			} else {
+				tokenMap.PutStr(literal, literal)
+			}
+		}
+	}
+	return fingerprint, level, nil
 }

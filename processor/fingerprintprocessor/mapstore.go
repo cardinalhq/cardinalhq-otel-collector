@@ -14,9 +14,11 @@ func NewMapStore() *MapStore {
 	return store
 }
 
-func (s *MapStore) Get(key int64) int64 {
+func (s *MapStore) Get(key int64) (int64, bool) {
 	m := s.data.Load().(map[int64]int64)
-	return m[key]
+
+	v, found := m[key]
+	return v, found
 }
 
 func (s *MapStore) Replace(m map[int64]int64) {

@@ -2,24 +2,21 @@ package fingerprintprocessor
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewMapStore(t *testing.T) {
 	store := NewMapStore()
-
-	if store == nil {
-		t.Fatal("Expected NewMapStore to return a non-nil value")
-	}
+	require.NotNil(t, store)
 
 	data := store.data.Load()
-	if data == nil {
-		t.Fatal("Expected data to be initialized")
-	}
+	require.NotNil(t, data)
 
-	if _, ok := data.(map[int64]int64); !ok {
-		t.Fatalf("Expected data to be of type map[int64]int64, got %T", data)
-	}
+	require.IsType(t, map[int64]int64{}, data)
 }
+
 func TestMapStore_Get(t *testing.T) {
 	store := NewMapStore()
 	testKey := int64(1)
@@ -30,18 +27,17 @@ func TestMapStore_Get(t *testing.T) {
 	store.data.Store(initialMap)
 
 	// Test if Get returns the correct value for the existing key
-	value := store.Get(testKey)
-	if value != testValue {
-		t.Fatalf("Expected value %d for key %d, got %d", testValue, testKey, value)
-	}
+	value, found := store.Get(testKey)
+	assert.Equal(t, value, int64(42))
+	assert.True(t, found)
 
 	// Test if Get returns 0 for a non-existing key
 	nonExistingKey := int64(2)
-	value = store.Get(nonExistingKey)
-	if value != 0 {
-		t.Fatalf("Expected value 0 for non-existing key %d, got %d", nonExistingKey, value)
-	}
+	value, found = store.Get(nonExistingKey)
+	assert.Equal(t, value, int64(0))
+	assert.False(t, found)
 }
+
 func TestMapStore_Replace(t *testing.T) {
 	store := NewMapStore()
 

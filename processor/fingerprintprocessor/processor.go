@@ -15,13 +15,19 @@
 package fingerprintprocessor
 
 import (
+	"context"
+	"encoding/binary"
+	"hash/fnv"
+	"slices"
+
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
-	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
 	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
+	"github.com/cardinalhq/oteltools/pkg/ottl"
 )
 
 type fingerprintProcessor struct {
@@ -31,6 +37,11 @@ type fingerprintProcessor struct {
 	id                component.ID
 	ttype             string
 	telemetrySettings component.TelemetrySettings
+
+	configExtension  *chqconfigextension.CHQConfigExtension
+	configCallbackID int
+	logMappings      *MapStore
+	logMappingsHash  int64
 
 	// for logs
 	logFingerprinter fingerprinter.Fingerprinter
@@ -42,13 +53,14 @@ type fingerprintProcessor struct {
 	estimatorInterval   int64
 }
 
-func newPitbull(config *Config, ttype string, set processor.Settings) (*fingerprintProcessor, error) {
+func newProcessor(config *Config, ttype string, set processor.Settings) (*fingerprintProcessor, error) {
 	dog := &fingerprintProcessor{
 		id:                set.ID,
 		ttype:             ttype,
 		config:            config,
 		telemetrySettings: set.TelemetrySettings,
 		logger:            set.Logger,
+		logMappings:       NewMapStore(),
 	}
 
 	switch ttype {
@@ -69,11 +81,78 @@ func (e *fingerprintProcessor) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: true}
 }
 
-func ToMap(attributes pcommon.Map) map[string]string {
-	result := make(map[string]string)
-	attributes.Range(func(k string, v pcommon.Value) bool {
-		result[k] = v.AsString()
-		return true
+func (e *fingerprintProcessor) Start(ctx context.Context, host component.Host) error {
+	ext, found := host.GetExtensions()[*e.config.ConfigurationExtension]
+	if !found {
+		return nil
+		//return errors.New("configuration extension " + e.config.ConfigurationExtension.String() + " not found")
+	}
+	cext, ok := ext.(*chqconfigextension.CHQConfigExtension)
+	if !ok {
+		return nil
+		//return errors.New("configuration extension " + e.config.ConfigurationExtension.String() + " is not a chqconfig extension")
+	}
+	e.configExtension = cext
+
+	e.configCallbackID = e.configExtension.RegisterCallback(e.id.String()+"/"+e.ttype, e.configUpdateCallback)
+
+	return nil
+}
+
+func (e *fingerprintProcessor) Shutdown(ctx context.Context) error {
+	e.configExtension.UnregisterCallback(e.configCallbackID)
+	return nil
+}
+
+func (e *fingerprintProcessor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
+	switch e.ttype {
+	case "logs":
+		newhash := calculateMapHash(sc.FingerprintConfig.LogMappings)
+		if newhash != e.logMappingsHash {
+			e.logMappingsHash = newhash
+			newMap := makeFingerprintMap(sc.FingerprintConfig.LogMappings)
+			e.logMappings.Replace(newMap)
+		}
+		// Add span fingerprinter if needed
+	}
+	e.logger.Info("Configuration updated for processor instance", zap.String("instance", e.id.Name()))
+}
+
+// calculateMapHash calculates a hash of the fingerprint mappings used to detect
+// a change.  It is not cryptographically secure.  An empty input list does not
+// return a 0 value.
+func calculateMapHash(m []ottl.FingerprintMapping) int64 {
+	slices.SortStableFunc(m, func(i, j ottl.FingerprintMapping) int {
+		if i.Primary < j.Primary {
+			return -1
+		}
+		if i.Primary > j.Primary {
+			return 1
+		}
+		return 0
 	})
-	return result
+
+	hasher := fnv.New64a()
+	buff := make([]byte, 8)
+
+	for _, v := range m {
+		binary.LittleEndian.PutUint64(buff, uint64(v.Primary))
+		hasher.Write(buff)
+		slices.Sort(v.Aliases)
+		for _, vv := range v.Aliases {
+			binary.LittleEndian.PutUint64(buff, uint64(vv))
+			hasher.Write(buff)
+		}
+	}
+	return int64(hasher.Sum64())
+}
+
+func makeFingerprintMap(m []ottl.FingerprintMapping) map[int64]int64 {
+	ret := map[int64]int64{}
+	for _, v := range m {
+		for _, vv := range v.Aliases {
+			ret[vv] = v.Primary
+		}
+	}
+	return ret
 }

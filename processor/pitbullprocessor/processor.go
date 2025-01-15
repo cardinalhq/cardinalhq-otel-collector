@@ -38,9 +38,10 @@ type pitbull struct {
 	id                component.ID
 	ttype             string
 	telemetrySettings component.TelemetrySettings
-	configExtension   *chqconfigextension.CHQConfigExtension
 
-	configCallbackID      int
+	configExtension  *chqconfigextension.CHQConfigExtension
+	configCallbackID int
+
 	logTransformations    atomic.Pointer[ottl.Transformations]
 	logsLookupConfigs     atomic.Pointer[[]ottl.LookupConfig]
 	traceTransformations  atomic.Pointer[ottl.Transformations]

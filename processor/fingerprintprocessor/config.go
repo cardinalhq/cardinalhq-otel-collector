@@ -17,11 +17,13 @@ package fingerprintprocessor
 import (
 	"fmt"
 
+	"go.opentelemetry.io/collector/component"
 	"go.uber.org/multierr"
 )
 
 type Config struct {
-	TracesConfig TracesConfig `mapstructure:"traces"`
+	ConfigurationExtension *component.ID `mapstructure:"configuration_extension"`
+	TracesConfig           TracesConfig  `mapstructure:"traces"`
 }
 
 type TracesConfig struct {
@@ -31,6 +33,12 @@ type TracesConfig struct {
 
 func (c *Config) Validate() error {
 	var errs error
+
+	// Not required yet
+	// if c.ConfigurationExtension == nil {
+	// 	err := fmt.Errorf("configuration_extension is required")
+	// 	errs = multierr.Append(errs, err)
+	// }
 
 	errs = multierr.Append(errs, c.TracesConfig.Validate())
 

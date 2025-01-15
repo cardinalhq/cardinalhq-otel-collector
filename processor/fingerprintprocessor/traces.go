@@ -44,9 +44,11 @@ func (e *fingerprintProcessor) ConsumeTraces(ctx context.Context, td ptrace.Trac
 					sr.Attributes().PutStr(translate.CardinalFieldResourceName, httpResource)
 				}
 				spanFingerprint := calculateSpanFingerprint(sr, httpResource, serviceName)
-				isSlow := e.isSpanSlow(sr, uint64(spanFingerprint))
+				spanDuration := float64(sr.EndTimestamp().AsTime().Sub(sr.StartTimestamp().AsTime()).Abs().Milliseconds())
+				isSlow := e.isSpanSlow(spanDuration, uint64(spanFingerprint))
 				sr.Attributes().PutBool(translate.CardinalFieldSpanIsSlow, isSlow)
 				sr.Attributes().PutInt(translate.CardinalFieldFingerprint, spanFingerprint)
+				sr.Attributes().PutDouble("_cardinalhq.span_duration", spanDuration)
 			}
 		}
 	}
@@ -54,9 +56,8 @@ func (e *fingerprintProcessor) ConsumeTraces(ctx context.Context, td ptrace.Trac
 	return td, nil
 }
 
-func (c *fingerprintProcessor) isSpanSlow(span ptrace.Span, fingerprint uint64) bool {
-	spanDuration := span.EndTimestamp().AsTime().Sub(span.StartTimestamp().AsTime()).Abs().Milliseconds()
-	return c.slowSpanPercentile(fingerprint, float64(spanDuration))
+func (c *fingerprintProcessor) isSpanSlow(duration float64, fingerprint uint64) bool {
+	return c.slowSpanPercentile(fingerprint, duration)
 }
 
 func (c *fingerprintProcessor) slowSpanPercentile(fingerprint uint64, duration float64) bool {

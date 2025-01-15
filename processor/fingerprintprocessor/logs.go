@@ -62,6 +62,10 @@ func (e *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plo
 
 func (e *fingerprintProcessor) addTokenFields(lr plog.LogRecord) (int64, string, error) {
 	fingerprint, tMap, level, js, err := e.logFingerprinter.Fingerprint(lr.Body().AsString())
+	if replacement, found := e.logMappings.Get(fingerprint); found {
+		lr.Attributes().PutInt(translate.CardinalFieldFingerprint+"_original", fingerprint)
+		fingerprint = replacement
+	}
 
 	// add JSON content to the record
 	if js == nil {

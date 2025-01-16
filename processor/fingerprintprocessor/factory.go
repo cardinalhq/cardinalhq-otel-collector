@@ -53,6 +53,8 @@ func createLogsProcessor(ctx context.Context, set processor.Settings, cfg compon
 	return processorhelper.NewLogs(
 		ctx, set, cfg, nextConsumer,
 		e.ConsumeLogs,
+		processorhelper.WithStart(e.Start),
+		processorhelper.WithShutdown(e.Shutdown),
 		processorhelper.WithCapabilities(e.Capabilities()))
 }
 

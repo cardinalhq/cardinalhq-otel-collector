@@ -7,8 +7,8 @@ builds:
     goarch:
       - amd64
       - arm64
-      - s390x
-      - riscv64
+      # - s390x
+      # - riscv64
     dir: distribution
     binary: cardinalhq-otel-collector
     ldflags:

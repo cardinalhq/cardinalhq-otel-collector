@@ -29,6 +29,7 @@ type MiddlewareUsage struct {
 func NewMiddlewareUsage(counter metric.Int64Counter, next http.Handler) *MiddlewareUsage {
 	return &MiddlewareUsage{
 		counter: counter,
+		next:    next,
 	}
 }
 

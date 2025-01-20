@@ -35,12 +35,14 @@ func NewMiddlewareUsage(counter metric.Int64Counter, next http.Handler) *Middlew
 
 func (mu *MiddlewareUsage) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
+	contentType := r.Header.Get("Content-Type")
 	w = newResponseWriter(w)
 	mu.next.ServeHTTP(w, r)
 
 	mu.counter.Add(r.Context(), 1, metric.WithAttributes(
 		attribute.String("path", path),
 		attribute.Int("status_code", w.(*responseWriter).status),
+		attribute.String("content_type", contentType),
 	))
 }
 

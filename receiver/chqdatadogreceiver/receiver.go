@@ -278,8 +278,7 @@ func (ddr *datadogReceiver) handleTraces(w http.ResponseWriter, req *http.Reques
 
 	var ddTraces []*ddpbtrace.TracerPayload
 
-	// XXXMLG TODO: fetch additional tags from the cache
-	ddTraces, err = handlePayload(req)
+	ddTraces, err = handleTracePayload(req)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		ddr.traceLogger.Error("Unable to unmarshal reqs", zap.Error(err))

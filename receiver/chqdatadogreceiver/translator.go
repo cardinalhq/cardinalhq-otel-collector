@@ -187,7 +187,7 @@ func translateDataDogKeyToOtel(k string) string {
 
 }
 
-func handlePayload(req *http.Request) (tp []*pb.TracerPayload, err error) {
+func handleTracePayload(req *http.Request) (tp []*pb.TracerPayload, err error) {
 	var tracerPayloads []*pb.TracerPayload
 
 	defer func() {

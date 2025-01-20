@@ -21,5 +21,6 @@ import (
 )
 
 func (e *datadogExporter) ConsumeTraces(_ context.Context, traces ptrace.Traces) error {
+
 	return nil
 }

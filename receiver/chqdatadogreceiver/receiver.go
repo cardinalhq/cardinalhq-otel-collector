@@ -39,6 +39,7 @@ type datadogReceiver struct {
 	obsrecv            *receiverhelper.ObsReport
 	datapointAge       metric.Float64Histogram
 	hostnameTags       metric.Int64Counter
+	endpointUsage      metric.Int64Counter
 	aset               attribute.Set
 	podName            string
 	id                 string
@@ -98,6 +99,16 @@ func newDataDogReceiver(config *Config, params receiver.Settings) (component.Com
 	}
 	ddr.hostnameTags = ht
 
+	eu, err := metadata.Meter(ddr.telemetrySettings).Int64Counter(
+		"endpoint_usage",
+		metric.WithDescription("The number of times an endpoint was used"),
+		metric.WithUnit("1"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	ddr.endpointUsage = eu
+
 	return ddr, nil
 }
 
@@ -142,8 +153,11 @@ func (ddr *datadogReceiver) Start(ctx context.Context, host component.Host) erro
 	ddmux.HandleFunc("/api/v1/check_run", ddr.handleCheckRun)
 	ddmux.HandleFunc("/api/v1/metadata", ddr.handleMetadata)
 
+	// insert our middleware to track usage of API endpoints
+	mw := NewMiddlewareUsage(ddr.endpointUsage, ddmux)
+
 	var err error
-	ddr.server, err = ddr.config.ServerConfig.ToServer(ctx, host, ddr.telemetrySettings, ddmux)
+	ddr.server, err = ddr.config.ServerConfig.ToServer(ctx, host, ddr.telemetrySettings, mw)
 	if err != nil {
 		return fmt.Errorf("failed to create server definition: %w", err)
 	}

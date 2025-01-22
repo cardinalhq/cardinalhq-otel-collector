@@ -1,8 +1,8 @@
 module github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver
 
-go 1.22.7
+go 1.23
 
-toolchain go1.23.3
+toolchain go1.23.5
 
 require (
 	github.com/google/go-github/v63 v63.0.0

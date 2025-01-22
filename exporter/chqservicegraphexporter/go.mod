@@ -1,8 +1,8 @@
 module github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter
 
-go 1.22.7
+go 1.23
 
-toolchain go1.23.3
+toolchain go1.23.5
 
 require (
 	github.com/jonboulle/clockwork v0.5.0

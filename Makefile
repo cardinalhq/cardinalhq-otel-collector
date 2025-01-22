@@ -72,6 +72,11 @@ update-deps:
 		(echo ============ updating $$i ... ; cd $$i && go get -u -t ./... && go mod tidy) || exit 1; \
 	done
 
+update-oteltools:
+	for i in $(MODULE_SOURCE_PATHS); do \
+		(echo ============ updating $$i ... ; cd $$i && go get -u github.com/cardinalhq/oteltools && go mod tidy) || exit 1; \
+	done
+
 tidy:
 	for i in $(MODULE_SOURCE_PATHS); do \
 		(echo ============ go tidy in $$i ... ; cd $$i && go mod tidy) || exit 1; \

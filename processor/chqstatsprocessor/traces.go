@@ -119,10 +119,6 @@ func (e *statsProc) addSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpan
 		if e.logExemplars.Contains(fingerprint) {
 			return
 		}
-
-		e.exemplarsMu.Lock()
-		defer e.exemplarsMu.Unlock()
-
 		exemplarLd := ptrace.NewTraces()
 		copyRl := exemplarLd.ResourceSpans().AppendEmpty()
 		rs.Resource().CopyTo(copyRl.Resource())

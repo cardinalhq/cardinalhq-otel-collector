@@ -61,7 +61,6 @@ func (e *statsProc) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Logs, e
 
 	now := time.Now()
 
-	newFingerprintsDetected := make([]int64, 0)
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
 		serviceName := getServiceName(rl.Resource().Attributes())
@@ -77,46 +76,7 @@ func (e *statsProc) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Logs, e
 		}
 	}
 
-	if len(newFingerprintsDetected) > 0 {
-		e.postLogExemplars(newFingerprintsDetected, ee)
-	}
-
 	return ld, nil
-}
-
-func (e *statsProc) postLogExemplars(fingerprints []int64, environment translate.Environment) {
-	e.exemplarsMu.Lock()
-	defer e.exemplarsMu.Unlock()
-
-	statsList := make([]*chqpb.EventStats, 0)
-	for _, fingerprint := range fingerprints {
-		exemplar, found := e.logExemplars.Get(fingerprint)
-		if !found {
-			continue
-		}
-
-		exemplarObj := exemplar.(plog.Logs)
-		marshalled, me := e.jsonMarshaller.logsMarshaler.MarshalLogs(exemplarObj)
-		if me != nil {
-			continue
-		}
-		stats := &chqpb.EventStats{
-			Fingerprint: fingerprint,
-			Exemplar:    marshalled,
-			ProcessorId: e.id.Name(),
-			Phase:       e.pbPhase,
-			CollectorId: environment.CollectorID(),
-			CustomerId:  environment.CustomerID(),
-			ServiceName: getServiceName(exemplarObj.ResourceLogs().At(0).Resource().Attributes()),
-		}
-		statsList = append(statsList, stats)
-	}
-	go func() {
-		err := e.postLogStats(context.Background(), &chqpb.EventStatsReport{Stats: statsList})
-		if err != nil {
-			e.logger.Error("Failed to send log exemplars", zap.Error(err))
-		}
-	}()
 }
 
 var reportLogMetricsOnce sync.Once

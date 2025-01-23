@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"net/http"
 	"strconv"
@@ -159,27 +160,22 @@ func (e *statsProc) recordMetric(environment translate.Environment, metricName, 
 }
 
 func (e *statsProc) postExemplars(fingerprints []string) {
-	e.exemplarsMu.Lock()
-	defer e.exemplarsMu.Unlock()
-
 	var marshalledExemplars []*chqpb.MetricExemplar
 	for _, fingerprint := range fingerprints {
 		split := strings.Split(fingerprint, ":")
 		sName := split[0]
 		mName := split[1]
 		mType := split[2]
-		exemplar, found := e.metricExemplars[fingerprint]
+		exemplar, found := e.metricExemplars.Get(hashString(fingerprint))
 		if found {
-			marshalled, me := e.jsonMarshaller.metricsMarshaler.MarshalMetrics(exemplar)
-			if me == nil {
-				marshalledExemplars = append(marshalledExemplars, &chqpb.MetricExemplar{
-					ServiceName: sName,
-					MetricName:  mName,
-					MetricType:  mType,
-					ProcessorId: e.id.Name(),
-					Exemplar:    marshalled,
-				})
-			}
+			exemplarBytes := exemplar.([]byte)
+			marshalledExemplars = append(marshalledExemplars, &chqpb.MetricExemplar{
+				ServiceName: sName,
+				MetricName:  mName,
+				MetricType:  mType,
+				ProcessorId: e.id.Name(),
+				Exemplar:    exemplarBytes,
+			})
 		}
 	}
 
@@ -195,19 +191,19 @@ func (e *statsProc) postExemplars(fingerprints []string) {
 	}()
 }
 
-func (e *statsProc) addMetricsExemplar(rm pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, mm pmetric.Metric, serviceName, metricName string, metricType pmetric.MetricType, newExemplars *[]string) {
-	if e.pbPhase == chqpb.Phase_PRE {
-		fingerprint := serviceName + ":" + metricName + ":" + metricType.String()
-		e.exemplarsMu.RLock()
-		_, found := e.metricExemplars[fingerprint]
-		e.exemplarsMu.RUnlock()
+func hashString(s string) int64 {
+	h := fnv.New64a()
+	h.Write([]byte(s))
+	return int64(h.Sum64())
+}
 
-		if found {
+func (e *statsProc) addMetricsExemplar(rm pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, mm pmetric.Metric, serviceName, metricName string, metricType pmetric.MetricType, newFingerprints *[]string) {
+	if e.pbPhase == chqpb.Phase_PRE {
+		fingerprintString := serviceName + ":" + metricName + ":" + metricType.String()
+		fingerprint := hashString(fingerprintString)
+		if e.metricExemplars.Contains(fingerprint) {
 			return
 		}
-
-		e.exemplarsMu.Lock()
-		defer e.exemplarsMu.Unlock()
 
 		exemplarLm := pmetric.NewMetrics()
 		copyRm := exemplarLm.ResourceMetrics().AppendEmpty()
@@ -234,8 +230,12 @@ func (e *statsProc) addMetricsExemplar(rm pmetric.ResourceMetrics, sm pmetric.Sc
 			mm.ExponentialHistogram().DataPoints().At(0).CopyTo(ccd)
 		default:
 		}
-		e.metricExemplars[fingerprint] = exemplarLm
-		*newExemplars = append(*newExemplars, fingerprint)
+		marshalled, me := e.jsonMarshaller.metricsMarshaler.MarshalMetrics(exemplarLm)
+		if me != nil {
+			return
+		}
+		e.metricExemplars.Put(fingerprint, marshalled)
+		*newFingerprints = append(*newFingerprints, fingerprintString)
 	}
 }
 

@@ -19,7 +19,6 @@ import (
 	"errors"
 	"net/http"
 	"os"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -81,10 +80,9 @@ type statsProc struct {
 	spanStats   *chqpb.EventStatsCache
 	metricstats *chqpb.MetricStatsCache
 
-	exemplarsMu     sync.RWMutex
 	logExemplars    *LRUCache
 	traceExemplars  *LRUCache
-	metricExemplars map[string]pmetric.Metrics
+	metricExemplars *LRUCache
 
 	jsonMarshaller otelJsonMarshaller
 
@@ -109,7 +107,7 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 		jsonMarshaller:     newMarshaller(),
 		logExemplars:       NewLRUCache(1000, 5*time.Minute),
 		traceExemplars:     NewLRUCache(1000, 5*time.Minute),
-		metricExemplars:    make(map[string]pmetric.Metrics),
+		metricExemplars:    NewLRUCache(1000, 5*time.Minute),
 		logger:             set.Logger,
 		podName:            os.Getenv("POD_NAME"),
 	}

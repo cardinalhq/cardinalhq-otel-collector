@@ -212,20 +212,30 @@ func (e *statsProc) addMetricsExemplar(rm pmetric.ResourceMetrics, sm pmetric.Sc
 		mm.CopyTo(copyMm)
 		switch metricType {
 		case pmetric.MetricTypeGauge:
-			ccd := copyMm.Gauge().DataPoints().AppendEmpty()
-			mm.Gauge().DataPoints().At(0).CopyTo(ccd)
+			if mm.Gauge().DataPoints().Len() > 0 {
+				ccd := copyMm.Gauge().DataPoints().AppendEmpty()
+				mm.Gauge().DataPoints().At(0).CopyTo(ccd)
+			}
 		case pmetric.MetricTypeSum:
-			ccd := copyMm.Sum().DataPoints().AppendEmpty()
-			mm.Sum().DataPoints().At(0).CopyTo(ccd)
+			if mm.Sum().DataPoints().Len() > 0 {
+				ccd := copyMm.Sum().DataPoints().AppendEmpty()
+				mm.Sum().DataPoints().At(0).CopyTo(ccd)
+			}
 		case pmetric.MetricTypeHistogram:
-			ccd := copyMm.Histogram().DataPoints().AppendEmpty()
-			mm.Histogram().DataPoints().At(0).CopyTo(ccd)
+			if mm.Histogram().DataPoints().Len() > 0 {
+				ccd := copyMm.Histogram().DataPoints().AppendEmpty()
+				mm.Histogram().DataPoints().At(0).CopyTo(ccd)
+			}
 		case pmetric.MetricTypeSummary:
-			ccd := copyMm.Summary().DataPoints().AppendEmpty()
-			mm.Summary().DataPoints().At(0).CopyTo(ccd)
+			if mm.Summary().DataPoints().Len() > 0 {
+				ccd := copyMm.Summary().DataPoints().AppendEmpty()
+				mm.Summary().DataPoints().At(0).CopyTo(ccd)
+			}
 		case pmetric.MetricTypeExponentialHistogram:
-			ccd := copyMm.ExponentialHistogram().DataPoints().AppendEmpty()
-			mm.ExponentialHistogram().DataPoints().At(0).CopyTo(ccd)
+			if mm.ExponentialHistogram().DataPoints().Len() > 0 {
+				ccd := copyMm.ExponentialHistogram().DataPoints().AppendEmpty()
+				mm.ExponentialHistogram().DataPoints().At(0).CopyTo(ccd)
+			}
 		default:
 		}
 		marshalled, me := e.jsonMarshaller.metricsMarshaler.MarshalMetrics(exemplarLm)

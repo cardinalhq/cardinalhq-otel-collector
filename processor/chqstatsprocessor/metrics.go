@@ -93,7 +93,6 @@ func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pme
 	}
 
 	if len(newFingerprintsDetected) > 0 {
-		e.logger.Info("New fingerprints detected", zap.Int("count", len(newFingerprintsDetected)))
 		e.postExemplars(newFingerprintsDetected)
 	}
 

@@ -58,10 +58,11 @@ func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pme
 				metricName := m.Name()
 				extra := map[string]string{"name": m.Name()}
 
-				e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, pmetric.MetricTypeExponentialHistogram, &newFingerprintsDetected)
+				e.addMetricsExemplar(rm, ilm, m, serviceName, metricName, m.Type(), &newFingerprintsDetected)
 
 				switch m.Type() {
 				case pmetric.MetricTypeGauge:
+
 					for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
 						dp := m.Gauge().DataPoints().At(l)
 						e.processDatapoint(ee, metricName, pmetric.MetricTypeGauge.String(), serviceName, extra, rattr, sattr, dp.Attributes())

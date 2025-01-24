@@ -231,11 +231,11 @@ func (e *statsProc) addMetricsExemplar(rm pmetric.ResourceMetrics, sm pmetric.Sc
 				ccd := copyMm.Summary().DataPoints().AppendEmpty()
 				mm.Summary().DataPoints().At(0).CopyTo(ccd)
 			}
-		case pmetric.MetricTypeExponentialHistogram:
-			if mm.ExponentialHistogram().DataPoints().Len() > 0 {
-				ccd := copyMm.ExponentialHistogram().DataPoints().AppendEmpty()
-				mm.ExponentialHistogram().DataPoints().At(0).CopyTo(ccd)
-			}
+		//case pmetric.MetricTypeExponentialHistogram:
+		//	if mm.ExponentialHistogram().DataPoints().Len() > 0 {
+		//		ccd := copyMm.ExponentialHistogram().DataPoints().AppendEmpty()
+		//		mm.ExponentialHistogram().DataPoints().At(0).CopyTo(ccd)
+		//	}
 		default:
 		}
 		marshalled, me := e.jsonMarshaller.metricsMarshaler.MarshalMetrics(exemplarLm)

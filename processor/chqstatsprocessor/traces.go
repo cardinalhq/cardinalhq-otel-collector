@@ -107,16 +107,17 @@ func (e *statsProc) recordSpan(
 	if err != nil && errors.Is(err, chqpb.ErrCacheFull) {
 		telemetry.CounterAdd(e.cacheFull, 1)
 	}
-	e.addSpanExemplar(rs, iss, span, fingerprint)
+	e.addSpanExemplar(rs, iss, span, serviceName, fingerprint)
 
 	telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
 
 	return nil
 }
 
-func (e *statsProc) addSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span, fingerprint int64) {
+func (e *statsProc) addSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span, serviceName string, fingerprint int64) {
 	if e.pbPhase == chqpb.Phase_PRE {
-		if e.logExemplars.Contains(fingerprint) {
+		key := e.toExemplarKey(serviceName, fingerprint)
+		if e.logExemplars.Contains(key) {
 			return
 		}
 		exemplarLd := ptrace.NewTraces()
@@ -130,13 +131,14 @@ func (e *statsProc) addSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpan
 		if me != nil {
 			return
 		}
-		e.traceExemplars.Put(fingerprint, marshalled)
+		e.traceExemplars.Put(key, marshalled)
 	}
 }
 
 func (e *statsProc) sendSpanStats(statsList []*chqpb.EventStats) {
 	for _, stat := range statsList {
-		exemplarBytes, found := e.traceExemplars.Get(stat.Fingerprint)
+		key := e.toExemplarKey(stat.ServiceName, stat.Fingerprint)
+		exemplarBytes, found := e.traceExemplars.Get(key)
 		if !found {
 			continue
 		}

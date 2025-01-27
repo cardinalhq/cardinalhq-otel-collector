@@ -113,15 +113,17 @@ func (e *statsProc) recordLog(now time.Time, environment translate.Environment, 
 		}
 	}
 
-	e.addLogExemplar(rl, sl, lr, fingerprint)
+	e.addLogExemplar(rl, sl, lr, serviceName, fingerprint)
 	telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
 
 	return nil
 }
 
-func (e *statsProc) addLogExemplar(rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord, fingerprint int64) {
+func (e *statsProc) addLogExemplar(rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord, serviceName string, fingerprint int64) {
 	if e.pbPhase == chqpb.Phase_PRE {
-		if e.logExemplars.Contains(fingerprint) {
+		key := e.toExemplarKey(serviceName, fingerprint)
+
+		if e.logExemplars.Contains(key) {
 			return
 		}
 
@@ -137,13 +139,14 @@ func (e *statsProc) addLogExemplar(rl plog.ResourceLogs, sl plog.ScopeLogs, lr p
 		if me != nil {
 			return
 		}
-		e.logExemplars.Put(fingerprint, marshalled)
+		e.logExemplars.Put(key, marshalled)
 	}
 }
 
 func (e *statsProc) sendLogStats(statsList []*chqpb.EventStats) {
 	for _, stat := range statsList {
-		exemplarBytes, found := e.logExemplars.Get(stat.Fingerprint)
+		key := e.toExemplarKey(stat.ServiceName, stat.Fingerprint)
+		exemplarBytes, found := e.logExemplars.Get(key)
 		if !found {
 			continue
 		}

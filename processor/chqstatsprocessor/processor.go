@@ -17,6 +17,8 @@ package chqstatsprocessor
 import (
 	"context"
 	"errors"
+	"fmt"
+	"hash/fnv"
 	"net/http"
 	"os"
 	"sync/atomic"
@@ -278,4 +280,14 @@ func (e *statsProc) configUpdateCallback(cpc ottl.ControlPlaneConfig) {
 	}
 
 	e.logger.Info("Configuration updated for processor instance", zap.String("instance", e.id.Name()))
+}
+
+func hashString(s string) int64 {
+	h := fnv.New64a()
+	h.Write([]byte(s))
+	return int64(h.Sum64())
+}
+
+func (e *statsProc) toExemplarKey(serviceName string, fingerprint int64) int64 {
+	return hashString(fmt.Sprintf("%s-%d", serviceName, fingerprint))
 }

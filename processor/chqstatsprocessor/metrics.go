@@ -19,7 +19,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hash/fnv"
 	"io"
 	"net/http"
 	"strconv"
@@ -187,12 +186,6 @@ func (e *statsProc) postExemplars(fingerprints []string) {
 			e.logger.Error("Failed to send metric stats", zap.Error(err))
 		}
 	}()
-}
-
-func hashString(s string) int64 {
-	h := fnv.New64a()
-	h.Write([]byte(s))
-	return int64(h.Sum64())
 }
 
 func (e *statsProc) addMetricsExemplar(rm pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, mm pmetric.Metric, serviceName, metricName string, metricType pmetric.MetricType, newFingerprints *[]string) {

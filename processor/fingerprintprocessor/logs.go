@@ -42,17 +42,18 @@ func (e *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plo
 			sl := rl.ScopeLogs().At(j)
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				lr := sl.LogRecords().At(k)
-				fingerprint, level, err := e.addTokenFields(lr)
+				fingerprint, levelfromFingerprinter, err := e.addTokenFields(lr)
 				if err != nil {
 					e.logger.Debug("Error fingerprinting log", zap.Error(err))
 					continue
 				}
 
 				lr.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)
-				if lr.SeverityNumber() == plog.SeverityNumberUnspecified {
-					lr.SetSeverityText(strings.ToUpper(level))
+
+				if lr.SeverityText() == "" {
+					lr.SetSeverityText(strings.ToUpper(levelfromFingerprinter))
 				}
-				lr.Attributes().PutStr(translate.CardinalFieldLevel, level)
+				lr.Attributes().PutStr(translate.CardinalFieldLevel, lr.SeverityText())
 			}
 		}
 	}

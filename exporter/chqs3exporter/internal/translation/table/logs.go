@@ -31,10 +31,6 @@ func (l *TableTranslator) LogsFromOtel(ol *plog.Logs, environment translate.Envi
 			ill := rl.ScopeLogs().At(j)
 			for k := 0; k < ill.LogRecords().Len(); k++ {
 				log := ill.LogRecords().At(k)
-				_, levelFound := log.Attributes().Get(translate.CardinalFieldLevel)
-				if !levelFound && log.SeverityNumber() != plog.SeverityNumberUnspecified {
-					log.Attributes().PutStr(translate.CardinalFieldLevel, log.SeverityText())
-				}
 				ret := map[string]any{translate.CardinalFieldTelemetryType: "logs"}
 				addAttributes(ret, rl.Resource().Attributes(), "resource")
 				addAttributes(ret, ill.Scope().Attributes(), "scope")

@@ -63,7 +63,9 @@ func (e *statsProc) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Logs, e
 
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
-		serviceName := getServiceName(rl.Resource().Attributes())
+		resourceAttributes := rl.Resource().Attributes()
+		e.provisionEntityRelationships(resourceAttributes)
+		serviceName := getServiceName(resourceAttributes)
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
 			sl := rl.ScopeLogs().At(j)
 			for k := 0; k < sl.LogRecords().Len(); k++ {
@@ -152,6 +154,10 @@ func (e *statsProc) sendLogStats(statsList []*chqpb.EventStats) {
 		}
 		stat.Exemplar = exemplarBytes.([]byte)
 	}
+
+	// Publish resource entity relationships
+	e.publishResourceEntities(context.Background())
+
 	wrapper := &chqpb.EventStatsReport{
 		SubmittedAt: time.Now().UnixMilli(),
 		Stats:       statsList}

@@ -44,7 +44,9 @@ func (e *statsProc) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace
 
 	for i := 0; i < td.ResourceSpans().Len(); i++ {
 		rs := td.ResourceSpans().At(i)
-		serviceName := getServiceName(rs.Resource().Attributes())
+		resourceAttributes := rs.Resource().Attributes()
+		e.provisionEntityRelationships(resourceAttributes)
+		serviceName := getServiceName(resourceAttributes)
 		for j := 0; j < rs.ScopeSpans().Len(); j++ {
 			iss := rs.ScopeSpans().At(j)
 			for k := 0; k < iss.Spans().Len(); k++ {
@@ -144,6 +146,10 @@ func (e *statsProc) sendSpanStats(statsList []*chqpb.EventStats) {
 		}
 		stat.Exemplar = exemplarBytes.([]byte)
 	}
+
+	// Publish resource entity relationships
+	e.publishResourceEntities(context.Background())
+
 	wrapper := &chqpb.EventStatsReport{
 		SubmittedAt: time.Now().UnixMilli(),
 		Stats:       statsList}

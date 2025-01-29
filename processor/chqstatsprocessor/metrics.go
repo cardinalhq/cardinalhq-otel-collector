@@ -49,6 +49,7 @@ func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pme
 		rm := md.ResourceMetrics().At(i)
 		serviceName := getServiceName(rm.Resource().Attributes())
 		rattr := rm.Resource().Attributes()
+		e.provisionEntityRelationships(rattr)
 		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
 			ilm := rm.ScopeMetrics().At(j)
 			sattr := ilm.Scope().Attributes()
@@ -270,6 +271,9 @@ func (e *statsProc) sendMetricStats(wrappers []*chqpb.MetricStatsWrapper) {
 			e.logger.Error("Failed to send metric stats", zap.Error(err))
 		}
 	}
+
+	// Publish resource entity relationships
+	e.publishResourceEntities(context.Background())
 }
 
 func (e *statsProc) sendReport(ctx context.Context, wrapper *chqpb.MetricStatsReport) error {

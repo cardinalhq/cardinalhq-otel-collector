@@ -15,10 +15,13 @@
 package chqstatsprocessor
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"io"
 	"net/http"
 	"os"
 	"sync/atomic"
@@ -86,6 +89,8 @@ type statsProc struct {
 	traceExemplars  *LRUCache
 	metricExemplars *LRUCache
 
+	resourceEntityCache *ResourceEntityCache
+
 	jsonMarshaller otelJsonMarshaller
 
 	logStatsEnrichments     atomic.Pointer[[]ottl.StatsEnrichment]
@@ -101,17 +106,18 @@ type statsProc struct {
 
 func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsProc, error) {
 	dog := &statsProc{
-		id:                 set.ID,
-		ttype:              ttype,
-		config:             config,
-		httpClientSettings: config.ClientConfig,
-		telemetrySettings:  set.TelemetrySettings,
-		jsonMarshaller:     newMarshaller(),
-		logExemplars:       NewLRUCache(1000, 5*time.Minute),
-		traceExemplars:     NewLRUCache(1000, 5*time.Minute),
-		metricExemplars:    NewLRUCache(1000, 5*time.Minute),
-		logger:             set.Logger,
-		podName:            os.Getenv("POD_NAME"),
+		id:                  set.ID,
+		ttype:               ttype,
+		config:              config,
+		httpClientSettings:  config.ClientConfig,
+		telemetrySettings:   set.TelemetrySettings,
+		jsonMarshaller:      newMarshaller(),
+		logExemplars:        NewLRUCache(1000, 5*time.Minute),
+		traceExemplars:      NewLRUCache(1000, 5*time.Minute),
+		metricExemplars:     NewLRUCache(1000, 5*time.Minute),
+		resourceEntityCache: NewResourceEntityCache(),
+		logger:              set.Logger,
+		podName:             os.Getenv("POD_NAME"),
 	}
 
 	//if os.Getenv("ENABLE_METRIC_METRICS") == "true" {
@@ -290,4 +296,53 @@ func hashString(s string) int64 {
 
 func (e *statsProc) toExemplarKey(serviceName string, fingerprint int64) int64 {
 	return hashString(fmt.Sprintf("%s-%d", serviceName, fingerprint))
+}
+
+func (e *statsProc) provisionEntityRelationships(resourceAttributes pcommon.Map) {
+	e.resourceEntityCache.Provision(resourceAttributes)
+}
+
+func (e *statsProc) publishResourceEntities(ctx context.Context) {
+	allEntities := e.resourceEntityCache.GetAllEntities()
+	if len(allEntities) > 0 {
+		go func(entities map[string]*ResourceEntity) {
+			if err := e.postResourceEntities(ctx, entities); err != nil {
+				e.logger.Error("Failed to send resource entities", zap.Error(err))
+			}
+		}(allEntities)
+	}
+}
+
+func (e *statsProc) postResourceEntities(ctx context.Context, entities map[string]*ResourceEntity) error {
+	b, err := json.Marshal(entities)
+	if err != nil {
+		return err
+	}
+
+	telemetry.HistogramRecord(e.statsBatchSize, int64(len(b)))
+
+	endpoint := e.config.Endpoint + "/api/v1/resourceEntities"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := e.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer func(Body io.ReadCloser) {
+		if err := Body.Close(); err != nil {
+			e.logger.Error("Failed to close response body", zap.Error(err))
+		}
+	}(resp.Body)
+
+	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		e.logger.Error("Failed to send resource entities", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+	return nil
 }

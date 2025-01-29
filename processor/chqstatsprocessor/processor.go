@@ -16,6 +16,7 @@ package chqstatsprocessor
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -319,14 +320,22 @@ func (e *statsProc) postResourceEntities(ctx context.Context, entities map[strin
 		return err
 	}
 
-	telemetry.HistogramRecord(e.statsBatchSize, int64(len(b)))
-
-	endpoint := e.config.Endpoint + "/api/v1/resourceEntities"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
+	var compressedData bytes.Buffer
+	gzipWriter := gzip.NewWriter(&compressedData)
+	_, err = gzipWriter.Write(b)
 	if err != nil {
 		return err
 	}
+	gzipWriter.Close()
+
+	endpoint := e.config.Endpoint + "/api/v1/entityRelationships"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, &compressedData)
+	if err != nil {
+		return err
+	}
+
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Encoding", "gzip")
 
 	resp, err := e.httpClient.Do(req)
 	if err != nil {
@@ -339,10 +348,10 @@ func (e *statsProc) postResourceEntities(ctx context.Context, entities map[strin
 	}(resp.Body)
 
 	body, _ := io.ReadAll(resp.Body)
-
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 		e.logger.Error("Failed to send resource entities", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
+
 	return nil
 }

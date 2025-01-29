@@ -155,9 +155,6 @@ func (e *statsProc) sendLogStats(statsList []*chqpb.EventStats) {
 		stat.Exemplar = exemplarBytes.([]byte)
 	}
 
-	// Publish resource entity relationships
-	e.publishResourceEntities(context.Background())
-
 	wrapper := &chqpb.EventStatsReport{
 		SubmittedAt: time.Now().UnixMilli(),
 		Stats:       statsList}

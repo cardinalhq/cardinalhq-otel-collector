@@ -271,9 +271,6 @@ func (e *statsProc) sendMetricStats(wrappers []*chqpb.MetricStatsWrapper) {
 			e.logger.Error("Failed to send metric stats", zap.Error(err))
 		}
 	}
-
-	// Publish resource entity relationships
-	e.publishResourceEntities(context.Background())
 }
 
 func (e *statsProc) sendReport(ctx context.Context, wrapper *chqpb.MetricStatsReport) error {

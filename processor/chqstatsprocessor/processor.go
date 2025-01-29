@@ -220,6 +220,19 @@ func (e *statsProc) Start(ctx context.Context, host component.Host) error {
 
 	e.idsFromEnv = e.config.IDSource == "env"
 
+	ticker := time.NewTicker(20 * time.Minute)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				e.publishResourceEntities(ctx)
+			}
+		}
+	}()
+
 	return nil
 }
 
@@ -305,17 +318,30 @@ func (e *statsProc) provisionEntityRelationships(resourceAttributes pcommon.Map)
 }
 
 func (e *statsProc) publishResourceEntities(ctx context.Context) {
-	allEntities := e.resourceEntityCache.GetAllEntities()
-	if len(allEntities) > 0 {
-		go func(entities map[string]*graph.ResourceEntity) {
-			if err := e.postEntityRelationships(ctx, entities); err != nil {
-				e.logger.Error("Failed to send resource entities", zap.Error(err))
-			}
-		}(allEntities)
+	allEntitiesMap := e.resourceEntityCache.GetAllEntities()
+	if len(allEntitiesMap) == 0 {
+		return
+	}
+	allEntitiesSlice := make([]*graph.ResourceEntity, 0, len(allEntitiesMap))
+	for _, entity := range allEntitiesMap {
+		allEntitiesSlice = append(allEntitiesSlice, entity)
+	}
+
+	const batchSize = 100
+	total := len(allEntitiesSlice)
+	for start := 0; start < total; start += batchSize {
+		end := start + batchSize
+		if end > total {
+			end = total
+		}
+		batch := allEntitiesSlice[start:end]
+		if err := e.postEntityRelationships(ctx, batch); err != nil {
+			e.logger.Error("Failed to send resource entities", zap.Error(err))
+		}
 	}
 }
 
-func (e *statsProc) postEntityRelationships(ctx context.Context, entities map[string]*graph.ResourceEntity) error {
+func (e *statsProc) postEntityRelationships(ctx context.Context, entities []*graph.ResourceEntity) error {
 	b, err := json.Marshal(entities)
 	if err != nil {
 		return err
@@ -323,11 +349,12 @@ func (e *statsProc) postEntityRelationships(ctx context.Context, entities map[st
 
 	var compressedData bytes.Buffer
 	gzipWriter := gzip.NewWriter(&compressedData)
-	_, err = gzipWriter.Write(b)
-	if err != nil {
+	if _, err = gzipWriter.Write(b); err != nil {
 		return err
 	}
-	gzipWriter.Close()
+	if err = gzipWriter.Close(); err != nil {
+		return err
+	}
 
 	endpoint := e.config.Endpoint + "/api/v1/entityRelationships"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, &compressedData)
@@ -342,15 +369,18 @@ func (e *statsProc) postEntityRelationships(ctx context.Context, entities map[st
 	if err != nil {
 		return err
 	}
-	defer func(Body io.ReadCloser) {
-		if err := Body.Close(); err != nil {
-			e.logger.Error("Failed to close response body", zap.Error(err))
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			e.logger.Error("Failed to close response body", zap.Error(closeErr))
 		}
-	}(resp.Body)
+	}()
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		e.logger.Error("Failed to send resource entities", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
+		e.logger.Error("Failed to send resource entities",
+			zap.Int("status", resp.StatusCode),
+			zap.String("body", string(body)),
+		)
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 

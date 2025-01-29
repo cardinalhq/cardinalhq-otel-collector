@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/cardinalhq/oteltools/pkg/graph"
 	"hash/fnv"
 	"io"
 	"net/http"
@@ -90,7 +91,7 @@ type statsProc struct {
 	traceExemplars  *LRUCache
 	metricExemplars *LRUCache
 
-	resourceEntityCache *ResourceEntityCache
+	resourceEntityCache *graph.ResourceEntityCache
 
 	jsonMarshaller otelJsonMarshaller
 
@@ -116,7 +117,7 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 		logExemplars:        NewLRUCache(1000, 5*time.Minute),
 		traceExemplars:      NewLRUCache(1000, 5*time.Minute),
 		metricExemplars:     NewLRUCache(1000, 5*time.Minute),
-		resourceEntityCache: NewResourceEntityCache(),
+		resourceEntityCache: graph.NewResourceEntityCache(),
 		logger:              set.Logger,
 		podName:             os.Getenv("POD_NAME"),
 	}
@@ -306,7 +307,7 @@ func (e *statsProc) provisionEntityRelationships(resourceAttributes pcommon.Map)
 func (e *statsProc) publishResourceEntities(ctx context.Context) {
 	allEntities := e.resourceEntityCache.GetAllEntities()
 	if len(allEntities) > 0 {
-		go func(entities map[string]*ResourceEntity) {
+		go func(entities map[string]*graph.ResourceEntity) {
 			if err := e.postEntityRelationships(ctx, entities); err != nil {
 				e.logger.Error("Failed to send resource entities", zap.Error(err))
 			}
@@ -314,7 +315,7 @@ func (e *statsProc) publishResourceEntities(ctx context.Context) {
 	}
 }
 
-func (e *statsProc) postEntityRelationships(ctx context.Context, entities map[string]*ResourceEntity) error {
+func (e *statsProc) postEntityRelationships(ctx context.Context, entities map[string]*graph.ResourceEntity) error {
 	b, err := json.Marshal(entities)
 	if err != nil {
 		return err

@@ -307,14 +307,14 @@ func (e *statsProc) publishResourceEntities(ctx context.Context) {
 	allEntities := e.resourceEntityCache.GetAllEntities()
 	if len(allEntities) > 0 {
 		go func(entities map[string]*ResourceEntity) {
-			if err := e.postResourceEntities(ctx, entities); err != nil {
+			if err := e.postEntityRelationships(ctx, entities); err != nil {
 				e.logger.Error("Failed to send resource entities", zap.Error(err))
 			}
 		}(allEntities)
 	}
 }
 
-func (e *statsProc) postResourceEntities(ctx context.Context, entities map[string]*ResourceEntity) error {
+func (e *statsProc) postEntityRelationships(ctx context.Context, entities map[string]*ResourceEntity) error {
 	b, err := json.Marshal(entities)
 	if err != nil {
 		return err

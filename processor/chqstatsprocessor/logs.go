@@ -64,13 +64,15 @@ func (e *statsProc) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Logs, e
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
 		resourceAttributes := rl.Resource().Attributes()
-		e.provisionEntityRelationships(resourceAttributes)
+		globalEntityMap := e.resourceEntityCache.ProvisionResourceAttributes(resourceAttributes)
+
 		serviceName := getServiceName(resourceAttributes)
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
 			sl := rl.ScopeLogs().At(j)
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				lr := sl.LogRecords().At(k)
 				fp := getFingerprint(lr.Attributes())
+				e.resourceEntityCache.ProvisionRecordAttributes(globalEntityMap, lr.Attributes())
 				if err := e.recordLog(now, ee, serviceName, fp, rl, sl, lr); err != nil {
 					e.logger.Error("Failed to record log", zap.Error(err))
 				}

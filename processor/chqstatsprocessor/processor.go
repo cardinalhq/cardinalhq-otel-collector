@@ -220,7 +220,7 @@ func (e *statsProc) Start(ctx context.Context, host component.Host) error {
 
 	e.idsFromEnv = e.config.IDSource == "env"
 
-	ticker := time.NewTicker(20 * time.Minute)
+	ticker := time.NewTicker(5 * time.Minute)
 	go func() {
 		defer ticker.Stop()
 		for {
@@ -311,10 +311,6 @@ func hashString(s string) int64 {
 
 func (e *statsProc) toExemplarKey(serviceName string, fingerprint int64) int64 {
 	return hashString(fmt.Sprintf("%s-%d", serviceName, fingerprint))
-}
-
-func (e *statsProc) provisionEntityRelationships(resourceAttributes pcommon.Map) {
-	e.resourceEntityCache.Provision(resourceAttributes)
 }
 
 func (e *statsProc) publishResourceEntities(ctx context.Context) {

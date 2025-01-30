@@ -50,7 +50,7 @@ func (e *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plo
 
 				lr.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)
 
-				if lr.SeverityText() == "" {
+				if lr.SeverityText() == "" || lr.SeverityText() == plog.SeverityNumberUnspecified.String() || lr.SeverityNumber() == plog.SeverityNumberUnspecified {
 					lr.SetSeverityText(strings.ToUpper(levelfromFingerprinter))
 				}
 				lr.Attributes().PutStr(translate.CardinalFieldLevel, lr.SeverityText())

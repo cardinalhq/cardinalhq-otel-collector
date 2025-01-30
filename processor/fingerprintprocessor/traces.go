@@ -25,35 +25,33 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
-const (
-	httpMethod  = "http.request.method"
-	httpRoute   = "http.route"
-	httpUrlPath = "url.path"
-)
-
 func (e *fingerprintProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
 	for i := 0; i < td.ResourceSpans().Len(); i++ {
 		rs := td.ResourceSpans().At(i)
-		serviceName := getServiceName(rs.Resource().Attributes())
 		for j := 0; j < rs.ScopeSpans().Len(); j++ {
 			iss := rs.ScopeSpans().At(j)
 			for k := 0; k < iss.Spans().Len(); k++ {
 				sr := iss.Spans().At(k)
-				httpResource := e.getHttpResource(sr)
-				if httpResource != "" {
-					sr.Attributes().PutStr(translate.CardinalFieldResourceName, httpResource)
-				}
-				spanFingerprint := calculateSpanFingerprint(sr, httpResource, serviceName)
+				spanFingerprint := calculateSpanFingerprint(sr)
+				sr.Attributes().PutInt(translate.CardinalFieldFingerprint, spanFingerprint)
+
 				spanDuration := float64(sr.EndTimestamp().AsTime().Sub(sr.StartTimestamp().AsTime()).Abs().Milliseconds())
+				sr.Attributes().PutDouble("_cardinalhq.span_duration", spanDuration)
+
 				isSlow := e.isSpanSlow(spanDuration, uint64(spanFingerprint))
 				sr.Attributes().PutBool(translate.CardinalFieldSpanIsSlow, isSlow)
-				sr.Attributes().PutInt(translate.CardinalFieldFingerprint, spanFingerprint)
-				sr.Attributes().PutDouble("_cardinalhq.span_duration", spanDuration)
 			}
 		}
 	}
 
 	return td, nil
+}
+
+func calculateSpanFingerprint(sr ptrace.Span) int64 {
+	var fingerprintAttributes []string
+	fingerprintAttributes = append(fingerprintAttributes, sr.Name())
+	fingerprintAttributes = append(fingerprintAttributes, sr.Kind().String())
+	return int64(xxhash.Sum64String(strings.Join(fingerprintAttributes, "##")))
 }
 
 func (c *fingerprintProcessor) isSpanSlow(duration float64, fingerprint uint64) bool {
@@ -74,44 +72,4 @@ func (c *fingerprintProcessor) findSpanSketch(fingerprint uint64) *SlidingEstima
 		return estimator
 	}
 	return sketch
-}
-
-func (c *fingerprintProcessor) getHttpResource(span ptrace.Span) string {
-	attrs := span.Attributes()
-	var resourceKeys []string
-
-	//Reference: https://opentelemetry.io/docs/specs/semconv/http/http-spans/
-	if method, exists := attrs.Get(httpMethod); exists {
-		resourceKeys = append(resourceKeys, method.Str())
-	}
-
-	if route, exists := attrs.Get(httpRoute); exists {
-		resourceKeys = append(resourceKeys, route.Str())
-	} else {
-		if urlPath, exists := attrs.Get(httpUrlPath); exists {
-			urlPathTokens, _, _, err := c.traceFingerprinter.TokenizeInput(urlPath.Str())
-			if err == nil {
-				resourceKeys = append(resourceKeys, strings.Join(urlPathTokens.Items, " "))
-			}
-		}
-	}
-
-	if len(resourceKeys) > 0 {
-		return strings.Join(resourceKeys, " ")
-	}
-	return ""
-}
-
-func calculateSpanFingerprint(sr ptrace.Span, httpResource string, serviceName string) int64 {
-	attrs := sr.Attributes()
-	var fingerprintAttributes []string
-
-	fingerprintAttributes = append(fingerprintAttributes, serviceName)
-	if spanNameAttr, exists := attrs.Get(translate.CardinalFieldSpanName); exists {
-		fingerprintAttributes = append(fingerprintAttributes, spanNameAttr.Str())
-	}
-	fingerprintAttributes = append(fingerprintAttributes, sr.Kind().String())
-	fingerprintAttributes = append(fingerprintAttributes, httpResource)
-
-	return int64(xxhash.Sum64String(strings.Join(fingerprintAttributes, "##")))
 }

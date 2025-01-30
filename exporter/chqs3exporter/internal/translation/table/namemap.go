@@ -55,6 +55,8 @@ var OtelToDatadogHostnameSearch = []string{
 	"host.id",
 }
 
+var MapNames = false
+
 func findHostname(attrs map[string]any) string {
 	for _, key := range OtelToDatadogHostnameSearch {
 		if val, found := attrs[key]; found {
@@ -69,6 +71,10 @@ func findHostname(attrs map[string]any) string {
 }
 
 func sanitizeAttribute(input string) string {
+	if !MapNames {
+		return input
+	}
+
 	// Split by periods
 	parts := strings.Split(input, ".")
 

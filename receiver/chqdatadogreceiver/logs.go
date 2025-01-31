@@ -88,7 +88,8 @@ func validLineStart(trimmedMsg string) bool {
 		return true
 	}
 
-	if len(trimmedMsg) < 16 {
+	trimmedMessageLength := len(trimmedMsg)
+	if trimmedMessageLength < 19 {
 		return false
 	}
 	_, err := time.Parse("2006-01-02 15:04:05", trimmedMsg[:19])
@@ -96,6 +97,9 @@ func validLineStart(trimmedMsg string) bool {
 		return true
 	}
 
+	if trimmedMessageLength < 24 {
+		return false
+	}
 	_, err = time.Parse("2006-01-02T15:04:05.000Z", trimmedMsg[:24])
 	return err == nil
 }

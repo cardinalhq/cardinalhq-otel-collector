@@ -23,6 +23,7 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/graph"
 	"hash/fnv"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"sync/atomic"
@@ -351,6 +352,7 @@ func (e *statsProc) postEntityRelationships(ctx context.Context, jsonEntities []
 	if err != nil {
 		return err
 	}
+	slog.Info("Sending entity relationships", slog.String("endpoint", endpoint), slog.Int("numEntities", len(jsonEntities)))
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")

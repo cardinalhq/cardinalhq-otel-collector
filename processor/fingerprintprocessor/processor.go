@@ -46,8 +46,6 @@ type fingerprintProcessor struct {
 	// for logs
 	logFingerprinter fingerprinter.Fingerprinter
 
-	// for spans
-	traceFingerprinter  fingerprinter.Fingerprinter
 	estimators          map[uint64]*SlidingEstimatorStat
 	estimatorWindowSize int
 	estimatorInterval   int64
@@ -68,7 +66,6 @@ func newProcessor(config *Config, ttype string, set processor.Settings) (*finger
 		dog.logFingerprinter = fingerprinter.NewFingerprinter(fingerprinter.WithMaxTokens(30))
 
 	case "traces":
-		dog.traceFingerprinter = fingerprinter.NewFingerprinter(fingerprinter.WithMaxTokens(30))
 		dog.estimators = make(map[uint64]*SlidingEstimatorStat)
 		dog.estimatorWindowSize = config.TracesConfig.EstimatorWindowSize
 		dog.estimatorInterval = config.TracesConfig.EstimatorInterval

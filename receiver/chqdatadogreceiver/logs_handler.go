@@ -15,11 +15,8 @@
 package datadogreceiver
 
 import (
-	"net/http"
-	"time"
-
-	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.uber.org/zap"
+	"net/http"
 )
 
 func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request) {
@@ -53,9 +50,8 @@ func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request)
 		return
 	}
 	logCount = len(ddLogs)
-	t := pcommon.NewTimestampFromTime(time.Now())
 	apikey := getDDAPIKey(req)
-	err = ddr.processLogs(ctx, apikey, t, ddLogs)
+	err = ddr.processLogs(ctx, apikey, ddLogs)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		ddr.logLogger.Error("processLogs", zap.Error(err))

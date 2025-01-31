@@ -208,3 +208,56 @@ func TestSplitTagSlice(t *testing.T) {
 		})
 	}
 }
+
+func TestSplitLogs_MultilineExceptionHandling(t *testing.T) {
+	ddr := &datadogReceiver{}
+	logs := []DDLog{
+		{
+			DDSource: "java",
+			DDTags:   "timestamp:1706680000000,host:app-server-1",
+			Message:  "2025-01-31 01:38:02.740 ERROR --- [lt-dispatcher-6] Error in sketch merge: No space left on device",
+			Hostname: "app-server-1",
+			Service:  "order-service",
+		},
+		{
+			DDSource: "java",
+			DDTags:   "timestamp:1706680001000,host:app-server-1",
+			Message:  "at akka.stream.impl.fusing.ActorGraphInterpreter.processEvent(ActorGraphInterpreter.scala:800)",
+			Hostname: "app-server-1",
+			Service:  "order-service",
+		},
+		{
+			DDSource: "java",
+			DDTags:   "timestamp:1706680002000,host:app-server-1",
+			Message:  "at com.cardinal.microbatch.jobs.metrics.rollups.SketchMergeStage.onPush(SketchMergeStage.scala:167)",
+			Hostname: "app-server-1",
+			Service:  "order-service",
+		},
+		{
+			DDSource: "java",
+			DDTags:   "timestamp:1706680020000,host:app-server-1",
+			Message:  "2025-01-31 01:38:22.332 INFO --- Some non-error log message",
+			Hostname: "app-server-1",
+			Service:  "order-service",
+		},
+	}
+
+	groupedLogs := ddr.splitLogs(logs, "apiKey")
+
+	assert.Len(t, groupedLogs, 1)
+	group := groupedLogs[0]
+
+	assert.Equal(t, "order-service", group.Service)
+	assert.Equal(t, "app-server-1", group.Hostname)
+
+	assert.Len(t, group.Messages, 2)
+
+	expectedException := `2025-01-31 01:38:02.740 ERROR --- [lt-dispatcher-6] Error in sketch merge: No space left on device
+at akka.stream.impl.fusing.ActorGraphInterpreter.processEvent(ActorGraphInterpreter.scala:800)
+at com.cardinal.microbatch.jobs.metrics.rollups.SketchMergeStage.onPush(SketchMergeStage.scala:167)`
+
+	assert.Equal(t, expectedException, group.Messages[0].Body)
+
+	// Verify the second separate log message
+	assert.Equal(t, "2025-01-31 01:38:22.332 INFO --- Some non-error log message", group.Messages[1].Body)
+}

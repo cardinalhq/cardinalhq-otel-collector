@@ -76,12 +76,37 @@ type groupedLogs struct {
 	DDSource string
 }
 
+const (
+	GoFatalError    = "fatal error:"
+	GoPanic         = "panic:"
+	PythonTraceBack = "Traceback "
+)
+
+func validLineStart(trimmedMsg string) bool {
+	isStackTraceStart := strings.HasPrefix(trimmedMsg, GoFatalError) || strings.HasPrefix(trimmedMsg, GoPanic) || strings.HasPrefix(trimmedMsg, PythonTraceBack)
+	if isStackTraceStart {
+		return true
+	}
+
+	if len(trimmedMsg) < 16 {
+		return false
+	}
+	_, err := time.Parse("2006-01-02 15:04:05", trimmedMsg[:19])
+	if err == nil {
+		return true
+	}
+
+	_, err = time.Parse("2006-01-02T15:04:05.000Z", trimmedMsg[:24])
+	return err == nil
+}
+
 func (ddr *datadogReceiver) splitLogs(logs []DDLog, apiKey string) []groupedLogs {
 	cachedTags := newLocalTagCache()
 
 	logkeys := make(map[int64]groupedLogs)
 
 	var previousMessage *Message
+	var lastKey int64
 
 	for _, log := range logs {
 		tags := splitTags(log.DDTags)
@@ -98,7 +123,9 @@ func (ddr *datadogReceiver) splitLogs(logs []DDLog, apiKey string) []groupedLogs
 			}
 		}
 
-		if strings.HasPrefix(strings.TrimSpace(log.Message), "at ") && previousMessage != nil {
+		trimmedMsg := strings.TrimSpace(log.Message)
+
+		if !validLineStart(trimmedMsg) && previousMessage != nil {
 			previousMessage.Body += "\n" + log.Message
 			continue
 		}
@@ -114,6 +141,8 @@ func (ddr *datadogReceiver) splitLogs(logs []DDLog, apiKey string) []groupedLogs
 		}
 
 		key := tagKey([]string{log.Service, log.Hostname, log.DDSource})
+		lastKey = key
+
 		if lk, ok := logkeys[key]; !ok {
 			newMessage := Message{
 				Timestamp: timestamp,
@@ -135,6 +164,13 @@ func (ddr *datadogReceiver) splitLogs(logs []DDLog, apiKey string) []groupedLogs
 			lk.Messages = append(lk.Messages, newMessage)
 			logkeys[key] = lk
 			previousMessage = &lk.Messages[len(lk.Messages)-1]
+		}
+	}
+
+	// Final flush: If the last processed message is an ongoing exception, ensure it's stored
+	if previousMessage != nil && lastKey != 0 {
+		if lk, ok := logkeys[lastKey]; ok {
+			logkeys[lastKey] = lk
 		}
 	}
 

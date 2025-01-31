@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/cardinalhq/oteltools/pkg/graph"
@@ -314,41 +313,36 @@ func (e *statsProc) toExemplarKey(serviceName string, fingerprint int64) int64 {
 }
 
 func (e *statsProc) publishResourceEntities(ctx context.Context) {
-	allEntitiesMap := e.resourceEntityCache.GetAllEntities()
-	if len(allEntitiesMap) == 0 {
+	jsonEntities := e.resourceEntityCache.GetAllEntities()
+	if len(jsonEntities) == 0 {
 		return
-	}
-	allEntitiesSlice := make([]*graph.ResourceEntity, 0, len(allEntitiesMap))
-	for _, entity := range allEntitiesMap {
-		allEntitiesSlice = append(allEntitiesSlice, entity)
 	}
 
 	const batchSize = 100
-	total := len(allEntitiesSlice)
+	total := len(jsonEntities)
 	for start := 0; start < total; start += batchSize {
 		end := start + batchSize
 		if end > total {
 			end = total
 		}
-		batch := allEntitiesSlice[start:end]
+		batch := jsonEntities[start:end]
+
 		if err := e.postEntityRelationships(ctx, batch); err != nil {
 			e.logger.Error("Failed to send resource entities", zap.Error(err))
 		}
 	}
 }
 
-func (e *statsProc) postEntityRelationships(ctx context.Context, entities []*graph.ResourceEntity) error {
-	b, err := json.Marshal(entities)
-	if err != nil {
-		return err
-	}
+func (e *statsProc) postEntityRelationships(ctx context.Context, jsonEntities [][]byte) error {
+	batchJSON := append([]byte("["), bytes.Join(jsonEntities, []byte(","))...)
+	batchJSON = append(batchJSON, ']')
 
 	var compressedData bytes.Buffer
 	gzipWriter := gzip.NewWriter(&compressedData)
-	if _, err = gzipWriter.Write(b); err != nil {
+	if _, err := gzipWriter.Write(batchJSON); err != nil {
 		return err
 	}
-	if err = gzipWriter.Close(); err != nil {
+	if err := gzipWriter.Close(); err != nil {
 		return err
 	}
 

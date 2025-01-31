@@ -369,8 +369,8 @@ func (e *statsProc) postEntityRelationships(ctx context.Context, jsonEntities []
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		e.logger.Error("Failed to send resource entities",
-			zap.Int("status", resp.StatusCode),
+		slog.Error("Failed to send resource entities",
+			slog.Int("status", resp.StatusCode),
 			zap.String("body", string(body)),
 		)
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)

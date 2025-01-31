@@ -83,7 +83,7 @@ const (
 )
 
 func validLineStart(trimmedMsg string) bool {
-	isStackTraceStart := strings.HasPrefix(trimmedMsg, GoFatalError) || strings.HasPrefix(trimmedMsg, GoPanic) || strings.HasPrefix(trimmedMsg, PythonTraceBack)
+	isStackTraceStart := strings.HasPrefix(trimmedMsg, GoFatalError) || strings.HasPrefix(trimmedMsg, GoPanic)
 	if isStackTraceStart {
 		return true
 	}
@@ -107,10 +107,13 @@ func validLineStart(trimmedMsg string) bool {
 func (ddr *datadogReceiver) splitLogs(logs []DDLog, apiKey string) []groupedLogs {
 	cachedTags := newLocalTagCache()
 
-	logkeys := make(map[int64]groupedLogs)
+	logKeys := make(map[int64]groupedLogs)
+	rawLogKeys := make(map[int64]groupedLogs)
 
 	var previousMessage *Message
 	var lastKey int64
+	var oneValidLineStart bool
+	var numMessagesStartingWithAt = 0
 
 	for _, log := range logs {
 		tags := splitTags(log.DDTags)
@@ -127,9 +130,35 @@ func (ddr *datadogReceiver) splitLogs(logs []DDLog, apiKey string) []groupedLogs
 			}
 		}
 
-		trimmedMsg := strings.TrimSpace(log.Message)
+		key := tagKey([]string{log.Service, log.Hostname, log.DDSource})
+		newMessage := Message{
+			Timestamp: timestamp,
+			Body:      log.Message,
+		}
+		if lk, ok := rawLogKeys[key]; !ok {
+			rawLogKeys[key] = groupedLogs{
+				Messages: []Message{newMessage},
+				Tags:     tags,
+				Service:  log.Service,
+				Hostname: log.Hostname,
+				DDSource: log.DDSource,
+			}
+		} else {
+			lk.Messages = append(lk.Messages, newMessage)
+			rawLogKeys[key] = lk
+		}
 
-		if !validLineStart(trimmedMsg) && previousMessage != nil {
+		trimmedMsg := strings.TrimSpace(log.Message)
+		if strings.HasPrefix(trimmedMsg, "at ") {
+			numMessagesStartingWithAt += 1
+		}
+
+		isValidStart := validLineStart(trimmedMsg)
+		if isValidStart && !oneValidLineStart {
+			oneValidLineStart = true
+		}
+
+		if !isValidStart && previousMessage != nil {
 			previousMessage.Body += "\n" + log.Message
 			continue
 		}
@@ -144,41 +173,34 @@ func (ddr *datadogReceiver) splitLogs(logs []DDLog, apiKey string) []groupedLogs
 			}
 		}
 
-		key := tagKey([]string{log.Service, log.Hostname, log.DDSource})
 		lastKey = key
 
-		if lk, ok := logkeys[key]; !ok {
-			newMessage := Message{
-				Timestamp: timestamp,
-				Body:      log.Message,
-			}
-			logkeys[key] = groupedLogs{
+		if lk, ok := logKeys[key]; !ok {
+			logKeys[key] = groupedLogs{
 				Messages: []Message{newMessage},
 				Tags:     tags,
 				Service:  log.Service,
 				Hostname: log.Hostname,
 				DDSource: log.DDSource,
 			}
-			previousMessage = &logkeys[key].Messages[0]
+			previousMessage = &logKeys[key].Messages[0]
 		} else {
-			newMessage := Message{
-				Timestamp: timestamp,
-				Body:      log.Message,
-			}
 			lk.Messages = append(lk.Messages, newMessage)
-			logkeys[key] = lk
+			logKeys[key] = lk
 			previousMessage = &lk.Messages[len(lk.Messages)-1]
 		}
 	}
 
-	// Final flush: If the last processed message is an ongoing exception, ensure it's stored
 	if previousMessage != nil && lastKey != 0 {
-		if lk, ok := logkeys[lastKey]; ok {
-			logkeys[lastKey] = lk
+		if lk, ok := logKeys[lastKey]; ok {
+			logKeys[lastKey] = lk
 		}
 	}
 
-	return maps.Values(logkeys)
+	if oneValidLineStart || numMessagesStartingWithAt == len(logs) {
+		return maps.Values(logKeys)
+	}
+	return maps.Values(rawLogKeys)
 }
 
 func (ddr *datadogReceiver) processLogs(ctx context.Context, apikey string, logs []DDLog) error {

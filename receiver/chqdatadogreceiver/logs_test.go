@@ -487,16 +487,17 @@ func TestSplitLogs_PythonStackTraceHandling(t *testing.T) {
 	assert.Equal(t, "order-service", group.Service)
 	assert.Equal(t, "app-server-1", group.Hostname)
 
-	assert.Len(t, group.Messages, 5)
+	assert.Len(t, group.Messages, 4)
 
-	expectedException := `Traceback (most recent call last):
+	expectedException := `2025-01-31T10:00:05.000Z    error   app.database  Database connection lost, retrying...
+Traceback (most recent call last):
   File "database.py", line 45, in connect
     conn = psycopg2.connect(dsn)
   File "/usr/lib/python3.10/site-packages/psycopg2/__init__.py", line 126, in connect
     raise OperationalError("could not connect to server")
 psycopg2.OperationalError: could not connect to server`
 
-	assert.Equal(t, expectedException, group.Messages[4].Body)
+	assert.Equal(t, expectedException, group.Messages[3].Body)
 
 	assert.Equal(t, "2025-01-31T10:00:01.123Z    info    app.main    Starting application...", group.Messages[0].Body)
 
@@ -570,4 +571,139 @@ Error: Connection lost: The server closed the connection.
     at processTicksAndRejections (node:internal/process/task_queues:95:5)`
 
 	assert.Equal(t, expectedStackTrace, groupedLogs[1].Messages[0].Body)
+}
+
+func TestSplitLogs_NoValidStartLines_ShouldBeIndividualMessages(t *testing.T) {
+	ddr := &datadogReceiver{}
+	logs := []DDLog{
+		{
+			DDSource: "custom",
+			DDTags:   "timestamp:1706680000000,host:server-1",
+			Message:  "This is a normal log message.",
+			Hostname: "server-1",
+			Service:  "test-service",
+		},
+		{
+			DDSource: "custom",
+			DDTags:   "timestamp:1706680001000,host:server-1",
+			Message:  "This should be separate because it lacks a timestamp.",
+			Hostname: "server-1",
+			Service:  "test-service",
+		},
+		{
+			DDSource: "custom",
+			DDTags:   "timestamp:1706680002000,host:server-1",
+			Message:  "Also a separate message without a timestamp.",
+			Hostname: "server-1",
+			Service:  "test-service",
+		},
+		{
+			DDSource: "custom",
+			DDTags:   "timestamp:1706680003000,host:server-1",
+			Message:  "Yet another standalone message.",
+			Hostname: "server-1",
+			Service:  "test-service",
+		},
+	}
+
+	groupedLogs := ddr.splitLogs(logs, "apiKey")
+
+	assert.Len(t, groupedLogs, 1)
+	group := groupedLogs[0]
+
+	assert.Equal(t, "test-service", group.Service)
+	assert.Equal(t, "server-1", group.Hostname)
+
+	assert.Len(t, group.Messages, 4)
+
+	assert.Equal(t, "This is a normal log message.", group.Messages[0].Body)
+	assert.Equal(t, "This should be separate because it lacks a timestamp.", group.Messages[1].Body)
+	assert.Equal(t, "Also a separate message without a timestamp.", group.Messages[2].Body)
+	assert.Equal(t, "Yet another standalone message.", group.Messages[3].Body)
+}
+
+func TestSplitLogs_StackTraceAtStart_ShouldGroupCorrectly(t *testing.T) {
+	ddr := &datadogReceiver{}
+	logs := []DDLog{
+		{
+			DDSource: "java",
+			DDTags:   "timestamp:1706680000000,host:app-server-1",
+			Message:  "at com.example.Class.method(Class.java:123)",
+			Hostname: "app-server-1",
+			Service:  "order-service",
+		},
+		{
+			DDSource: "java",
+			DDTags:   "timestamp:1706680001000,host:app-server-1",
+			Message:  "at com.example.OtherClass.anotherMethod(OtherClass.java:456)",
+			Hostname: "app-server-1",
+			Service:  "order-service",
+		},
+		{
+			DDSource: "java",
+			DDTags:   "timestamp:1706680001000,host:app-server-1",
+			Message:  "at com.example.OtherClass.anotherMethod(OtherClass.java:123)",
+			Hostname: "app-server-1",
+			Service:  "order-service",
+		},
+		{
+			DDSource: "java",
+			DDTags:   "timestamp:1706680002000,host:app-server-1",
+			Message:  "2025-01-31 01:38:02.740 ERROR --- Something failed",
+			Hostname: "app-server-1",
+			Service:  "order-service",
+		},
+	}
+
+	groupedLogs := ddr.splitLogs(logs, "apiKey")
+
+	assert.Len(t, groupedLogs, 1)
+	group := groupedLogs[0]
+
+	assert.Len(t, group.Messages, 2)
+	expectedStackTrace := `at com.example.Class.method(Class.java:123)
+at com.example.OtherClass.anotherMethod(OtherClass.java:456)
+at com.example.OtherClass.anotherMethod(OtherClass.java:123)`
+
+	assert.Equal(t, expectedStackTrace, group.Messages[0].Body)
+	assert.Equal(t, "2025-01-31 01:38:02.740 ERROR --- Something failed", group.Messages[1].Body)
+}
+
+func TestSplitLogs_OnlyStackTrace_ShouldGroupCorrectly(t *testing.T) {
+	ddr := &datadogReceiver{}
+	logs := []DDLog{
+		{
+			DDSource: "java",
+			DDTags:   "timestamp:1706680000000,host:app-server-1",
+			Message:  "at com.example.Class.method(Class.java:123)",
+			Hostname: "app-server-1",
+			Service:  "order-service",
+		},
+		{
+			DDSource: "java",
+			DDTags:   "timestamp:1706680001000,host:app-server-1",
+			Message:  "at com.example.OtherClass.anotherMethod(OtherClass.java:456)",
+			Hostname: "app-server-1",
+			Service:  "order-service",
+		},
+		{
+			DDSource: "java",
+			DDTags:   "timestamp:1706680001000,host:app-server-1",
+			Message:  "at com.example.OtherClass.anotherMethod(OtherClass.java:123)",
+			Hostname: "app-server-1",
+			Service:  "order-service",
+		},
+	}
+
+	groupedLogs := ddr.splitLogs(logs, "apiKey")
+
+	assert.Len(t, groupedLogs, 1)
+	group := groupedLogs[0]
+
+	assert.Len(t, group.Messages, 1)
+	expectedStackTrace := `at com.example.Class.method(Class.java:123)
+at com.example.OtherClass.anotherMethod(OtherClass.java:456)
+at com.example.OtherClass.anotherMethod(OtherClass.java:123)`
+
+	assert.Equal(t, expectedStackTrace, group.Messages[0].Body)
 }

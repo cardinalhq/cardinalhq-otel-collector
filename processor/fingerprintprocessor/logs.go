@@ -21,19 +21,10 @@ import (
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/oteltools/pkg/translate"
 )
-
-func getServiceName(r pcommon.Map) string {
-	snk := string(semconv.ServiceNameKey)
-	if serviceNameField, found := r.Get(snk); found {
-		return serviceNameField.AsString()
-	}
-	return "unknown"
-}
 
 func (e *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
@@ -50,7 +41,7 @@ func (e *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plo
 
 				lr.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)
 
-				if lr.SeverityText() == "" || lr.SeverityText() == plog.SeverityNumberUnspecified.String() || lr.SeverityNumber() == plog.SeverityNumberUnspecified {
+				if levelfromFingerprinter != "" && (lr.SeverityText() == "" || lr.SeverityText() == plog.SeverityNumberUnspecified.String() || lr.SeverityNumber() == plog.SeverityNumberUnspecified) {
 					lr.SetSeverityText(strings.ToUpper(levelfromFingerprinter))
 				}
 				lr.Attributes().PutStr(translate.CardinalFieldLevel, lr.SeverityText())

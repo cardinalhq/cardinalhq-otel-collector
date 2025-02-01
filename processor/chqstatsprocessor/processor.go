@@ -91,7 +91,9 @@ type statsProc struct {
 	traceExemplars  *LRUCache
 	metricExemplars *LRUCache
 
-	resourceEntityCache *graph.ResourceEntityCache
+	logsEntityCache    *graph.ResourceEntityCache
+	metricsEntityCache *graph.ResourceEntityCache
+	tracesEntityCache  *graph.ResourceEntityCache
 
 	jsonMarshaller otelJsonMarshaller
 
@@ -108,18 +110,20 @@ type statsProc struct {
 
 func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsProc, error) {
 	dog := &statsProc{
-		id:                  set.ID,
-		ttype:               ttype,
-		config:              config,
-		httpClientSettings:  config.ClientConfig,
-		telemetrySettings:   set.TelemetrySettings,
-		jsonMarshaller:      newMarshaller(),
-		logExemplars:        NewLRUCache(1000, 5*time.Minute),
-		traceExemplars:      NewLRUCache(1000, 5*time.Minute),
-		metricExemplars:     NewLRUCache(1000, 5*time.Minute),
-		resourceEntityCache: graph.NewResourceEntityCache(),
-		logger:              set.Logger,
-		podName:             os.Getenv("POD_NAME"),
+		id:                 set.ID,
+		ttype:              ttype,
+		config:             config,
+		httpClientSettings: config.ClientConfig,
+		telemetrySettings:  set.TelemetrySettings,
+		jsonMarshaller:     newMarshaller(),
+		logExemplars:       NewLRUCache(1000, 5*time.Minute),
+		traceExemplars:     NewLRUCache(1000, 5*time.Minute),
+		metricExemplars:    NewLRUCache(1000, 5*time.Minute),
+		logsEntityCache:    graph.NewResourceEntityCache(),
+		metricsEntityCache: graph.NewResourceEntityCache(),
+		tracesEntityCache:  graph.NewResourceEntityCache(),
+		logger:             set.Logger,
+		podName:            os.Getenv("POD_NAME"),
 	}
 
 	//if os.Getenv("ENABLE_METRIC_METRICS") == "true" {
@@ -314,27 +318,40 @@ func (e *statsProc) toExemplarKey(serviceName string, fingerprint int64) int64 {
 }
 
 func (e *statsProc) publishResourceEntities(ctx context.Context) {
-	jsonEntities := e.resourceEntityCache.GetAllEntities()
-	if len(jsonEntities) == 0 {
+	var cache *graph.ResourceEntityCache
+	switch e.ttype {
+	case "logs":
+		cache = e.logsEntityCache
+	case "metrics":
+		cache = e.metricsEntityCache
+	case "traces":
+		cache = e.tracesEntityCache
+	default:
+		e.logger.Error("Unknown processor type", zap.String("type", e.ttype))
+		return
+	}
+
+	allEntities := cache.GetAllEntities()
+	if len(allEntities) == 0 {
 		return
 	}
 
 	const batchSize = 100
-	total := len(jsonEntities)
+	total := len(allEntities)
 	for start := 0; start < total; start += batchSize {
 		end := start + batchSize
 		if end > total {
 			end = total
 		}
-		batch := jsonEntities[start:end]
+		batch := allEntities[start:end]
 
-		if err := e.postEntityRelationships(ctx, batch); err != nil {
+		if err := e.postEntityRelationships(ctx, e.ttype, batch); err != nil {
 			e.logger.Error("Failed to send resource entities", zap.Error(err))
 		}
 	}
 }
 
-func (e *statsProc) postEntityRelationships(ctx context.Context, jsonEntities [][]byte) error {
+func (e *statsProc) postEntityRelationships(ctx context.Context, ttype string, jsonEntities [][]byte) error {
 	batchJSON := append([]byte("["), bytes.Join(jsonEntities, []byte(","))...)
 	batchJSON = append(batchJSON, ']')
 
@@ -347,7 +364,7 @@ func (e *statsProc) postEntityRelationships(ctx context.Context, jsonEntities []
 		return err
 	}
 
-	endpoint := e.config.Endpoint + "/api/v1/entityRelationships"
+	endpoint := e.config.Endpoint + fmt.Sprintf("%s?telemetryType=%s", "/api/v1/entityrelationships", ttype)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, &compressedData)
 	if err != nil {
 		return err

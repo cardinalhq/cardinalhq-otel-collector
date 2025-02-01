@@ -50,8 +50,7 @@ func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pme
 		rm := md.ResourceMetrics().At(i)
 		serviceName := getServiceName(rm.Resource().Attributes())
 		rattr := rm.Resource().Attributes()
-		//globalEntityMap := e.resourceEntityCache.ProvisionResourceAttributes(rattr)
-		globalEntityMap := make(map[string]*graph.ResourceEntity)
+		globalEntityMap := e.metricsEntityCache.ProvisionResourceAttributes(rattr)
 		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
 			ilm := rm.ScopeMetrics().At(j)
 			sattr := ilm.Scope().Attributes()
@@ -102,7 +101,7 @@ func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pme
 }
 
 func (e *statsProc) processDatapoint(environment translate.Environment, metricName, metricType, serviceName string, extra map[string]string, rattr, sattr, dattr pcommon.Map, globalEntityMap map[string]*graph.ResourceEntity) {
-	//e.resourceEntityCache.ProvisionRecordAttributes(globalEntityMap, dattr)
+	e.metricsEntityCache.ProvisionRecordAttributes(globalEntityMap, dattr)
 	tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 	if err := e.recordDatapoint(environment, metricName, metricType, serviceName, tid, rattr, sattr, dattr); err != nil {
 		e.logger.Error("Failed to record datapoint", zap.Error(err))

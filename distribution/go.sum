@@ -341,6 +341,7 @@ github.com/cardinalhq/opentelemetry-collector-contrib/receiver/prometheusremotew
 github.com/cardinalhq/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver v0.0.0-20241218023339-09be78c4a419/go.mod h1:EHgHBruNR8bx3g/wwr0oLHd9z0QjKTu9DjoMc2xYBWU=
 github.com/cardinalhq/oteltools v0.9.4 h1:1Jlkau01AHSj4KWWDIiMs1zzI2Ro9SL9OQLuWbC0qnI=
 github.com/cardinalhq/oteltools v0.9.4/go.mod h1:55norMwFppSyXrsaCTmltG2phmyzkum2w28xJ6z4PjE=
+github.com/cardinalhq/oteltools v0.9.5/go.mod h1:55norMwFppSyXrsaCTmltG2phmyzkum2w28xJ6z4PjE=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
 github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=

@@ -335,19 +335,16 @@ func (e *statsProc) publishResourceEntities(ctx context.Context) {
 	if len(protoEntities) == 0 {
 		return
 	}
-
-	for _, protoEntity := range protoEntities {
-		if err := e.postEntityRelationships(ctx, e.ttype, protoEntity); err != nil {
-			e.logger.Error("Failed to send entity relationships", zap.Error(err))
-		}
+	if err := e.postEntityRelationships(ctx, e.ttype, protoEntities); err != nil {
+		e.logger.Error("Failed to send entity relationships", zap.Error(err))
 	}
 }
 
-func (e *statsProc) postEntityRelationships(ctx context.Context, ttype string, protoEntity []byte) error {
+func (e *statsProc) postEntityRelationships(ctx context.Context, ttype string, payload []byte) error {
 
 	var compressedData bytes.Buffer
 	gzipWriter := gzip.NewWriter(&compressedData)
-	if _, err := gzipWriter.Write(protoEntity); err != nil {
+	if _, err := gzipWriter.Write(payload); err != nil {
 		return err
 	}
 	if err := gzipWriter.Close(); err != nil {
@@ -359,7 +356,7 @@ func (e *statsProc) postEntityRelationships(ctx context.Context, ttype string, p
 	if err != nil {
 		return err
 	}
-	slog.Info("Sending entity relationships", slog.String("endpoint", endpoint), slog.Int("payloadSize", len(protoEntity)))
+	slog.Info("Sending entity relationships", slog.String("endpoint", endpoint), slog.Int("payloadSize", len(payload)))
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")

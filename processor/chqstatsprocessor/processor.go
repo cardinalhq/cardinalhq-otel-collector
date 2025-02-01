@@ -331,33 +331,23 @@ func (e *statsProc) publishResourceEntities(ctx context.Context) {
 		return
 	}
 
-	allEntities := cache.GetAllEntities()
-	if len(allEntities) == 0 {
+	protoEntities := cache.GetAllEntities()
+	if len(protoEntities) == 0 {
 		return
 	}
 
-	const batchSize = 100
-	total := len(allEntities)
-	for start := 0; start < total; start += batchSize {
-		end := start + batchSize
-		if end > total {
-			end = total
-		}
-		batch := allEntities[start:end]
-
-		if err := e.postEntityRelationships(ctx, e.ttype, batch); err != nil {
-			e.logger.Error("Failed to send resource entities", zap.Error(err))
+	for _, protoEntity := range protoEntities {
+		if err := e.postEntityRelationships(ctx, e.ttype, protoEntity); err != nil {
+			e.logger.Error("Failed to send entity relationships", zap.Error(err))
 		}
 	}
 }
 
-func (e *statsProc) postEntityRelationships(ctx context.Context, ttype string, jsonEntities [][]byte) error {
-	batchJSON := append([]byte("["), bytes.Join(jsonEntities, []byte(","))...)
-	batchJSON = append(batchJSON, ']')
+func (e *statsProc) postEntityRelationships(ctx context.Context, ttype string, protoEntity []byte) error {
 
 	var compressedData bytes.Buffer
 	gzipWriter := gzip.NewWriter(&compressedData)
-	if _, err := gzipWriter.Write(batchJSON); err != nil {
+	if _, err := gzipWriter.Write(protoEntity); err != nil {
 		return err
 	}
 	if err := gzipWriter.Close(); err != nil {
@@ -369,7 +359,7 @@ func (e *statsProc) postEntityRelationships(ctx context.Context, ttype string, j
 	if err != nil {
 		return err
 	}
-	slog.Info("Sending entity relationships", slog.String("endpoint", endpoint), slog.Int("numEntities", len(jsonEntities)))
+	slog.Info("Sending entity relationships", slog.String("endpoint", endpoint), slog.Int("payloadSize", len(protoEntity)))
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")

@@ -364,7 +364,7 @@ func (e *statsProc) postEntityRelationships(ctx context.Context, ttype string, j
 		return err
 	}
 
-	endpoint := e.config.Endpoint + fmt.Sprintf("%s?telemetryType=%s", "/api/v1/entityrelationships", ttype)
+	endpoint := e.config.Endpoint + fmt.Sprintf("%s?telemetryType=%s", "/api/v1/entityRelationships", ttype)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, &compressedData)
 	if err != nil {
 		return err

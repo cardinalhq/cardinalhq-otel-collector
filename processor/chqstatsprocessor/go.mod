@@ -6,7 +6,7 @@ toolchain go1.23.3
 
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.0.0
-	github.com/cardinalhq/oteltools v0.9.8
+	github.com/cardinalhq/oteltools v0.9.10
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/stretchr/testify v1.10.0

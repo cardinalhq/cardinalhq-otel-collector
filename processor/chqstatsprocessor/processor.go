@@ -358,7 +358,6 @@ func (e *statsProc) postEntityRelationships(ctx context.Context, ttype string, p
 	}
 	slog.Info("Sending entity relationships", slog.String("endpoint", endpoint), slog.Int("payloadSize", len(payload)))
 
-	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "gzip")
 
 	resp, err := e.httpClient.Do(req)
@@ -374,7 +373,8 @@ func (e *statsProc) postEntityRelationships(ctx context.Context, ttype string, p
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 		slog.Error("Failed to send resource entities",
-			slog.Int("status", resp.StatusCode),
+			zap.String("endpoint", endpoint),
+			zap.Int("status", resp.StatusCode),
 			zap.String("body", string(body)),
 		)
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)

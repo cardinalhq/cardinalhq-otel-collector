@@ -101,6 +101,11 @@ func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pme
 func (e *statsProc) processDatapoint(environment translate.Environment, metricName, metricType, serviceName string, extra map[string]string, rattr, sattr, dattr pcommon.Map) {
 	overrides := pcommon.NewMap()
 	rattr.CopyTo(overrides)
+	pv, f := rattr.Get("k8s.deployment.name")
+	if f && pv.Str() == "prometheus-server" {
+		dv, df := dattr.Get("k8s.deployment.name")
+		e.logger.Info("Saw prometheus-server", zap.String("metricName", metricName), zap.Bool("found", df), zap.String("value", dv.AsString()))
+	}
 	dattr.Range(func(k string, v pcommon.Value) bool {
 		ra, found := rattr.Get(k)
 		if found && ra.Type() == pcommon.ValueTypeStr && ra.AsString() != v.AsString() {

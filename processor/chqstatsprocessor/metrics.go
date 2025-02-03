@@ -104,7 +104,7 @@ func (e *statsProc) processDatapoint(environment translate.Environment, metricNa
 	pv, f := rattr.Get("k8s.deployment.name")
 	if f && pv.Str() == "prometheus-server" {
 		ps, f1 := rattr.Get("service.name")
-		if f1 {
+		if f1 && !strings.Contains(ps.Str(), "prometheus") {
 			e.logger.Info("Saw prometheus-server", zap.String("metricName", metricName), zap.String("serviceName", ps.Str()))
 		}
 	}

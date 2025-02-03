@@ -101,10 +101,9 @@ func (e *statsProc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pme
 func (e *statsProc) processDatapoint(environment translate.Environment, metricName, metricType, serviceName string, extra map[string]string, rattr, sattr, dattr pcommon.Map) {
 	overrides := pcommon.NewMap()
 	rattr.CopyTo(overrides)
-	e.logger.Info("Processing datapoint")
 	dattr.Range(func(k string, v pcommon.Value) bool {
-		_, found := rattr.Get(k)
-		if found {
+		ra, found := rattr.Get(k)
+		if found && ra.Type() == pcommon.ValueTypeStr && ra.AsString() != v.AsString() {
 			e.logger.Info("Setting override",
 				zap.String("metricName", metricName), zap.String("key", k), zap.String("value", v.AsString()))
 			overrides.PutStr(k, v.AsString())

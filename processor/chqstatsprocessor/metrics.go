@@ -103,13 +103,11 @@ func (e *statsProc) processDatapoint(environment translate.Environment, metricNa
 	rattr.CopyTo(overrides)
 
 	dattr.Range(func(k string, v pcommon.Value) bool {
-		ra, found := rattr.Get(k)
+		_, found := rattr.Get(k)
 		if found {
-			switch ra.Type() {
-			case pcommon.ValueTypeStr:
-				overrides.PutStr(k, v.AsString())
-			default:
-			}
+			e.logger.Info("Setting override",
+				zap.String("metricName", metricName), zap.String("key", k), zap.String("value", v.AsString()))
+			overrides.PutStr(k, v.AsString())
 		}
 		return true
 	})

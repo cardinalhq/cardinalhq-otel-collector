@@ -103,9 +103,9 @@ func (e *statsProc) processDatapoint(environment translate.Environment, metricNa
 	rattr.CopyTo(overrides)
 	pv, f := rattr.Get("k8s.deployment.name")
 	if f && pv.Str() == "prometheus-server" {
-		dv, df := dattr.Get("k8s.deployment.name")
-		if df {
-			e.logger.Info("Saw prometheus-server", zap.String("metricName", metricName), zap.Bool("found", df), zap.String("value", dv.AsString()))
+		ps, f1 := rattr.Get("service.name")
+		if f1 {
+			e.logger.Info("Saw prometheus-server", zap.String("metricName", metricName), zap.String("serviceName", ps.Str()))
 		}
 	}
 	dattr.Range(func(k string, v pcommon.Value) bool {

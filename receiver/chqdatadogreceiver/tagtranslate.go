@@ -60,7 +60,7 @@ var (
 		"kube_region":             string(semconv.CloudRegionKey),
 		"kube_replica_set":        string(semconv.K8SReplicaSetNameKey),
 		"kube_service_port":       "k8s.service.port",
-		"kube_service":            "k8s.service.name",
+		"kube_service":            string(semconv.ServiceNameKey),
 		"kube_statefulset":        string(semconv.K8SStatefulSetNameKey),
 		"kube_zone":               string(semconv.CloudAvailabilityZoneKey),
 		"kubelet_version":         "k8s.kubelet.version",

@@ -18,11 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"slices"
-	"strings"
-
 	"github.com/cespare/xxhash/v2"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
@@ -30,6 +25,11 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"golang.org/x/exp/maps"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
 )
 
 type DDLog struct {
@@ -63,52 +63,150 @@ func handleLogsPayload(req *http.Request) (ddLogs []DDLog, err error) {
 	return ddLogs, nil
 }
 
+type Message struct {
+	Timestamp pcommon.Timestamp
+	Body      string
+}
+
 type groupedLogs struct {
-	Messages []string
+	Messages []Message
 	Tags     map[string]string
 	Service  string
 	Hostname string
 	DDSource string
 }
 
-func (ddr *datadogReceiver) splitLogs(apikey string, logs []DDLog) []groupedLogs {
+const (
+	GoFatalError    = "fatal error:"
+	GoPanic         = "panic:"
+	PythonTraceBack = "Traceback "
+)
+
+func validLineStart(trimmedMsg string) bool {
+	isStackTraceStart := strings.HasPrefix(trimmedMsg, GoFatalError) || strings.HasPrefix(trimmedMsg, GoPanic)
+	if isStackTraceStart {
+		return true
+	}
+
+	trimmedMessageLength := len(trimmedMsg)
+	if trimmedMessageLength < 19 {
+		return false
+	}
+	_, err := time.Parse("2006-01-02 15:04:05", trimmedMsg[:19])
+	if err == nil {
+		return true
+	}
+
+	if trimmedMessageLength < 24 {
+		return false
+	}
+	_, err = time.Parse("2006-01-02T15:04:05.000Z", trimmedMsg[:24])
+	return err == nil
+}
+
+func (ddr *datadogReceiver) splitLogs(logs []DDLog, apiKey string) []groupedLogs {
 	cachedTags := newLocalTagCache()
 
-	logkeys := make(map[int64]groupedLogs)
+	logKeys := make(map[int64]groupedLogs)
+	rawLogKeys := make(map[int64]groupedLogs)
+
+	var previousMessage *Message
+	var lastKey int64
+	var oneValidLineStart bool
+	var numMessagesStartingWithAt = 0
+
 	for _, log := range logs {
 		tags := splitTags(log.DDTags)
 		hostname := log.Hostname
 		if hostname == "" {
 			hostname = tags["host"]
 		}
-		ddr.hostnameTags.Add(context.Background(), 1,
-			metric.WithAttributes(attribute.String("hostname", hostname), attribute.String("telemetry_type", "logs")))
-		if hostname != "" {
-			for _, tag := range cachedTags.FetchCache(ddr.tagcacheExtension, apikey, log.Hostname) {
-				tags[tag.Name] = tag.Value
+
+		timestamp := pcommon.NewTimestampFromTime(time.Now())
+		if timestampStr, ok := tags["timestamp"]; ok {
+			parsed, err := strconv.ParseInt(timestampStr, 10, 64)
+			if err == nil {
+				timestamp = pcommon.NewTimestampFromTime(time.UnixMilli(parsed))
 			}
 		}
-		key := tagKey(tags, []string{log.Service, log.Hostname, log.DDSource})
-		if lk, ok := logkeys[key]; !ok {
-			logkeys[key] = groupedLogs{
-				Messages: []string{log.Message},
+
+		key := tagKey([]string{log.Service, log.Hostname, log.DDSource})
+		newMessage := Message{
+			Timestamp: timestamp,
+			Body:      log.Message,
+		}
+		if lk, ok := rawLogKeys[key]; !ok {
+			rawLogKeys[key] = groupedLogs{
+				Messages: []Message{newMessage},
 				Tags:     tags,
 				Service:  log.Service,
 				Hostname: log.Hostname,
 				DDSource: log.DDSource,
 			}
 		} else {
-			lk.Messages = append(lk.Messages, log.Message)
-			logkeys[key] = lk
+			lk.Messages = append(lk.Messages, newMessage)
+			rawLogKeys[key] = lk
+		}
+
+		trimmedMsg := strings.TrimSpace(log.Message)
+		if strings.HasPrefix(trimmedMsg, "at ") {
+			numMessagesStartingWithAt += 1
+		}
+
+		isValidStart := validLineStart(trimmedMsg)
+		if isValidStart && !oneValidLineStart {
+			oneValidLineStart = true
+		}
+
+		if !isValidStart && previousMessage != nil {
+			previousMessage.Body += "\n" + log.Message
+			continue
+		}
+
+		if ddr.hostnameTags != nil {
+			ddr.hostnameTags.Add(context.Background(), 1,
+				metric.WithAttributes(attribute.String("hostname", hostname), attribute.String("telemetry_type", "logs")))
+		}
+		if hostname != "" {
+			for _, tag := range cachedTags.FetchCache(ddr.tagcacheExtension, apiKey, log.Hostname) {
+				tags[tag.Name] = tag.Value
+			}
+		}
+
+		lastKey = key
+
+		if lk, ok := logKeys[key]; !ok {
+			logKeys[key] = groupedLogs{
+				Messages: []Message{newMessage},
+				Tags:     tags,
+				Service:  log.Service,
+				Hostname: log.Hostname,
+				DDSource: log.DDSource,
+			}
+			previousMessage = &logKeys[key].Messages[0]
+		} else {
+			lk.Messages = append(lk.Messages, newMessage)
+			logKeys[key] = lk
+			previousMessage = &lk.Messages[len(lk.Messages)-1]
 		}
 	}
-	return maps.Values(logkeys)
+
+	if previousMessage != nil && lastKey != 0 {
+		if lk, ok := logKeys[lastKey]; ok {
+			logKeys[lastKey] = lk
+		}
+	}
+
+	if oneValidLineStart || numMessagesStartingWithAt == len(logs) {
+		return maps.Values(logKeys)
+	}
+	return maps.Values(rawLogKeys)
 }
 
-func (ddr *datadogReceiver) processLogs(ctx context.Context, apikey string, t pcommon.Timestamp, logs []DDLog) error {
-	logparts := ddr.splitLogs(apikey, logs)
+func (ddr *datadogReceiver) processLogs(ctx context.Context, apikey string, logs []DDLog) error {
+	logparts := ddr.splitLogs(logs, apikey)
 	for _, group := range logparts {
-		otelLog, err := ddr.convertLogs(t, group)
+		otelLog, err := ddr.convertLogs(group)
 		if err != nil {
 			return err
 		}
@@ -144,23 +242,15 @@ func splitTagSlice(tags []string) map[string]string {
 	return tagMap
 }
 
-func tagKey(tags map[string]string, extra []string) int64 {
-	keys := maps.Keys(tags)
-	slices.Sort(keys)
+func tagKey(ddResourceTags []string) int64 {
 	b := strings.Builder{}
-	for i, k := range keys {
-		if i > 0 {
-			b.WriteString("::")
-		}
-		b.WriteString(k + "=" + tags[k])
-	}
-	for _, e := range extra {
+	for _, e := range ddResourceTags {
 		b.WriteString("::" + e)
 	}
 	return int64(xxhash.Sum64String(b.String()))
 }
 
-func (ddr *datadogReceiver) convertLogs(t pcommon.Timestamp, group groupedLogs) (plog.Logs, error) {
+func (ddr *datadogReceiver) convertLogs(group groupedLogs) (plog.Logs, error) {
 	lm := plog.NewLogs()
 	rl := lm.ResourceLogs().AppendEmpty()
 	rAttr := rl.Resource().Attributes()
@@ -185,10 +275,10 @@ func (ddr *datadogReceiver) convertLogs(t pcommon.Timestamp, group groupedLogs) 
 
 	for _, msg := range group.Messages {
 		logRecord := scope.LogRecords().AppendEmpty()
-		logRecord.SetObservedTimestamp(t)
+		logRecord.SetObservedTimestamp(msg.Timestamp)
 		logRecord.SetSeverityNumber(severityNumber)
 		logRecord.SetSeverityText(severityString)
-		logRecord.Body().SetStr(msg)
+		logRecord.Body().SetStr(msg.Body)
 		lAttr.CopyTo(logRecord.Attributes())
 	}
 

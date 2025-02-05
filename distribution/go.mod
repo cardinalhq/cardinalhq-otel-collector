@@ -4,7 +4,7 @@ module go.opentelemetry.io/collector/cmd/builder
 
 go 1.23
 
-toolchain go1.23.4
+toolchain go1.23.5
 
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.117.0
@@ -207,7 +207,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/briandowns/spinner v1.23.0 // indirect
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 // indirect
-	github.com/cardinalhq/oteltools v0.8.1 // indirect
+	github.com/cardinalhq/oteltools v0.9.13 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -575,4 +575,4 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
 
 replace go.opentelemetry.io/contrib/config => go.opentelemetry.io/contrib/config v0.10.0
 
-replace github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver => github.com/cardinalhq/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver v0.0.0-20241218023339-09be78c4a419
+replace github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver => github.com/cardinalhq/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver v0.0.0-20250203175806-8e7cb1880070

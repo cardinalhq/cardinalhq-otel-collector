@@ -342,7 +342,6 @@ func (p *statsProcessor) publishResourceEntities(ctx context.Context) {
 }
 
 func (p *statsProcessor) postEntityRelationships(ctx context.Context, ttype string, payload []byte) error {
-
 	var compressedData bytes.Buffer
 	gzipWriter := gzip.NewWriter(&compressedData)
 	if _, err := gzipWriter.Write(payload); err != nil {

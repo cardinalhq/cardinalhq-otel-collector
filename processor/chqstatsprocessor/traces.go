@@ -33,10 +33,10 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
-func (e *statsProc) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
+func (p *statsProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
 	now := time.Now()
 	var ee translate.Environment
-	if e.idsFromEnv {
+	if p.idsFromEnv {
 		ee = translate.EnvironmentFromEnv()
 	} else {
 		ee = translate.EnvironmentFromAuth(ctx)
@@ -45,20 +45,20 @@ func (e *statsProc) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace
 	for i := 0; i < td.ResourceSpans().Len(); i++ {
 		rs := td.ResourceSpans().At(i)
 		resourceAttributes := rs.Resource().Attributes()
-		globalEntityMap := e.tracesEntityCache.ProvisionResourceAttributes(resourceAttributes)
+		globalEntityMap := p.tracesEntityCache.ProvisionResourceAttributes(resourceAttributes)
 		serviceName := getServiceName(resourceAttributes)
 		for j := 0; j < rs.ScopeSpans().Len(); j++ {
 			iss := rs.ScopeSpans().At(j)
 			for k := 0; k < iss.Spans().Len(); k++ {
 				sr := iss.Spans().At(k)
-				e.tracesEntityCache.ProvisionRecordAttributes(globalEntityMap, sr.Attributes())
+				p.tracesEntityCache.ProvisionRecordAttributes(globalEntityMap, sr.Attributes())
 				isSlow := false
 				if isslowValue, found := sr.Attributes().Get(translate.CardinalFieldSpanIsSlow); found {
 					isSlow = isslowValue.Bool()
 				}
 				fingerprint := getFingerprint(sr.Attributes())
-				if err := e.recordSpan(now, ee, serviceName, fingerprint, isSlow, sr, iss, rs); err != nil {
-					e.logger.Error("Failed to record span", zap.Error(err))
+				if err := p.recordSpan(now, ee, serviceName, fingerprint, isSlow, sr, iss, rs); err != nil {
+					p.logger.Error("Failed to record span", zap.Error(err))
 				}
 			}
 		}
@@ -75,7 +75,7 @@ func toSize(attributes map[string]interface{}) int64 {
 	return size
 }
 
-func (e *statsProc) recordSpan(
+func (p *statsProcessor) recordSpan(
 	now time.Time,
 	environment translate.Environment,
 	serviceName string,
@@ -92,7 +92,7 @@ func (e *statsProc) recordSpan(
 	spanSize += int64(len(span.Kind().String()))
 	spanSize += int64(len(span.SpanID().String()))
 
-	enrichmentAttributes := e.processEnrichments(map[string]pcommon.Map{
+	enrichmentAttributes := p.processEnrichments(map[string]pcommon.Map{
 		"resource": rs.Resource().Attributes(),
 		"scope":    iss.Scope().Attributes(),
 		"span":     span.Attributes(),
@@ -106,21 +106,21 @@ func (e *statsProc) recordSpan(
 	enrichmentAttributes = append(enrichmentAttributes, isSlowAttribute)
 	enrichmentAttributes = append(enrichmentAttributes, spanKindAttribute)
 
-	err := e.spanStats.Record(serviceName, fingerprint, e.pbPhase, e.id.Name(), environment.CollectorID(), environment.CustomerID(), enrichmentAttributes, 1, spanSize)
+	err := p.spanStats.Record(serviceName, fingerprint, p.pbPhase, p.id.Name(), environment.CollectorID(), environment.CustomerID(), enrichmentAttributes, 1, spanSize)
 	if err != nil && errors.Is(err, chqpb.ErrCacheFull) {
-		telemetry.CounterAdd(e.cacheFull, 1)
+		telemetry.CounterAdd(p.cacheFull, 1)
 	}
-	e.addSpanExemplar(rs, iss, span, serviceName, fingerprint)
+	p.addSpanExemplar(rs, iss, span, serviceName, fingerprint)
 
-	telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
+	telemetry.HistogramRecord(p.recordLatency, int64(time.Since(now)))
 
 	return nil
 }
 
-func (e *statsProc) addSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span, serviceName string, fingerprint int64) {
-	if e.pbPhase == chqpb.Phase_PRE {
-		key := e.toExemplarKey(serviceName, fingerprint)
-		if e.logExemplars.Contains(key) {
+func (p *statsProcessor) addSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span, serviceName string, fingerprint int64) {
+	if p.pbPhase == chqpb.Phase_PRE {
+		key := p.toExemplarKey(serviceName, fingerprint)
+		if p.logExemplars.Contains(key) {
 			return
 		}
 		exemplarLd := ptrace.NewTraces()
@@ -130,18 +130,18 @@ func (e *statsProc) addSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpan
 		ss.Scope().CopyTo(copySl.Scope())
 		copyLr := copySl.Spans().AppendEmpty()
 		sr.CopyTo(copyLr)
-		marshalled, me := e.jsonMarshaller.tracesMarshaler.MarshalTraces(exemplarLd)
+		marshalled, me := p.jsonMarshaller.tracesMarshaler.MarshalTraces(exemplarLd)
 		if me != nil {
 			return
 		}
-		e.traceExemplars.Put(key, marshalled)
+		p.traceExemplars.Put(key, marshalled)
 	}
 }
 
-func (e *statsProc) sendSpanStats(statsList []*chqpb.EventStats) {
+func (p *statsProcessor) sendSpanStats(statsList []*chqpb.EventStats) {
 	for _, stat := range statsList {
-		key := e.toExemplarKey(stat.ServiceName, stat.Fingerprint)
-		exemplarBytes, found := e.traceExemplars.Get(key)
+		key := p.toExemplarKey(stat.ServiceName, stat.Fingerprint)
+		exemplarBytes, found := p.traceExemplars.Get(key)
 		if !found {
 			continue
 		}
@@ -152,25 +152,25 @@ func (e *statsProc) sendSpanStats(statsList []*chqpb.EventStats) {
 		SubmittedAt: time.Now().UnixMilli(),
 		Stats:       statsList}
 
-	if err := e.postSpanStats(context.Background(), wrapper); err != nil {
-		e.logger.Error("Failed to send span stats", zap.Error(err))
+	if err := p.postSpanStats(context.Background(), wrapper); err != nil {
+		p.logger.Error("Failed to send span stats", zap.Error(err))
 	}
 }
 
-func (e *statsProc) postSpanStats(ctx context.Context, wrapper *chqpb.EventStatsReport) error {
+func (p *statsProcessor) postSpanStats(ctx context.Context, wrapper *chqpb.EventStatsReport) error {
 	b, err := proto.Marshal(wrapper)
 	if err != nil {
 		return err
 	}
-	telemetry.HistogramRecord(e.statsBatchSize, int64(len(b)))
-	endpoint := e.config.Endpoint + "/api/v1/spanstats"
+	telemetry.HistogramRecord(p.statsBatchSize, int64(len(b)))
+	endpoint := p.config.Endpoint + "/api/v1/spanstats"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/x-protobuf")
 
-	resp, err := e.httpClient.Do(req)
+	resp, err := p.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -178,7 +178,7 @@ func (e *statsProc) postSpanStats(ctx context.Context, wrapper *chqpb.EventStats
 	body, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		e.logger.Error("Failed to send span stats", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
+		p.logger.Error("Failed to send span stats", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 	return nil

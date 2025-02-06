@@ -31,19 +31,19 @@ func getServiceName(r pcommon.Map) string {
 	return "unknown"
 }
 
-func (e *piiRedactionProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
+func (p *piiRedactionProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
 			sl := rl.ScopeLogs().At(j)
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				lr := sl.LogRecords().At(k)
-				tokens, err := e.detector.Tokenize(lr.Body().AsString())
+				tokens, err := p.detector.Tokenize(lr.Body().AsString())
 				if err != nil {
-					e.logger.Debug("Error tokenizing log", zap.Error(err))
+					p.logger.Debug("Error tokenizing log", zap.Error(err))
 					continue
 				}
-				newBody := e.detector.Sanitize(lr.Body().AsString(), tokens)
+				newBody := p.detector.Sanitize(lr.Body().AsString(), tokens)
 				lr.Body().SetStr(newBody)
 			}
 		}

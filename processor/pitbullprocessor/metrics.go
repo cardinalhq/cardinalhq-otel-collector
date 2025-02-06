@@ -28,13 +28,13 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
-func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
+func (p *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
 	if md.ResourceMetrics().Len() == 0 {
 		return md, nil
 	}
 
-	transformations := e.metricTransformations.Load()
-	lookups := e.metricsLookupConfigs.Load()
+	transformations := p.metricTransformations.Load()
+	lookups := p.metricsLookupConfigs.Load()
 	// Iterate over md.ResourceMetrics and look for a metricName
 	if transformations == nil && lookups == nil {
 		return md, nil
@@ -44,7 +44,7 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 		rattr := rm.Resource().Attributes()
 		transformCtx := ottlresource.NewTransformContext(rm.Resource(), rm)
 		if transformations != nil {
-			transformations.ExecuteResourceTransforms(e.logger, e.ottlProcessed, e.ottlErrors, e.histogram, transformCtx)
+			transformations.ExecuteResourceTransforms(p.logger, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
 			if _, found := rattr.Get(translate.CardinalFieldDropMarker); found {
 				return true
 			}
@@ -54,7 +54,7 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 			sattr := ilm.Scope().Attributes()
 			transformCtx := ottlscope.NewTransformContext(ilm.Scope(), rm.Resource(), rm)
 			if transformations != nil {
-				transformations.ExecuteScopeTransforms(e.logger, e.ottlProcessed, e.ottlErrors, e.histogram, transformCtx)
+				transformations.ExecuteScopeTransforms(p.logger, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
 				if _, found := sattr.Get(translate.CardinalFieldDropMarker); found {
 					return true
 				}
@@ -65,65 +65,65 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 				case pmetric.MetricTypeGauge:
 					m.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
 						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
-						e.evaluateLookupTables(transformCtx, lookups, func(tagToSet string, targetValue string) {
+						p.evaluateLookupTables(transformCtx, lookups, func(tagToSet string, targetValue string) {
 							dp.Attributes().PutStr(tagToSet, targetValue)
 						})
 						if transformations == nil {
 							return false
 						}
-						transformations.ExecuteDatapointTransforms(e.logger, e.ottlProcessed, e.ottlErrors, e.histogram, transformCtx)
+						transformations.ExecuteDatapointTransforms(p.logger, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
 					})
 				case pmetric.MetricTypeSum:
 					m.Sum().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
 						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
-						e.evaluateLookupTables(transformCtx, lookups, func(tagToSet string, targetValue string) {
+						p.evaluateLookupTables(transformCtx, lookups, func(tagToSet string, targetValue string) {
 							dp.Attributes().PutStr(tagToSet, targetValue)
 						})
 						if transformations == nil {
 							return false
 						}
-						transformations.ExecuteDatapointTransforms(e.logger, e.ottlProcessed, e.ottlErrors, e.histogram, transformCtx)
+						transformations.ExecuteDatapointTransforms(p.logger, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
 					})
 				case pmetric.MetricTypeHistogram:
 					m.Histogram().DataPoints().RemoveIf(func(dp pmetric.HistogramDataPoint) bool {
 						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
-						e.evaluateLookupTables(transformCtx, lookups, func(tagToSet string, targetValue string) {
+						p.evaluateLookupTables(transformCtx, lookups, func(tagToSet string, targetValue string) {
 							dp.Attributes().PutStr(tagToSet, targetValue)
 						})
 						if transformations == nil {
 							return false
 						}
-						transformations.ExecuteDatapointTransforms(e.logger, e.ottlProcessed, e.ottlErrors, e.histogram, transformCtx)
+						transformations.ExecuteDatapointTransforms(p.logger, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
 					})
 				case pmetric.MetricTypeSummary:
 					m.Summary().DataPoints().RemoveIf(func(dp pmetric.SummaryDataPoint) bool {
 						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
-						e.evaluateLookupTables(transformCtx, lookups, func(tagToSet string, targetValue string) {
+						p.evaluateLookupTables(transformCtx, lookups, func(tagToSet string, targetValue string) {
 							dp.Attributes().PutStr(tagToSet, targetValue)
 						})
 						if transformations == nil {
 							return false
 						}
-						transformations.ExecuteDatapointTransforms(e.logger, e.ottlProcessed, e.ottlErrors, e.histogram, transformCtx)
+						transformations.ExecuteDatapointTransforms(p.logger, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
 					})
 				case pmetric.MetricTypeExponentialHistogram:
 					m.ExponentialHistogram().DataPoints().RemoveIf(func(dp pmetric.ExponentialHistogramDataPoint) bool {
 						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
-						e.evaluateLookupTables(transformCtx, lookups, func(tagToSet string, targetValue string) {
+						p.evaluateLookupTables(transformCtx, lookups, func(tagToSet string, targetValue string) {
 							dp.Attributes().PutStr(tagToSet, targetValue)
 						})
 						if transformations == nil {
 							return false
 						}
-						transformations.ExecuteDatapointTransforms(e.logger, e.ottlProcessed, e.ottlErrors, e.histogram, transformCtx)
+						transformations.ExecuteDatapointTransforms(p.logger, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
 					})
@@ -142,7 +142,7 @@ func (e *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 	return md, nil
 }
 
-func (e *pitbull) evaluateLookupTables(transformCtx ottldatapoint.TransformContext, configs *[]ottl.LookupConfig, handlerFunc func(tagToSet string, targetValue string)) {
+func (p *pitbull) evaluateLookupTables(transformCtx ottldatapoint.TransformContext, configs *[]ottl.LookupConfig, handlerFunc func(tagToSet string, targetValue string)) {
 	if configs == nil {
 		return
 	}
@@ -151,22 +151,22 @@ func (e *pitbull) evaluateLookupTables(transformCtx ottldatapoint.TransformConte
 	}
 }
 
-func (e *pitbull) updateMetricTransformation(sc *ottl.PitbullProcessorConfig, logger *zap.Logger) {
+func (p *pitbull) updateMetricTransformation(sc *ottl.PitbullProcessorConfig, logger *zap.Logger) {
 	if sc == nil {
 		return
 	}
-	e.logger.Info("Updating metrics transformations", zap.Int("num_decorators", len(sc.MetricStatements)))
+	p.logger.Info("Updating metrics transformations", zap.Int("num_decorators", len(sc.MetricStatements)))
 	newTransformations := ottl.NewTransformations()
 
-	transformations, err := ottl.ParseTransformations(e.logger, sc.MetricStatements)
+	transformations, err := ottl.ParseTransformations(p.logger, sc.MetricStatements)
 	if err != nil {
-		e.logger.Error("Error parsing metrics transformation", zap.Error(err))
+		p.logger.Error("Error parsing metrics transformation", zap.Error(err))
 	} else {
 		newTransformations = ottl.MergeWith(newTransformations, transformations)
 	}
 
-	oldTransformations := e.metricTransformations.Load()
-	e.metricTransformations.Store(newTransformations)
+	oldTransformations := p.metricTransformations.Load()
+	p.metricTransformations.Store(newTransformations)
 	if oldTransformations != nil {
 		oldTransformations.Stop()
 	}

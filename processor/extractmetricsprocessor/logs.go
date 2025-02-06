@@ -32,18 +32,18 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/ottl"
 )
 
-func (e *extractor) ConsumeLogs(ctx context.Context, pl plog.Logs) (plog.Logs, error) {
-	metrics := e.extractMetricsFromLogs(ctx, pl)
+func (p *extractor) ConsumeLogs(ctx context.Context, pl plog.Logs) (plog.Logs, error) {
+	metrics := p.extractMetricsFromLogs(ctx, pl)
 	for _, metricToSend := range metrics {
-		e.sendMetrics(ctx, e.config.Route, metricToSend)
+		p.sendMetrics(ctx, p.config.Route, metricToSend)
 	}
 	return pl, nil
 }
 
-func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []pmetric.Metrics {
+func (p *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []pmetric.Metrics {
 	var totalMetrics []pmetric.Metrics
 
-	extractors := e.logExtractors.Load()
+	extractors := p.logExtractors.Load()
 	if extractors == nil {
 		return totalMetrics
 	}
@@ -88,13 +88,13 @@ func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []
 
 					matches, err := logExtractor.EvalLogConditions(ctx, logCtx)
 					if err != nil {
-						e.logger.Error("Failed when executing ottl match statement.", zap.Error(err))
+						p.logger.Error("Failed when executing ottl match statement.", zap.Error(err))
 						attrset := attribute.NewSet(attribute.String("ruleId", logExtractor.RuleID),
 							attribute.String("metricName", logExtractor.MetricName),
 							attribute.String("metricType", logExtractor.MetricType),
 							attribute.String("stage", "conditionEval"),
 							attribute.String("error_msg", err.Error()))
-						telemetry.CounterAdd(e.ruleErrors, 1, metric.WithAttributeSet(attrset))
+						telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
 						continue
 					}
 
@@ -103,11 +103,11 @@ func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []
 							attribute.String("metricName", logExtractor.MetricName),
 							attribute.String("metricType", logExtractor.MetricType),
 							attribute.Bool("conditionsEvaluated", false))
-						telemetry.CounterAdd(e.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
+						telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 						continue
 					}
 
-					e.logRecordToDataPoint(ctx, logExtractor, lr, logCtx, dpSlice)
+					p.logRecordToDataPoint(ctx, logExtractor, lr, logCtx, dpSlice)
 				}
 			}
 
@@ -119,26 +119,26 @@ func (e *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []
 		if metrics.ResourceMetrics().Len() > 0 {
 			totalMetrics = append(totalMetrics, metrics)
 		}
-		telemetry.HistogramRecord(e.ruleEvalTime, time.Since(startTime).Nanoseconds(),
+		telemetry.HistogramRecord(p.ruleEvalTime, time.Since(startTime).Nanoseconds(),
 			metric.WithAttributes(attribute.String("rule_id", logExtractor.RuleID)))
 	}
 	return totalMetrics
 }
 
-func (e *extractor) logRecordToDataPoint(ctx context.Context, lex *ottl.LogExtractor, lr plog.LogRecord, logCtx ottllog.TransformContext, dpSlice pmetric.NumberDataPointSlice) {
+func (p *extractor) logRecordToDataPoint(ctx context.Context, lex *ottl.LogExtractor, lr plog.LogRecord, logCtx ottllog.TransformContext, dpSlice pmetric.NumberDataPointSlice) {
 	var val any
 
 	if lex.MetricValue != nil {
 		computedValue, _, err := lex.MetricValue.Execute(ctx, logCtx)
 		if err != nil {
-			e.logger.Error("Failed when extracting value.", zap.Error(err))
+			p.logger.Error("Failed when extracting value.", zap.Error(err))
 			attrset := attribute.NewSet(attribute.String("ruleId", lex.RuleID),
 				attribute.String("metricName", lex.MetricName),
 				attribute.String("metricType", lex.MetricType),
 				attribute.String("stage", "metricValueExtraction"),
 				attribute.String("error", err.Error()))
 
-			telemetry.CounterAdd(e.ruleErrors, 1, metric.WithAttributeSet(attrset))
+			telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
 			return
 		}
 		val = computedValue
@@ -152,13 +152,13 @@ func (e *extractor) logRecordToDataPoint(ctx context.Context, lex *ottl.LogExtra
 	err := dp.Attributes().FromRaw(attrs)
 
 	if err != nil {
-		e.logger.Error("Failed when setting attributes.", zap.Error(err))
+		p.logger.Error("Failed when setting attributes.", zap.Error(err))
 		attrset := attribute.NewSet(attribute.String("ruleId", lex.RuleID),
 			attribute.String("metricName", lex.MetricName),
 			attribute.String("metricType", lex.MetricType),
 			attribute.String("stage", "attributeExtraction"),
 			attribute.String("error_msg", err.Error()))
-		telemetry.CounterAdd(e.ruleErrors, 1, metric.WithAttributeSet(attrset))
+		telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
 		return
 	}
 
@@ -167,7 +167,7 @@ func (e *extractor) logRecordToDataPoint(ctx context.Context, lex *ottl.LogExtra
 	case gaugeDoubleType, counterDoubleType:
 		floatVal, err := convertAnyToFloat(val)
 		if err != nil {
-			e.logger.Error("Failed when parsing float.", zap.Error(err))
+			p.logger.Error("Failed when parsing float.", zap.Error(err))
 			return
 		}
 
@@ -175,7 +175,7 @@ func (e *extractor) logRecordToDataPoint(ctx context.Context, lex *ottl.LogExtra
 	case gaugeIntType, counterIntType:
 		intVal, err := convertAnyToInt(val)
 		if err != nil {
-			e.logger.Error("Failed when parsing integer.", zap.Error(err))
+			p.logger.Error("Failed when parsing integer.", zap.Error(err))
 			return
 		}
 
@@ -187,7 +187,7 @@ func (e *extractor) logRecordToDataPoint(ctx context.Context, lex *ottl.LogExtra
 		attribute.String("ruleId", lex.RuleID),
 		attribute.String("metricType", lex.MetricType),
 		attribute.Bool("conditionsEvaluated", true))
-	telemetry.CounterAdd(e.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
+	telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 
 	// Mark this datapoint for aggregation
 	dp.Attributes().PutBool(translate.CardinalFieldAggregate, true)

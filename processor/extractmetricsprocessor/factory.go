@@ -27,7 +27,6 @@ import (
 
 var componentType = component.MustNewType("extractmetrics")
 
-// NewFactory creates a factory for extractmetrics processor.
 func NewFactory() processor.Factory {
 	return processor.NewFactory(
 		metadata.Type,
@@ -42,27 +41,27 @@ func createDefaultConfig() component.Config {
 }
 
 func createLogsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Logs) (processor.Logs, error) {
-	e, err := newExtractor(cfg.(*Config), "logs", set)
+	p, err := newExtractor(cfg.(*Config), "logs", set)
 	if err != nil {
 		return nil, err
 	}
 	return processorhelper.NewLogs(
 		ctx, set, cfg, nextConsumer,
-		e.ConsumeLogs,
-		processorhelper.WithStart(e.Start),
-		processorhelper.WithShutdown(e.Shutdown),
-		processorhelper.WithCapabilities(e.Capabilities()))
+		p.ConsumeLogs,
+		processorhelper.WithStart(p.Start),
+		processorhelper.WithShutdown(p.Shutdown),
+		processorhelper.WithCapabilities(p.Capabilities()))
 }
 
 func createSpansProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Traces) (processor.Traces, error) {
-	e, err := newExtractor(cfg.(*Config), "traces", set)
+	p, err := newExtractor(cfg.(*Config), "traces", set)
 	if err != nil {
 		return nil, err
 	}
 	return processorhelper.NewTraces(
 		ctx, set, cfg, nextConsumer,
-		e.ConsumeTraces,
-		processorhelper.WithStart(e.Start),
-		processorhelper.WithShutdown(e.Shutdown),
-		processorhelper.WithCapabilities(e.Capabilities()))
+		p.ConsumeTraces,
+		processorhelper.WithStart(p.Start),
+		processorhelper.WithShutdown(p.Shutdown),
+		processorhelper.WithCapabilities(p.Capabilities()))
 }

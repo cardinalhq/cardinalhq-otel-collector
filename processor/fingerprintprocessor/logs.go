@@ -35,16 +35,16 @@ func getServiceName(r pcommon.Map) string {
 	return "unknown"
 }
 
-func (e *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
+func (p *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
 			sl := rl.ScopeLogs().At(j)
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				lr := sl.LogRecords().At(k)
-				fingerprint, levelfromFingerprinter, err := e.addTokenFields(lr)
+				fingerprint, levelfromFingerprinter, err := p.addTokenFields(lr)
 				if err != nil {
-					e.logger.Debug("Error fingerprinting log", zap.Error(err))
+					p.logger.Debug("Error fingerprinting log", zap.Error(err))
 					continue
 				}
 
@@ -61,9 +61,9 @@ func (e *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plo
 	return ld, nil
 }
 
-func (e *fingerprintProcessor) addTokenFields(lr plog.LogRecord) (int64, string, error) {
-	fingerprint, tMap, level, js, err := e.logFingerprinter.Fingerprint(lr.Body().AsString())
-	if replacement, found := e.logMappings.Get(fingerprint); found {
+func (p *fingerprintProcessor) addTokenFields(lr plog.LogRecord) (int64, string, error) {
+	fingerprint, tMap, level, js, err := p.logFingerprinter.Fingerprint(lr.Body().AsString())
+	if replacement, found := p.logMappings.Get(fingerprint); found {
 		lr.Attributes().PutInt(translate.CardinalFieldFingerprint+"_original", fingerprint)
 		fingerprint = replacement
 	}
@@ -75,7 +75,7 @@ func (e *fingerprintProcessor) addTokenFields(lr plog.LogRecord) (int64, string,
 	jsmap := lr.Attributes().PutEmptyMap(translate.CardinalFieldJSON)
 	jscm := pcommon.NewMap()
 	if err := jscm.FromRaw(js); err != nil {
-		e.logger.Debug("Error converting JSON to pdata.Map", zap.Error(err))
+		p.logger.Debug("Error converting JSON to pdata.Map", zap.Error(err))
 	}
 	jscm.CopyTo(jsmap)
 

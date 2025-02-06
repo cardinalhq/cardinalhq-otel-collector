@@ -26,7 +26,6 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor/internal/metadata"
 )
 
-// NewFactory creates a factory for S3 exporter.
 func NewFactory() processor.Factory {
 	return processor.NewFactory(
 		metadata.Type,
@@ -55,40 +54,40 @@ func createDefaultConfig() component.Config {
 }
 
 func createLogsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Logs) (processor.Logs, error) {
-	e, err := newPitbull(cfg.(*Config), "logs", set)
+	p, err := newPitbull(cfg.(*Config), "logs", set)
 	if err != nil {
 		return nil, err
 	}
 	return processorhelper.NewLogs(
 		ctx, set, cfg, nextConsumer,
-		e.ConsumeLogs,
-		processorhelper.WithStart(e.Start),
-		processorhelper.WithShutdown(e.Shutdown),
-		processorhelper.WithCapabilities(e.Capabilities()))
+		p.ConsumeLogs,
+		processorhelper.WithStart(p.Start),
+		processorhelper.WithShutdown(p.Shutdown),
+		processorhelper.WithCapabilities(p.Capabilities()))
 }
 
 func createMetricsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Metrics) (processor.Metrics, error) {
-	e, err := newPitbull(cfg.(*Config), "metrics", set)
+	p, err := newPitbull(cfg.(*Config), "metrics", set)
 	if err != nil {
 		return nil, err
 	}
 	return processorhelper.NewMetrics(
 		ctx, set, cfg, nextConsumer,
-		e.ConsumeMetrics,
-		processorhelper.WithStart(e.Start),
-		processorhelper.WithShutdown(e.Shutdown),
-		processorhelper.WithCapabilities(e.Capabilities()))
+		p.ConsumeMetrics,
+		processorhelper.WithStart(p.Start),
+		processorhelper.WithShutdown(p.Shutdown),
+		processorhelper.WithCapabilities(p.Capabilities()))
 }
 
 func createSpansProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Traces) (processor.Traces, error) {
-	e, err := newPitbull(cfg.(*Config), "traces", set)
+	p, err := newPitbull(cfg.(*Config), "traces", set)
 	if err != nil {
 		return nil, err
 	}
 	return processorhelper.NewTraces(
 		ctx, set, cfg, nextConsumer,
-		e.ConsumeTraces,
-		processorhelper.WithStart(e.Start),
-		processorhelper.WithShutdown(e.Shutdown),
-		processorhelper.WithCapabilities(e.Capabilities()))
+		p.ConsumeTraces,
+		processorhelper.WithStart(p.Start),
+		processorhelper.WithShutdown(p.Shutdown),
+		processorhelper.WithCapabilities(p.Capabilities()))
 }

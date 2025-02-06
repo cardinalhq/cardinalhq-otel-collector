@@ -26,22 +26,22 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/ottl"
 )
 
-func (e *aggregationProcessor) emit(now time.Time) {
-	if now.Sub(e.lastEmitCheck) < time.Duration(e.aggregationInterval)*time.Second {
+func (p *aggregationProcessor) emit(now time.Time) {
+	if now.Sub(p.lastEmitCheck) < time.Duration(p.aggregationInterval)*time.Second {
 		return
 	}
-	e.lastEmitCheck = now
-	mi := e.aggregatorI.Emit(now)
+	p.lastEmitCheck = now
+	mi := p.aggregatorI.Emit(now)
 	for _, set := range mi {
-		e.emitSetI(set)
+		p.emitSetI(set)
 	}
-	mf := e.aggregatorF.Emit(now)
+	mf := p.aggregatorF.Emit(now)
 	for _, set := range mf {
-		e.emitSetF(set)
+		p.emitSetF(set)
 	}
 }
 
-func (e *aggregationProcessor) emitSetI(set *ottl.AggregationSet[int64]) {
+func (p *aggregationProcessor) emitSetI(set *ottl.AggregationSet[int64]) {
 	for _, agg := range set.Aggregations {
 		mmetrics := pmetric.NewMetrics()
 		res := mmetrics.ResourceMetrics().AppendEmpty()
@@ -67,18 +67,18 @@ func (e *aggregationProcessor) emitSetI(set *ottl.AggregationSet[int64]) {
 
 		setTags(res, sm, m, dp, agg.Tags())
 
-		for k, v := range e.additionalAttributes {
+		for k, v := range p.additionalAttributes {
 			dp.Attributes().PutStr(k, v)
 		}
 
-		err := e.nextMetricReceiver.ConsumeMetrics(context.Background(), mmetrics)
+		err := p.nextMetricReceiver.ConsumeMetrics(context.Background(), mmetrics)
 		if err != nil {
-			e.logger.Error("Error emitting metrics", zap.Error(err))
+			p.logger.Error("Error emitting metrics", zap.Error(err))
 		}
 	}
 }
 
-func (e *aggregationProcessor) emitSetF(set *ottl.AggregationSet[float64]) {
+func (p *aggregationProcessor) emitSetF(set *ottl.AggregationSet[float64]) {
 	for _, agg := range set.Aggregations {
 		mmetrics := pmetric.NewMetrics()
 		res := mmetrics.ResourceMetrics().AppendEmpty()
@@ -104,15 +104,15 @@ func (e *aggregationProcessor) emitSetF(set *ottl.AggregationSet[float64]) {
 
 		setTags(res, sm, m, dp, agg.Tags())
 
-		for k, v := range e.additionalAttributes {
+		for k, v := range p.additionalAttributes {
 			dp.Attributes().PutStr(k, v)
 		}
 
-		err := e.nextMetricReceiver.ConsumeMetrics(context.Background(), mmetrics)
+		err := p.nextMetricReceiver.ConsumeMetrics(context.Background(), mmetrics)
 		if err != nil {
-			e.logger.Error("Error emitting metrics", zap.Error(err))
+			p.logger.Error("Error emitting metrics", zap.Error(err))
 		}
-		e.logger.Debug("Emitted metrics", zap.Time("timestamp", ts.AsTime()), zap.String("name", agg.Name()), zap.Float64("value", agg.Value()[0]), zap.String("tags", fmt.Sprintf("%v", agg.Tags())))
+		p.logger.Debug("Emitted metrics", zap.Time("timestamp", ts.AsTime()), zap.String("name", agg.Name()), zap.Float64("value", agg.Value()[0]), zap.String("tags", fmt.Sprintf("%v", agg.Tags())))
 	}
 }
 
@@ -188,18 +188,18 @@ func setMetricMetadata(metric pmetric.Metric, tagname string, v string) {
 	}
 }
 
-func (e *aggregationProcessor) aggregate(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint) bool {
+func (p *aggregationProcessor) aggregate(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint) bool {
 	switch metric.Type() {
 	case pmetric.MetricTypeGauge:
-		return e.aggregateGaugeDatapoint(rms, ils, metric, dp)
+		return p.aggregateGaugeDatapoint(rms, ils, metric, dp)
 	case pmetric.MetricTypeSum:
-		return e.aggregateSumDatapoint(rms, ils, metric, dp)
+		return p.aggregateSumDatapoint(rms, ils, metric, dp)
 	default:
 		return false
 	}
 }
 
-func (e *aggregationProcessor) aggregateGaugeDatapoint(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint) bool {
+func (p *aggregationProcessor) aggregateGaugeDatapoint(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint) bool {
 	metadata := map[string]string{
 		"resource.schemaurl":        rms.SchemaUrl(),
 		"instrumentation.schemaurl": ils.SchemaUrl(),
@@ -209,10 +209,10 @@ func (e *aggregationProcessor) aggregateGaugeDatapoint(rms pmetric.ResourceMetri
 		"metric.description":        metric.Description(),
 		"metric.unit":               metric.Unit(),
 	}
-	return e.aggregateDatapoint(ottl.AggregationTypeAvg, rms, ils, metric, dp, metadata)
+	return p.aggregateDatapoint(ottl.AggregationTypeAvg, rms, ils, metric, dp, metadata)
 }
 
-func (e *aggregationProcessor) aggregateSumDatapoint(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint) bool {
+func (p *aggregationProcessor) aggregateSumDatapoint(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint) bool {
 	metadata := map[string]string{
 		"resource.schemaurl":            rms.SchemaUrl(),
 		"instrumentation.schemaurl":     ils.SchemaUrl(),
@@ -224,10 +224,10 @@ func (e *aggregationProcessor) aggregateSumDatapoint(rms pmetric.ResourceMetrics
 		"metric.ismonotonic":            fmt.Sprintf("%t", metric.Sum().IsMonotonic()),
 		"metric.unit":                   metric.Unit(),
 	}
-	return e.aggregateDatapoint(ottl.AggregationTypeSum, rms, ils, metric, dp, metadata)
+	return p.aggregateDatapoint(ottl.AggregationTypeSum, rms, ils, metric, dp, metadata)
 }
 
-func (e *aggregationProcessor) aggregateDatapoint(
+func (p *aggregationProcessor) aggregateDatapoint(
 	ty ottl.AggregationType,
 	rms pmetric.ResourceMetrics,
 	ils pmetric.ScopeMetrics,
@@ -239,8 +239,8 @@ func (e *aggregationProcessor) aggregateDatapoint(
 	switch dp.ValueType() {
 	case pmetric.NumberDataPointValueTypeInt:
 		v := dp.IntValue()
-		matched, err := e.aggregatorI.MatchAndAdd(
-			e.logger,
+		matched, err := p.aggregatorI.MatchAndAdd(
+			p.logger,
 			&t,
 			[]int64{1},
 			[]int64{v},
@@ -251,15 +251,15 @@ func (e *aggregationProcessor) aggregateDatapoint(
 			ils.Scope().Attributes(),
 			dp.Attributes())
 		if err != nil {
-			e.logger.Error("Error matching and adding int datapoint", zap.Error(err))
+			p.logger.Error("Error matching and adding int datapoint", zap.Error(err))
 			return false
 		}
 		return matched
 
 	case pmetric.NumberDataPointValueTypeDouble:
 		v := dp.DoubleValue()
-		matched, err := e.aggregatorF.MatchAndAdd(
-			e.logger,
+		matched, err := p.aggregatorF.MatchAndAdd(
+			p.logger,
 			&t,
 			[]float64{1},
 			[]float64{v},
@@ -270,7 +270,7 @@ func (e *aggregationProcessor) aggregateDatapoint(
 			ils.Scope().Attributes(),
 			dp.Attributes())
 		if err != nil {
-			e.logger.Error("Error matching and adding float64 datapoint", zap.Error(err))
+			p.logger.Error("Error matching and adding float64 datapoint", zap.Error(err))
 			return false
 		}
 		return matched

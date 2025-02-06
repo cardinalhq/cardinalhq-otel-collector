@@ -58,7 +58,7 @@ type aggregationProcessor struct {
 }
 
 func newPitbull(config *Config, ttype string, set processor.Settings, nextConsumer consumer.Metrics) (*aggregationProcessor, error) {
-	dog := &aggregationProcessor{
+	p := &aggregationProcessor{
 		id:                   set.ID,
 		ttype:                ttype,
 		config:               config,
@@ -73,23 +73,23 @@ func newPitbull(config *Config, ttype string, set processor.Settings, nextConsum
 		attribute.String("signal", ttype),
 	)
 
-	dog.lastEmitCheck = time.Now()
+	p.lastEmitCheck = time.Now()
 	interval := config.MetricAggregation.Interval.Milliseconds()
-	dog.aggregatorI = ottl.NewMetricAggregatorImpl[int64](interval)
-	dog.aggregatorF = ottl.NewMetricAggregatorImpl[float64](interval)
-	err := dog.setupMetricTelemetry(set, attrset)
+	p.aggregatorI = ottl.NewMetricAggregatorImpl[int64](interval)
+	p.aggregatorF = ottl.NewMetricAggregatorImpl[float64](interval)
+	err := p.setupMetricTelemetry(set, attrset)
 	if err != nil {
 		return nil, err
 	}
 
-	return dog, nil
+	return p, nil
 }
 
-func (e *aggregationProcessor) Capabilities() consumer.Capabilities {
+func (p *aggregationProcessor) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: true}
 }
 
-func (e *aggregationProcessor) setupMetricTelemetry(set processor.Settings, attrset attribute.Set) error {
+func (p *aggregationProcessor) setupMetricTelemetry(set processor.Settings, attrset attribute.Set) error {
 	counter, err := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
 		"aggregation_datapoints_processed",
 		[]metric.Int64CounterOption{
@@ -103,6 +103,6 @@ func (e *aggregationProcessor) setupMetricTelemetry(set processor.Settings, attr
 	if err != nil {
 		return err
 	}
-	e.aggregatedDatapoints = counter
+	p.aggregatedDatapoints = counter
 	return nil
 }

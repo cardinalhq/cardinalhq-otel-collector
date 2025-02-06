@@ -55,7 +55,7 @@ type extractor struct {
 }
 
 func newExtractor(config *Config, ttype string, set processor.Settings) (*extractor, error) {
-	e := &extractor{
+	p := &extractor{
 		id:                set.ID,
 		ttype:             ttype,
 		config:            config,
@@ -80,7 +80,7 @@ func newExtractor(config *Config, ttype string, set processor.Settings) (*extrac
 	if counterError != nil {
 		return nil, counterError
 	}
-	e.rulesEvaluated = counter
+	p.rulesEvaluated = counter
 
 	errorCounter, errorCounterError := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
 		"ottl_rule_eval_errors",
@@ -95,7 +95,7 @@ func newExtractor(config *Config, ttype string, set processor.Settings) (*extrac
 	if errorCounterError != nil {
 		return nil, counterError
 	}
-	e.ruleErrors = errorCounter
+	p.ruleErrors = errorCounter
 
 	histogram, histogramError := telemetry.NewDeferrableHistogram(metadata.Meter(set.TelemetrySettings),
 		"ottl_rule_eval_time",
@@ -107,32 +107,32 @@ func newExtractor(config *Config, ttype string, set processor.Settings) (*extrac
 	if histogramError != nil {
 		return nil, histogramError
 	}
-	e.ruleEvalTime = histogram
+	p.ruleEvalTime = histogram
 
-	return e, nil
+	return p, nil
 }
 
-func (e *extractor) Start(ctx context.Context, host component.Host) error {
-	ext, found := host.GetExtensions()[*e.config.ConfigurationExtension]
+func (p *extractor) Start(ctx context.Context, host component.Host) error {
+	ext, found := host.GetExtensions()[*p.config.ConfigurationExtension]
 	if !found {
-		return errors.New("configuration extension " + e.config.ConfigurationExtension.String() + " not found")
+		return errors.New("configuration extension " + p.config.ConfigurationExtension.String() + " not found")
 	}
 	cext, ok := ext.(*chqconfigextension.CHQConfigExtension)
 	if !ok {
-		return errors.New("configuration extension " + e.config.ConfigurationExtension.String() + " is not a chqconfig extension")
+		return errors.New("configuration extension " + p.config.ConfigurationExtension.String() + " is not a chqconfig extension")
 	}
-	e.configExtension = cext
-	e.configCallbackID = e.configExtension.RegisterCallback(e.id.String()+"/"+e.ttype, e.configUpdateCallback)
+	p.configExtension = cext
+	p.configCallbackID = p.configExtension.RegisterCallback(p.id.String()+"/"+p.ttype, p.configUpdateCallback)
 
 	return nil
 }
 
-func (e *extractor) Shutdown(ctx context.Context) error {
-	e.configExtension.UnregisterCallback(e.configCallbackID)
+func (p *extractor) Shutdown(ctx context.Context) error {
+	p.configExtension.UnregisterCallback(p.configCallbackID)
 	return nil
 }
 
-func (e *extractor) Capabilities() consumer.Capabilities {
+func (p *extractor) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: false}
 }
 
@@ -181,38 +181,38 @@ func convertAnyToFloat(value any) (float64, error) {
 }
 
 // sendMetrics sends metrics to the configured route.
-func (e *extractor) sendMetrics(ctx context.Context, route string, metrics pmetric.Metrics) {
+func (p *extractor) sendMetrics(ctx context.Context, route string, metrics pmetric.Metrics) {
 	err := routereceiver.RouteMetrics(ctx, route, metrics)
 	if err != nil {
-		e.logger.Error("Failed to send metrics", zap.Error(err))
+		p.logger.Error("Failed to send metrics", zap.Error(err))
 	}
 }
 
-func (e *extractor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
-	configs := sc.ExtractMetrics[e.id.Name()]
+func (p *extractor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
+	configs := sc.ExtractMetrics[p.id.Name()]
 	if configs == nil {
 		return
 	}
 
-	switch e.ttype {
+	switch p.ttype {
 	case "logs":
-		parsedExtractors, err := ottl.ParseLogExtractorConfigs(configs.LogMetricExtractors, e.logger)
-		e.logger.Info("Setting log extractors", zap.String("id", e.id.Name()), zap.Int("num_configs", len(configs.LogMetricExtractors)), zap.Int("num_parsed_configs", len(parsedExtractors)))
+		parsedExtractors, err := ottl.ParseLogExtractorConfigs(configs.LogMetricExtractors, p.logger)
+		p.logger.Info("Setting log extractors", zap.String("id", p.id.Name()), zap.Int("num_configs", len(configs.LogMetricExtractors)), zap.Int("num_parsed_configs", len(parsedExtractors)))
 		if err != nil {
-			e.logger.Error("Error parsing log extractor configurations", zap.Error(err))
+			p.logger.Error("Error parsing log extractor configurations", zap.Error(err))
 			return
 		}
-		e.logExtractors.Store(&parsedExtractors)
+		p.logExtractors.Store(&parsedExtractors)
 
 	case "traces":
-		parsedExtractors, err := ottl.ParseSpanExtractorConfigs(configs.SpanMetricExtractors, e.logger)
+		parsedExtractors, err := ottl.ParseSpanExtractorConfigs(configs.SpanMetricExtractors, p.logger)
 		if err != nil {
-			e.logger.Error("Error parsing log extractor configurations", zap.Error(err))
+			p.logger.Error("Error parsing log extractor configurations", zap.Error(err))
 			return
 		}
-		e.spanExtractors.Store(&parsedExtractors)
+		p.spanExtractors.Store(&parsedExtractors)
 
 	default: // ignore
 	}
-	e.logger.Info("Configuration updated for processor instance", zap.String("instance", e.id.Name()))
+	p.logger.Info("Configuration updated for processor instance", zap.String("instance", p.id.Name()))
 }

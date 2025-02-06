@@ -40,7 +40,7 @@ type piiRedactionProcessor struct {
 }
 
 func newProcessor(config *Config, set processor.Settings) (*piiRedactionProcessor, error) {
-	dog := &piiRedactionProcessor{
+	p := &piiRedactionProcessor{
 		id:                set.ID,
 		config:            config,
 		telemetrySettings: set.TelemetrySettings,
@@ -65,10 +65,10 @@ func newProcessor(config *Config, set processor.Settings) (*piiRedactionProcesso
 		}
 	}
 
-	dog.detector = pii.NewDetector(
+	p.detector = pii.NewDetector(
 		pii.WithPIITypes(types...),
-		pii.WithDetectionStats(dog.detections),
-		pii.WithRedactionStats(dog.redactions),
+		pii.WithDetectionStats(p.detections),
+		pii.WithRedactionStats(p.redactions),
 	)
 
 	attrset := attribute.NewSet(
@@ -84,7 +84,7 @@ func newProcessor(config *Config, set processor.Settings) (*piiRedactionProcesso
 	if err != nil {
 		return nil, err
 	}
-	dog.detections = detections
+	p.detections = detections
 
 	redactions, err := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
 		"otelcol_processor_pii_redaction_redactions",
@@ -94,11 +94,11 @@ func newProcessor(config *Config, set processor.Settings) (*piiRedactionProcesso
 	if err != nil {
 		return nil, err
 	}
-	dog.redactions = redactions
+	p.redactions = redactions
 
-	return dog, nil
+	return p, nil
 }
 
-func (e *piiRedactionProcessor) Capabilities() consumer.Capabilities {
+func (p *piiRedactionProcessor) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: true}
 }

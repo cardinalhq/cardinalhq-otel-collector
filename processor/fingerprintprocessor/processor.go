@@ -52,7 +52,7 @@ type fingerprintProcessor struct {
 }
 
 func newProcessor(config *Config, ttype string, set processor.Settings) (*fingerprintProcessor, error) {
-	dog := &fingerprintProcessor{
+	p := &fingerprintProcessor{
 		id:                set.ID,
 		ttype:             ttype,
 		config:            config,
@@ -63,23 +63,23 @@ func newProcessor(config *Config, ttype string, set processor.Settings) (*finger
 
 	switch ttype {
 	case "logs":
-		dog.logFingerprinter = fingerprinter.NewFingerprinter(fingerprinter.WithMaxTokens(30))
+		p.logFingerprinter = fingerprinter.NewFingerprinter(fingerprinter.WithMaxTokens(30))
 
 	case "traces":
-		dog.estimators = make(map[uint64]*SlidingEstimatorStat)
-		dog.estimatorWindowSize = config.TracesConfig.EstimatorWindowSize
-		dog.estimatorInterval = config.TracesConfig.EstimatorInterval
+		p.estimators = make(map[uint64]*SlidingEstimatorStat)
+		p.estimatorWindowSize = config.TracesConfig.EstimatorWindowSize
+		p.estimatorInterval = config.TracesConfig.EstimatorInterval
 	}
 
-	return dog, nil
+	return p, nil
 }
 
-func (e *fingerprintProcessor) Capabilities() consumer.Capabilities {
+func (p *fingerprintProcessor) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: true}
 }
 
-func (e *fingerprintProcessor) Start(ctx context.Context, host component.Host) error {
-	ext, found := host.GetExtensions()[*e.config.ConfigurationExtension]
+func (p *fingerprintProcessor) Start(ctx context.Context, host component.Host) error {
+	ext, found := host.GetExtensions()[*p.config.ConfigurationExtension]
 	if !found {
 		return nil
 		//return errors.New("configuration extension " + e.config.ConfigurationExtension.String() + " not found")
@@ -89,30 +89,30 @@ func (e *fingerprintProcessor) Start(ctx context.Context, host component.Host) e
 		return nil
 		//return errors.New("configuration extension " + e.config.ConfigurationExtension.String() + " is not a chqconfig extension")
 	}
-	e.configExtension = cext
+	p.configExtension = cext
 
-	e.configCallbackID = e.configExtension.RegisterCallback(e.id.String()+"/"+e.ttype, e.configUpdateCallback)
+	p.configCallbackID = p.configExtension.RegisterCallback(p.id.String()+"/"+p.ttype, p.configUpdateCallback)
 
 	return nil
 }
 
-func (e *fingerprintProcessor) Shutdown(ctx context.Context) error {
-	e.configExtension.UnregisterCallback(e.configCallbackID)
+func (p *fingerprintProcessor) Shutdown(ctx context.Context) error {
+	p.configExtension.UnregisterCallback(p.configCallbackID)
 	return nil
 }
 
-func (e *fingerprintProcessor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
-	switch e.ttype {
+func (p *fingerprintProcessor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
+	switch p.ttype {
 	case "logs":
 		newhash := calculateMapHash(sc.FingerprintConfig.LogMappings)
-		if newhash != e.logMappingsHash {
-			e.logMappingsHash = newhash
+		if newhash != p.logMappingsHash {
+			p.logMappingsHash = newhash
 			newMap := makeFingerprintMap(sc.FingerprintConfig.LogMappings)
-			e.logMappings.Replace(newMap)
+			p.logMappings.Replace(newMap)
 		}
 		// Add span fingerprinter if needed
 	}
-	e.logger.Info("Configuration updated for processor instance", zap.String("instance", e.id.Name()))
+	p.logger.Info("Configuration updated for processor instance", zap.String("instance", p.id.Name()))
 }
 
 // calculateMapHash calculates a hash of the fingerprint mappings used to detect

@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/cardinalhq/oteltools/pkg/graph"
 	"hash/fnv"
 	"io"
 	"log/slog"
@@ -28,6 +27,8 @@ import (
 	"os"
 	"sync/atomic"
 	"time"
+
+	"github.com/cardinalhq/oteltools/pkg/graph"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor/internal/metadata"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
@@ -66,7 +67,7 @@ type otelJsonMarshaller struct {
 	metricsMarshaler pmetric.Marshaler
 }
 
-type statsProc struct {
+type statsProcessor struct {
 	config          *Config
 	httpClient      *http.Client
 	logger          *zap.Logger
@@ -108,8 +109,8 @@ type statsProc struct {
 	enableLogMetrics    bool
 }
 
-func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsProc, error) {
-	dog := &statsProc{
+func newStatsProcessor(config *Config, ttype string, set processor.Settings) (*statsProcessor, error) {
+	p := &statsProcessor{
 		id:                 set.ID,
 		ttype:              ttype,
 		config:             config,
@@ -127,16 +128,16 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 	}
 
 	//if os.Getenv("ENABLE_METRIC_METRICS") == "true" {
-	dog.enableMetricMetrics = true
+	p.enableMetricMetrics = true
 	//}
 	//if os.Getenv("ENABLE_LOG_METRICS") == "true" {
-	dog.enableLogMetrics = true
+	p.enableLogMetrics = true
 	//}
 
 	if config.Statistics.Phase == "presample" {
-		dog.pbPhase = chqpb.Phase_PRE
+		p.pbPhase = chqpb.Phase_PRE
 	} else {
-		dog.pbPhase = chqpb.Phase_POST
+		p.pbPhase = chqpb.Phase_POST
 	}
 
 	processorId := set.ID.String()
@@ -144,17 +145,17 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 	capacity := 1000
 	switch ttype {
 	case "logs":
-		dog.logstats = chqpb.NewEventStatsCache(capacity, 16, 5*time.Minute, dog.sendLogStats, chqpb.InitializeEventStats, clock)
-		dog.logstats.Start()
-		dog.logger.Info("Initialized LogStats Combiner", zap.Duration("interval", config.Statistics.Interval))
+		p.logstats = chqpb.NewEventStatsCache(capacity, 16, 5*time.Minute, p.sendLogStats, chqpb.InitializeEventStats, clock)
+		p.logstats.Start()
+		p.logger.Info("Initialized LogStats Combiner", zap.Duration("interval", config.Statistics.Interval))
 	case "metrics":
-		dog.metricstats = chqpb.NewMetricStatsCache(capacity, 16, 5*time.Minute, dog.sendMetricStats, chqpb.InitializeMetricStats, clock)
-		dog.metricstats.Start()
-		dog.logger.Info("Initialized MetricStatsCache", zap.Duration("interval", config.Statistics.Interval))
+		p.metricstats = chqpb.NewMetricStatsCache(capacity, 16, 5*time.Minute, p.sendMetricStats, chqpb.InitializeMetricStats, clock)
+		p.metricstats.Start()
+		p.logger.Info("Initialized MetricStatsCache", zap.Duration("interval", config.Statistics.Interval))
 	case "traces":
-		dog.spanStats = chqpb.NewEventStatsCache(capacity, 16, 5*time.Minute, dog.sendSpanStats, chqpb.InitializeEventStats, clock)
-		dog.spanStats.Start()
-		dog.logger.Info("Initialized SpanStats Combiner", zap.Duration("interval", config.Statistics.Interval))
+		p.spanStats = chqpb.NewEventStatsCache(capacity, 16, 5*time.Minute, p.sendSpanStats, chqpb.InitializeEventStats, clock)
+		p.spanStats.Start()
+		p.logger.Info("Initialized SpanStats Combiner", zap.Duration("interval", config.Statistics.Interval))
 	}
 
 	attrset := attribute.NewSet(
@@ -171,7 +172,7 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 	if histogramError != nil {
 		return nil, histogramError
 	}
-	dog.statsBatchSize = histogram
+	p.statsBatchSize = histogram
 
 	cacheFullCounter, cacheFullErr := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
 		"cache_full",
@@ -183,7 +184,7 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 	if cacheFullErr != nil {
 		return nil, histogramError
 	}
-	dog.cacheFull = cacheFullCounter
+	p.cacheFull = cacheFullCounter
 
 	recordLatencyHistogram, recordLatencyHistogramError := telemetry.NewDeferrableHistogram(metadata.Meter(set.TelemetrySettings),
 		"record_latency",
@@ -195,34 +196,34 @@ func newStatsProc(config *Config, ttype string, set processor.Settings) (*statsP
 	if recordLatencyHistogramError != nil {
 		return nil, recordLatencyHistogramError
 	}
-	dog.recordLatency = recordLatencyHistogram
+	p.recordLatency = recordLatencyHistogram
 
-	return dog, nil
+	return p, nil
 }
 
-func (e *statsProc) Capabilities() consumer.Capabilities {
+func (p *statsProcessor) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: false}
 }
 
-func (e *statsProc) Start(ctx context.Context, host component.Host) error {
-	httpClient, err := e.httpClientSettings.ToClient(ctx, host, e.telemetrySettings)
+func (p *statsProcessor) Start(ctx context.Context, host component.Host) error {
+	httpClient, err := p.httpClientSettings.ToClient(ctx, host, p.telemetrySettings)
 	if err != nil {
 		return err
 	}
-	e.httpClient = httpClient
+	p.httpClient = httpClient
 
-	ext, found := host.GetExtensions()[*e.config.ConfigurationExtension]
+	ext, found := host.GetExtensions()[*p.config.ConfigurationExtension]
 	if !found {
-		return errors.New("configuration extension " + e.config.ConfigurationExtension.String() + " not found")
+		return errors.New("configuration extension " + p.config.ConfigurationExtension.String() + " not found")
 	}
 	cext, ok := ext.(*chqconfigextension.CHQConfigExtension)
 	if !ok {
-		return errors.New("configuration extension " + e.config.ConfigurationExtension.String() + " is not a chqconfig extension")
+		return errors.New("configuration extension " + p.config.ConfigurationExtension.String() + " is not a chqconfig extension")
 	}
-	e.configExtension = cext
-	e.configCallbackID = e.configExtension.RegisterCallback(e.id.String()+"/"+e.ttype, e.configUpdateCallback)
+	p.configExtension = cext
+	p.configCallbackID = p.configExtension.RegisterCallback(p.id.String()+"/"+p.ttype, p.configUpdateCallback)
 
-	e.idsFromEnv = e.config.IDSource == "env"
+	p.idsFromEnv = p.config.IDSource == "env"
 
 	ticker := time.NewTicker(5 * time.Minute)
 	go func() {
@@ -232,7 +233,7 @@ func (e *statsProc) Start(ctx context.Context, host component.Host) error {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				e.publishResourceEntities(ctx)
+				p.publishResourceEntities(ctx)
 			}
 		}
 	}()
@@ -240,22 +241,22 @@ func (e *statsProc) Start(ctx context.Context, host component.Host) error {
 	return nil
 }
 
-func (e *statsProc) Shutdown(ctx context.Context) error {
+func (p *statsProcessor) Shutdown(ctx context.Context) error {
 	var errors *multierror.Error
-	e.configExtension.UnregisterCallback(e.configCallbackID)
+	p.configExtension.UnregisterCallback(p.configCallbackID)
 	return errors.ErrorOrNil()
 }
 
-func (e *statsProc) processEnrichments(attributesByScope map[string]pcommon.Map) []*chqpb.Attribute {
+func (p *statsProcessor) processEnrichments(attributesByScope map[string]pcommon.Map) []*chqpb.Attribute {
 	tags := make([]*chqpb.Attribute, 0)
 	var enrichments *[]ottl.StatsEnrichment
-	switch e.ttype {
+	switch p.ttype {
 	case "logs":
-		enrichments = e.logStatsEnrichments.Load()
+		enrichments = p.logStatsEnrichments.Load()
 	case "metrics":
-		enrichments = e.metricsStatsEnrichments.Load()
+		enrichments = p.metricsStatsEnrichments.Load()
 	case "traces":
-		enrichments = e.tracesStatsEnrichments.Load()
+		enrichments = p.tracesStatsEnrichments.Load()
 	}
 
 	if enrichments != nil {
@@ -283,8 +284,8 @@ func toAttribute(contextId string, k string, v pcommon.Value, isAttribute bool) 
 	}
 }
 
-func (e *statsProc) configUpdateCallback(cpc ottl.ControlPlaneConfig) {
-	configs := cpc.Stats[e.id.Name()]
+func (p *statsProcessor) configUpdateCallback(cpc ottl.ControlPlaneConfig) {
+	configs := cpc.Stats[p.id.Name()]
 	if configs == nil {
 		configs = cpc.Stats[uuid.Nil.String()]
 	}
@@ -292,19 +293,19 @@ func (e *statsProc) configUpdateCallback(cpc ottl.ControlPlaneConfig) {
 		return
 	}
 
-	switch e.ttype {
+	switch p.ttype {
 	case "logs":
-		e.logStatsEnrichments.Store(&configs.LogEnrichments)
-		e.logger.Info("Stats enrichment for logs", zap.String("instance", e.id.Name()), zap.Int("enrichments", len(configs.LogEnrichments)))
+		p.logStatsEnrichments.Store(&configs.LogEnrichments)
+		p.logger.Info("Stats enrichment for logs", zap.String("instance", p.id.Name()), zap.Int("enrichments", len(configs.LogEnrichments)))
 	case "metrics":
-		e.metricsStatsEnrichments.Store(&configs.MetricEnrichments)
-		e.logger.Info("Stats enrichment for metrics", zap.String("instance", e.id.Name()), zap.Int("enrichments", len(configs.MetricEnrichments)))
+		p.metricsStatsEnrichments.Store(&configs.MetricEnrichments)
+		p.logger.Info("Stats enrichment for metrics", zap.String("instance", p.id.Name()), zap.Int("enrichments", len(configs.MetricEnrichments)))
 	case "traces":
-		e.tracesStatsEnrichments.Store(&configs.SpanEnrichments)
-		e.logger.Info("Stats enrichment for traces", zap.String("instance", e.id.Name()), zap.Int("enrichments", len(configs.SpanEnrichments)))
+		p.tracesStatsEnrichments.Store(&configs.SpanEnrichments)
+		p.logger.Info("Stats enrichment for traces", zap.String("instance", p.id.Name()), zap.Int("enrichments", len(configs.SpanEnrichments)))
 	}
 
-	e.logger.Info("Configuration updated for processor instance", zap.String("instance", e.id.Name()))
+	p.logger.Info("Configuration updated for processor instance", zap.String("instance", p.id.Name()))
 }
 
 func hashString(s string) int64 {
@@ -313,21 +314,21 @@ func hashString(s string) int64 {
 	return int64(h.Sum64())
 }
 
-func (e *statsProc) toExemplarKey(serviceName string, fingerprint int64) int64 {
+func (p *statsProcessor) toExemplarKey(serviceName string, fingerprint int64) int64 {
 	return hashString(fmt.Sprintf("%s-%d", serviceName, fingerprint))
 }
 
-func (e *statsProc) publishResourceEntities(ctx context.Context) {
+func (p *statsProcessor) publishResourceEntities(ctx context.Context) {
 	var cache *graph.ResourceEntityCache
-	switch e.ttype {
+	switch p.ttype {
 	case "logs":
-		cache = e.logsEntityCache
+		cache = p.logsEntityCache
 	case "metrics":
-		cache = e.metricsEntityCache
+		cache = p.metricsEntityCache
 	case "traces":
-		cache = e.tracesEntityCache
+		cache = p.tracesEntityCache
 	default:
-		e.logger.Error("Unknown processor type", zap.String("type", e.ttype))
+		p.logger.Error("Unknown processor type", zap.String("type", p.ttype))
 		return
 	}
 
@@ -335,12 +336,12 @@ func (e *statsProc) publishResourceEntities(ctx context.Context) {
 	if len(protoEntities) == 0 {
 		return
 	}
-	if err := e.postEntityRelationships(ctx, e.ttype, protoEntities); err != nil {
-		e.logger.Error("Failed to send entity relationships", zap.Error(err))
+	if err := p.postEntityRelationships(ctx, p.ttype, protoEntities); err != nil {
+		p.logger.Error("Failed to send entity relationships", zap.Error(err))
 	}
 }
 
-func (e *statsProc) postEntityRelationships(ctx context.Context, ttype string, payload []byte) error {
+func (p *statsProcessor) postEntityRelationships(ctx context.Context, ttype string, payload []byte) error {
 
 	var compressedData bytes.Buffer
 	gzipWriter := gzip.NewWriter(&compressedData)
@@ -351,7 +352,7 @@ func (e *statsProc) postEntityRelationships(ctx context.Context, ttype string, p
 		return err
 	}
 
-	endpoint := e.config.Endpoint + fmt.Sprintf("%s?telemetryType=%s", "/api/v1/entityRelationships", ttype)
+	endpoint := p.config.Endpoint + fmt.Sprintf("%s?telemetryType=%s", "/api/v1/entityRelationships", ttype)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, &compressedData)
 	if err != nil {
 		return err
@@ -360,19 +361,19 @@ func (e *statsProc) postEntityRelationships(ctx context.Context, ttype string, p
 
 	req.Header.Set("Content-Encoding", "gzip")
 
-	resp, err := e.httpClient.Do(req)
+	resp, err := p.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
-			e.logger.Error("Failed to close response body", zap.Error(closeErr))
+			p.logger.Error("Failed to close response body", zap.Error(closeErr))
 		}
 	}()
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		e.logger.Error("Failed to send resource entities",
+		p.logger.Error("Failed to send resource entities",
 			zap.String("endpoint", endpoint),
 			zap.Int("status", resp.StatusCode),
 			zap.String("body", string(body)),

@@ -38,12 +38,12 @@ func createDefaultConfig() component.Config {
 }
 
 func createMetricsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Metrics) (processor.Metrics, error) {
-	e, err := newSummarySplitter(cfg.(*Config), set, nextConsumer)
+	p, err := newSummarySplitter(cfg.(*Config), set, nextConsumer)
 	if err != nil {
 		return nil, err
 	}
 	return processorhelper.NewMetrics(
 		ctx, set, cfg, nextConsumer,
-		e.ConsumeMetrics,
-		processorhelper.WithCapabilities(e.Capabilities()))
+		p.ConsumeMetrics,
+		processorhelper.WithCapabilities(p.Capabilities()))
 }

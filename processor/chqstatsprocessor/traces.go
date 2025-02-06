@@ -45,13 +45,11 @@ func (p *statsProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) (p
 	for i := 0; i < td.ResourceSpans().Len(); i++ {
 		rs := td.ResourceSpans().At(i)
 		resourceAttributes := rs.Resource().Attributes()
-		globalEntityMap := p.tracesEntityCache.ProvisionResourceAttributes(resourceAttributes)
 		serviceName := getServiceName(resourceAttributes)
 		for j := 0; j < rs.ScopeSpans().Len(); j++ {
 			iss := rs.ScopeSpans().At(j)
 			for k := 0; k < iss.Spans().Len(); k++ {
 				sr := iss.Spans().At(k)
-				p.tracesEntityCache.ProvisionRecordAttributes(globalEntityMap, sr.Attributes())
 				isSlow := false
 				if isslowValue, found := sr.Attributes().Get(translate.CardinalFieldSpanIsSlow); found {
 					isSlow = isslowValue.Bool()

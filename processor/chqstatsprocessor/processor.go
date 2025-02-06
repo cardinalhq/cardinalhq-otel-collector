@@ -15,20 +15,14 @@
 package chqstatsprocessor
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
 	"hash/fnv"
-	"io"
-	"log/slog"
 	"net/http"
 	"os"
 	"sync/atomic"
 	"time"
-
-	"github.com/cardinalhq/oteltools/pkg/graph"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor/internal/metadata"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
@@ -92,10 +86,6 @@ type statsProcessor struct {
 	traceExemplars  *LRUCache
 	metricExemplars *LRUCache
 
-	logsEntityCache    *graph.ResourceEntityCache
-	metricsEntityCache *graph.ResourceEntityCache
-	tracesEntityCache  *graph.ResourceEntityCache
-
 	jsonMarshaller otelJsonMarshaller
 
 	logStatsEnrichments     atomic.Pointer[[]ottl.StatsEnrichment]
@@ -120,9 +110,6 @@ func newStatsProcessor(config *Config, ttype string, set processor.Settings) (*s
 		logExemplars:       NewLRUCache(1000, 5*time.Minute),
 		traceExemplars:     NewLRUCache(1000, 5*time.Minute),
 		metricExemplars:    NewLRUCache(1000, 5*time.Minute),
-		logsEntityCache:    graph.NewResourceEntityCache(),
-		metricsEntityCache: graph.NewResourceEntityCache(),
-		tracesEntityCache:  graph.NewResourceEntityCache(),
 		logger:             set.Logger,
 		podName:            os.Getenv("POD_NAME"),
 	}
@@ -225,19 +212,6 @@ func (p *statsProcessor) Start(ctx context.Context, host component.Host) error {
 
 	p.idsFromEnv = p.config.IDSource == "env"
 
-	ticker := time.NewTicker(5 * time.Minute)
-	go func() {
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				p.publishResourceEntities(ctx)
-			}
-		}
-	}()
-
 	return nil
 }
 
@@ -316,69 +290,4 @@ func hashString(s string) int64 {
 
 func (p *statsProcessor) toExemplarKey(serviceName string, fingerprint int64) int64 {
 	return hashString(fmt.Sprintf("%s-%d", serviceName, fingerprint))
-}
-
-func (p *statsProcessor) publishResourceEntities(ctx context.Context) {
-	var cache *graph.ResourceEntityCache
-	switch p.ttype {
-	case "logs":
-		cache = p.logsEntityCache
-	case "metrics":
-		cache = p.metricsEntityCache
-	case "traces":
-		cache = p.tracesEntityCache
-	default:
-		p.logger.Error("Unknown processor type", zap.String("type", p.ttype))
-		return
-	}
-
-	protoEntities := cache.GetAllEntities()
-	if len(protoEntities) == 0 {
-		return
-	}
-	if err := p.postEntityRelationships(ctx, p.ttype, protoEntities); err != nil {
-		p.logger.Error("Failed to send entity relationships", zap.Error(err))
-	}
-}
-
-func (p *statsProcessor) postEntityRelationships(ctx context.Context, ttype string, payload []byte) error {
-	var compressedData bytes.Buffer
-	gzipWriter := gzip.NewWriter(&compressedData)
-	if _, err := gzipWriter.Write(payload); err != nil {
-		return err
-	}
-	if err := gzipWriter.Close(); err != nil {
-		return err
-	}
-
-	endpoint := p.config.Endpoint + fmt.Sprintf("%s?telemetryType=%s", "/api/v1/entityRelationships", ttype)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, &compressedData)
-	if err != nil {
-		return err
-	}
-	slog.Info("Sending entity relationships", slog.String("endpoint", endpoint), slog.Int("payloadSize", len(payload)))
-
-	req.Header.Set("Content-Encoding", "gzip")
-
-	resp, err := p.httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			p.logger.Error("Failed to close response body", zap.Error(closeErr))
-		}
-	}()
-
-	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		p.logger.Error("Failed to send resource entities",
-			zap.String("endpoint", endpoint),
-			zap.Int("status", resp.StatusCode),
-			zap.String("body", string(body)),
-		)
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	return nil
 }

@@ -1,0 +1,26 @@
+receivers:
+  nop:
+
+processors:
+  chqrelationshipsprocessor:
+
+exporters:
+  nop:
+
+service:
+  pipelines:
+    traces:
+      receivers: [nop]
+      processors: [chqrelationshipsprocessor]
+      exporters: [nop]
+    metrics:
+      receivers: [nop]
+      processors: [chqrelationshipsprocessor]
+      exporters: [nop]
+    logs:
+      receivers: [nop]
+      processors: [chqrelationshipsprocessor]
+      exporters: [nop]
+
+extensions:
+  nop:

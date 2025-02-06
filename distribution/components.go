@@ -51,6 +51,7 @@ import (
 	memorylimiterprocessor "go.opentelemetry.io/collector/processor/memorylimiterprocessor"
 	aggregationprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor"
 	chqstatsprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor"
+	chqrelationshipsprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/chqrelationshipsprocessor"
 	pitbullprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor"
 	fingerprintprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor"
 	piiredactionprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor"
@@ -195,6 +196,7 @@ func components() (otelcol.Factories, error) {
 		memorylimiterprocessor.NewFactory(),
 		aggregationprocessor.NewFactory(),
 		chqstatsprocessor.NewFactory(),
+		chqrelationshipsprocessor.NewFactory(),
 		pitbullprocessor.NewFactory(),
 		fingerprintprocessor.NewFactory(),
 		piiredactionprocessor.NewFactory(),
@@ -222,6 +224,7 @@ func components() (otelcol.Factories, error) {
 	factories.ProcessorModules[memorylimiterprocessor.NewFactory().Type()] = "go.opentelemetry.io/collector/processor/memorylimiterprocessor v0.117.0"
 	factories.ProcessorModules[aggregationprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.117.0"
 	factories.ProcessorModules[chqstatsprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor v0.117.0"
+	factories.ProcessorModules[chqrelationshipsprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/chqrelationshipsprocessor v0.117.0"
 	factories.ProcessorModules[pitbullprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.117.0"
 	factories.ProcessorModules[fingerprintprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor v0.117.0"
 	factories.ProcessorModules[piiredactionprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor v0.117.0"

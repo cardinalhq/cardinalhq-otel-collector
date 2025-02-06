@@ -91,6 +91,8 @@ processors:
     path: ./processor/aggregationprocessor
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor v0.117.0
     path: ./processor/chqstatsprocessor
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/chqrelationshipsprocessor v0.117.0
+    path: ./processor/chqrelationshipsprocessor
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.117.0
     path: ./processor/pitbullprocessor
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor v0.117.0

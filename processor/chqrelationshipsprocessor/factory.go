@@ -37,21 +37,19 @@ func NewFactory() processor.Factory {
 }
 
 const (
-	defaultStatisticsInterval = 1 * time.Minute
+	defaultReportingInterval = 5 * time.Minute
 )
 
 func createDefaultConfig() component.Config {
 	return &Config{
-		IDSource: "env",
-		Statistics: StatisticsConfig{
-			Phase:    "postsample",
-			Interval: defaultStatisticsInterval,
+		Reporting: ReportingConfig{
+			Interval: defaultReportingInterval,
 		},
 	}
 }
 
 func createLogsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Logs) (processor.Logs, error) {
-	p, err := newStatsProcessor(cfg.(*Config), "logs", set)
+	p, err := newRelationshiosProcessor(cfg.(*Config), "logs", set)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +62,7 @@ func createLogsProcessor(ctx context.Context, set processor.Settings, cfg compon
 }
 
 func createMetricsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Metrics) (processor.Metrics, error) {
-	p, err := newStatsProcessor(cfg.(*Config), "metrics", set)
+	p, err := newRelationshiosProcessor(cfg.(*Config), "metrics", set)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +75,7 @@ func createMetricsProcessor(ctx context.Context, set processor.Settings, cfg com
 }
 
 func createSpansProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Traces) (processor.Traces, error) {
-	p, err := newStatsProcessor(cfg.(*Config), "traces", set)
+	p, err := newRelationshiosProcessor(cfg.(*Config), "traces", set)
 	if err != nil {
 		return nil, err
 	}

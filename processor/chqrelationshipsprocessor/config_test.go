@@ -40,9 +40,9 @@ func TestLoadConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
-	e := cfg.Processors[component.MustNewID("chqstats")].(*Config)
+	e := cfg.Processors[component.MustNewID("chqrelationships")].(*Config)
 	assert.NoError(t, e.Validate())
-	assert.NotNil(t, e.Statistics)
+	assert.NotNil(t, e.Reporting)
 	assert.Equal(t, createDefaultConfig(), e)
 }
 
@@ -59,14 +59,12 @@ func TestConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
-	e := cfg.Processors[component.MustNewID("chqstats")].(*Config)
+	e := cfg.Processors[component.MustNewID("chqrelationships")].(*Config)
 	assert.NoError(t, e.Validate())
-	assert.NotNil(t, e.Statistics)
+	assert.NotNil(t, e.Reporting)
 	expected := &Config{
-		IDSource: "env",
-		Statistics: StatisticsConfig{
-			Interval: 100 * time.Second,
-			Phase:    "presample",
+		Reporting: ReportingConfig{
+			Interval: 600 * time.Second,
 		},
 	}
 	assert.Equal(t, expected, e)

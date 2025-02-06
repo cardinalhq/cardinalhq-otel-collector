@@ -20,20 +20,16 @@ import (
 
 	"go.opentelemetry.io/collector/config/confighttp"
 
-	"go.opentelemetry.io/collector/component"
 	"go.uber.org/multierr"
 )
 
 type Config struct {
 	confighttp.ClientConfig `mapstructure:",squash"`
-	Statistics              StatisticsConfig `mapstructure:"statistics"`
-	ConfigurationExtension  *component.ID    `mapstructure:"configuration_extension"`
-	IDSource                string           `mapstructure:"id_source"`
+	Reporting               ReportingConfig `mapstructure:"reporting"`
 }
 
-type StatisticsConfig struct {
+type ReportingConfig struct {
 	Interval time.Duration `mapstructure:"interval"`
-	Phase    string        `mapstructure:"phase"`
 }
 
 type ContextID = string
@@ -41,27 +37,19 @@ type ContextID = string
 func (c *Config) Validate() error {
 	var errs error
 
-	if c.IDSource != "auth" && c.IDSource != "env" {
-		errs = multierr.Append(errs, errors.New("id_source must be either 'auth' or 'env'"))
-	}
-
-	errs = multierr.Append(errs, c.Statistics.Validate())
+	errs = multierr.Append(errs, c.Reporting.Validate())
 
 	return errs
 }
 
-func (c *StatisticsConfig) Validate() error {
+func (c *ReportingConfig) Validate() error {
 	var errs error
 	if c.Interval == 0 {
-		c.Interval = 5 * time.Minute
+		c.Interval = defaultReportingInterval
 	}
 
 	if c.Interval < 0 {
 		errs = multierr.Append(errs, errors.New("interval must be greater than or equal to 0"))
-	}
-
-	if c.Phase != "presample" && c.Phase != "postsample" {
-		errs = multierr.Append(errs, errors.New("phase must be either presample or postsample, not "+c.Phase))
 	}
 
 	return errs

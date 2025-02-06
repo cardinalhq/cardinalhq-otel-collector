@@ -38,10 +38,10 @@ func createDefaultConfig() component.Config {
 }
 
 func createLogsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Logs) (processor.Logs, error) {
-	e, err := newProcessor(cfg.(*Config), set)
+	p, err := newProcessor(cfg.(*Config), set)
 	if err != nil {
 		return nil, err
 	}
 
-	return processorhelper.NewLogs(ctx, set, cfg, nextConsumer, e.ConsumeLogs, processorhelper.WithCapabilities(e.Capabilities()))
+	return processorhelper.NewLogs(ctx, set, cfg, nextConsumer, p.ConsumeLogs, processorhelper.WithCapabilities(p.Capabilities()))
 }

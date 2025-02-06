@@ -46,13 +46,13 @@ func getFingerprint(l pcommon.Map) int64 {
 	return 0
 }
 
-func (e *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
+func (p *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
 	if ld.ResourceLogs().Len() == 0 {
 		return ld, nil
 	}
 
-	transformations := e.logTransformations.Load()
-	luc := e.logsLookupConfigs.Load()
+	transformations := p.logTransformations.Load()
+	luc := p.logsLookupConfigs.Load()
 	if transformations == nil && luc == nil {
 		return ld, nil
 	}
@@ -60,7 +60,7 @@ func (e *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 	ld.ResourceLogs().RemoveIf(func(rl plog.ResourceLogs) bool {
 		transformCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
 		if transformations != nil {
-			transformations.ExecuteResourceTransforms(e.logger, e.ottlProcessed, e.ottlErrors, e.histogram, transformCtx)
+			transformations.ExecuteResourceTransforms(p.logger, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
 			if _, found := rl.Resource().Attributes().Get(translate.CardinalFieldDropMarker); found {
 				return true
 			}
@@ -69,7 +69,7 @@ func (e *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 		rl.ScopeLogs().RemoveIf(func(sl plog.ScopeLogs) bool {
 			transformCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), rl)
 			if transformations != nil {
-				transformations.ExecuteScopeTransforms(e.logger, e.ottlProcessed, e.ottlErrors, e.histogram, transformCtx)
+				transformations.ExecuteScopeTransforms(p.logger, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
 				if _, found := sl.Scope().Attributes().Get(translate.CardinalFieldDropMarker); found {
 					return true
 				}
@@ -85,7 +85,7 @@ func (e *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 				if transformations == nil {
 					return false
 				}
-				transformations.ExecuteLogTransforms(e.logger, e.ottlProcessed, e.ottlErrors, e.histogram, transformCtx)
+				transformations.ExecuteLogTransforms(p.logger, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
 				_, dropMe := lr.Attributes().Get(translate.CardinalFieldDropMarker)
 				return dropMe
 			})
@@ -106,22 +106,22 @@ func removeAllCardinalFields(attr pcommon.Map) {
 	})
 }
 
-func (e *pitbull) updateLogTransformations(sc *ottl.PitbullProcessorConfig, logger *zap.Logger) {
+func (p *pitbull) updateLogTransformations(sc *ottl.PitbullProcessorConfig, logger *zap.Logger) {
 	if sc == nil {
 		return
 	}
-	e.logger.Info("Updating log transformations", zap.Int("num_decorators", len(sc.LogStatements)))
+	p.logger.Info("Updating log transformations", zap.Int("num_decorators", len(sc.LogStatements)))
 	newTransformations := ottl.NewTransformations()
 
-	transformations, err := ottl.ParseTransformations(e.logger, sc.LogStatements)
+	transformations, err := ottl.ParseTransformations(p.logger, sc.LogStatements)
 	if err != nil {
-		e.logger.Error("Error parsing log transformation", zap.Error(err))
+		p.logger.Error("Error parsing log transformation", zap.Error(err))
 	} else {
 		newTransformations = ottl.MergeWith(newTransformations, transformations)
 	}
 
-	oldTransformations := e.logTransformations.Load()
-	e.logTransformations.Store(newTransformations)
+	oldTransformations := p.logTransformations.Load()
+	p.logTransformations.Store(newTransformations)
 	if oldTransformations != nil {
 		oldTransformations.Stop()
 	}

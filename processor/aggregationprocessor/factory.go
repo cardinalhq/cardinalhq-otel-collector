@@ -26,7 +26,6 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor/internal/metadata"
 )
 
-// NewFactory creates a factory for S3 exporter.
 func NewFactory() processor.Factory {
 	return processor.NewFactory(
 		metadata.Type,
@@ -48,12 +47,12 @@ func createDefaultConfig() component.Config {
 }
 
 func createMetricsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Metrics) (processor.Metrics, error) {
-	e, err := newPitbull(cfg.(*Config), "metrics", set, nextConsumer)
+	p, err := newPitbull(cfg.(*Config), "metrics", set, nextConsumer)
 	if err != nil {
 		return nil, err
 	}
 	return processorhelper.NewMetrics(
 		ctx, set, cfg, nextConsumer,
-		e.ConsumeMetrics,
-		processorhelper.WithCapabilities(e.Capabilities()))
+		p.ConsumeMetrics,
+		processorhelper.WithCapabilities(p.Capabilities()))
 }

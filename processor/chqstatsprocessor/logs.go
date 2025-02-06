@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sync"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -51,9 +50,9 @@ func getFingerprint(l pcommon.Map) int64 {
 	return 0
 }
 
-func (e *statsProc) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Logs, error) {
+func (p *statsProcessor) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Logs, error) {
 	var ee translate.Environment
-	if e.idsFromEnv {
+	if p.idsFromEnv {
 		ee = translate.EnvironmentFromEnv()
 	} else {
 		ee = translate.EnvironmentFromAuth(ctx)
@@ -64,7 +63,7 @@ func (e *statsProc) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Logs, e
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
 		resourceAttributes := rl.Resource().Attributes()
-		globalEntityMap := e.logsEntityCache.ProvisionResourceAttributes(resourceAttributes)
+		globalEntityMap := p.logsEntityCache.ProvisionResourceAttributes(resourceAttributes)
 
 		serviceName := getServiceName(resourceAttributes)
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
@@ -72,9 +71,9 @@ func (e *statsProc) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Logs, e
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				lr := sl.LogRecords().At(k)
 				fp := getFingerprint(lr.Attributes())
-				e.logsEntityCache.ProvisionRecordAttributes(globalEntityMap, lr.Attributes())
-				if err := e.recordLog(now, ee, serviceName, fp, rl, sl, lr); err != nil {
-					e.logger.Error("Failed to record log", zap.Error(err))
+				p.logsEntityCache.ProvisionRecordAttributes(globalEntityMap, lr.Attributes())
+				if err := p.recordLog(now, ee, serviceName, fp, rl, sl, lr); err != nil {
+					p.logger.Error("Failed to record log", zap.Error(err))
 				}
 			}
 		}
@@ -83,17 +82,12 @@ func (e *statsProc) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Logs, e
 	return ld, nil
 }
 
-var reportLogMetricsOnce sync.Once
-
-func (e *statsProc) recordLog(now time.Time, environment translate.Environment, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) error {
-	if e.enableLogMetrics {
-		reportLogMetricsOnce.Do(func() {
-			e.logger.Info("**************************************** Log metrics are enabled")
-		})
+func (p *statsProcessor) recordLog(now time.Time, environment translate.Environment, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) error {
+	if p.enableLogMetrics {
 		message := lr.Body().AsString()
 		logSize := int64(len(message))
 
-		enrichmentAttributes := e.processEnrichments(map[string]pcommon.Map{
+		enrichmentAttributes := p.processEnrichments(map[string]pcommon.Map{
 			"resource": rl.Resource().Attributes(),
 			"scope":    sl.Scope().Attributes(),
 			"log":      lr.Attributes(),
@@ -109,25 +103,25 @@ func (e *statsProc) recordLog(now time.Time, environment translate.Environment, 
 			})
 		}
 
-		if e.enableLogMetrics {
-			err := e.logstats.Record(serviceName, fingerprint, e.pbPhase, e.id.Name(), environment.CollectorID(), environment.CustomerID(), enrichmentAttributes, 1, logSize)
+		if p.enableLogMetrics {
+			err := p.logstats.Record(serviceName, fingerprint, p.pbPhase, p.id.Name(), environment.CollectorID(), environment.CustomerID(), enrichmentAttributes, 1, logSize)
 			if err != nil && errors.Is(err, chqpb.ErrCacheFull) {
-				telemetry.CounterAdd(e.cacheFull, 1)
+				telemetry.CounterAdd(p.cacheFull, 1)
 			}
 		}
 	}
 
-	e.addLogExemplar(rl, sl, lr, serviceName, fingerprint)
-	telemetry.HistogramRecord(e.recordLatency, int64(time.Since(now)))
+	p.addLogExemplar(rl, sl, lr, serviceName, fingerprint)
+	telemetry.HistogramRecord(p.recordLatency, int64(time.Since(now)))
 
 	return nil
 }
 
-func (e *statsProc) addLogExemplar(rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord, serviceName string, fingerprint int64) {
-	if e.pbPhase == chqpb.Phase_PRE {
-		key := e.toExemplarKey(serviceName, fingerprint)
+func (p *statsProcessor) addLogExemplar(rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord, serviceName string, fingerprint int64) {
+	if p.pbPhase == chqpb.Phase_PRE {
+		key := p.toExemplarKey(serviceName, fingerprint)
 
-		if e.logExemplars.Contains(key) {
+		if p.logExemplars.Contains(key) {
 			return
 		}
 
@@ -139,18 +133,18 @@ func (e *statsProc) addLogExemplar(rl plog.ResourceLogs, sl plog.ScopeLogs, lr p
 		copyLr := copySl.LogRecords().AppendEmpty()
 		lr.CopyTo(copyLr)
 
-		marshalled, me := e.jsonMarshaller.logsMarshaler.MarshalLogs(exemplarLd)
+		marshalled, me := p.jsonMarshaller.logsMarshaler.MarshalLogs(exemplarLd)
 		if me != nil {
 			return
 		}
-		e.logExemplars.Put(key, marshalled)
+		p.logExemplars.Put(key, marshalled)
 	}
 }
 
-func (e *statsProc) sendLogStats(statsList []*chqpb.EventStats) {
+func (p *statsProcessor) sendLogStats(statsList []*chqpb.EventStats) {
 	for _, stat := range statsList {
-		key := e.toExemplarKey(stat.ServiceName, stat.Fingerprint)
-		exemplarBytes, found := e.logExemplars.Get(key)
+		key := p.toExemplarKey(stat.ServiceName, stat.Fingerprint)
+		exemplarBytes, found := p.logExemplars.Get(key)
 		if !found {
 			continue
 		}
@@ -161,38 +155,38 @@ func (e *statsProc) sendLogStats(statsList []*chqpb.EventStats) {
 		SubmittedAt: time.Now().UnixMilli(),
 		Stats:       statsList}
 
-	if err := e.postLogStats(context.Background(), wrapper); err != nil {
-		e.logger.Error("Failed to send log stats", zap.Error(err))
+	if err := p.postLogStats(context.Background(), wrapper); err != nil {
+		p.logger.Error("Failed to send log stats", zap.Error(err))
 	}
 }
 
-func (e *statsProc) postLogStats(ctx context.Context, wrapper *chqpb.EventStatsReport) error {
+func (p *statsProcessor) postLogStats(ctx context.Context, wrapper *chqpb.EventStatsReport) error {
 	b, err := proto.Marshal(wrapper)
 	if err != nil {
 		return err
 	}
-	telemetry.HistogramRecord(e.statsBatchSize, int64(len(b)))
-	endpoint := e.config.Endpoint + "/api/v1/logstats"
+	telemetry.HistogramRecord(p.statsBatchSize, int64(len(b)))
+	endpoint := p.config.Endpoint + "/api/v1/logstats"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/x-protobuf")
 
-	resp, err := e.httpClient.Do(req)
+	resp, err := p.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-			e.logger.Error("Failed to close response body", zap.Error(err))
+			p.logger.Error("Failed to close response body", zap.Error(err))
 		}
 	}(resp.Body)
 	body, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		e.logger.Error("Failed to send log stats", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
+		p.logger.Error("Failed to send log stats", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 	return nil

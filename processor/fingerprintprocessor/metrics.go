@@ -23,7 +23,7 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
-func (e *fingerprintProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
+func (p *fingerprintProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
 	environment := translate.EnvironmentFromEnv()
 
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
@@ -39,27 +39,27 @@ func (e *fingerprintProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Me
 				case pmetric.MetricTypeGauge:
 					for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
 						dp := m.Gauge().DataPoints().At(l)
-						e.processDatapoint(extra, environment, rattr, sattr, dp.Attributes())
+						p.processDatapoint(extra, environment, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeSum:
 					for l := 0; l < m.Sum().DataPoints().Len(); l++ {
 						dp := m.Sum().DataPoints().At(l)
-						e.processDatapoint(extra, environment, rattr, sattr, dp.Attributes())
+						p.processDatapoint(extra, environment, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeHistogram:
 					for l := 0; l < m.Histogram().DataPoints().Len(); l++ {
 						dp := m.Histogram().DataPoints().At(l)
-						e.processDatapoint(extra, environment, rattr, sattr, dp.Attributes())
+						p.processDatapoint(extra, environment, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeSummary:
 					for l := 0; l < m.Summary().DataPoints().Len(); l++ {
 						dp := m.Summary().DataPoints().At(l)
-						e.processDatapoint(extra, environment, rattr, sattr, dp.Attributes())
+						p.processDatapoint(extra, environment, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeExponentialHistogram:
 					for l := 0; l < m.ExponentialHistogram().DataPoints().Len(); l++ {
 						dp := m.ExponentialHistogram().DataPoints().At(l)
-						e.processDatapoint(extra, environment, rattr, sattr, dp.Attributes())
+						p.processDatapoint(extra, environment, rattr, sattr, dp.Attributes())
 					}
 				}
 			}
@@ -69,7 +69,7 @@ func (e *fingerprintProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Me
 	return md, nil
 }
 
-func (e *fingerprintProcessor) processDatapoint(extra map[string]string, environment translate.Environment, rattr, sattr, dattr pcommon.Map) {
+func (p *fingerprintProcessor) processDatapoint(extra map[string]string, environment translate.Environment, rattr, sattr, dattr pcommon.Map) {
 	tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 	dattr.PutInt(translate.CardinalFieldTID, tid)
 }

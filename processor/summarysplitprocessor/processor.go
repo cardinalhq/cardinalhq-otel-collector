@@ -28,17 +28,17 @@ type summarysplit struct {
 }
 
 func newSummarySplitter(_ *Config, set processor.Settings, nextConsumer consumer.Metrics) (*summarysplit, error) {
-	ss := &summarysplit{
+	p := &summarysplit{
 		id:                 set.ID,
 		logger:             set.Logger,
 		nextMetricReceiver: nextConsumer,
 	}
 
-	ss.logger.Info("SummarySplit processor is enabled. Converting summary metrics to quantile metrics.")
+	p.logger.Info("SummarySplit processor is enabled. Converting summary metrics to quantile metrics.")
 
-	return ss, nil
+	return p, nil
 }
 
-func (e *summarysplit) Capabilities() consumer.Capabilities {
+func (p *summarysplit) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: true}
 }

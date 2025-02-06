@@ -29,7 +29,7 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
-func (e *aggregationProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
+func (p *aggregationProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
 	if md.ResourceMetrics().Len() == 0 {
 		return md, nil
 	}
@@ -46,9 +46,9 @@ func (e *aggregationProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Me
 						if !needsAttr(dattr) {
 							return false
 						}
-						agg := e.aggregate(rm, ilm, m, dp)
+						agg := p.aggregate(rm, ilm, m, dp)
 						if agg {
-							telemetry.CounterAdd(e.aggregatedDatapoints, 1, metric.WithAttributes(
+							telemetry.CounterAdd(p.aggregatedDatapoints, 1, metric.WithAttributes(
 								attribute.String("type", "gauge"),
 								attribute.String("metric_name", metricName),
 								attribute.String("service_name", serviceName)))
@@ -62,9 +62,9 @@ func (e *aggregationProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Me
 						if !needsAttr(dattr) {
 							return false
 						}
-						agg := e.aggregate(rm, ilm, m, dp)
+						agg := p.aggregate(rm, ilm, m, dp)
 						if agg {
-							telemetry.CounterAdd(e.aggregatedDatapoints, 1, metric.WithAttributes(
+							telemetry.CounterAdd(p.aggregatedDatapoints, 1, metric.WithAttributes(
 								attribute.String("type", "sum"),
 								attribute.String("metric_name", metricName),
 								attribute.String("service_name", serviceName)))
@@ -105,7 +105,7 @@ func (e *aggregationProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Me
 		return rm.ScopeMetrics().Len() == 0
 	})
 
-	e.emit(time.Now())
+	p.emit(time.Now())
 
 	if md.ResourceMetrics().Len() == 0 {
 		return md, processorhelper.ErrSkipProcessingData

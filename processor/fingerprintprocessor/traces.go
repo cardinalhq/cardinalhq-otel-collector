@@ -25,7 +25,7 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
-func (e *fingerprintProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
+func (p *fingerprintProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
 	for i := 0; i < td.ResourceSpans().Len(); i++ {
 		rs := td.ResourceSpans().At(i)
 		for j := 0; j < rs.ScopeSpans().Len(); j++ {
@@ -38,7 +38,7 @@ func (e *fingerprintProcessor) ConsumeTraces(ctx context.Context, td ptrace.Trac
 				spanDuration := float64(sr.EndTimestamp().AsTime().Sub(sr.StartTimestamp().AsTime()).Abs().Milliseconds())
 				sr.Attributes().PutDouble("_cardinalhq.span_duration", spanDuration)
 
-				isSlow := e.isSpanSlow(spanDuration, uint64(spanFingerprint))
+				isSlow := p.isSpanSlow(spanDuration, uint64(spanFingerprint))
 				sr.Attributes().PutBool(translate.CardinalFieldSpanIsSlow, isSlow)
 			}
 		}
@@ -54,21 +54,21 @@ func calculateSpanFingerprint(sr ptrace.Span) int64 {
 	return int64(xxhash.Sum64String(strings.Join(fingerprintAttributes, "##")))
 }
 
-func (c *fingerprintProcessor) isSpanSlow(duration float64, fingerprint uint64) bool {
-	return c.slowSpanPercentile(fingerprint, duration)
+func (p *fingerprintProcessor) isSpanSlow(duration float64, fingerprint uint64) bool {
+	return p.slowSpanPercentile(fingerprint, duration)
 }
 
-func (c *fingerprintProcessor) slowSpanPercentile(fingerprint uint64, duration float64) bool {
-	sketch := c.findSpanSketch(fingerprint)
+func (p *fingerprintProcessor) slowSpanPercentile(fingerprint uint64, duration float64) bool {
+	sketch := p.findSpanSketch(fingerprint)
 	sketch.Update(time.Now().UnixMilli(), duration)
 	return sketch.GreaterThanThreeStdDev(duration)
 }
 
-func (c *fingerprintProcessor) findSpanSketch(fingerprint uint64) *SlidingEstimatorStat {
-	sketch, ok := c.estimators[fingerprint]
+func (p *fingerprintProcessor) findSpanSketch(fingerprint uint64) *SlidingEstimatorStat {
+	sketch, ok := p.estimators[fingerprint]
 	if !ok {
-		estimator := NewSlidingEstimatorStat(c.estimatorWindowSize, c.estimatorInterval)
-		c.estimators[fingerprint] = estimator
+		estimator := NewSlidingEstimatorStat(p.estimatorWindowSize, p.estimatorInterval)
+		p.estimators[fingerprint] = estimator
 		return estimator
 	}
 	return sketch

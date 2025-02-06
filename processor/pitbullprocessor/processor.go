@@ -54,7 +54,7 @@ type pitbull struct {
 }
 
 func newPitbull(config *Config, ttype string, set processor.Settings) (*pitbull, error) {
-	dog := &pitbull{
+	p := &pitbull{
 		id:                set.ID,
 		ttype:             ttype,
 		config:            config,
@@ -79,7 +79,7 @@ func newPitbull(config *Config, ttype string, set processor.Settings) (*pitbull,
 	if counterError != nil {
 		return nil, counterError
 	}
-	dog.ottlProcessed = counter
+	p.ottlProcessed = counter
 
 	errorCounter, errCounterError := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
 		"ottl_rule_eval_errors",
@@ -94,7 +94,7 @@ func newPitbull(config *Config, ttype string, set processor.Settings) (*pitbull,
 	if errCounterError != nil {
 		return nil, errCounterError
 	}
-	dog.ottlErrors = errorCounter
+	p.ottlErrors = errorCounter
 
 	histogram, histogramError := telemetry.NewDeferrableHistogram(metadata.Meter(set.TelemetrySettings),
 		"ottl_rule_eval_time",
@@ -106,46 +106,46 @@ func newPitbull(config *Config, ttype string, set processor.Settings) (*pitbull,
 	if histogramError != nil {
 		return nil, histogramError
 	}
-	dog.histogram = histogram
+	p.histogram = histogram
 
-	return dog, nil
+	return p, nil
 }
 
-func (e *pitbull) Capabilities() consumer.Capabilities {
+func (p *pitbull) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: true}
 }
 
-func (e *pitbull) Start(ctx context.Context, host component.Host) error {
-	ext, found := host.GetExtensions()[*e.config.ConfigurationExtension]
+func (p *pitbull) Start(ctx context.Context, host component.Host) error {
+	ext, found := host.GetExtensions()[*p.config.ConfigurationExtension]
 	if !found {
-		return errors.New("configuration extension " + e.config.ConfigurationExtension.String() + " not found")
+		return errors.New("configuration extension " + p.config.ConfigurationExtension.String() + " not found")
 	}
 	cext, ok := ext.(*chqconfigextension.CHQConfigExtension)
 	if !ok {
-		return errors.New("configuration extension " + e.config.ConfigurationExtension.String() + " is not a chqconfig extension")
+		return errors.New("configuration extension " + p.config.ConfigurationExtension.String() + " is not a chqconfig extension")
 	}
-	e.configExtension = cext
+	p.configExtension = cext
 
-	e.configCallbackID = e.configExtension.RegisterCallback(e.id.String()+"/"+e.ttype, e.configUpdateCallback)
+	p.configCallbackID = p.configExtension.RegisterCallback(p.id.String()+"/"+p.ttype, p.configUpdateCallback)
 
 	return nil
 }
 
-func (e *pitbull) Shutdown(ctx context.Context) error {
-	e.configExtension.UnregisterCallback(e.configCallbackID)
+func (p *pitbull) Shutdown(ctx context.Context) error {
+	p.configExtension.UnregisterCallback(p.configCallbackID)
 	return nil
 }
 
-func (e *pitbull) configUpdateCallback(sc ottl.ControlPlaneConfig) {
-	configs := sc.Pitbulls[e.id.Name()]
+func (p *pitbull) configUpdateCallback(sc ottl.ControlPlaneConfig) {
+	configs := sc.Pitbulls[p.id.Name()]
 
-	switch e.ttype {
+	switch p.ttype {
 	case "logs":
-		e.updateLogTransformations(configs, e.logger)
+		p.updateLogTransformations(configs, p.logger)
 	case "traces":
-		e.updateTraceTransformations(configs, e.logger)
+		p.updateTraceTransformations(configs, p.logger)
 	case "metrics":
-		e.updateMetricTransformation(configs, e.logger)
+		p.updateMetricTransformation(configs, p.logger)
 	}
-	e.logger.Info("Configuration updated for processor instance", zap.String("instance", e.id.Name()))
+	p.logger.Info("Configuration updated for processor instance", zap.String("instance", p.id.Name()))
 }

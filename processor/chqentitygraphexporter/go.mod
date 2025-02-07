@@ -1,4 +1,4 @@
-module github.com/cardinalhq/cardinalhq-otel-collector/processor/chqrelationshipsprocessor
+module github.com/cardinalhq/cardinalhq-otel-collector/processor/chqentitygraphexporter
 
 go 1.23
 

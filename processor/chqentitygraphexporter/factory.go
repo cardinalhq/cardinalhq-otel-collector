@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package chqrelationshipsprocessor
+package chqentitygraphexporter
 
 import (
 	"context"
@@ -23,7 +23,7 @@ import (
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/collector/processor/processorhelper"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqrelationshipsprocessor/internal/metadata"
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqentitygraphexporter/internal/metadata"
 )
 
 func NewFactory() processor.Factory {

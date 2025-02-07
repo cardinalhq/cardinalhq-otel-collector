@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"hash/fnv"
 	"io"
 	"log/slog"
 	"net/http"
@@ -33,11 +32,8 @@ import (
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
-	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
-
-	"github.com/cardinalhq/oteltools/pkg/chqpb"
 )
 
 func newMarshaller() otelJsonMarshaller {
@@ -115,26 +111,6 @@ func (p *statsProcessor) Start(ctx context.Context, host component.Host) error {
 
 func (p *statsProcessor) Shutdown(ctx context.Context) error {
 	return nil // TODO shut down the goproc started in Start()
-}
-
-func toAttribute(contextId string, k string, v pcommon.Value, isAttribute bool) *chqpb.Attribute {
-	return &chqpb.Attribute{
-		ContextId:   contextId,
-		IsAttribute: isAttribute,
-		Type:        int32(v.Type()),
-		Key:         k,
-		Value:       v.AsString(),
-	}
-}
-
-func hashString(s string) int64 {
-	h := fnv.New64a()
-	h.Write([]byte(s))
-	return int64(h.Sum64())
-}
-
-func (p *statsProcessor) toExemplarKey(serviceName string, fingerprint int64) int64 {
-	return hashString(fmt.Sprintf("%s-%d", serviceName, fingerprint))
 }
 
 func (p *statsProcessor) publishResourceEntities(ctx context.Context) {

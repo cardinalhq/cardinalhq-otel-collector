@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package chqrelationshipsprocessor
+package chqentitygraphexporter
 
 import (
 	"path/filepath"
@@ -24,7 +24,7 @@ import (
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/otelcol/otelcoltest"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqrelationshipsprocessor/internal/metadata"
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqentitygraphexporter/internal/metadata"
 )
 
 func TestLoadConfig(t *testing.T) {

@@ -89,11 +89,7 @@ func (l *LRUCache) Contains(key int64) bool {
 	}
 
 	entry := elem.Value.(*Entry)
-	if time.Since(entry.timestamp) > l.expiry {
-		return false
-	}
-
-	return true
+	return time.Since(entry.timestamp) <= l.expiry
 }
 
 func (l *LRUCache) Get(key int64) (interface{}, bool) {

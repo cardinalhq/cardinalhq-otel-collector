@@ -8,6 +8,7 @@ toolchain go1.23.5
 
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.117.0
+	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.117.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqkubeeventsexporter v0.117.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v0.117.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.117.0
@@ -15,7 +16,6 @@ require (
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.117.0
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.117.0
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.117.0
-	github.com/cardinalhq/cardinalhq-otel-collector/processor/chqrelationshipsprocessor v0.117.0
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor v0.117.0
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.117.0
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor v0.117.0
@@ -558,11 +558,11 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraph
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqkubeeventsexporter v0.117.0 => ../exporter/chqkubeeventsexporter
 
+replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.117.0 => ../exporter/chqentitygraphexporter
+
 replace github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.117.0 => ../processor/aggregationprocessor
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor v0.117.0 => ../processor/chqstatsprocessor
-
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/chqrelationshipsprocessor v0.117.0 => ../processor/chqrelationshipsprocessor
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.117.0 => ../processor/pitbullprocessor
 

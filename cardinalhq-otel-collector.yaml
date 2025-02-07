@@ -57,6 +57,8 @@ exporters:
     path: ./exporter/chqservicegraphexporter
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqkubeeventsexporter v0.117.0
     path: ./exporter/chqkubeeventsexporter
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.117.0
+    path: ./exporter/chqentitygraphexporter
 
 extensions:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/healthcheckextension v0.117.0
@@ -91,8 +93,6 @@ processors:
     path: ./processor/aggregationprocessor
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor v0.117.0
     path: ./processor/chqstatsprocessor
-  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/chqrelationshipsprocessor v0.117.0
-    path: ./processor/chqrelationshipsprocessor
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.117.0
     path: ./processor/pitbullprocessor
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor v0.117.0

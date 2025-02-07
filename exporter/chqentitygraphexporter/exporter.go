@@ -16,7 +16,6 @@ package chqentitygraphexporter
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"fmt"
 	"hash/fnv"
@@ -162,23 +161,12 @@ func (p *statsProcessor) publishResourceEntities(ctx context.Context) {
 }
 
 func (p *statsProcessor) postEntityRelationships(ctx context.Context, ttype string, payload []byte) error {
-	var compressedData bytes.Buffer
-	gzipWriter := gzip.NewWriter(&compressedData)
-	if _, err := gzipWriter.Write(payload); err != nil {
-		return err
-	}
-	if err := gzipWriter.Close(); err != nil {
-		return err
-	}
-
 	endpoint := p.config.Endpoint + fmt.Sprintf("%s?telemetryType=%s", "/api/v1/entityRelationships", ttype)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, &compressedData)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	if err != nil {
 		return err
 	}
 	slog.Info("Sending entity relationships", slog.String("endpoint", endpoint), slog.Int("payloadSize", len(payload)))
-
-	req.Header.Set("Content-Encoding", "gzip")
 
 	resp, err := p.httpClient.Do(req)
 	if err != nil {

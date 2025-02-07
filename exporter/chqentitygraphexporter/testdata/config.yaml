@@ -1,28 +1,22 @@
 receivers:
   nop:
 
-processors:
-  chqrelationships:
+exporters:
+  chqentitygraph:
     reporting:
       interval: 600s
-
-exporters:
-  nop:
 
 service:
   pipelines:
     traces:
       receivers: [nop]
-      processors: [chqrelationships]
-      exporters: [nop]
+      exporters: [chqentitygraph]
     metrics:
       receivers: [nop]
-      processors: [chqrelationships]
-      exporters: [nop]
+      exporters: [chqentitygraph]
     logs:
       receivers: [nop]
-      processors: [chqrelationships]
-      exporters: [nop]
+      exporters: [chqentitygraph]
 
 extensions:
   nop:

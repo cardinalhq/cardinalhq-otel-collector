@@ -20,20 +20,20 @@ import (
 	"go.opentelemetry.io/collector/pdata/plog"
 )
 
-func (p *statsProcessor) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Logs, error) {
+func (e *entityGraphExporter) ConsumeLogs(ctx context.Context, ld plog.Logs) error {
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
 		resourceAttributes := rl.Resource().Attributes()
-		globalEntityMap := p.logsEntityCache.ProvisionResourceAttributes(resourceAttributes)
+		globalEntityMap := e.logsEntityCache.ProvisionResourceAttributes(resourceAttributes)
 
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
 			sl := rl.ScopeLogs().At(j)
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				lr := sl.LogRecords().At(k)
-				p.logsEntityCache.ProvisionRecordAttributes(globalEntityMap, lr.Attributes())
+				e.logsEntityCache.ProvisionRecordAttributes(globalEntityMap, lr.Attributes())
 			}
 		}
 	}
 
-	return ld, nil
+	return nil
 }

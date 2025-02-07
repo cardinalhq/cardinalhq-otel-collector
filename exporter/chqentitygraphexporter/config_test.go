@@ -24,7 +24,7 @@ import (
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/otelcol/otelcoltest"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqentitygraphexporter/internal/metadata"
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter/internal/metadata"
 )
 
 func TestLoadConfig(t *testing.T) {
@@ -34,13 +34,13 @@ func TestLoadConfig(t *testing.T) {
 	assert.NoError(t, err)
 
 	factory := NewFactory()
-	factories.Processors[metadata.Type] = factory
+	factories.Exporters[metadata.Type] = factory
 
 	cfg, err := otelcoltest.LoadConfig(filepath.Join("testdata", "default.yaml"), factories)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
-	e := cfg.Processors[component.MustNewID("chqrelationships")].(*Config)
+	e := cfg.Exporters[component.MustNewID("chqentitygraph")].(*Config)
 	assert.NoError(t, e.Validate())
 	assert.NotNil(t, e.Reporting)
 	assert.Equal(t, createDefaultConfig(), e)
@@ -53,13 +53,13 @@ func TestConfig(t *testing.T) {
 	assert.NoError(t, err)
 
 	factory := NewFactory()
-	factories.Processors[metadata.Type] = factory
+	factories.Exporters[metadata.Type] = factory
 
 	cfg, err := otelcoltest.LoadConfig(filepath.Join("testdata", "config.yaml"), factories)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
-	e := cfg.Processors[component.MustNewID("chqrelationships")].(*Config)
+	e := cfg.Exporters[component.MustNewID("chqentitygraph")].(*Config)
 	assert.NoError(t, e.Validate())
 	assert.NotNil(t, e.Reporting)
 	expected := &Config{

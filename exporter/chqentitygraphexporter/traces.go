@@ -20,19 +20,19 @@ import (
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
-func (p *statsProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
+func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Traces) error {
 	for i := 0; i < td.ResourceSpans().Len(); i++ {
 		rs := td.ResourceSpans().At(i)
 		resourceAttributes := rs.Resource().Attributes()
-		globalEntityMap := p.tracesEntityCache.ProvisionResourceAttributes(resourceAttributes)
+		globalEntityMap := e.tracesEntityCache.ProvisionResourceAttributes(resourceAttributes)
 		for j := 0; j < rs.ScopeSpans().Len(); j++ {
 			iss := rs.ScopeSpans().At(j)
 			for k := 0; k < iss.Spans().Len(); k++ {
 				sr := iss.Spans().At(k)
-				p.tracesEntityCache.ProvisionRecordAttributes(globalEntityMap, sr.Attributes())
+				e.tracesEntityCache.ProvisionRecordAttributes(globalEntityMap, sr.Attributes())
 			}
 		}
 	}
 
-	return td, nil
+	return nil
 }

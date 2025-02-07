@@ -25,6 +25,7 @@ import (
 
 	"github.com/cardinalhq/oteltools/pkg/graph"
 
+	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/pdata/ptrace"
@@ -32,7 +33,6 @@ import (
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
-	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
 )
 
@@ -50,7 +50,7 @@ type otelJsonMarshaller struct {
 	metricsMarshaler pmetric.Marshaler
 }
 
-type statsProcessor struct {
+type entityGraphExporter struct {
 	config     *Config
 	httpClient *http.Client
 	logger     *zap.Logger
@@ -67,8 +67,8 @@ type statsProcessor struct {
 	jsonMarshaller otelJsonMarshaller
 }
 
-func newRelationshiosProcessor(config *Config, ttype string, set processor.Settings) (*statsProcessor, error) {
-	p := &statsProcessor{
+func newEntityGraphExporter(config *Config, ttype string, set exporter.Settings) (*entityGraphExporter, error) {
+	e := &entityGraphExporter{
 		id:                 set.ID,
 		ttype:              ttype,
 		config:             config,
@@ -81,27 +81,27 @@ func newRelationshiosProcessor(config *Config, ttype string, set processor.Setti
 		logger:             set.Logger,
 	}
 
-	return p, nil
+	return e, nil
 }
 
-func (p *statsProcessor) Capabilities() consumer.Capabilities {
+func (e *entityGraphExporter) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: false}
 }
 
-func (p *statsProcessor) Start(ctx context.Context, host component.Host) error {
-	httpClient, err := p.httpClientSettings.ToClient(ctx, host, p.telemetrySettings)
+func (e *entityGraphExporter) Start(ctx context.Context, host component.Host) error {
+	httpClient, err := e.httpClientSettings.ToClient(ctx, host, e.telemetrySettings)
 	if err != nil {
 		return err
 	}
-	p.httpClient = httpClient
+	e.httpClient = httpClient
 
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.Tick(p.config.Reporting.Interval):
-				p.publishResourceEntities(ctx)
+			case <-time.Tick(e.config.Reporting.Interval):
+				e.publishResourceEntities(ctx)
 			}
 		}
 	}()
@@ -109,21 +109,21 @@ func (p *statsProcessor) Start(ctx context.Context, host component.Host) error {
 	return nil
 }
 
-func (p *statsProcessor) Shutdown(ctx context.Context) error {
+func (e *entityGraphExporter) Shutdown(ctx context.Context) error {
 	return nil // TODO shut down the goproc started in Start()
 }
 
-func (p *statsProcessor) publishResourceEntities(ctx context.Context) {
+func (e *entityGraphExporter) publishResourceEntities(ctx context.Context) {
 	var cache *graph.ResourceEntityCache
-	switch p.ttype {
+	switch e.ttype {
 	case "logs":
-		cache = p.logsEntityCache
+		cache = e.logsEntityCache
 	case "metrics":
-		cache = p.metricsEntityCache
+		cache = e.metricsEntityCache
 	case "traces":
-		cache = p.tracesEntityCache
+		cache = e.tracesEntityCache
 	default:
-		p.logger.Error("Unknown processor type", zap.String("type", p.ttype))
+		e.logger.Error("Unknown type", zap.String("type", e.ttype))
 		return
 	}
 
@@ -131,32 +131,32 @@ func (p *statsProcessor) publishResourceEntities(ctx context.Context) {
 	if len(protoEntities) == 0 {
 		return
 	}
-	if err := p.postEntityRelationships(ctx, p.ttype, protoEntities); err != nil {
-		p.logger.Error("Failed to send entity relationships", zap.Error(err))
+	if err := e.postEntityRelationships(ctx, e.ttype, protoEntities); err != nil {
+		e.logger.Error("Failed to send entity relationships", zap.Error(err))
 	}
 }
 
-func (p *statsProcessor) postEntityRelationships(ctx context.Context, ttype string, payload []byte) error {
-	endpoint := p.config.Endpoint + fmt.Sprintf("%s?telemetryType=%s", "/api/v1/entityRelationships", ttype)
+func (e *entityGraphExporter) postEntityRelationships(ctx context.Context, ttype string, payload []byte) error {
+	endpoint := e.config.Endpoint + fmt.Sprintf("%s?telemetryType=%s", "/api/v1/entityRelationships", ttype)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	if err != nil {
 		return err
 	}
 	slog.Info("Sending entity relationships", slog.String("endpoint", endpoint), slog.Int("payloadSize", len(payload)))
 
-	resp, err := p.httpClient.Do(req)
+	resp, err := e.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
-			p.logger.Error("Failed to close response body", zap.Error(closeErr))
+			e.logger.Error("Failed to close response body", zap.Error(closeErr))
 		}
 	}()
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		p.logger.Error("Failed to send resource entities",
+		e.logger.Error("Failed to send resource entities",
 			zap.String("endpoint", endpoint),
 			zap.Int("status", resp.StatusCode),
 			zap.String("body", string(body)),

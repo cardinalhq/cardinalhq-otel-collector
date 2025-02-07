@@ -20,11 +20,11 @@ import (
 	"go.opentelemetry.io/collector/pdata/pmetric"
 )
 
-func (p *statsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
+func (e *entityGraphExporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
 		rm := md.ResourceMetrics().At(i)
 		rattr := rm.Resource().Attributes()
-		globalEntityMap := p.metricsEntityCache.ProvisionResourceAttributes(rattr)
+		globalEntityMap := e.metricsEntityCache.ProvisionResourceAttributes(rattr)
 
 		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
 			ilm := rm.ScopeMetrics().At(j)
@@ -35,32 +35,32 @@ func (p *statsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics)
 				case pmetric.MetricTypeGauge:
 					for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
 						dp := m.Gauge().DataPoints().At(l)
-						p.metricsEntityCache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
+						e.metricsEntityCache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
 					}
 				case pmetric.MetricTypeSum:
 					for l := 0; l < m.Sum().DataPoints().Len(); l++ {
 						dp := m.Sum().DataPoints().At(l)
-						p.metricsEntityCache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
+						e.metricsEntityCache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
 					}
 				case pmetric.MetricTypeHistogram:
 					for l := 0; l < m.Histogram().DataPoints().Len(); l++ {
 						dp := m.Histogram().DataPoints().At(l)
-						p.metricsEntityCache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
+						e.metricsEntityCache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
 					}
 				case pmetric.MetricTypeSummary:
 					for l := 0; l < m.Summary().DataPoints().Len(); l++ {
 						dp := m.Summary().DataPoints().At(l)
-						p.metricsEntityCache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
+						e.metricsEntityCache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
 					}
 				case pmetric.MetricTypeExponentialHistogram:
 					for l := 0; l < m.ExponentialHistogram().DataPoints().Len(); l++ {
 						dp := m.ExponentialHistogram().DataPoints().At(l)
-						p.metricsEntityCache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
+						e.metricsEntityCache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
 					}
 				}
 			}
 		}
 	}
 
-	return md, nil
+	return nil
 }

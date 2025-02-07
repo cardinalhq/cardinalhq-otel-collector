@@ -19,20 +19,19 @@ import (
 	"time"
 
 	"go.opentelemetry.io/collector/component"
-	"go.opentelemetry.io/collector/consumer"
-	"go.opentelemetry.io/collector/processor"
-	"go.opentelemetry.io/collector/processor/processorhelper"
+	"go.opentelemetry.io/collector/exporter"
+	"go.opentelemetry.io/collector/exporter/exporterhelper"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqentitygraphexporter/internal/metadata"
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter/internal/metadata"
 )
 
-func NewFactory() processor.Factory {
-	return processor.NewFactory(
+func NewFactory() exporter.Factory {
+	return exporter.NewFactory(
 		metadata.Type,
 		createDefaultConfig,
-		processor.WithTraces(createSpansProcessor, metadata.TracesStability),
-		processor.WithLogs(createLogsProcessor, metadata.LogsStability),
-		processor.WithMetrics(createMetricsProcessor, metadata.MetricsStability),
+		exporter.WithTraces(createSpansProcessor, metadata.TracesStability),
+		exporter.WithLogs(createLogsProcessor, metadata.LogsStability),
+		exporter.WithMetrics(createMetricsProcessor, metadata.MetricsStability),
 	)
 }
 
@@ -48,41 +47,41 @@ func createDefaultConfig() component.Config {
 	}
 }
 
-func createLogsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Logs) (processor.Logs, error) {
-	p, err := newRelationshiosProcessor(cfg.(*Config), "logs", set)
+func createLogsProcessor(ctx context.Context, set exporter.Settings, cfg component.Config) (exporter.Logs, error) {
+	e, err := newEntityGraphExporter(cfg.(*Config), "logs", set)
 	if err != nil {
 		return nil, err
 	}
-	return processorhelper.NewLogs(
-		ctx, set, cfg, nextConsumer,
-		p.ConsumeLogs,
-		processorhelper.WithStart(p.Start),
-		processorhelper.WithShutdown(p.Shutdown),
-		processorhelper.WithCapabilities(p.Capabilities()))
+	return exporterhelper.NewLogs(
+		ctx, set, cfg,
+		e.ConsumeLogs,
+		exporterhelper.WithStart(e.Start),
+		exporterhelper.WithShutdown(e.Shutdown),
+		exporterhelper.WithCapabilities(e.Capabilities()))
 }
 
-func createMetricsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Metrics) (processor.Metrics, error) {
-	p, err := newRelationshiosProcessor(cfg.(*Config), "metrics", set)
+func createMetricsProcessor(ctx context.Context, set exporter.Settings, cfg component.Config) (exporter.Metrics, error) {
+	e, err := newEntityGraphExporter(cfg.(*Config), "metrics", set)
 	if err != nil {
 		return nil, err
 	}
-	return processorhelper.NewMetrics(
-		ctx, set, cfg, nextConsumer,
-		p.ConsumeMetrics,
-		processorhelper.WithStart(p.Start),
-		processorhelper.WithShutdown(p.Shutdown),
-		processorhelper.WithCapabilities(p.Capabilities()))
+	return exporterhelper.NewMetrics(
+		ctx, set, cfg,
+		e.ConsumeMetrics,
+		exporterhelper.WithStart(e.Start),
+		exporterhelper.WithShutdown(e.Shutdown),
+		exporterhelper.WithCapabilities(e.Capabilities()))
 }
 
-func createSpansProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Traces) (processor.Traces, error) {
-	p, err := newRelationshiosProcessor(cfg.(*Config), "traces", set)
+func createSpansProcessor(ctx context.Context, set exporter.Settings, cfg component.Config) (exporter.Traces, error) {
+	e, err := newEntityGraphExporter(cfg.(*Config), "traces", set)
 	if err != nil {
 		return nil, err
 	}
-	return processorhelper.NewTraces(
-		ctx, set, cfg, nextConsumer,
-		p.ConsumeTraces,
-		processorhelper.WithStart(p.Start),
-		processorhelper.WithShutdown(p.Shutdown),
-		processorhelper.WithCapabilities(p.Capabilities()))
+	return exporterhelper.NewTraces(
+		ctx, set, cfg,
+		e.ConsumeTraces,
+		exporterhelper.WithStart(e.Start),
+		exporterhelper.WithShutdown(e.Shutdown),
+		exporterhelper.WithCapabilities(e.Capabilities()))
 }

@@ -46,7 +46,11 @@ If you wish to build your own collector with this included, and are using the
 add the following lines to your builder manifest file:
 
 ```yaml
+exporters:
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v1.0.0-rc2
 
+extensions:
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v1.0.0-rc2
 ```
 
 See

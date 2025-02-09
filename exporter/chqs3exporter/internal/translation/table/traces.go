@@ -19,10 +19,11 @@ import (
 
 	"go.opentelemetry.io/collector/pdata/ptrace"
 
+	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
-func (l *TableTranslator) TracesFromOtel(ot *ptrace.Traces, environment translate.Environment) ([]map[string]any, error) {
+func (l *TableTranslator) TracesFromOtel(ot *ptrace.Traces, environment authenv.Environment) ([]map[string]any, error) {
 	rets := []map[string]any{}
 
 	for i := 0; i < ot.ResourceSpans().Len(); i++ {

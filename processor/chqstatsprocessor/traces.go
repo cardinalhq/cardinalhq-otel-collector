@@ -28,20 +28,16 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
 	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 func (p *statsProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
-	now := time.Now()
-	var ee translate.Environment
-	if p.idsFromEnv {
-		ee = translate.EnvironmentFromEnv()
-	} else {
-		ee = translate.EnvironmentFromAuth(ctx)
-	}
+	ee := authenv.GetEnvironment(ctx, p.idsFromEnv)
 
+	now := time.Now()
 	for i := 0; i < td.ResourceSpans().Len(); i++ {
 		rs := td.ResourceSpans().At(i)
 		resourceAttributes := rs.Resource().Attributes()
@@ -75,7 +71,7 @@ func toSize(attributes map[string]interface{}) int64 {
 
 func (p *statsProcessor) recordSpan(
 	now time.Time,
-	environment translate.Environment,
+	environment authenv.Environment,
 	serviceName string,
 	fingerprint int64,
 	isSlow bool,

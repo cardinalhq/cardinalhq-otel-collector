@@ -20,11 +20,12 @@ import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 
+	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 func (p *fingerprintProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
-	environment := translate.EnvironmentFromEnv()
+	environment := authenv.GetEnvironment(ctx, p.idsFromEnv)
 
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
 		rm := md.ResourceMetrics().At(i)
@@ -69,7 +70,7 @@ func (p *fingerprintProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Me
 	return md, nil
 }
 
-func (p *fingerprintProcessor) processDatapoint(extra map[string]string, environment translate.Environment, rattr, sattr, dattr pcommon.Map) {
+func (p *fingerprintProcessor) processDatapoint(extra map[string]string, environment authenv.Environment, rattr, sattr, dattr pcommon.Map) {
 	tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 	dattr.PutInt(translate.CardinalFieldTID, tid)
 }

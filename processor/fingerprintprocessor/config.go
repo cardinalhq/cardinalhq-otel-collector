@@ -15,6 +15,7 @@
 package fingerprintprocessor
 
 import (
+	"errors"
 	"fmt"
 
 	"go.opentelemetry.io/collector/component"
@@ -24,6 +25,7 @@ import (
 type Config struct {
 	ConfigurationExtension *component.ID `mapstructure:"configuration_extension"`
 	TracesConfig           TracesConfig  `mapstructure:"traces"`
+	IDSource               string        `mapstructure:"id_source"`
 }
 
 type TracesConfig struct {
@@ -34,11 +36,9 @@ type TracesConfig struct {
 func (c *Config) Validate() error {
 	var errs error
 
-	// Not required yet
-	// if c.ConfigurationExtension == nil {
-	// 	err := fmt.Errorf("configuration_extension is required")
-	// 	errs = multierr.Append(errs, err)
-	// }
+	if c.IDSource != "auth" && c.IDSource != "env" {
+		errs = multierr.Append(errs, errors.New("id_source must be either 'auth' or 'env'"))
+	}
 
 	errs = multierr.Append(errs, c.TracesConfig.Validate())
 

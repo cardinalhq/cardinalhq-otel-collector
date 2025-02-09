@@ -29,6 +29,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
 	"github.com/cardinalhq/oteltools/pkg/translate"
@@ -51,11 +52,11 @@ func getFingerprint(l pcommon.Map) int64 {
 }
 
 func (p *statsProcessor) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Logs, error) {
-	var ee translate.Environment
+	var ee authenv.Environment
 	if p.idsFromEnv {
-		ee = translate.EnvironmentFromEnv()
+		ee = authenv.EnvironmentFromEnv()
 	} else {
-		ee = translate.EnvironmentFromAuth(ctx)
+		ee = authenv.EnvironmentFromAuth(ctx)
 	}
 
 	now := time.Now()
@@ -80,7 +81,7 @@ func (p *statsProcessor) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Lo
 	return ld, nil
 }
 
-func (p *statsProcessor) recordLog(now time.Time, environment translate.Environment, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) error {
+func (p *statsProcessor) recordLog(now time.Time, environment authenv.Environment, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) error {
 	if p.enableLogMetrics {
 		message := lr.Body().AsString()
 		logSize := int64(len(message))

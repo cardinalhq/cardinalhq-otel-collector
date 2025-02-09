@@ -49,6 +49,8 @@ type fingerprintProcessor struct {
 	estimators          map[uint64]*SlidingEstimatorStat
 	estimatorWindowSize int
 	estimatorInterval   int64
+
+	idsFromEnv bool
 }
 
 func newProcessor(config *Config, ttype string, set processor.Settings) (*fingerprintProcessor, error) {
@@ -70,6 +72,8 @@ func newProcessor(config *Config, ttype string, set processor.Settings) (*finger
 		p.estimatorWindowSize = config.TracesConfig.EstimatorWindowSize
 		p.estimatorInterval = config.TracesConfig.EstimatorInterval
 	}
+
+	p.idsFromEnv = p.config.IDSource == "env"
 
 	return p, nil
 }

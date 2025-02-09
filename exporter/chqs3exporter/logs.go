@@ -20,16 +20,11 @@ import (
 
 	"go.opentelemetry.io/collector/pdata/plog"
 
-	"github.com/cardinalhq/oteltools/pkg/translate"
+	"github.com/cardinalhq/oteltools/pkg/authenv"
 )
 
 func (e *s3Exporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {
-	var ee translate.Environment
-	if e.idsFromEnv {
-		ee = translate.EnvironmentFromEnv()
-	} else {
-		ee = translate.EnvironmentFromAuth(ctx)
-	}
+	ee := authenv.GetEnvironment(ctx, e.idsFromEnv)
 
 	if e.config.Timeboxes.Logs.Interval <= 0 {
 		return nil

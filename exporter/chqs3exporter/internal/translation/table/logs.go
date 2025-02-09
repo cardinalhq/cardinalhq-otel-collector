@@ -19,10 +19,11 @@ import (
 
 	"go.opentelemetry.io/collector/pdata/plog"
 
+	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
-func (l *TableTranslator) LogsFromOtel(ol *plog.Logs, environment translate.Environment) ([]map[string]any, error) {
+func (l *TableTranslator) LogsFromOtel(ol *plog.Logs, environment authenv.Environment) ([]map[string]any, error) {
 	rets := []map[string]any{}
 
 	for i := 0; i < ol.ResourceLogs().Len(); i++ {

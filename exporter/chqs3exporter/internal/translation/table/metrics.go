@@ -25,10 +25,11 @@ import (
 	"github.com/DataDog/sketches-go/ddsketch"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 
+	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
-func (l *TableTranslator) MetricsFromOtel(om *pmetric.Metrics, environment translate.Environment) ([]map[string]any, error) {
+func (l *TableTranslator) MetricsFromOtel(om *pmetric.Metrics, environment authenv.Environment) ([]map[string]any, error) {
 	rets := []map[string]any{}
 
 	for i := 0; i < om.ResourceMetrics().Len(); i++ {

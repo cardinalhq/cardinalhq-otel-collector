@@ -18,18 +18,12 @@ import (
 	"context"
 	"time"
 
+	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"go.opentelemetry.io/collector/pdata/ptrace"
-
-	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 func (e *s3Exporter) ConsumeTraces(ctx context.Context, traces ptrace.Traces) error {
-	var ee translate.Environment
-	if e.idsFromEnv {
-		ee = translate.EnvironmentFromEnv()
-	} else {
-		ee = translate.EnvironmentFromAuth(ctx)
-	}
+	ee := authenv.GetEnvironment(ctx, e.idsFromEnv)
 
 	if e.config.Timeboxes.Traces.Interval <= 0 {
 		return nil

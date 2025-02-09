@@ -116,7 +116,7 @@ func TestKindString(t *testing.T) {
 		},
 		{
 			"other",
-			component.Kind(-99999), // arbitrary value for testing unexpected kind
+			component.Kind{}, // arbitrary value for testing unexpected kind
 			"other",
 		},
 	}

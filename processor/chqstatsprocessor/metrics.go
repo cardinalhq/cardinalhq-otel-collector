@@ -31,18 +31,14 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
 	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 func (p *statsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
-	var ee translate.Environment
-	if p.idsFromEnv {
-		ee = translate.EnvironmentFromEnv()
-	} else {
-		ee = translate.EnvironmentFromAuth(ctx)
-	}
+	ee := authenv.GetEnvironment(ctx, p.idsFromEnv)
 
 	newFingerprintsDetected := make([]string, 0)
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
@@ -98,7 +94,7 @@ func (p *statsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics)
 	return md, nil
 }
 
-func (p *statsProcessor) processDatapoint(environment translate.Environment, metricName, metricType, serviceName string, extra map[string]string, rattr, sattr, dattr pcommon.Map) {
+func (p *statsProcessor) processDatapoint(environment authenv.Environment, metricName, metricType, serviceName string, extra map[string]string, rattr, sattr, dattr pcommon.Map) {
 	tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 	if err := p.recordDatapoint(environment, metricName, metricType, serviceName, tid, rattr, sattr, dattr); err != nil {
 		p.logger.Error("Failed to record datapoint", zap.Error(err))
@@ -114,7 +110,7 @@ func computeStatsOnField(k string) bool {
 	return !strings.HasPrefix(k, translate.CardinalFieldPrefixDot)
 }
 
-func (p *statsProcessor) recordDatapoint(environment translate.Environment, metricName, metricType, serviceName string, tid int64, rattr, sattr, dpAttr pcommon.Map) error {
+func (p *statsProcessor) recordDatapoint(environment authenv.Environment, metricName, metricType, serviceName string, tid int64, rattr, sattr, dpAttr pcommon.Map) error {
 	var errs error
 
 	attributes := p.processEnrichments(map[string]pcommon.Map{
@@ -145,7 +141,7 @@ func (p *statsProcessor) recordDatapoint(environment translate.Environment, metr
 	return errs
 }
 
-func (p *statsProcessor) recordMetric(environment translate.Environment, metricName, metricType, serviceName, tagName, tagValue, tagScope string, attributes []*chqpb.Attribute) error {
+func (p *statsProcessor) recordMetric(environment authenv.Environment, metricName, metricType, serviceName, tagName, tagValue, tagScope string, attributes []*chqpb.Attribute) error {
 	if !p.enableMetricMetrics {
 		return nil
 	}

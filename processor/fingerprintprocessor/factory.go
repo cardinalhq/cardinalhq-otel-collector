@@ -37,6 +37,7 @@ func NewFactory() processor.Factory {
 
 func createDefaultConfig() component.Config {
 	return &Config{
+		IDSource: "env",
 		TracesConfig: TracesConfig{
 			EstimatorWindowSize: 30,
 			EstimatorInterval:   10000,

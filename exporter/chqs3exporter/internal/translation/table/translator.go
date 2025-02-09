@@ -20,13 +20,13 @@ import (
 	"go.opentelemetry.io/collector/pdata/ptrace"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/idgen"
-	"github.com/cardinalhq/oteltools/pkg/translate"
+	"github.com/cardinalhq/oteltools/pkg/authenv"
 )
 
 type Translator interface {
-	LogsFromOtel(ol *plog.Logs, environment translate.Environment) ([]map[string]any, error)
-	MetricsFromOtel(om *pmetric.Metrics, environment translate.Environment) ([]map[string]any, error)
-	TracesFromOtel(ot *ptrace.Traces, environment translate.Environment) ([]map[string]any, error)
+	LogsFromOtel(ol *plog.Logs, environment authenv.Environment) ([]map[string]any, error)
+	MetricsFromOtel(om *pmetric.Metrics, environment authenv.Environment) ([]map[string]any, error)
+	TracesFromOtel(ot *ptrace.Traces, environment authenv.Environment) ([]map[string]any, error)
 }
 
 type TableTranslator struct {

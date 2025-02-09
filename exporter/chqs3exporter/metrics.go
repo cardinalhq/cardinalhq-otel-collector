@@ -17,19 +17,13 @@ package chqs3exporter
 import (
 	"context"
 
+	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
-
-	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 func (e *s3Exporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
-	var ee translate.Environment
-	if e.idsFromEnv {
-		ee = translate.EnvironmentFromEnv()
-	} else {
-		ee = translate.EnvironmentFromAuth(ctx)
-	}
+	ee := authenv.GetEnvironment(ctx, e.idsFromEnv)
 
 	if e.config.Timeboxes.Metrics.Interval <= 0 {
 		return nil

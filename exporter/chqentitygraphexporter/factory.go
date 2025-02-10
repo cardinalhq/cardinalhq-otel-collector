@@ -44,7 +44,6 @@ func createDefaultConfig() component.Config {
 		Reporting: ReportingConfig{
 			Interval: defaultReportingInterval,
 		},
-		IDSource: "env",
 	}
 }
 

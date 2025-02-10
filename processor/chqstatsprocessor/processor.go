@@ -27,7 +27,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor/internal/metadata"
 	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
-	"github.com/google/uuid"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
@@ -89,12 +89,10 @@ type statsProcessor struct {
 
 	jsonMarshaller otelJsonMarshaller
 
-	logStatsEnrichments     atomic.Pointer[[]ottl.StatsEnrichment]
-	metricsStatsEnrichments atomic.Pointer[[]ottl.StatsEnrichment]
-	tracesStatsEnrichments  atomic.Pointer[[]ottl.StatsEnrichment]
-	statsBatchSize          telemetry.DeferrableHistogram
-	recordLatency           telemetry.DeferrableHistogram
-	cacheFull               telemetry.DeferrableCounter
+	loadedConfig   atomic.Pointer[ottl.ControlPlaneConfig]
+	statsBatchSize telemetry.DeferrableHistogram
+	recordLatency  telemetry.DeferrableHistogram
+	cacheFull      telemetry.DeferrableCounter
 
 	enableMetricMetrics bool
 	enableLogMetrics    bool
@@ -226,16 +224,24 @@ func (p *statsProcessor) Shutdown(ctx context.Context) error {
 	return errors.ErrorOrNil()
 }
 
-func (p *statsProcessor) processEnrichments(attributesByScope map[string]pcommon.Map) []*chqpb.Attribute {
+func (p *statsProcessor) processEnrichments(organizationID string, attributesByScope map[string]pcommon.Map) []*chqpb.Attribute {
+	config := p.loadedConfig.Load()
+	if config == nil {
+		return nil
+	}
+
+	tenant := config.Configs[organizationID]
+	stats := tenant.Stats[p.id.Name()]
+
 	tags := make([]*chqpb.Attribute, 0)
 	var enrichments *[]ottl.StatsEnrichment
 	switch p.ttype {
 	case "logs":
-		enrichments = p.logStatsEnrichments.Load()
+		enrichments = &stats.LogEnrichments
 	case "metrics":
-		enrichments = p.metricsStatsEnrichments.Load()
+		enrichments = &stats.MetricEnrichments
 	case "traces":
-		enrichments = p.tracesStatsEnrichments.Load()
+		enrichments = &stats.SpanEnrichments
 	}
 
 	if enrichments != nil {
@@ -264,27 +270,8 @@ func toAttribute(contextId string, k string, v pcommon.Value, isAttribute bool) 
 }
 
 func (p *statsProcessor) configUpdateCallback(cpc ottl.ControlPlaneConfig) {
-	configs := cpc.Stats[p.id.Name()]
-	if configs == nil {
-		configs = cpc.Stats[uuid.Nil.String()]
-	}
-	if configs == nil {
-		return
-	}
-
-	switch p.ttype {
-	case "logs":
-		p.logStatsEnrichments.Store(&configs.LogEnrichments)
-		p.logger.Info("Stats enrichment for logs", zap.String("instance", p.id.Name()), zap.Int("enrichments", len(configs.LogEnrichments)))
-	case "metrics":
-		p.metricsStatsEnrichments.Store(&configs.MetricEnrichments)
-		p.logger.Info("Stats enrichment for metrics", zap.String("instance", p.id.Name()), zap.Int("enrichments", len(configs.MetricEnrichments)))
-	case "traces":
-		p.tracesStatsEnrichments.Store(&configs.SpanEnrichments)
-		p.logger.Info("Stats enrichment for traces", zap.String("instance", p.id.Name()), zap.Int("enrichments", len(configs.SpanEnrichments)))
-	}
-
-	p.logger.Info("Configuration updated for processor instance", zap.String("instance", p.id.Name()))
+	p.logger.Info("Updating configuration for processor instance", zap.String("instance", p.id.Name()))
+	p.loadedConfig.Store(&cpc)
 }
 
 func hashString(s string) int64 {
@@ -295,4 +282,12 @@ func hashString(s string) int64 {
 
 func (p *statsProcessor) toExemplarKey(serviceName string, fingerprint int64) int64 {
 	return hashString(fmt.Sprintf("%s-%d", serviceName, fingerprint))
+}
+
+func OrgIdFromResource(resource pcommon.Map) string {
+	orgID, found := resource.Get(translate.CardinalFieldCustomerID)
+	if !found {
+		return "default"
+	}
+	return orgID.AsString()
 }

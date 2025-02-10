@@ -18,7 +18,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"go.opentelemetry.io/collector/config/confighttp"
 
 	"go.uber.org/multierr"
@@ -26,8 +25,7 @@ import (
 
 type Config struct {
 	confighttp.ClientConfig `mapstructure:",squash"`
-	Reporting               ReportingConfig                 `mapstructure:"reporting"`
-	IDSource                authenv.EnvironmentSourceString `mapstructure:"id_source"`
+	Reporting               ReportingConfig `mapstructure:"reporting"`
 }
 
 type ReportingConfig struct {
@@ -37,15 +35,7 @@ type ReportingConfig struct {
 type ContextID = string
 
 func (c *Config) Validate() error {
-	var errs error
-
-	if _, err := authenv.ParseEnvironmentSource(c.IDSource); err != nil {
-		errs = multierr.Append(errs, errors.New("id_source must be a valid environment source: "+err.Error()))
-	}
-
-	errs = multierr.Append(errs, c.Reporting.Validate())
-
-	return errs
+	return nil
 }
 
 func (c *ReportingConfig) Validate() error {

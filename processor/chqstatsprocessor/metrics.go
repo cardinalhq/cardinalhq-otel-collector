@@ -111,13 +111,16 @@ func computeStatsOnField(k string) bool {
 }
 
 func (p *statsProcessor) recordDatapoint(environment authenv.Environment, metricName, metricType, serviceName string, tid int64, rattr, sattr, dpAttr pcommon.Map) error {
+	orgID := OrgIdFromResource(rattr)
+
 	var errs error
 
-	attributes := p.processEnrichments(map[string]pcommon.Map{
-		"resource": rattr,
-		"scope":    sattr,
-		"metric":   dpAttr,
-	})
+	attributes := p.processEnrichments(orgID,
+		map[string]pcommon.Map{
+			"resource": rattr,
+			"scope":    sattr,
+			"metric":   dpAttr,
+		})
 
 	rattr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {

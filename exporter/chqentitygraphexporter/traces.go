@@ -24,12 +24,14 @@ func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Trace
 	for i := 0; i < td.ResourceSpans().Len(); i++ {
 		rs := td.ResourceSpans().At(i)
 		resourceAttributes := rs.Resource().Attributes()
-		globalEntityMap := e.tracesEntityCache.ProvisionResourceAttributes(resourceAttributes)
+		cid := OrgIdFromResource(resourceAttributes)
+		cache := e.GetEntityCache(cid)
+		globalEntityMap := cache.ProvisionResourceAttributes(resourceAttributes)
 		for j := 0; j < rs.ScopeSpans().Len(); j++ {
 			iss := rs.ScopeSpans().At(j)
 			for k := 0; k < iss.Spans().Len(); k++ {
 				sr := iss.Spans().At(k)
-				e.tracesEntityCache.ProvisionRecordAttributes(globalEntityMap, sr.Attributes())
+				cache.ProvisionRecordAttributes(globalEntityMap, sr.Attributes())
 			}
 		}
 	}

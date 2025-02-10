@@ -21,16 +21,19 @@ import (
 )
 
 func (e *entityGraphExporter) ConsumeLogs(ctx context.Context, ld plog.Logs) error {
+
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
 		resourceAttributes := rl.Resource().Attributes()
-		globalEntityMap := e.logsEntityCache.ProvisionResourceAttributes(resourceAttributes)
+		cid := OrgIdFromResource(resourceAttributes)
+		cache := e.GetEntityCache(cid)
+		globalEntityMap := cache.ProvisionResourceAttributes(resourceAttributes)
 
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
 			sl := rl.ScopeLogs().At(j)
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				lr := sl.LogRecords().At(k)
-				e.logsEntityCache.ProvisionRecordAttributes(globalEntityMap, lr.Attributes())
+				cache.ProvisionRecordAttributes(globalEntityMap, lr.Attributes())
 			}
 		}
 	}

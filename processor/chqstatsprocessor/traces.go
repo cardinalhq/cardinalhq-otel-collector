@@ -79,6 +79,8 @@ func (p *statsProcessor) recordSpan(
 	iss ptrace.ScopeSpans,
 	rs ptrace.ResourceSpans,
 ) error {
+	orgID := OrgIdFromResource(rs.Resource().Attributes())
+
 	// spanSize = (size of attributes + top level fields)
 	var spanSize = toSize(span.Attributes().AsRaw())
 	spanSize += int64(len(span.TraceID().String()))
@@ -86,11 +88,12 @@ func (p *statsProcessor) recordSpan(
 	spanSize += int64(len(span.Kind().String()))
 	spanSize += int64(len(span.SpanID().String()))
 
-	enrichmentAttributes := p.processEnrichments(map[string]pcommon.Map{
-		"resource": rs.Resource().Attributes(),
-		"scope":    iss.Scope().Attributes(),
-		"span":     span.Attributes(),
-	})
+	enrichmentAttributes := p.processEnrichments(orgID,
+		map[string]pcommon.Map{
+			"resource": rs.Resource().Attributes(),
+			"scope":    iss.Scope().Attributes(),
+			"span":     span.Attributes(),
+		})
 
 	spanKindAttribute := toAttribute("span", "kind", pcommon.NewValueStr(span.Kind().String()), false)
 	statusCodeAttribute := toAttribute("span", "status_code", pcommon.NewValueStr(span.Status().Code().String()), false)

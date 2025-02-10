@@ -77,15 +77,18 @@ func (p *statsProcessor) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Lo
 }
 
 func (p *statsProcessor) recordLog(now time.Time, environment authenv.Environment, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) error {
+	orgID := OrgIdFromResource(rl.Resource().Attributes())
+
 	if p.enableLogMetrics {
 		message := lr.Body().AsString()
 		logSize := int64(len(message))
 
-		enrichmentAttributes := p.processEnrichments(map[string]pcommon.Map{
-			"resource": rl.Resource().Attributes(),
-			"scope":    sl.Scope().Attributes(),
-			"log":      lr.Attributes(),
-		})
+		enrichmentAttributes := p.processEnrichments(orgID,
+			map[string]pcommon.Map{
+				"resource": rl.Resource().Attributes(),
+				"scope":    sl.Scope().Attributes(),
+				"log":      lr.Attributes(),
+			})
 
 		if lr.SeverityNumber() != plog.SeverityNumberUnspecified {
 			enrichmentAttributes = append(enrichmentAttributes, &chqpb.Attribute{

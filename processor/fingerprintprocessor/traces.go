@@ -28,6 +28,7 @@ import (
 func (p *fingerprintProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
 	for i := 0; i < td.ResourceSpans().Len(); i++ {
 		rs := td.ResourceSpans().At(i)
+		cid := OrgIdFromResource(rs.Resource().Attributes())
 		for j := 0; j < rs.ScopeSpans().Len(); j++ {
 			iss := rs.ScopeSpans().At(j)
 			for k := 0; k < iss.Spans().Len(); k++ {
@@ -38,7 +39,7 @@ func (p *fingerprintProcessor) ConsumeTraces(ctx context.Context, td ptrace.Trac
 				spanDuration := float64(sr.EndTimestamp().AsTime().Sub(sr.StartTimestamp().AsTime()).Abs().Milliseconds())
 				sr.Attributes().PutDouble("_cardinalhq.span_duration", spanDuration)
 
-				isSlow := p.isSpanSlow(spanDuration, uint64(spanFingerprint))
+				isSlow := p.isSpanSlow(cid, spanDuration, uint64(spanFingerprint))
 				sr.Attributes().PutBool(translate.CardinalFieldSpanIsSlow, isSlow)
 			}
 		}
@@ -54,21 +55,32 @@ func calculateSpanFingerprint(sr ptrace.Span) int64 {
 	return int64(xxhash.Sum64String(strings.Join(fingerprintAttributes, "##")))
 }
 
-func (p *fingerprintProcessor) isSpanSlow(duration float64, fingerprint uint64) bool {
-	return p.slowSpanPercentile(fingerprint, duration)
+func (p *fingerprintProcessor) isSpanSlow(cid string, duration float64, fingerprint uint64) bool {
+	return p.slowSpanPercentile(cid, fingerprint, duration)
 }
 
-func (p *fingerprintProcessor) slowSpanPercentile(fingerprint uint64, duration float64) bool {
-	sketch := p.findSpanSketch(fingerprint)
+func (p *fingerprintProcessor) slowSpanPercentile(cid string, fingerprint uint64, duration float64) bool {
+	sketch := p.findSpanSketch(cid, fingerprint)
 	sketch.Update(time.Now().UnixMilli(), duration)
 	return sketch.GreaterThanThreeStdDev(duration)
 }
 
-func (p *fingerprintProcessor) findSpanSketch(fingerprint uint64) *SlidingEstimatorStat {
-	sketch, ok := p.estimators[fingerprint]
+func (p *fingerprintProcessor) findSpanSketch(cid string, fingerprint uint64) *SlidingEstimatorStat {
+	p.tenantLock.Lock()
+	tenant, found := p.tenants[cid]
+	if !found {
+		tenant := tenantState{
+			mapstore:   NewMapStore(),
+			estimators: make(map[uint64]*SlidingEstimatorStat),
+		}
+		p.tenants[cid] = tenant
+	}
+	p.tenantLock.Unlock()
+
+	sketch, ok := tenant.estimators[fingerprint]
 	if !ok {
 		estimator := NewSlidingEstimatorStat(p.estimatorWindowSize, p.estimatorInterval)
-		p.estimators[fingerprint] = estimator
+		tenant.estimators[fingerprint] = estimator
 		return estimator
 	}
 	return sketch

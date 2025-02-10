@@ -234,18 +234,18 @@ func (p *statsProcessor) processEnrichments(organizationID string, attributesByS
 	stats := tenant.Stats[p.id.Name()]
 
 	tags := make([]*chqpb.Attribute, 0)
-	var enrichments *[]ottl.StatsEnrichment
+	var enrichments []ottl.StatsEnrichment
 	switch p.ttype {
 	case "logs":
-		enrichments = &stats.LogEnrichments
+		enrichments = stats.LogEnrichments
 	case "metrics":
-		enrichments = &stats.MetricEnrichments
+		enrichments = stats.MetricEnrichments
 	case "traces":
-		enrichments = &stats.SpanEnrichments
+		enrichments = stats.SpanEnrichments
 	}
 
 	if enrichments != nil {
-		for _, enrichment := range *enrichments {
+		for _, enrichment := range enrichments {
 			attributes, found := attributesByScope[enrichment.Context]
 			if found {
 				for _, tag := range enrichment.Tags {

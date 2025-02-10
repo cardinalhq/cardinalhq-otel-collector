@@ -8,7 +8,7 @@ require (
 	github.com/DataDog/sketches-go v1.4.6
 	github.com/aws/aws-sdk-go v1.55.6
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
-	github.com/cardinalhq/oteltools v0.10.2
+	github.com/cardinalhq/oteltools v0.10.4
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/parquet-go/parquet-go v0.24.0
 	github.com/rs/xid v1.6.0
@@ -128,7 +128,7 @@ require (
 	go.opentelemetry.io/otel/sdk/log v0.10.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.34.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.5.0 // indirect
-	golang.org/x/net v0.34.0 // indirect
+	golang.org/x/net v0.35.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 	gonum.org/v1/gonum v0.15.1 // indirect

@@ -38,7 +38,7 @@ import (
 )
 
 func (p *statsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
-	ee := authenv.GetEnvironment(ctx, p.idsFromEnv)
+	ee := authenv.GetEnvironment(ctx, p.idsFromAuth)
 
 	newFingerprintsDetected := make([]string, 0)
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {

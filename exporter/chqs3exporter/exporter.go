@@ -47,7 +47,7 @@ type s3Exporter struct {
 	writerClosed    chan struct{}
 	taglock         sync.Mutex
 	tags            map[string]map[int64]map[string]any
-	idsFromEnv      bool
+	idsFromAuth     bool
 }
 
 const (
@@ -86,7 +86,7 @@ func (e *s3Exporter) Start(_ context.Context, _ component.Host) error {
 		filepath = ""
 	}
 
-	e.idsFromEnv = e.config.IDSource == "env"
+	e.idsFromAuth = e.config.IDSource == "auth"
 
 	opts := []boxer.BoxerOptions{}
 	switch e.telemetryType {

@@ -74,7 +74,7 @@ type statsProcessor struct {
 	pbPhase            chqpb.Phase
 	podName            string
 
-	idsFromEnv bool
+	idsFromAuth bool
 
 	configCallbackID int
 
@@ -210,7 +210,7 @@ func (p *statsProcessor) Start(ctx context.Context, host component.Host) error {
 	p.configExtension = cext
 	p.configCallbackID = p.configExtension.RegisterCallback(p.id.String()+"/"+p.ttype, p.configUpdateCallback)
 
-	p.idsFromEnv = p.config.IDSource == "env"
+	p.idsFromAuth = p.config.IDSource == "auth"
 
 	return nil
 }

@@ -18,6 +18,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"go.opentelemetry.io/collector/config/confighttp"
 
 	"go.opentelemetry.io/collector/component"
@@ -26,9 +27,9 @@ import (
 
 type Config struct {
 	confighttp.ClientConfig `mapstructure:",squash"`
-	Statistics              StatisticsConfig `mapstructure:"statistics"`
-	ConfigurationExtension  *component.ID    `mapstructure:"configuration_extension"`
-	IDSource                string           `mapstructure:"id_source"`
+	Statistics              StatisticsConfig                `mapstructure:"statistics"`
+	ConfigurationExtension  *component.ID                   `mapstructure:"configuration_extension"`
+	IDSource                authenv.EnvironmentSourceString `mapstructure:"id_source"`
 }
 
 type StatisticsConfig struct {
@@ -41,8 +42,8 @@ type ContextID = string
 func (c *Config) Validate() error {
 	var errs error
 
-	if c.IDSource != "auth" && c.IDSource != "env" {
-		errs = multierr.Append(errs, errors.New("id_source must be either 'auth' or 'env'"))
+	if _, err := authenv.ParseEnvironmentSource(c.IDSource); err != nil {
+		errs = multierr.Append(errs, errors.New("id_source must be a valid environment source: "+err.Error()))
 	}
 
 	errs = multierr.Append(errs, c.Statistics.Validate())

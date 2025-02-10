@@ -35,7 +35,7 @@ import (
 )
 
 func (p *statsProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
-	ee := authenv.GetEnvironment(ctx, p.idsFromEnv)
+	ee := authenv.GetEnvironment(ctx, p.idSource)
 
 	now := time.Now()
 	for i := 0; i < td.ResourceSpans().Len(); i++ {

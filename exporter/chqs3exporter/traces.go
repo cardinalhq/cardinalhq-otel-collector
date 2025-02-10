@@ -23,7 +23,7 @@ import (
 )
 
 func (e *s3Exporter) ConsumeTraces(ctx context.Context, traces ptrace.Traces) error {
-	ee := authenv.GetEnvironment(ctx, e.idsFromAuth)
+	ee := authenv.GetEnvironment(ctx, e.idSource)
 
 	if e.config.Timeboxes.Traces.Interval <= 0 {
 		return nil

@@ -26,6 +26,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
+	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
 	"github.com/cardinalhq/oteltools/pkg/ottl"
 )
@@ -50,7 +51,7 @@ type fingerprintProcessor struct {
 	estimatorWindowSize int
 	estimatorInterval   int64
 
-	idsFromAuth bool
+	idSource authenv.EnvironmentSource
 }
 
 func newProcessor(config *Config, ttype string, set processor.Settings) (*fingerprintProcessor, error) {
@@ -73,7 +74,11 @@ func newProcessor(config *Config, ttype string, set processor.Settings) (*finger
 		p.estimatorInterval = config.TracesConfig.EstimatorInterval
 	}
 
-	p.idsFromAuth = p.config.IDSource == "auth"
+	idsource, err := authenv.ParseEnvironmentSource(config.IDSource)
+	if err != nil {
+		return nil, err
+	}
+	p.idSource = idsource
 
 	return p, nil
 }

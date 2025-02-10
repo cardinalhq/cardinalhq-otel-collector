@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/graph"
 
 	"go.opentelemetry.io/collector/exporter"
@@ -65,6 +66,7 @@ type entityGraphExporter struct {
 	tracesEntityCache  *graph.ResourceEntityCache
 
 	jsonMarshaller otelJsonMarshaller
+	idSource       authenv.EnvironmentSource
 }
 
 func newEntityGraphExporter(config *Config, ttype string, set exporter.Settings) (*entityGraphExporter, error) {
@@ -80,6 +82,12 @@ func newEntityGraphExporter(config *Config, ttype string, set exporter.Settings)
 		tracesEntityCache:  graph.NewResourceEntityCache(),
 		logger:             set.Logger,
 	}
+
+	idsource, err := authenv.ParseEnvironmentSource(config.IDSource)
+	if err != nil {
+		return nil, err
+	}
+	e.idSource = idsource
 
 	return e, nil
 }

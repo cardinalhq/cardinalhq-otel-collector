@@ -52,12 +52,7 @@ func getFingerprint(l pcommon.Map) int64 {
 }
 
 func (p *statsProcessor) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Logs, error) {
-	var ee authenv.Environment
-	if p.idsFromAuth {
-		ee = authenv.EnvironmentFromEnv()
-	} else {
-		ee = authenv.EnvironmentFromAuth(ctx)
-	}
+	ee := authenv.GetEnvironment(ctx, p.idSource)
 
 	now := time.Now()
 

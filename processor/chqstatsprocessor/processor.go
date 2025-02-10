@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor/internal/metadata"
+	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
@@ -74,7 +75,7 @@ type statsProcessor struct {
 	pbPhase            chqpb.Phase
 	podName            string
 
-	idsFromAuth bool
+	idSource authenv.EnvironmentSource
 
 	configCallbackID int
 
@@ -113,6 +114,12 @@ func newStatsProcessor(config *Config, ttype string, set processor.Settings) (*s
 		logger:             set.Logger,
 		podName:            os.Getenv("POD_NAME"),
 	}
+
+	idsource, err := authenv.ParseEnvironmentSource(config.IDSource)
+	if err != nil {
+		return nil, err
+	}
+	p.idSource = idsource
 
 	//if os.Getenv("ENABLE_METRIC_METRICS") == "true" {
 	p.enableMetricMetrics = true
@@ -209,8 +216,6 @@ func (p *statsProcessor) Start(ctx context.Context, host component.Host) error {
 	}
 	p.configExtension = cext
 	p.configCallbackID = p.configExtension.RegisterCallback(p.id.String()+"/"+p.ttype, p.configUpdateCallback)
-
-	p.idsFromAuth = p.config.IDSource == "auth"
 
 	return nil
 }

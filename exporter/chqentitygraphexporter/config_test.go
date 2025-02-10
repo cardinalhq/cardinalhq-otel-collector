@@ -66,6 +66,7 @@ func TestConfig(t *testing.T) {
 		Reporting: ReportingConfig{
 			Interval: 600 * time.Second,
 		},
+		IDSource: "env",
 	}
 	assert.Equal(t, expected, e)
 }

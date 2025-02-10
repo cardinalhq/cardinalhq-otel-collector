@@ -18,14 +18,15 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"go.opentelemetry.io/collector/component"
 	"go.uber.org/multierr"
 )
 
 type Config struct {
-	ConfigurationExtension *component.ID `mapstructure:"configuration_extension"`
-	TracesConfig           TracesConfig  `mapstructure:"traces"`
-	IDSource               string        `mapstructure:"id_source"`
+	ConfigurationExtension *component.ID                   `mapstructure:"configuration_extension"`
+	TracesConfig           TracesConfig                    `mapstructure:"traces"`
+	IDSource               authenv.EnvironmentSourceString `mapstructure:"id_source"`
 }
 
 type TracesConfig struct {
@@ -36,8 +37,8 @@ type TracesConfig struct {
 func (c *Config) Validate() error {
 	var errs error
 
-	if c.IDSource != "auth" && c.IDSource != "env" {
-		errs = multierr.Append(errs, errors.New("id_source must be either 'auth' or 'env'"))
+	if _, err := authenv.ParseEnvironmentSource(c.IDSource); err != nil {
+		errs = multierr.Append(errs, errors.New("id_source must be a valid environment source: "+err.Error()))
 	}
 
 	errs = multierr.Append(errs, c.TracesConfig.Validate())

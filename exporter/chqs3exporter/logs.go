@@ -24,7 +24,7 @@ import (
 )
 
 func (e *s3Exporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {
-	ee := authenv.GetEnvironment(ctx, e.idsFromAuth)
+	ee := authenv.GetEnvironment(ctx, e.idSource)
 
 	if e.config.Timeboxes.Logs.Interval <= 0 {
 		return nil

@@ -33,6 +33,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/tagwriter"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/translation/table"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/boxer"
+	"github.com/cardinalhq/oteltools/pkg/authenv"
 )
 
 type s3Exporter struct {
@@ -47,7 +48,7 @@ type s3Exporter struct {
 	writerClosed    chan struct{}
 	taglock         sync.Mutex
 	tags            map[string]map[int64]map[string]any
-	idsFromAuth     bool
+	idSource        authenv.EnvironmentSource
 }
 
 const (
@@ -75,6 +76,13 @@ func newS3Exporter(config *Config, params exporter.Settings, ttype string) (*s3E
 		telemetryType: ttype,
 		tags:          map[string]map[int64]map[string]any{},
 	}
+
+	idsource, err := authenv.ParseEnvironmentSource(config.IDSource)
+	if err != nil {
+		return nil, err
+	}
+	s3LogsExporter.idSource = idsource
+
 	return s3LogsExporter, nil
 }
 
@@ -85,8 +93,6 @@ func (e *s3Exporter) Start(_ context.Context, _ component.Host) error {
 	if e.config.Buffering.Type == bufferTypeMemory {
 		filepath = ""
 	}
-
-	e.idsFromAuth = e.config.IDSource == "auth"
 
 	opts := []boxer.BoxerOptions{}
 	switch e.telemetryType {

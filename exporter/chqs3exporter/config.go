@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"go.uber.org/multierr"
 )
 
@@ -51,11 +52,11 @@ const (
 
 // Config contains the main configuration options for the s3 exporter
 type Config struct {
-	S3Uploader       S3UploaderConfig `mapstructure:"s3uploader"`
-	Timeboxes        TimeboxesConfig  `mapstructure:"timeboxes"`
-	UseNowForMetrics bool             `mapstructure:"use_now_for_metrics"`
-	Buffering        BufferingConfig  `mapstructure:"buffering"`
-	IDSource         string           `mapstructure:"id_source"`
+	S3Uploader       S3UploaderConfig                `mapstructure:"s3uploader"`
+	Timeboxes        TimeboxesConfig                 `mapstructure:"timeboxes"`
+	UseNowForMetrics bool                            `mapstructure:"use_now_for_metrics"`
+	Buffering        BufferingConfig                 `mapstructure:"buffering"`
+	IDSource         authenv.EnvironmentSourceString `mapstructure:"id_source"`
 }
 
 func (c *Config) Validate() error {
@@ -67,8 +68,8 @@ func (c *Config) Validate() error {
 		errs = multierr.Append(errs, errors.New("bucket is required"))
 	}
 
-	if c.IDSource != "auth" && c.IDSource != "env" {
-		errs = multierr.Append(errs, errors.New("id_source must be either 'auth' or 'env'"))
+	if _, err := authenv.ParseEnvironmentSource(c.IDSource); err != nil {
+		errs = multierr.Append(errs, errors.New("id_source must be a valid environment source: "+err.Error()))
 	}
 
 	errs = multierr.Append(errs, c.Timeboxes.Validate())

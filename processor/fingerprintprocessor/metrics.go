@@ -25,7 +25,7 @@ import (
 )
 
 func (p *fingerprintProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
-	environment := authenv.GetEnvironment(ctx, p.idsFromAuth)
+	environment := authenv.GetEnvironment(ctx, p.idSource)
 
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
 		rm := md.ResourceMetrics().At(i)

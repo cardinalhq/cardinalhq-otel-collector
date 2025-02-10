@@ -23,7 +23,7 @@ import (
 )
 
 func (e *s3Exporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
-	ee := authenv.GetEnvironment(ctx, e.idsFromAuth)
+	ee := authenv.GetEnvironment(ctx, e.idSource)
 
 	if e.config.Timeboxes.Metrics.Interval <= 0 {
 		return nil

@@ -83,7 +83,7 @@ func (p *statsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics)
 			}
 		}
 		if len(newFingerprintsDetected) > 0 {
-			p.postExemplars(tenant, newFingerprintsDetected)
+			p.postExemplars(ee.CustomerID(), ee.CollectorID(), tenant, newFingerprintsDetected)
 		}
 	}
 
@@ -151,7 +151,7 @@ func (p *statsProcessor) recordMetric(tenant *Tenant, environment authenv.Enviro
 	return nil
 }
 
-func (p *statsProcessor) postExemplars(tenant *Tenant, fingerprints []string) {
+func (p *statsProcessor) postExemplars(customerID, collectorID string, tenant *Tenant, fingerprints []string) {
 	var marshalledExemplars []*chqpb.MetricExemplar
 	for _, fingerprint := range fingerprints {
 		split := strings.Split(fingerprint, ":")
@@ -167,6 +167,8 @@ func (p *statsProcessor) postExemplars(tenant *Tenant, fingerprints []string) {
 				MetricType:  mType,
 				ProcessorId: p.id.Name(),
 				Exemplar:    exemplarBytes,
+				CustomerId:  customerID,
+				CollectorId: collectorID,
 			})
 		}
 	}

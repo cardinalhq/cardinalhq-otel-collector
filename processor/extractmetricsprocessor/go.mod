@@ -6,7 +6,7 @@ toolchain go1.23.3
 
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.0.0
-	github.com/cardinalhq/oteltools v0.10.4
+	github.com/cardinalhq/oteltools v0.10.5
 	github.com/observiq/bindplane-otel-collector/receiver/routereceiver v1.70.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl v0.119.0
 	github.com/stretchr/testify v1.10.0
@@ -67,7 +67,7 @@ require (
 	go.opentelemetry.io/collector/receiver v0.119.0 // indirect
 	go.opentelemetry.io/collector/semconv v0.119.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.59.0 // indirect
-	golang.org/x/exp v0.0.0-20250207012021-f9890c6ad9f3 // indirect
+	golang.org/x/exp v0.0.0-20250210185358-939b2ce775ac // indirect
 	golang.org/x/net v0.35.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect

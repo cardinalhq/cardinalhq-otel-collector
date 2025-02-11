@@ -5,7 +5,7 @@ go 1.23
 toolchain go1.23.3
 
 require (
-	github.com/cardinalhq/oteltools v0.10.4
+	github.com/cardinalhq/oteltools v0.10.5
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/collector/component v0.119.0
 	go.opentelemetry.io/collector/config/confighttp v0.119.0
@@ -61,7 +61,7 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.59.0 // indirect
 	go.opentelemetry.io/otel v1.34.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/exp v0.0.0-20250207012021-f9890c6ad9f3 // indirect
+	golang.org/x/exp v0.0.0-20250210185358-939b2ce775ac // indirect
 	golang.org/x/net v0.35.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect

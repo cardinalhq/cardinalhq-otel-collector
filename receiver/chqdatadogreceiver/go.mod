@@ -30,7 +30,7 @@ require (
 	go.opentelemetry.io/collector/component/componenttest v0.119.0
 	go.opentelemetry.io/collector/consumer/consumertest v0.119.0
 	go.opentelemetry.io/collector/receiver/receivertest v0.119.0
-	golang.org/x/exp v0.0.0-20250207012021-f9890c6ad9f3
+	golang.org/x/exp v0.0.0-20250210185358-939b2ce775ac
 )
 
 require (

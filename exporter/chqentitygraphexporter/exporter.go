@@ -145,7 +145,7 @@ func (e *entityGraphExporter) publishResourceEntitiesForCID(ctx context.Context,
 }
 
 func (e *entityGraphExporter) postEntityRelationships(ctx context.Context, ttype string, cid string, payload []byte) error {
-	endpoint := e.config.Endpoint + fmt.Sprintf("%s?telemetryType=%s?organizationID=%s", "/api/v1/entityRelationships", ttype, cid)
+	endpoint := e.config.Endpoint + fmt.Sprintf("%s?telemetryType=%s&organizationID=%s", "/api/v1/entityRelationships", ttype, cid)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	if err != nil {
 		return err

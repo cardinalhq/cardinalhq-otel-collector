@@ -125,7 +125,7 @@ func (p *fingerprintProcessor) configUpdateCallback(sc ottl.ControlPlaneConfig) 
 			p.tenantLock.Lock()
 			defer p.tenantLock.Unlock()
 			for cid, v := range newMappings {
-				tenant := p.getTenant(cid)
+				tenant := p.getTenantUnlocked(cid)
 				tenant.mapstore.Replace(v)
 			}
 		}
@@ -204,6 +204,10 @@ func OrgIdFromResource(resource pcommon.Map) string {
 func (p *fingerprintProcessor) getTenant(cid string) *tenantState {
 	p.tenantLock.Lock()
 	defer p.tenantLock.Unlock()
+	return p.getTenantUnlocked(cid)
+}
+
+func (p *fingerprintProcessor) getTenantUnlocked(cid string) *tenantState {
 	tenant, found := p.tenants[cid]
 	if !found {
 		tenant := &tenantState{

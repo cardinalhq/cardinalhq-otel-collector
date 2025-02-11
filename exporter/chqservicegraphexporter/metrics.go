@@ -36,8 +36,12 @@ const (
 )
 
 func (e *serviceGraphExporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
+	cachesTouched := map[string]*EdgeCache{}
+
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
 		rm := md.ResourceMetrics().At(i)
+		orgID := OrgIdFromResource(rm.Resource().Attributes())
+		edgeCache := e.getEdgeCache(orgID)
 		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
 			ilm := rm.ScopeMetrics().At(j)
 			for k := 0; k < ilm.Metrics().Len(); k++ {
@@ -58,7 +62,8 @@ func (e *serviceGraphExporter) ConsumeMetrics(ctx context.Context, md pmetric.Me
 									Server:         serverService.AsString(),
 									ConnectionType: cType.AsString(),
 								}
-								e.edgeCache.Add(edge)
+								edgeCache.Add(edge)
+								cachesTouched[orgID] = edgeCache
 							}
 						}
 					}
@@ -66,26 +71,29 @@ func (e *serviceGraphExporter) ConsumeMetrics(ctx context.Context, md pmetric.Me
 			}
 		}
 	}
-	edges := e.edgeCache.flush()
-	if len(edges) > 0 {
-		go func() {
-			timeout := e.config.Timeout
-			if timeout == 0 {
-				timeout = 5 * time.Second
-			}
-			ctx, cancel := context.WithTimeout(context.Background(), timeout)
-			defer cancel()
-			err := e.postEdges(ctx, edges)
-			if err != nil {
-				e.logger.Error("Failed to send edges", zap.Error(err))
-			}
-		}()
+
+	for cid, cache := range cachesTouched {
+		edges := cache.flush()
+		if len(edges) > 0 {
+			go func() {
+				timeout := e.config.Timeout
+				if timeout == 0 {
+					timeout = 5 * time.Second
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), timeout)
+				defer cancel()
+				err := e.postEdges(ctx, cid, edges)
+				if err != nil {
+					e.logger.Error("Failed to send edges", zap.Error(err))
+				}
+			}()
+		}
 	}
 	return nil
 }
 
-func (e *serviceGraphExporter) postEdges(ctx context.Context, edges []Edge) error {
-	endpoint := e.config.Endpoint + "/api/v1/edges"
+func (e *serviceGraphExporter) postEdges(ctx context.Context, cid string, edges []Edge) error {
+	endpoint := e.config.Endpoint + "/api/v1/edges?organizationID=" + cid
 	b, err := json.Marshal(edges)
 	if err != nil {
 		return err

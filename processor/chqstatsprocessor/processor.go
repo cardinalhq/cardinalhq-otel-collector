@@ -143,6 +143,7 @@ func newStatsProcessor(config *Config, ttype string, set processor.Settings) (*s
 		jsonMarshaller:     newMarshaller(),
 		logger:             set.Logger,
 		podName:            os.Getenv("POD_NAME"),
+		tenants:            make(map[string]*Tenant),
 	}
 
 	idsource, err := authenv.ParseEnvironmentSource(config.IDSource)

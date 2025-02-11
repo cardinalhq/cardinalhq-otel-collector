@@ -210,7 +210,7 @@ func (p *fingerprintProcessor) getTenant(cid string) *tenantState {
 func (p *fingerprintProcessor) getTenantUnlocked(cid string) *tenantState {
 	tenant, found := p.tenants[cid]
 	if !found {
-		tenant := &tenantState{
+		tenant = &tenantState{
 			mapstore:   NewMapStore(),
 			estimators: make(map[uint64]*SlidingEstimatorStat),
 		}

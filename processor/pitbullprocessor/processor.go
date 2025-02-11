@@ -137,17 +137,20 @@ func (p *pitbull) Shutdown(ctx context.Context) error {
 }
 
 func (p *pitbull) configUpdateCallback(sc ottl.ControlPlaneConfig) {
+	p.logger.Info("Configuration updated for processor instance", zap.String("instance", p.id.Name()))
 	p.logger.Info("Got configuration update for processor instance", zap.String("instance", p.id.Name()), zap.Int("pitbullConfigs", len(sc.Pitbulls)))
 
 	configs := sc.Pitbulls[p.id.Name()]
-	p.logger.Info("Updating configuration for processor instance",
-		zap.String("instance", p.id.Name()),
-		zap.Int("logLookupConfigs", len(configs.LogLookupConfigs)),
-		zap.Int("logStatements", len(configs.LogStatements)),
-		zap.Int("spanLookupConfigs", len(configs.SpanLookupConfigs)),
-		zap.Int("spanStatements", len(configs.SpanStatements)),
-		zap.Int("metricLookupConfigs", len(configs.MetricLookupConfigs)),
-		zap.Int("metricStatements", len(configs.MetricStatements)))
+	if configs != nil {
+		p.logger.Info("Updating configuration for processor instance",
+			zap.String("instance", p.id.Name()),
+			zap.Int("logLookupConfigs", len(configs.LogLookupConfigs)),
+			zap.Int("logStatements", len(configs.LogStatements)),
+			zap.Int("spanLookupConfigs", len(configs.SpanLookupConfigs)),
+			zap.Int("spanStatements", len(configs.SpanStatements)),
+			zap.Int("metricLookupConfigs", len(configs.MetricLookupConfigs)),
+			zap.Int("metricStatements", len(configs.MetricStatements)))
+	}
 
 	p.logger.Info("number of 'tenant' configurations", zap.Int("numTenants", len(sc.Configs)))
 
@@ -159,5 +162,4 @@ func (p *pitbull) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 	case "metrics":
 		p.updateMetricTransformation(configs, p.logger)
 	}
-	p.logger.Info("Configuration updated for processor instance", zap.String("instance", p.id.Name()))
 }

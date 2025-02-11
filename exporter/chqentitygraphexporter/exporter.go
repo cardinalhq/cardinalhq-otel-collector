@@ -148,7 +148,7 @@ func (e *entityGraphExporter) publishResourceEntitiesForCID(ctx context.Context,
 
 func URLFor(endpoint string, ttype string, cid string) string {
 	u, _ := url.Parse(endpoint)
-	u.Path = fmt.Sprintf("/api/v1/entityRelationships")
+	u.Path = "/api/v1/entityRelationships"
 	q := u.Query()
 	q.Add("telemetryType", ttype)
 	q.Add("organizationID", strings.ToLower(cid))

@@ -138,6 +138,7 @@ func (p *pitbull) Shutdown(ctx context.Context) error {
 
 func (p *pitbull) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 	p.logger.Info("Got configuration update for processor instance", zap.String("instance", p.id.Name()), zap.Int("pitbullConfigs", len(sc.Pitbulls)))
+
 	configs := sc.Pitbulls[p.id.Name()]
 	p.logger.Info("Updating configuration for processor instance",
 		zap.String("instance", p.id.Name()),
@@ -147,6 +148,8 @@ func (p *pitbull) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 		zap.Int("spanStatements", len(configs.SpanStatements)),
 		zap.Int("metricLookupConfigs", len(configs.MetricLookupConfigs)),
 		zap.Int("metricStatements", len(configs.MetricStatements)))
+
+	p.logger.Info("number of 'tenant' configurations", zap.Int("numTenants", len(sc.Configs)))
 
 	switch p.ttype {
 	case "logs":

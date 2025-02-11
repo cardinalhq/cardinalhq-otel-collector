@@ -40,7 +40,7 @@ func TestGetServiceName(t *testing.T) {
 func TestTokenFields(t *testing.T) {
 	e := &fingerprintProcessor{
 		logFingerprinter: fingerprinter.NewFingerprinter(fingerprinter.WithMaxTokens(30)),
-		tenants:          make(map[string]tenantState),
+		tenants:          make(map[string]*tenantState),
 	}
 	ld := plog.NewLogs()
 	rl := ld.ResourceLogs().AppendEmpty()

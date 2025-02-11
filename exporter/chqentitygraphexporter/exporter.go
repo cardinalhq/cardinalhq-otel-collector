@@ -21,6 +21,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -144,8 +146,19 @@ func (e *entityGraphExporter) publishResourceEntitiesForCID(ctx context.Context,
 	}
 }
 
+func URLFor(endpoint string, ttype string, cid string) string {
+	u, _ := url.Parse(endpoint)
+	u.Path = fmt.Sprintf("/api/v1/entityRelationships")
+	q := u.Query()
+	q.Add("telemetryType", ttype)
+	q.Add("organizationID", strings.ToLower(cid))
+	u.RawQuery = q.Encode()
+	return u.String()
+}
+
 func (e *entityGraphExporter) postEntityRelationships(ctx context.Context, ttype string, cid string, payload []byte) error {
-	endpoint := e.config.Endpoint + fmt.Sprintf("%s?telemetryType=%s&organizationID=%s", "/api/v1/entityRelationships", ttype, cid)
+	endpoint := URLFor(e.config.Endpoint, ttype, cid)
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	if err != nil {
 		return err

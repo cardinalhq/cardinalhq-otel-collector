@@ -50,7 +50,7 @@ type fingerprintProcessor struct {
 	// for logs
 	logFingerprinter fingerprinter.Fingerprinter
 
-	tenants    map[string]tenantState
+	tenants    map[string]*tenantState
 	tenantLock sync.Mutex
 
 	estimatorWindowSize int
@@ -66,21 +66,19 @@ type tenantState struct {
 
 func newProcessor(config *Config, ttype string, set processor.Settings) (*fingerprintProcessor, error) {
 	p := &fingerprintProcessor{
-		id:                set.ID,
-		ttype:             ttype,
-		config:            config,
-		telemetrySettings: set.TelemetrySettings,
-		logger:            set.Logger,
+		id:                  set.ID,
+		ttype:               ttype,
+		config:              config,
+		telemetrySettings:   set.TelemetrySettings,
+		logger:              set.Logger,
+		tenants:             make(map[string]*tenantState),
+		estimatorWindowSize: config.TracesConfig.EstimatorWindowSize,
+		estimatorInterval:   config.TracesConfig.EstimatorInterval,
 	}
 
 	switch ttype {
 	case "logs":
 		p.logFingerprinter = fingerprinter.NewFingerprinter(fingerprinter.WithMaxTokens(30))
-
-	case "traces":
-		p.tenants = make(map[string]tenantState)
-		p.estimatorWindowSize = config.TracesConfig.EstimatorWindowSize
-		p.estimatorInterval = config.TracesConfig.EstimatorInterval
 	}
 
 	idsource, err := authenv.ParseEnvironmentSource(config.IDSource)
@@ -126,13 +124,8 @@ func (p *fingerprintProcessor) configUpdateCallback(sc ottl.ControlPlaneConfig) 
 			newMappings := makeFingerprintMap(sc)
 			p.tenantLock.Lock()
 			for cid, v := range newMappings {
-				if _, ok := p.tenants[cid]; !ok {
-					p.tenants[cid] = tenantState{
-						mapstore:   NewMapStore(),
-						estimators: make(map[uint64]*SlidingEstimatorStat),
-					}
-				}
-				p.tenants[cid].mapstore.Replace(v)
+				tenant := p.getTenant(cid)
+				tenant.mapstore.Replace(v)
 			}
 		}
 		// Add span fingerprinter if needed
@@ -198,4 +191,19 @@ func OrgIdFromResource(resource pcommon.Map) string {
 		return "default"
 	}
 	return orgID.AsString()
+}
+
+func (p *fingerprintProcessor) getTenant(cid string) *tenantState {
+	p.tenantLock.Lock()
+	defer p.tenantLock.Unlock()
+	tenant, found := p.tenants[cid]
+	if !found {
+		tenant := &tenantState{
+			mapstore:   NewMapStore(),
+			estimators: make(map[uint64]*SlidingEstimatorStat),
+		}
+		p.tenants[cid] = tenant
+	}
+
+	return tenant
 }

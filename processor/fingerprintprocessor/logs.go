@@ -64,16 +64,7 @@ func (p *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plo
 }
 
 func (p *fingerprintProcessor) addTokenFields(cid string, lr plog.LogRecord) (int64, string, error) {
-	p.tenantLock.Lock()
-	tenant, found := p.tenants[cid]
-	if !found {
-		tenant = tenantState{
-			mapstore:   NewMapStore(),
-			estimators: make(map[uint64]*SlidingEstimatorStat),
-		}
-		p.tenants[cid] = tenant
-	}
-	p.tenantLock.Unlock()
+	tenant := p.getTenant(cid)
 
 	fingerprint, tMap, level, js, err := p.logFingerprinter.Fingerprint(lr.Body().AsString())
 	if err != nil {

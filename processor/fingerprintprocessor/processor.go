@@ -123,6 +123,7 @@ func (p *fingerprintProcessor) configUpdateCallback(sc ottl.ControlPlaneConfig) 
 			p.logMappingsHash = newhash
 			newMappings := makeFingerprintMap(sc)
 			p.tenantLock.Lock()
+			defer p.tenantLock.Unlock()
 			for cid, v := range newMappings {
 				tenant := p.getTenant(cid)
 				tenant.mapstore.Replace(v)
@@ -139,7 +140,14 @@ func (p *fingerprintProcessor) configUpdateCallback(sc ottl.ControlPlaneConfig) 
 func calculateMapHash(m ottl.ControlPlaneConfig) int64 {
 	hasher := fnv.New64a()
 
-	for cid, v := range m.Configs {
+	cids := make([]string, 0, len(m.Configs))
+	for cid := range m.Configs {
+		cids = append(cids, cid)
+	}
+	slices.Sort(cids)
+
+	for _, cid := range cids {
+		v := m.Configs[cid]
 		_, _ = hasher.Write([]byte(cid))
 		fpm := v.FingerprintConfig.LogMappings
 		slices.SortStableFunc(fpm, func(i, j ottl.FingerprintMapping) int {

@@ -15,18 +15,14 @@
 package chqstatsprocessor
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
@@ -80,6 +76,7 @@ func (p *statsProcessor) recordSpan(
 	rs ptrace.ResourceSpans,
 ) error {
 	orgID := OrgIdFromResource(rs.Resource().Attributes())
+	tenant := p.getTenant(orgID) // TODO move this to the top of the resource loop
 
 	// spanSize = (size of attributes + top level fields)
 	var spanSize = toSize(span.Attributes().AsRaw())
@@ -103,80 +100,36 @@ func (p *statsProcessor) recordSpan(
 	enrichmentAttributes = append(enrichmentAttributes, isSlowAttribute)
 	enrichmentAttributes = append(enrichmentAttributes, spanKindAttribute)
 
-	err := p.spanStats.Record(serviceName, fingerprint, p.pbPhase, p.id.Name(), environment.CollectorID(), environment.CustomerID(), enrichmentAttributes, 1, spanSize)
+	err := tenant.spanStats.Record(serviceName, fingerprint, p.pbPhase, p.id.Name(), environment.CollectorID(), environment.CustomerID(), enrichmentAttributes, 1, spanSize)
 	if err != nil && errors.Is(err, chqpb.ErrCacheFull) {
 		telemetry.CounterAdd(p.cacheFull, 1)
 	}
-	p.addSpanExemplar(rs, iss, span, serviceName, fingerprint)
+	p.addSpanExemplar(tenant, rs, iss, span, serviceName, fingerprint)
 
 	telemetry.HistogramRecord(p.recordLatency, int64(time.Since(now)))
 
 	return nil
 }
 
-func (p *statsProcessor) addSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span, serviceName string, fingerprint int64) {
-	if p.pbPhase == chqpb.Phase_PRE {
-		key := p.toExemplarKey(serviceName, fingerprint)
-		if p.logExemplars.Contains(key) {
-			return
-		}
-		exemplarLd := ptrace.NewTraces()
-		copyRl := exemplarLd.ResourceSpans().AppendEmpty()
-		rs.Resource().CopyTo(copyRl.Resource())
-		copySl := copyRl.ScopeSpans().AppendEmpty()
-		ss.Scope().CopyTo(copySl.Scope())
-		copyLr := copySl.Spans().AppendEmpty()
-		sr.CopyTo(copyLr)
-		marshalled, me := p.jsonMarshaller.tracesMarshaler.MarshalTraces(exemplarLd)
-		if me != nil {
-			return
-		}
-		p.traceExemplars.Put(key, marshalled)
-	}
-}
-
-func (p *statsProcessor) sendSpanStats(statsList []*chqpb.EventStats) {
-	for _, stat := range statsList {
-		key := p.toExemplarKey(stat.ServiceName, stat.Fingerprint)
-		exemplarBytes, found := p.traceExemplars.Get(key)
-		if !found {
-			continue
-		}
-		stat.Exemplar = exemplarBytes.([]byte)
+func (p *statsProcessor) addSpanExemplar(tenant *Tenant, rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span, serviceName string, fingerprint int64) {
+	if p.pbPhase != chqpb.Phase_PRE {
+		return
 	}
 
-	wrapper := &chqpb.EventStatsReport{
-		SubmittedAt: time.Now().UnixMilli(),
-		Stats:       statsList}
-
-	if err := p.postSpanStats(context.Background(), wrapper); err != nil {
-		p.logger.Error("Failed to send span stats", zap.Error(err))
+	key := p.toExemplarKey(serviceName, fingerprint)
+	if tenant.traceExemplars.Contains(key) {
+		return
 	}
-}
-
-func (p *statsProcessor) postSpanStats(ctx context.Context, wrapper *chqpb.EventStatsReport) error {
-	b, err := proto.Marshal(wrapper)
-	if err != nil {
-		return err
+	exemplarLd := ptrace.NewTraces()
+	copyRl := exemplarLd.ResourceSpans().AppendEmpty()
+	rs.Resource().CopyTo(copyRl.Resource())
+	copySl := copyRl.ScopeSpans().AppendEmpty()
+	ss.Scope().CopyTo(copySl.Scope())
+	copyLr := copySl.Spans().AppendEmpty()
+	sr.CopyTo(copyLr)
+	marshalled, me := p.jsonMarshaller.tracesMarshaler.MarshalTraces(exemplarLd)
+	if me != nil {
+		return
 	}
-	telemetry.HistogramRecord(p.statsBatchSize, int64(len(b)))
-	endpoint := p.config.Endpoint + "/api/v1/spanstats"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/x-protobuf")
-
-	resp, err := p.httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		p.logger.Error("Failed to send span stats", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-	return nil
+	tenant.traceExemplars.Put(key, marshalled)
 }

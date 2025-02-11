@@ -21,6 +21,7 @@ import (
 	"hash/fnv"
 	"net/http"
 	"os"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -79,13 +80,8 @@ type statsProcessor struct {
 
 	configCallbackID int
 
-	logstats    *chqpb.EventStatsCache
-	spanStats   *chqpb.EventStatsCache
-	metricstats *chqpb.MetricStatsCache
-
-	logExemplars    *LRUCache
-	traceExemplars  *LRUCache
-	metricExemplars *LRUCache
+	tenants    map[string]*Tenant
+	tenantLock sync.Mutex
 
 	jsonMarshaller otelJsonMarshaller
 
@@ -98,6 +94,45 @@ type statsProcessor struct {
 	enableLogMetrics    bool
 }
 
+type Tenant struct {
+	logstats    *chqpb.EventStatsCache
+	spanStats   *chqpb.EventStatsCache
+	metricstats *chqpb.MetricStatsCache
+
+	logExemplars    *LRUCache
+	traceExemplars  *LRUCache
+	metricExemplars *LRUCache
+}
+
+var realClock = &chqpb.RealClock{}
+
+func (p *statsProcessor) getTenant(organizationID string) *Tenant {
+	p.tenantLock.Lock()
+	defer p.tenantLock.Unlock()
+	tenant, found := p.tenants[organizationID]
+	if !found {
+		tenant = &Tenant{}
+		switch p.ttype {
+		case "logs":
+			tenant.logstats = chqpb.NewEventStatsCache(1000, 16, 5*time.Minute, p.sendLogStats(organizationID), chqpb.InitializeEventStats, realClock)
+			tenant.logstats.Start()
+			tenant.logExemplars = NewLRUCache(1000, 5*time.Minute)
+		case "metrics":
+			tenant.metricstats = chqpb.NewMetricStatsCache(1000, 16, 5*time.Minute, p.sendMetricStats, chqpb.InitializeMetricStats, realClock)
+			tenant.metricstats.Start()
+			tenant.metricExemplars = NewLRUCache(1000, 5*time.Minute)
+		case "traces":
+			tenant.spanStats = chqpb.NewEventStatsCache(1000, 16, 5*time.Minute, p.sendSpanStats(organizationID), chqpb.InitializeEventStats, realClock)
+			tenant.spanStats.Start()
+			tenant.traceExemplars = NewLRUCache(1000, 5*time.Minute)
+		}
+
+		p.tenants[organizationID] = tenant
+	}
+
+	return tenant
+}
+
 func newStatsProcessor(config *Config, ttype string, set processor.Settings) (*statsProcessor, error) {
 	p := &statsProcessor{
 		id:                 set.ID,
@@ -106,9 +141,6 @@ func newStatsProcessor(config *Config, ttype string, set processor.Settings) (*s
 		httpClientSettings: config.ClientConfig,
 		telemetrySettings:  set.TelemetrySettings,
 		jsonMarshaller:     newMarshaller(),
-		logExemplars:       NewLRUCache(1000, 5*time.Minute),
-		traceExemplars:     NewLRUCache(1000, 5*time.Minute),
-		metricExemplars:    NewLRUCache(1000, 5*time.Minute),
 		logger:             set.Logger,
 		podName:            os.Getenv("POD_NAME"),
 	}
@@ -133,22 +165,6 @@ func newStatsProcessor(config *Config, ttype string, set processor.Settings) (*s
 	}
 
 	processorId := set.ID.String()
-	clock := &chqpb.RealClock{}
-	capacity := 1000
-	switch ttype {
-	case "logs":
-		p.logstats = chqpb.NewEventStatsCache(capacity, 16, 5*time.Minute, p.sendLogStats, chqpb.InitializeEventStats, clock)
-		p.logstats.Start()
-		p.logger.Info("Initialized LogStats Combiner", zap.Duration("interval", config.Statistics.Interval))
-	case "metrics":
-		p.metricstats = chqpb.NewMetricStatsCache(capacity, 16, 5*time.Minute, p.sendMetricStats, chqpb.InitializeMetricStats, clock)
-		p.metricstats.Start()
-		p.logger.Info("Initialized MetricStatsCache", zap.Duration("interval", config.Statistics.Interval))
-	case "traces":
-		p.spanStats = chqpb.NewEventStatsCache(capacity, 16, 5*time.Minute, p.sendSpanStats, chqpb.InitializeEventStats, clock)
-		p.spanStats.Start()
-		p.logger.Info("Initialized SpanStats Combiner", zap.Duration("interval", config.Statistics.Interval))
-	}
 
 	attrset := attribute.NewSet(
 		attribute.String("processor", processorId),

@@ -268,14 +268,12 @@ func (p *statsProcessor) processEnrichments(organizationID string, attributesByS
 		enrichments = stats.SpanEnrichments
 	}
 
-	if enrichments != nil {
-		for _, enrichment := range enrichments {
-			attributes, found := attributesByScope[enrichment.Context]
-			if found {
-				for _, tag := range enrichment.Tags {
-					if tagValue, found := attributes.Get(tag); found {
-						tags = append(tags, toAttribute(enrichment.Context, tag, tagValue, false))
-					}
+	for _, enrichment := range enrichments {
+		attributes, found := attributesByScope[enrichment.Context]
+		if found {
+			for _, tag := range enrichment.Tags {
+				if tagValue, found := attributes.Get(tag); found {
+					tags = append(tags, toAttribute(enrichment.Context, tag, tagValue, false))
 				}
 			}
 		}

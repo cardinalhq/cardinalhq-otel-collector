@@ -248,7 +248,14 @@ func (p *statsProcessor) processEnrichments(organizationID string, attributesByS
 	}
 
 	tenant := config.Configs[organizationID]
+	if tenant.Stats == nil {
+		return nil
+	}
+
 	stats := tenant.Stats[p.id.Name()]
+	if stats == nil {
+		return nil
+	}
 
 	tags := make([]*chqpb.Attribute, 0)
 	var enrichments []ottl.StatsEnrichment

@@ -43,22 +43,26 @@ func (p *extractor) ConsumeTraces(ctx context.Context, pt ptrace.Traces) (ptrace
 func (p *extractor) extractMetricsFromSpans(ctx context.Context, pt ptrace.Traces) []pmetric.Metrics {
 	var totalMetrics []pmetric.Metrics
 
-	extractors := p.spanExtractors.Load()
-	if extractors == nil {
-		return totalMetrics
-	}
-	for _, spanExtractor := range *extractors {
-		startTime := time.Now()
+	metrics := pmetric.NewMetrics()
 
-		metrics := pmetric.NewMetrics()
+	resourceSpans := pt.ResourceSpans()
+	for i := 0; i < resourceSpans.Len(); i++ {
+		resourceSpan := resourceSpans.At(i)
+		scopeSpans := resourceSpan.ScopeSpans()
+		resource := resourceSpan.Resource()
 
-		resourceSpans := pt.ResourceSpans()
-		for i := 0; i < resourceSpans.Len(); i++ {
-			resourceSpan := resourceSpans.At(i)
-			scopeSpans := resourceSpan.ScopeSpans()
-			resource := resourceSpan.Resource()
+		cid := OrgIdFromResource(resource.Attributes())
+		spanExtractors, ok := p.spanExtractors.Load(cid)
+		if !ok {
+			continue
+		}
+
+		for _, spanExtractor := range spanExtractors {
+			startTime := time.Now()
 
 			resourceMetrics := pmetric.NewResourceMetrics()
+			// Copy the resource attributes to the resource metrics, which will include
+			// the tenant ID we found.
 			resource.Attributes().CopyTo(resourceMetrics.Resource().Attributes())
 			scopeMetrics := resourceMetrics.ScopeMetrics().AppendEmpty()
 			scopeMetrics.Scope().SetName(componentType.String())
@@ -93,7 +97,9 @@ func (p *extractor) extractMetricsFromSpans(ctx context.Context, pt ptrace.Trace
 							attribute.String("metricName", spanExtractor.MetricName),
 							attribute.String("metricType", spanExtractor.MetricType),
 							attribute.String("stage", "conditionEval"),
-							attribute.String("error_msg", err.Error()))
+							attribute.String("error_msg", err.Error()),
+							attribute.String("organization_id", cid),
+						)
 						telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
 						continue
 					}
@@ -102,12 +108,14 @@ func (p *extractor) extractMetricsFromSpans(ctx context.Context, pt ptrace.Trace
 						attrset := attribute.NewSet(attribute.String("ruleId", spanExtractor.RuleID),
 							attribute.String("metricName", spanExtractor.MetricName),
 							attribute.String("metricType", spanExtractor.MetricType),
-							attribute.Bool("conditionsEvaluated", false))
+							attribute.Bool("conditionsEvaluated", false),
+							attribute.String("organization_id", cid),
+						)
 						telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 						continue
 					}
 
-					p.spanRecordToDataPoint(ctx, spanExtractor, sr, spanCtx, dpSlice)
+					p.spanRecordToDataPoint(ctx, cid, spanExtractor, sr, spanCtx, dpSlice)
 				}
 			}
 
@@ -115,17 +123,20 @@ func (p *extractor) extractMetricsFromSpans(ctx context.Context, pt ptrace.Trace
 				// Add the resource metric to the slice if we had any datapoints.
 				resourceMetrics.MoveTo(metrics.ResourceMetrics().AppendEmpty())
 			}
+			telemetry.HistogramRecord(p.ruleEvalTime, time.Since(startTime).Nanoseconds(),
+				metric.WithAttributes(
+					attribute.String("rule_id", spanExtractor.RuleID),
+					attribute.String("organization_id", cid),
+				))
 		}
 		if metrics.ResourceMetrics().Len() > 0 {
 			totalMetrics = append(totalMetrics, metrics)
 		}
-		telemetry.HistogramRecord(p.ruleEvalTime, time.Since(startTime).Nanoseconds(),
-			metric.WithAttributes(attribute.String("rule_id", spanExtractor.RuleID)))
 	}
 	return totalMetrics
 }
 
-func (p *extractor) spanRecordToDataPoint(ctx context.Context, se *ottl.SpanExtractor, sr ptrace.Span, spanCtx ottlspan.TransformContext, dpSlice pmetric.NumberDataPointSlice) {
+func (p *extractor) spanRecordToDataPoint(ctx context.Context, cid string, se *ottl.SpanExtractor, sr ptrace.Span, spanCtx ottlspan.TransformContext, dpSlice pmetric.NumberDataPointSlice) {
 	var val any
 
 	if se.MetricValue != nil {
@@ -136,7 +147,9 @@ func (p *extractor) spanRecordToDataPoint(ctx context.Context, se *ottl.SpanExtr
 				attribute.String("metricName", se.MetricName),
 				attribute.String("metricType", se.MetricType),
 				attribute.String("stage", "metricValueExtraction"),
-				attribute.String("error", err.Error()))
+				attribute.String("error", err.Error()),
+				attribute.String("organization_id", cid),
+			)
 
 			telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
 			return

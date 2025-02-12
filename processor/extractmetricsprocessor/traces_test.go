@@ -148,6 +148,6 @@ func newSpansTestExtractor(logExtractors []*ottl.SpanExtractor) *extractor {
 	e.rulesEvaluated = counter
 	e.ruleErrors = errorCounter
 
-	e.spanExtractors.Store(&logExtractors)
+	e.spanExtractors.Store("default", logExtractors)
 	return e
 }

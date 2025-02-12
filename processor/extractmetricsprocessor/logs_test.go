@@ -214,6 +214,6 @@ func newLogsTestExtractor(logExtractors []*ottl.LogExtractor) *extractor {
 	e.ruleErrors = errorCounter
 	e.ruleEvalTime = histogram
 
-	e.logExtractors.Store(&logExtractors)
+	e.logExtractors.Store("default", logExtractors)
 	return e
 }

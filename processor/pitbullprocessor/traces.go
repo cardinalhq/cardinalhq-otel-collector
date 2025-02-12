@@ -33,13 +33,14 @@ func (p *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 		return td, nil
 	}
 
-	transformations := p.traceTransformations.Load()
-	luc := p.tracesLookupConfigs.Load()
-	if transformations == nil && luc == nil {
-		return td, nil
-	}
-
 	td.ResourceSpans().RemoveIf(func(rs ptrace.ResourceSpans) bool {
+		cid := OrgIdFromResource(rs.Resource().Attributes())
+		transformations, transformationsFound := p.traceTransformations.Load(cid)
+		luc, lucFound := p.tracesLookupConfigs.Load(cid)
+		if !transformationsFound && !lucFound {
+			return false
+		}
+
 		transformCtx := ottlresource.NewTransformContext(rs.Resource(), rs)
 		if transformations != nil {
 			transformations.ExecuteResourceTransforms(p.logger, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
@@ -81,27 +82,27 @@ func (p *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 	return td, nil
 }
 
-func (p *pitbull) updateTraceTransformations(sc *ottl.PitbullProcessorConfig, logger *zap.Logger) {
-	if sc == nil {
+func (p *pitbull) updateTraceConfigForTenant(cid string, pbc *ottl.PitbullProcessorConfig) {
+	if pbc == nil {
+		p.shutdownTraceForTenant(cid)
 		return
 	}
-	p.logger.Info("Updating trace transformations", zap.Int("num_decorators", len(sc.SpanStatements)))
-	newTransformations := ottl.NewTransformations()
+	p.logger.Info("Updating trace transformations", zap.Int("num_decorators", len(pbc.SpanStatements)))
 
-	transformations, err := ottl.ParseTransformations(p.logger, sc.SpanStatements)
+	newTransformations := ottl.NewTransformations()
+	transformations, err := ottl.ParseTransformations(p.logger, pbc.SpanStatements)
 	if err != nil {
 		p.logger.Error("Error parsing traces transformation", zap.Error(err))
 	} else {
 		newTransformations = ottl.MergeWith(newTransformations, transformations)
 	}
 
-	oldTransformations := p.traceTransformations.Load()
-	p.traceTransformations.Store(newTransformations)
-	if oldTransformations != nil {
-		oldTransformations.Stop()
+	if old, found := p.traceTransformations.Replace(cid, newTransformations); found {
+		old.Stop()
 	}
 
-	for _, lookupConfig := range sc.SpanLookupConfigs {
-		lookupConfig.Init(logger)
+	for _, lookupConfig := range pbc.SpanLookupConfigs {
+		lookupConfig.Init(p.logger)
 	}
+	p.tracesLookupConfigs.Store(cid, &pbc.SpanLookupConfigs)
 }

@@ -51,13 +51,13 @@ func (p *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 		return ld, nil
 	}
 
-	transformations := p.logTransformations.Load()
-	luc := p.logsLookupConfigs.Load()
-	if transformations == nil && luc == nil {
-		return ld, nil
-	}
-
 	ld.ResourceLogs().RemoveIf(func(rl plog.ResourceLogs) bool {
+		cid := OrgIdFromResource(rl.Resource().Attributes())
+		transformations, transformationsFound := p.logTransformations.Load(cid)
+		luc, lucFound := p.logsLookupConfigs.Load(cid)
+		if !transformationsFound && !lucFound {
+			return false
+		}
 		transformCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
 		if transformations != nil {
 			transformations.ExecuteResourceTransforms(p.logger, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
@@ -106,27 +106,27 @@ func removeAllCardinalFields(attr pcommon.Map) {
 	})
 }
 
-func (p *pitbull) updateLogTransformations(sc *ottl.PitbullProcessorConfig, logger *zap.Logger) {
-	if sc == nil {
+func (p *pitbull) updateLogConfigForTenant(cid string, pbc *ottl.PitbullProcessorConfig) {
+	if pbc == nil {
+		p.shutdownLogsForTenant(cid)
 		return
 	}
-	p.logger.Info("Updating log transformations", zap.Int("num_decorators", len(sc.LogStatements)))
-	newTransformations := ottl.NewTransformations()
+	p.logger.Info("Updating log transformations", zap.String("organizationID", cid))
 
-	transformations, err := ottl.ParseTransformations(p.logger, sc.LogStatements)
+	newTransformations := ottl.NewTransformations()
+	transformations, err := ottl.ParseTransformations(p.logger, pbc.LogStatements)
 	if err != nil {
 		p.logger.Error("Error parsing log transformation", zap.Error(err))
 	} else {
 		newTransformations = ottl.MergeWith(newTransformations, transformations)
 	}
 
-	oldTransformations := p.logTransformations.Load()
-	p.logTransformations.Store(newTransformations)
-	if oldTransformations != nil {
-		oldTransformations.Stop()
+	if old, found := p.logTransformations.Replace(cid, newTransformations); found {
+		old.Stop()
 	}
 
-	for _, lookupConfig := range sc.LogLookupConfigs {
-		lookupConfig.Init(logger)
+	for _, lookupConfig := range pbc.LogLookupConfigs {
+		lookupConfig.Init(p.logger)
 	}
+	p.logsLookupConfigs.Store(cid, &pbc.LogLookupConfigs)
 }

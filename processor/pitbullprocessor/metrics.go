@@ -157,7 +157,7 @@ func (p *pitbull) updateMetricConfigForTenant(cid string, pbc *ottl.PitbullProce
 		p.shutdownMetricsForTenant(cid)
 		return
 	}
-	p.logger.Info("Updating metrics transformations", zap.Int("num_decorators", len(pbc.MetricStatements)))
+	p.logger.Info("Updating metrics transformations", zap.String("organizationID", cid), zap.Int("metricTransformations", len(pbc.MetricStatements)), zap.Int("metricLookupConfigs", len(pbc.MetricLookupConfigs)))
 
 	newTransformations := ottl.NewTransformations()
 	transformations, err := ottl.ParseTransformations(p.logger, pbc.MetricStatements)

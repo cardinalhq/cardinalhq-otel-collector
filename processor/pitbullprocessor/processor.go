@@ -144,21 +144,11 @@ func (p *pitbull) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 
 	for cid, tenant := range sc.Configs {
 		pbc := tenant.Pitbulls[p.id.String()]
-		if pbc == nil {
-			p.shutdownForTenant(cid)
-			continue
-		}
-
+		p.logger.Info("Configuration updated for tenant", zap.String("instance", p.id.Name()), zap.String("tenant", cid), zap.Bool("config_present", pbc != nil))
 		p.updateLogConfigForTenant(cid, pbc)
 		p.updateMetricConfigForTenant(cid, pbc)
 		p.updateTraceConfigForTenant(cid, pbc)
 	}
-}
-
-func (p *pitbull) shutdownForTenant(cid string) {
-	p.shutdownLogsForTenant(cid)
-	p.shutdownMetricsForTenant(cid)
-	p.shutdownTraceForTenant(cid)
 }
 
 func (p *pitbull) shutdownLogsForTenant(cid string) {

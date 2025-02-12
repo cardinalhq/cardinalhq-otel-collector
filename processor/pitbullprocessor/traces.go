@@ -88,7 +88,7 @@ func (p *pitbull) updateTraceConfigForTenant(cid string, pbc *ottl.PitbullProces
 		p.shutdownTraceForTenant(cid)
 		return
 	}
-	p.logger.Info("Updating trace transformations", zap.Int("num_decorators", len(pbc.SpanStatements)))
+	p.logger.Info("Updating trace transformations", zap.String("organizationID", cid), zap.Int("traceTransformations", len(pbc.SpanStatements)), zap.Int("traceLookupConfigs", len(pbc.SpanLookupConfigs)))
 
 	newTransformations := ottl.NewTransformations()
 	transformations, err := ottl.ParseTransformations(p.logger, pbc.SpanStatements)

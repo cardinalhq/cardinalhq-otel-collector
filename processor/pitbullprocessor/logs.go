@@ -112,7 +112,7 @@ func (p *pitbull) updateLogConfigForTenant(cid string, pbc *ottl.PitbullProcesso
 		p.shutdownLogsForTenant(cid)
 		return
 	}
-	p.logger.Info("Updating log transformations", zap.String("organizationID", cid))
+	p.logger.Info("Updating log transformations", zap.String("organizationID", cid), zap.Int("logTransformations", len(pbc.LogStatements)), zap.Int("logLookupConfigs", len(pbc.LogLookupConfigs)))
 
 	newTransformations := ottl.NewTransformations()
 	transformations, err := ottl.ParseTransformations(p.logger, pbc.LogStatements)

@@ -125,6 +125,7 @@ func (p *fingerprintProcessor) configUpdateCallback(sc ottl.ControlPlaneConfig) 
 			p.tenantLock.Lock()
 			defer p.tenantLock.Unlock()
 			for cid, v := range newMappings {
+				p.logger.Info("Configuration updated for tenant", zap.String("instance", p.id.Name()), zap.String("tenant", cid), zap.Int("mappingsCount", len(v)))
 				tenant := p.getTenantUnlocked(cid)
 				tenant.mapstore.Replace(v)
 			}

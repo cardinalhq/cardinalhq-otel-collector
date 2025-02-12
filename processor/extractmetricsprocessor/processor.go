@@ -19,16 +19,18 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"sync/atomic"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor/internal/metadata"
+	"github.com/cardinalhq/oteltools/pkg/syncmap"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
 	"github.com/observiq/bindplane-otel-collector/receiver/routereceiver"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
@@ -50,8 +52,8 @@ type extractor struct {
 	ruleEvalTime      *telemetry.DeferrableInt64Histogram
 
 	configCallbackID int
-	logExtractors    atomic.Pointer[[]*ottl.LogExtractor]
-	spanExtractors   atomic.Pointer[[]*ottl.SpanExtractor]
+	logExtractors    syncmap.SyncMap[string, []*ottl.LogExtractor]
+	spanExtractors   syncmap.SyncMap[string, []*ottl.SpanExtractor]
 }
 
 func newExtractor(config *Config, ttype string, set processor.Settings) (*extractor, error) {
@@ -189,8 +191,16 @@ func (p *extractor) sendMetrics(ctx context.Context, route string, metrics pmetr
 }
 
 func (p *extractor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
-	configs := sc.ExtractMetrics[p.id.Name()]
-	if configs == nil {
+	for cid, tenant := range sc.Configs {
+		p.updateForTenant(cid, tenant)
+	}
+}
+
+func (p *extractor) updateForTenant(cid string, sc ottl.TenantConfig) {
+	configs, found := sc.ExtractMetrics[p.id.Name()]
+	if !found || configs == nil {
+		p.logExtractors.Delete(cid)
+		p.spanExtractors.Delete(cid)
 		return
 	}
 
@@ -202,7 +212,7 @@ func (p *extractor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 			p.logger.Error("Error parsing log extractor configurations", zap.Error(err))
 			return
 		}
-		p.logExtractors.Store(&parsedExtractors)
+		p.logExtractors.Store(cid, parsedExtractors)
 
 	case "traces":
 		parsedExtractors, err := ottl.ParseSpanExtractorConfigs(configs.SpanMetricExtractors, p.logger)
@@ -210,9 +220,17 @@ func (p *extractor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 			p.logger.Error("Error parsing log extractor configurations", zap.Error(err))
 			return
 		}
-		p.spanExtractors.Store(&parsedExtractors)
+		p.spanExtractors.Store(cid, parsedExtractors)
 
 	default: // ignore
 	}
 	p.logger.Info("Configuration updated for processor instance", zap.String("instance", p.id.Name()))
+}
+
+func OrgIdFromResource(resource pcommon.Map) string {
+	orgID, found := resource.Get(translate.CardinalFieldCustomerID)
+	if !found {
+		return "default"
+	}
+	return orgID.AsString()
 }

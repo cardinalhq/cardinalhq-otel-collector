@@ -43,22 +43,24 @@ func (p *extractor) ConsumeLogs(ctx context.Context, pl plog.Logs) (plog.Logs, e
 func (p *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []pmetric.Metrics {
 	var totalMetrics []pmetric.Metrics
 
-	extractors := p.logExtractors.Load()
-	if extractors == nil {
-		return totalMetrics
-	}
-	for _, logExtractor := range *extractors {
-		startTime := time.Now()
+	metrics := pmetric.NewMetrics()
 
-		metrics := pmetric.NewMetrics()
+	resourceLogs := pl.ResourceLogs()
+	for i := 0; i < resourceLogs.Len(); i++ {
+		resourceLog := resourceLogs.At(i)
+		scopeLogs := resourceLog.ScopeLogs()
+		resource := resourceLog.Resource()
+		cid := OrgIdFromResource(resource.Attributes())
+		logExtractors, ok := p.logExtractors.Load(cid)
+		if !ok {
+			continue
+		}
 
-		resourceLogs := pl.ResourceLogs()
-		for i := 0; i < resourceLogs.Len(); i++ {
-			resourceLog := resourceLogs.At(i)
-			scopeLogs := resourceLog.ScopeLogs()
-			resource := resourceLog.Resource()
-
+		for _, logExtractor := range logExtractors {
+			startTime := time.Now()
 			resourceMetrics := pmetric.NewResourceMetrics()
+			// Copy the resource attributes to the resource metrics, which will include
+			// the tenant ID we found.
 			resource.Attributes().CopyTo(resourceMetrics.Resource().Attributes())
 			scopeMetrics := resourceMetrics.ScopeMetrics().AppendEmpty()
 			scopeMetrics.Scope().SetName(componentType.String())
@@ -93,7 +95,9 @@ func (p *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []
 							attribute.String("metricName", logExtractor.MetricName),
 							attribute.String("metricType", logExtractor.MetricType),
 							attribute.String("stage", "conditionEval"),
-							attribute.String("error_msg", err.Error()))
+							attribute.String("error_msg", err.Error()),
+							attribute.String("organization_id", cid),
+						)
 						telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
 						continue
 					}
@@ -102,12 +106,14 @@ func (p *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []
 						attrset := attribute.NewSet(attribute.String("ruleId", logExtractor.RuleID),
 							attribute.String("metricName", logExtractor.MetricName),
 							attribute.String("metricType", logExtractor.MetricType),
-							attribute.Bool("conditionsEvaluated", false))
+							attribute.Bool("conditionsEvaluated", false),
+							attribute.String("organization_id", cid),
+						)
 						telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 						continue
 					}
 
-					p.logRecordToDataPoint(ctx, logExtractor, lr, logCtx, dpSlice)
+					p.logRecordToDataPoint(ctx, cid, logExtractor, lr, logCtx, dpSlice)
 				}
 			}
 
@@ -115,17 +121,19 @@ func (p *extractor) extractMetricsFromLogs(ctx context.Context, pl plog.Logs) []
 				// Add the resource metric to the slice if we had any datapoints.
 				resourceMetrics.MoveTo(metrics.ResourceMetrics().AppendEmpty())
 			}
+
+			telemetry.HistogramRecord(p.ruleEvalTime, time.Since(startTime).Nanoseconds(),
+				metric.WithAttributes(attribute.String("rule_id", logExtractor.RuleID)))
 		}
 		if metrics.ResourceMetrics().Len() > 0 {
 			totalMetrics = append(totalMetrics, metrics)
 		}
-		telemetry.HistogramRecord(p.ruleEvalTime, time.Since(startTime).Nanoseconds(),
-			metric.WithAttributes(attribute.String("rule_id", logExtractor.RuleID)))
 	}
+
 	return totalMetrics
 }
 
-func (p *extractor) logRecordToDataPoint(ctx context.Context, lex *ottl.LogExtractor, lr plog.LogRecord, logCtx ottllog.TransformContext, dpSlice pmetric.NumberDataPointSlice) {
+func (p *extractor) logRecordToDataPoint(ctx context.Context, cid string, lex *ottl.LogExtractor, lr plog.LogRecord, logCtx ottllog.TransformContext, dpSlice pmetric.NumberDataPointSlice) {
 	var val any
 
 	if lex.MetricValue != nil {
@@ -136,7 +144,9 @@ func (p *extractor) logRecordToDataPoint(ctx context.Context, lex *ottl.LogExtra
 				attribute.String("metricName", lex.MetricName),
 				attribute.String("metricType", lex.MetricType),
 				attribute.String("stage", "metricValueExtraction"),
-				attribute.String("error", err.Error()))
+				attribute.String("error", err.Error()),
+				attribute.String("organization_id", cid),
+			)
 
 			telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
 			return

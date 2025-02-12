@@ -144,12 +144,6 @@ func (p *pitbull) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 
 	for cid, tenant := range sc.Configs {
 		pbc := tenant.Pitbulls[p.id.Name()]
-		if pbc == nil {
-			pbc = sc.Pitbulls[p.id.Name()]
-			if pbc != nil {
-				p.logger.Info("Using fallback configuration for tenant", zap.String("instance", p.id.Name()), zap.String("tenant", cid))
-			}
-		}
 		p.logger.Info("Configuration updated for tenant", zap.String("instance", p.id.Name()), zap.String("tenant", cid), zap.Bool("config_present", pbc != nil))
 		p.updateLogConfigForTenant(cid, pbc)
 		p.updateMetricConfigForTenant(cid, pbc)

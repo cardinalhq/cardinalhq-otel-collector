@@ -21,12 +21,16 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"strings"
+	"sync"
 	"time"
 
-	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/graph"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 
 	"go.opentelemetry.io/collector/exporter"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/pdata/ptrace"
@@ -61,12 +65,10 @@ type entityGraphExporter struct {
 	httpClientSettings confighttp.ClientConfig
 	telemetrySettings  component.TelemetrySettings
 
-	logsEntityCache    *graph.ResourceEntityCache
-	metricsEntityCache *graph.ResourceEntityCache
-	tracesEntityCache  *graph.ResourceEntityCache
+	cacheLock    sync.Mutex
+	entityCaches map[string]*graph.ResourceEntityCache
 
 	jsonMarshaller otelJsonMarshaller
-	idSource       authenv.EnvironmentSource
 }
 
 func newEntityGraphExporter(config *Config, ttype string, set exporter.Settings) (*entityGraphExporter, error) {
@@ -77,17 +79,9 @@ func newEntityGraphExporter(config *Config, ttype string, set exporter.Settings)
 		httpClientSettings: config.ClientConfig,
 		telemetrySettings:  set.TelemetrySettings,
 		jsonMarshaller:     newMarshaller(),
-		logsEntityCache:    graph.NewResourceEntityCache(),
-		metricsEntityCache: graph.NewResourceEntityCache(),
-		tracesEntityCache:  graph.NewResourceEntityCache(),
+		entityCaches:       make(map[string]*graph.ResourceEntityCache),
 		logger:             set.Logger,
 	}
-
-	idsource, err := authenv.ParseEnvironmentSource(config.IDSource)
-	if err != nil {
-		return nil, err
-	}
-	e.idSource = idsource
 
 	return e, nil
 }
@@ -122,30 +116,49 @@ func (e *entityGraphExporter) Shutdown(ctx context.Context) error {
 }
 
 func (e *entityGraphExporter) publishResourceEntities(ctx context.Context) {
-	var cache *graph.ResourceEntityCache
-	switch e.ttype {
-	case "logs":
-		cache = e.logsEntityCache
-	case "metrics":
-		cache = e.metricsEntityCache
-	case "traces":
-		cache = e.tracesEntityCache
-	default:
-		e.logger.Error("Unknown type", zap.String("type", e.ttype))
+	e.cacheLock.Lock()
+	cids := make([]string, 0, len(e.entityCaches))
+	for cid := range e.entityCaches {
+		cids = append(cids, cid)
+	}
+	e.cacheLock.Unlock()
+
+	for _, cid := range cids {
+		e.publishResourceEntitiesForCID(ctx, cid)
+	}
+}
+
+func (e *entityGraphExporter) publishResourceEntitiesForCID(ctx context.Context, cid string) {
+	e.cacheLock.Lock()
+	cache, found := e.entityCaches[cid]
+	if !found {
+		e.cacheLock.Unlock()
 		return
 	}
-
 	protoEntities := cache.GetAllEntities()
+	e.cacheLock.Unlock()
 	if len(protoEntities) == 0 {
 		return
 	}
-	if err := e.postEntityRelationships(ctx, e.ttype, protoEntities); err != nil {
+
+	if err := e.postEntityRelationships(ctx, e.ttype, cid, protoEntities); err != nil {
 		e.logger.Error("Failed to send entity relationships", zap.Error(err))
 	}
 }
 
-func (e *entityGraphExporter) postEntityRelationships(ctx context.Context, ttype string, payload []byte) error {
-	endpoint := e.config.Endpoint + fmt.Sprintf("%s?telemetryType=%s", "/api/v1/entityRelationships", ttype)
+func URLFor(endpoint string, ttype string, cid string) string {
+	u, _ := url.Parse(endpoint)
+	u.Path = "/api/v1/entityRelationships"
+	q := u.Query()
+	q.Add("telemetryType", ttype)
+	q.Add("organizationID", strings.ToLower(cid))
+	u.RawQuery = q.Encode()
+	return u.String()
+}
+
+func (e *entityGraphExporter) postEntityRelationships(ctx context.Context, ttype string, cid string, payload []byte) error {
+	endpoint := URLFor(e.config.Endpoint, ttype, cid)
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	if err != nil {
 		return err
@@ -173,4 +186,23 @@ func (e *entityGraphExporter) postEntityRelationships(ctx context.Context, ttype
 	}
 
 	return nil
+}
+
+func OrgIdFromResource(resource pcommon.Map) string {
+	orgID, found := resource.Get(translate.CardinalFieldCustomerID)
+	if !found {
+		return "default"
+	}
+	return orgID.AsString()
+}
+
+func (e *entityGraphExporter) GetEntityCache(cid string) *graph.ResourceEntityCache {
+	e.cacheLock.Lock()
+	defer e.cacheLock.Unlock()
+	cache, found := e.entityCaches[cid]
+	if !found {
+		cache = graph.NewResourceEntityCache()
+		e.entityCaches[cid] = cache
+	}
+	return cache
 }

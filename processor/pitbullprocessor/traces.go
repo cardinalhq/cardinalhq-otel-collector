@@ -33,16 +33,18 @@ func (p *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 		return td, nil
 	}
 
-	transformations := p.traceTransformations.Load()
-	luc := p.tracesLookupConfigs.Load()
-	if transformations == nil && luc == nil {
-		return td, nil
-	}
-
 	td.ResourceSpans().RemoveIf(func(rs ptrace.ResourceSpans) bool {
+		cid := OrgIdFromResource(rs.Resource().Attributes())
+		transformations, transformationsFound := p.traceTransformations.Load(cid)
+		luc, lucFound := p.tracesLookupConfigs.Load(cid)
+		if !transformationsFound && !lucFound {
+			return false
+		}
+		attrSet := attributesFor(cid)
+
 		transformCtx := ottlresource.NewTransformContext(rs.Resource(), rs)
 		if transformations != nil {
-			transformations.ExecuteResourceTransforms(p.logger, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
+			transformations.ExecuteResourceTransforms(p.logger, attrSet, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
 			if _, found := rs.Resource().Attributes().Get(translate.CardinalFieldDropMarker); found {
 				return true
 			}
@@ -50,7 +52,7 @@ func (p *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 		rs.ScopeSpans().RemoveIf(func(iss ptrace.ScopeSpans) bool {
 			transformCtx := ottlscope.NewTransformContext(iss.Scope(), rs.Resource(), rs)
 			if transformations != nil {
-				transformations.ExecuteScopeTransforms(p.logger, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
+				transformations.ExecuteScopeTransforms(p.logger, attrSet, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
 				if _, found := iss.Scope().Attributes().Get(translate.CardinalFieldDropMarker); found {
 					return true
 				}
@@ -65,7 +67,7 @@ func (p *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 				if transformations == nil {
 					return false
 				}
-				transformations.ExecuteSpanTransforms(p.logger, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
+				transformations.ExecuteSpanTransforms(p.logger, attrSet, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
 				_, found := sr.Attributes().Get(translate.CardinalFieldDropMarker)
 				return found
 			})
@@ -81,27 +83,27 @@ func (p *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 	return td, nil
 }
 
-func (p *pitbull) updateTraceTransformations(sc *ottl.PitbullProcessorConfig, logger *zap.Logger) {
-	if sc == nil {
+func (p *pitbull) updateTraceConfigForTenant(cid string, pbc *ottl.PitbullProcessorConfig) {
+	if pbc == nil {
+		p.shutdownTraceForTenant(cid)
 		return
 	}
-	p.logger.Info("Updating trace transformations", zap.Int("num_decorators", len(sc.SpanStatements)))
-	newTransformations := ottl.NewTransformations()
+	p.logger.Info("Updating trace transformations", zap.String("organizationID", cid), zap.Int("traceTransformations", len(pbc.SpanStatements)), zap.Int("traceLookupConfigs", len(pbc.SpanLookupConfigs)))
 
-	transformations, err := ottl.ParseTransformations(p.logger, sc.SpanStatements)
+	newTransformations := ottl.NewTransformations()
+	transformations, err := ottl.ParseTransformations(p.logger, pbc.SpanStatements)
 	if err != nil {
 		p.logger.Error("Error parsing traces transformation", zap.Error(err))
 	} else {
 		newTransformations = ottl.MergeWith(newTransformations, transformations)
 	}
 
-	oldTransformations := p.traceTransformations.Load()
-	p.traceTransformations.Store(newTransformations)
-	if oldTransformations != nil {
-		oldTransformations.Stop()
+	if old, found := p.traceTransformations.Replace(cid, newTransformations); found {
+		old.Stop()
 	}
 
-	for _, lookupConfig := range sc.SpanLookupConfigs {
-		lookupConfig.Init(logger)
+	for _, lookupConfig := range pbc.SpanLookupConfigs {
+		lookupConfig.Init(p.logger)
 	}
+	p.tracesLookupConfigs.Store(cid, &pbc.SpanLookupConfigs)
 }

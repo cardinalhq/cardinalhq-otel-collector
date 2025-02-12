@@ -24,7 +24,10 @@ func (e *entityGraphExporter) ConsumeMetrics(ctx context.Context, md pmetric.Met
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
 		rm := md.ResourceMetrics().At(i)
 		rattr := rm.Resource().Attributes()
-		globalEntityMap := e.metricsEntityCache.ProvisionResourceAttributes(rattr)
+		cid := OrgIdFromResource(rattr)
+		cache := e.GetEntityCache(cid)
+
+		globalEntityMap := cache.ProvisionResourceAttributes(rattr)
 
 		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
 			ilm := rm.ScopeMetrics().At(j)
@@ -35,27 +38,27 @@ func (e *entityGraphExporter) ConsumeMetrics(ctx context.Context, md pmetric.Met
 				case pmetric.MetricTypeGauge:
 					for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
 						dp := m.Gauge().DataPoints().At(l)
-						e.metricsEntityCache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
+						cache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
 					}
 				case pmetric.MetricTypeSum:
 					for l := 0; l < m.Sum().DataPoints().Len(); l++ {
 						dp := m.Sum().DataPoints().At(l)
-						e.metricsEntityCache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
+						cache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
 					}
 				case pmetric.MetricTypeHistogram:
 					for l := 0; l < m.Histogram().DataPoints().Len(); l++ {
 						dp := m.Histogram().DataPoints().At(l)
-						e.metricsEntityCache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
+						cache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
 					}
 				case pmetric.MetricTypeSummary:
 					for l := 0; l < m.Summary().DataPoints().Len(); l++ {
 						dp := m.Summary().DataPoints().At(l)
-						e.metricsEntityCache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
+						cache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
 					}
 				case pmetric.MetricTypeExponentialHistogram:
 					for l := 0; l < m.ExponentialHistogram().DataPoints().Len(); l++ {
 						dp := m.ExponentialHistogram().DataPoints().At(l)
-						e.metricsEntityCache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
+						cache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
 					}
 				}
 			}

@@ -17,12 +17,15 @@ package chqservicegraphexporter
 import (
 	"context"
 	"net/http"
+	"sync"
 	"time"
 
+	"github.com/cardinalhq/oteltools/pkg/translate"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/exporter"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
 )
@@ -31,7 +34,9 @@ type serviceGraphExporter struct {
 	config     *Config
 	httpClient *http.Client
 
-	edgeCache          *EdgeCache
+	edgeCaches    map[string]*EdgeCache
+	edgeCacheLock sync.Mutex
+
 	httpClientSettings confighttp.ClientConfig
 	telemetrySettings  component.TelemetrySettings
 
@@ -45,10 +50,8 @@ func newServiceGraphExporter(config *Config, params exporter.Settings) *serviceG
 		config:             config,
 		httpClientSettings: config.ClientConfig,
 		telemetrySettings:  params.TelemetrySettings,
-		edgeCache: NewEdgeCache(30*time.Second, func() int64 {
-			return time.Now().UnixNano()
-		}),
-		logger: params.Logger,
+		edgeCaches:         map[string]*EdgeCache{},
+		logger:             params.Logger,
 	}
 
 	p := params.TelemetrySettings.MeterProvider.Meter("otelcol/chqservicegraph")
@@ -74,4 +77,26 @@ func (e *serviceGraphExporter) Start(ctx context.Context, host component.Host) e
 	}
 	e.httpClient = httpClient
 	return nil
+}
+
+func OrgIdFromResource(resource pcommon.Map) string {
+	orgID, found := resource.Get(translate.CardinalFieldCustomerID)
+	if !found {
+		return "default"
+	}
+	return orgID.AsString()
+}
+
+func (e *serviceGraphExporter) getEdgeCache(orgID string) *EdgeCache {
+	e.edgeCacheLock.Lock()
+	defer e.edgeCacheLock.Unlock()
+
+	edgeCache, found := e.edgeCaches[orgID]
+	if !found {
+		edgeCache = NewEdgeCache(30*time.Second, func() int64 {
+			return time.Now().UnixNano()
+		})
+		e.edgeCaches[orgID] = edgeCache
+	}
+	return edgeCache
 }

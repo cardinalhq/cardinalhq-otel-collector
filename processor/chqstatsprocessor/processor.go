@@ -21,13 +21,14 @@ import (
 	"hash/fnv"
 	"net/http"
 	"os"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor/internal/metadata"
 	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
-	"github.com/google/uuid"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
@@ -79,6 +80,21 @@ type statsProcessor struct {
 
 	configCallbackID int
 
+	tenants    map[string]*Tenant
+	tenantLock sync.Mutex
+
+	jsonMarshaller otelJsonMarshaller
+
+	loadedConfig   atomic.Pointer[ottl.ControlPlaneConfig]
+	statsBatchSize telemetry.DeferrableHistogram
+	recordLatency  telemetry.DeferrableHistogram
+	cacheFull      telemetry.DeferrableCounter
+
+	enableMetricMetrics bool
+	enableLogMetrics    bool
+}
+
+type Tenant struct {
 	logstats    *chqpb.EventStatsCache
 	spanStats   *chqpb.EventStatsCache
 	metricstats *chqpb.MetricStatsCache
@@ -86,18 +102,35 @@ type statsProcessor struct {
 	logExemplars    *LRUCache
 	traceExemplars  *LRUCache
 	metricExemplars *LRUCache
+}
 
-	jsonMarshaller otelJsonMarshaller
+var realClock = &chqpb.RealClock{}
 
-	logStatsEnrichments     atomic.Pointer[[]ottl.StatsEnrichment]
-	metricsStatsEnrichments atomic.Pointer[[]ottl.StatsEnrichment]
-	tracesStatsEnrichments  atomic.Pointer[[]ottl.StatsEnrichment]
-	statsBatchSize          telemetry.DeferrableHistogram
-	recordLatency           telemetry.DeferrableHistogram
-	cacheFull               telemetry.DeferrableCounter
+func (p *statsProcessor) getTenant(organizationID string) *Tenant {
+	p.tenantLock.Lock()
+	defer p.tenantLock.Unlock()
+	tenant, found := p.tenants[organizationID]
+	if !found {
+		tenant = &Tenant{}
+		switch p.ttype {
+		case "logs":
+			tenant.logstats = chqpb.NewEventStatsCache(1000, 16, 5*time.Minute, p.sendLogStats(organizationID), chqpb.InitializeEventStats, realClock)
+			tenant.logstats.Start()
+			tenant.logExemplars = NewLRUCache(1000, 5*time.Minute)
+		case "metrics":
+			tenant.metricstats = chqpb.NewMetricStatsCache(1000, 16, 5*time.Minute, p.sendMetricStats, chqpb.InitializeMetricStats, realClock)
+			tenant.metricstats.Start()
+			tenant.metricExemplars = NewLRUCache(1000, 5*time.Minute)
+		case "traces":
+			tenant.spanStats = chqpb.NewEventStatsCache(1000, 16, 5*time.Minute, p.sendSpanStats(organizationID), chqpb.InitializeEventStats, realClock)
+			tenant.spanStats.Start()
+			tenant.traceExemplars = NewLRUCache(1000, 5*time.Minute)
+		}
 
-	enableMetricMetrics bool
-	enableLogMetrics    bool
+		p.tenants[organizationID] = tenant
+	}
+
+	return tenant
 }
 
 func newStatsProcessor(config *Config, ttype string, set processor.Settings) (*statsProcessor, error) {
@@ -108,11 +141,9 @@ func newStatsProcessor(config *Config, ttype string, set processor.Settings) (*s
 		httpClientSettings: config.ClientConfig,
 		telemetrySettings:  set.TelemetrySettings,
 		jsonMarshaller:     newMarshaller(),
-		logExemplars:       NewLRUCache(1000, 5*time.Minute),
-		traceExemplars:     NewLRUCache(1000, 5*time.Minute),
-		metricExemplars:    NewLRUCache(1000, 5*time.Minute),
 		logger:             set.Logger,
 		podName:            os.Getenv("POD_NAME"),
+		tenants:            make(map[string]*Tenant),
 	}
 
 	idsource, err := authenv.ParseEnvironmentSource(config.IDSource)
@@ -135,22 +166,6 @@ func newStatsProcessor(config *Config, ttype string, set processor.Settings) (*s
 	}
 
 	processorId := set.ID.String()
-	clock := &chqpb.RealClock{}
-	capacity := 1000
-	switch ttype {
-	case "logs":
-		p.logstats = chqpb.NewEventStatsCache(capacity, 16, 5*time.Minute, p.sendLogStats, chqpb.InitializeEventStats, clock)
-		p.logstats.Start()
-		p.logger.Info("Initialized LogStats Combiner", zap.Duration("interval", config.Statistics.Interval))
-	case "metrics":
-		p.metricstats = chqpb.NewMetricStatsCache(capacity, 16, 5*time.Minute, p.sendMetricStats, chqpb.InitializeMetricStats, clock)
-		p.metricstats.Start()
-		p.logger.Info("Initialized MetricStatsCache", zap.Duration("interval", config.Statistics.Interval))
-	case "traces":
-		p.spanStats = chqpb.NewEventStatsCache(capacity, 16, 5*time.Minute, p.sendSpanStats, chqpb.InitializeEventStats, clock)
-		p.spanStats.Start()
-		p.logger.Info("Initialized SpanStats Combiner", zap.Duration("interval", config.Statistics.Interval))
-	}
 
 	attrset := attribute.NewSet(
 		attribute.String("processor", processorId),
@@ -226,26 +241,39 @@ func (p *statsProcessor) Shutdown(ctx context.Context) error {
 	return errors.ErrorOrNil()
 }
 
-func (p *statsProcessor) processEnrichments(attributesByScope map[string]pcommon.Map) []*chqpb.Attribute {
-	tags := make([]*chqpb.Attribute, 0)
-	var enrichments *[]ottl.StatsEnrichment
-	switch p.ttype {
-	case "logs":
-		enrichments = p.logStatsEnrichments.Load()
-	case "metrics":
-		enrichments = p.metricsStatsEnrichments.Load()
-	case "traces":
-		enrichments = p.tracesStatsEnrichments.Load()
+func (p *statsProcessor) processEnrichments(organizationID string, attributesByScope map[string]pcommon.Map) []*chqpb.Attribute {
+	config := p.loadedConfig.Load()
+	if config == nil {
+		return nil
 	}
 
-	if enrichments != nil {
-		for _, enrichment := range *enrichments {
-			attributes, found := attributesByScope[enrichment.Context]
-			if found {
-				for _, tag := range enrichment.Tags {
-					if tagValue, found := attributes.Get(tag); found {
-						tags = append(tags, toAttribute(enrichment.Context, tag, tagValue, false))
-					}
+	tenant := config.Configs[organizationID]
+	if tenant.Stats == nil {
+		return nil
+	}
+
+	stats := tenant.Stats[p.id.Name()]
+	if stats == nil {
+		return nil
+	}
+
+	tags := make([]*chqpb.Attribute, 0)
+	var enrichments []ottl.StatsEnrichment
+	switch p.ttype {
+	case "logs":
+		enrichments = stats.LogEnrichments
+	case "metrics":
+		enrichments = stats.MetricEnrichments
+	case "traces":
+		enrichments = stats.SpanEnrichments
+	}
+
+	for _, enrichment := range enrichments {
+		attributes, found := attributesByScope[enrichment.Context]
+		if found {
+			for _, tag := range enrichment.Tags {
+				if tagValue, found := attributes.Get(tag); found {
+					tags = append(tags, toAttribute(enrichment.Context, tag, tagValue, false))
 				}
 			}
 		}
@@ -264,27 +292,8 @@ func toAttribute(contextId string, k string, v pcommon.Value, isAttribute bool) 
 }
 
 func (p *statsProcessor) configUpdateCallback(cpc ottl.ControlPlaneConfig) {
-	configs := cpc.Stats[p.id.Name()]
-	if configs == nil {
-		configs = cpc.Stats[uuid.Nil.String()]
-	}
-	if configs == nil {
-		return
-	}
-
-	switch p.ttype {
-	case "logs":
-		p.logStatsEnrichments.Store(&configs.LogEnrichments)
-		p.logger.Info("Stats enrichment for logs", zap.String("instance", p.id.Name()), zap.Int("enrichments", len(configs.LogEnrichments)))
-	case "metrics":
-		p.metricsStatsEnrichments.Store(&configs.MetricEnrichments)
-		p.logger.Info("Stats enrichment for metrics", zap.String("instance", p.id.Name()), zap.Int("enrichments", len(configs.MetricEnrichments)))
-	case "traces":
-		p.tracesStatsEnrichments.Store(&configs.SpanEnrichments)
-		p.logger.Info("Stats enrichment for traces", zap.String("instance", p.id.Name()), zap.Int("enrichments", len(configs.SpanEnrichments)))
-	}
-
-	p.logger.Info("Configuration updated for processor instance", zap.String("instance", p.id.Name()))
+	p.logger.Info("Updating configuration for processor instance", zap.String("instance", p.id.Name()))
+	p.loadedConfig.Store(&cpc)
 }
 
 func hashString(s string) int64 {
@@ -295,4 +304,12 @@ func hashString(s string) int64 {
 
 func (p *statsProcessor) toExemplarKey(serviceName string, fingerprint int64) int64 {
 	return hashString(fmt.Sprintf("%s-%d", serviceName, fingerprint))
+}
+
+func OrgIdFromResource(resource pcommon.Map) string {
+	orgID, found := resource.Get(translate.CardinalFieldCustomerID)
+	if !found {
+		return "default"
+	}
+	return orgID.AsString()
 }

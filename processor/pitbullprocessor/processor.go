@@ -17,10 +17,10 @@ package pitbullprocessor
 import (
 	"context"
 	"errors"
-	"sync/atomic"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -29,7 +29,9 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor/internal/metadata"
 	"github.com/cardinalhq/oteltools/pkg/ottl"
+	"github.com/cardinalhq/oteltools/pkg/syncmap"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 type pitbull struct {
@@ -42,15 +44,16 @@ type pitbull struct {
 	configExtension  *chqconfigextension.CHQConfigExtension
 	configCallbackID int
 
-	logTransformations    atomic.Pointer[ottl.Transformations]
-	logsLookupConfigs     atomic.Pointer[[]ottl.LookupConfig]
-	traceTransformations  atomic.Pointer[ottl.Transformations]
-	tracesLookupConfigs   atomic.Pointer[[]ottl.LookupConfig]
-	metricTransformations atomic.Pointer[ottl.Transformations]
-	metricsLookupConfigs  atomic.Pointer[[]ottl.LookupConfig]
-	ottlProcessed         *telemetry.DeferrableInt64Counter
-	ottlErrors            *telemetry.DeferrableInt64Counter
-	histogram             *telemetry.DeferrableInt64Histogram
+	logTransformations    syncmap.SyncMap[string, *ottl.Transformations]
+	logsLookupConfigs     syncmap.SyncMap[string, *[]ottl.LookupConfig]
+	traceTransformations  syncmap.SyncMap[string, *ottl.Transformations]
+	tracesLookupConfigs   syncmap.SyncMap[string, *[]ottl.LookupConfig]
+	metricTransformations syncmap.SyncMap[string, *ottl.Transformations]
+	metricsLookupConfigs  syncmap.SyncMap[string, *[]ottl.LookupConfig]
+
+	ottlProcessed *telemetry.DeferrableInt64Counter
+	ottlErrors    *telemetry.DeferrableInt64Counter
+	histogram     *telemetry.DeferrableInt64Histogram
 }
 
 func newPitbull(config *Config, ttype string, set processor.Settings) (*pitbull, error) {
@@ -137,15 +140,57 @@ func (p *pitbull) Shutdown(ctx context.Context) error {
 }
 
 func (p *pitbull) configUpdateCallback(sc ottl.ControlPlaneConfig) {
-	configs := sc.Pitbulls[p.id.Name()]
-
-	switch p.ttype {
-	case "logs":
-		p.updateLogTransformations(configs, p.logger)
-	case "traces":
-		p.updateTraceTransformations(configs, p.logger)
-	case "metrics":
-		p.updateMetricTransformation(configs, p.logger)
-	}
 	p.logger.Info("Configuration updated for processor instance", zap.String("instance", p.id.Name()))
+
+	for cid, tenant := range sc.Configs {
+		pbc := tenant.Pitbulls[p.id.Name()]
+		if pbc == nil {
+			pbc = sc.Pitbulls[p.id.Name()]
+			if pbc != nil {
+				p.logger.Info("Using fallback configuration for tenant", zap.String("instance", p.id.Name()), zap.String("tenant", cid))
+			}
+		}
+		p.logger.Info("Configuration updated for tenant", zap.String("instance", p.id.Name()), zap.String("tenant", cid), zap.Bool("config_present", pbc != nil))
+		p.updateLogConfigForTenant(cid, pbc)
+		p.updateMetricConfigForTenant(cid, pbc)
+		p.updateTraceConfigForTenant(cid, pbc)
+	}
+}
+
+func (p *pitbull) shutdownLogsForTenant(cid string) {
+	if oldItems, found := p.logTransformations.Load(cid); found {
+		p.logTransformations.Delete(cid)
+		oldItems.Stop()
+	}
+	p.logsLookupConfigs.Delete(cid)
+}
+
+func (p *pitbull) shutdownMetricsForTenant(cid string) {
+	if oldItems, found := p.metricTransformations.Load(cid); found {
+		p.metricTransformations.Delete(cid)
+		oldItems.Stop()
+	}
+	p.metricsLookupConfigs.Delete(cid)
+}
+
+func (p *pitbull) shutdownTraceForTenant(cid string) {
+	if oldItems, found := p.traceTransformations.Load(cid); found {
+		p.traceTransformations.Delete(cid)
+		oldItems.Stop()
+	}
+	p.tracesLookupConfigs.Delete(cid)
+}
+
+func OrgIdFromResource(resource pcommon.Map) string {
+	orgID, found := resource.Get(translate.CardinalFieldCustomerID)
+	if !found {
+		return "default"
+	}
+	return orgID.AsString()
+}
+
+func attributesFor(cid string) attribute.Set {
+	return attribute.NewSet(
+		attribute.String("organization_id", cid),
+	)
 }

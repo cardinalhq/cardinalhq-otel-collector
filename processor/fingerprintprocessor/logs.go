@@ -36,13 +36,16 @@ func getServiceName(r pcommon.Map) string {
 }
 
 func (p *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
+
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
+		cid := OrgIdFromResource(rl.Resource().Attributes())
+		tenant := p.getTenant(cid)
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
 			sl := rl.ScopeLogs().At(j)
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				lr := sl.LogRecords().At(k)
-				fingerprint, levelfromFingerprinter, err := p.addTokenFields(lr)
+				fingerprint, levelfromFingerprinter, err := p.addTokenFields(tenant, lr)
 				if err != nil {
 					p.logger.Debug("Error fingerprinting log", zap.Error(err))
 					continue
@@ -61,9 +64,13 @@ func (p *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plo
 	return ld, nil
 }
 
-func (p *fingerprintProcessor) addTokenFields(lr plog.LogRecord) (int64, string, error) {
+func (p *fingerprintProcessor) addTokenFields(tenant *tenantState, lr plog.LogRecord) (int64, string, error) {
 	fingerprint, tMap, level, js, err := p.logFingerprinter.Fingerprint(lr.Body().AsString())
-	if replacement, found := p.logMappings.Get(fingerprint); found {
+	if err != nil {
+		return 0, "", err
+	}
+
+	if replacement, found := tenant.mapstore.Get(fingerprint); found {
 		lr.Attributes().PutInt(translate.CardinalFieldFingerprint+"_original", fingerprint)
 		fingerprint = replacement
 	}
@@ -79,9 +86,6 @@ func (p *fingerprintProcessor) addTokenFields(lr plog.LogRecord) (int64, string,
 	}
 	jscm.CopyTo(jsmap)
 
-	if err != nil {
-		return 0, "", err
-	}
 	if len(tMap.Items) > 0 {
 		tokenSlice := lr.Attributes().PutEmptySlice(translate.CardinalFieldTokens)
 		tokenMap := lr.Attributes().PutEmptyMap(translate.CardinalFieldTokenMap)

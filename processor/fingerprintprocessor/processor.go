@@ -19,9 +19,11 @@ import (
 	"encoding/binary"
 	"hash/fnv"
 	"slices"
+	"sync"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
 
@@ -29,6 +31,7 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
 	"github.com/cardinalhq/oteltools/pkg/ottl"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 type fingerprintProcessor struct {
@@ -41,37 +44,41 @@ type fingerprintProcessor struct {
 
 	configExtension  *chqconfigextension.CHQConfigExtension
 	configCallbackID int
-	logMappings      *MapStore
-	logMappingsHash  int64
+
+	logMappingsHash int64
 
 	// for logs
 	logFingerprinter fingerprinter.Fingerprinter
 
-	estimators          map[uint64]*SlidingEstimatorStat
+	tenants    map[string]*tenantState
+	tenantLock sync.Mutex
+
 	estimatorWindowSize int
 	estimatorInterval   int64
 
 	idSource authenv.EnvironmentSource
 }
 
+type tenantState struct {
+	mapstore   *MapStore
+	estimators map[uint64]*SlidingEstimatorStat
+}
+
 func newProcessor(config *Config, ttype string, set processor.Settings) (*fingerprintProcessor, error) {
 	p := &fingerprintProcessor{
-		id:                set.ID,
-		ttype:             ttype,
-		config:            config,
-		telemetrySettings: set.TelemetrySettings,
-		logger:            set.Logger,
-		logMappings:       NewMapStore(),
+		id:                  set.ID,
+		ttype:               ttype,
+		config:              config,
+		telemetrySettings:   set.TelemetrySettings,
+		logger:              set.Logger,
+		tenants:             make(map[string]*tenantState),
+		estimatorWindowSize: config.TracesConfig.EstimatorWindowSize,
+		estimatorInterval:   config.TracesConfig.EstimatorInterval,
 	}
 
 	switch ttype {
 	case "logs":
 		p.logFingerprinter = fingerprinter.NewFingerprinter(fingerprinter.WithMaxTokens(30))
-
-	case "traces":
-		p.estimators = make(map[uint64]*SlidingEstimatorStat)
-		p.estimatorWindowSize = config.TracesConfig.EstimatorWindowSize
-		p.estimatorInterval = config.TracesConfig.EstimatorInterval
 	}
 
 	idsource, err := authenv.ParseEnvironmentSource(config.IDSource)
@@ -91,12 +98,10 @@ func (p *fingerprintProcessor) Start(ctx context.Context, host component.Host) e
 	ext, found := host.GetExtensions()[*p.config.ConfigurationExtension]
 	if !found {
 		return nil
-		//return errors.New("configuration extension " + e.config.ConfigurationExtension.String() + " not found")
 	}
 	cext, ok := ext.(*chqconfigextension.CHQConfigExtension)
 	if !ok {
 		return nil
-		//return errors.New("configuration extension " + e.config.ConfigurationExtension.String() + " is not a chqconfig extension")
 	}
 	p.configExtension = cext
 
@@ -113,11 +118,17 @@ func (p *fingerprintProcessor) Shutdown(ctx context.Context) error {
 func (p *fingerprintProcessor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 	switch p.ttype {
 	case "logs":
-		newhash := calculateMapHash(sc.FingerprintConfig.LogMappings)
+		newhash := calculateMapHash(sc)
 		if newhash != p.logMappingsHash {
 			p.logMappingsHash = newhash
-			newMap := makeFingerprintMap(sc.FingerprintConfig.LogMappings)
-			p.logMappings.Replace(newMap)
+			newMappings := makeFingerprintMap(sc)
+			p.tenantLock.Lock()
+			defer p.tenantLock.Unlock()
+			for cid, v := range newMappings {
+				p.logger.Info("Configuration updated for tenant", zap.String("instance", p.id.Name()), zap.String("tenant", cid), zap.Int("mappingsCount", len(v)))
+				tenant := p.getTenantUnlocked(cid)
+				tenant.mapstore.Replace(v)
+			}
 		}
 		// Add span fingerprinter if needed
 	}
@@ -127,33 +138,53 @@ func (p *fingerprintProcessor) configUpdateCallback(sc ottl.ControlPlaneConfig) 
 // calculateMapHash calculates a hash of the fingerprint mappings used to detect
 // a change.  It is not cryptographically secure.  An empty input list does not
 // return a 0 value.
-func calculateMapHash(m []ottl.FingerprintMapping) int64 {
-	slices.SortStableFunc(m, func(i, j ottl.FingerprintMapping) int {
-		if i.Primary < j.Primary {
-			return -1
-		}
-		if i.Primary > j.Primary {
-			return 1
-		}
-		return 0
-	})
-
+func calculateMapHash(m ottl.ControlPlaneConfig) int64 {
 	hasher := fnv.New64a()
-	buff := make([]byte, 8)
 
-	for _, v := range m {
-		binary.LittleEndian.PutUint64(buff, uint64(v.Primary))
-		hasher.Write(buff)
-		slices.Sort(v.Aliases)
-		for _, vv := range v.Aliases {
-			binary.LittleEndian.PutUint64(buff, uint64(vv))
+	cids := make([]string, 0, len(m.Configs))
+	for cid := range m.Configs {
+		cids = append(cids, cid)
+	}
+	slices.Sort(cids)
+
+	for _, cid := range cids {
+		v := m.Configs[cid]
+		_, _ = hasher.Write([]byte(cid))
+		fpm := v.FingerprintConfig.LogMappings
+		slices.SortStableFunc(fpm, func(i, j ottl.FingerprintMapping) int {
+			if i.Primary < j.Primary {
+				return -1
+			}
+			if i.Primary > j.Primary {
+				return 1
+			}
+			return 0
+		})
+
+		buff := make([]byte, 8)
+		for _, v := range fpm {
+			binary.LittleEndian.PutUint64(buff, uint64(v.Primary))
 			hasher.Write(buff)
+			slices.Sort(v.Aliases)
+			for _, vv := range v.Aliases {
+				binary.LittleEndian.PutUint64(buff, uint64(vv))
+				hasher.Write(buff)
+			}
 		}
 	}
+
 	return int64(hasher.Sum64())
 }
 
-func makeFingerprintMap(m []ottl.FingerprintMapping) map[int64]int64 {
+func makeFingerprintMap(m ottl.ControlPlaneConfig) map[string]map[int64]int64 {
+	ret := map[string]map[int64]int64{}
+	for cid, v := range m.Configs {
+		ret[cid] = makeFingerprintMapForConfig(v.FingerprintConfig.LogMappings)
+	}
+	return ret
+}
+
+func makeFingerprintMapForConfig(m []ottl.FingerprintMapping) map[int64]int64 {
 	ret := map[int64]int64{}
 	for _, v := range m {
 		for _, vv := range v.Aliases {
@@ -161,4 +192,31 @@ func makeFingerprintMap(m []ottl.FingerprintMapping) map[int64]int64 {
 		}
 	}
 	return ret
+}
+
+func OrgIdFromResource(resource pcommon.Map) string {
+	orgID, found := resource.Get(translate.CardinalFieldCustomerID)
+	if !found {
+		return "default"
+	}
+	return orgID.AsString()
+}
+
+func (p *fingerprintProcessor) getTenant(cid string) *tenantState {
+	p.tenantLock.Lock()
+	defer p.tenantLock.Unlock()
+	return p.getTenantUnlocked(cid)
+}
+
+func (p *fingerprintProcessor) getTenantUnlocked(cid string) *tenantState {
+	tenant, found := p.tenants[cid]
+	if !found {
+		tenant = &tenantState{
+			mapstore:   NewMapStore(),
+			estimators: make(map[uint64]*SlidingEstimatorStat),
+		}
+		p.tenants[cid] = tenant
+	}
+
+	return tenant
 }

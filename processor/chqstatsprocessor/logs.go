@@ -15,19 +15,14 @@
 package chqstatsprocessor
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"fmt"
-	"io"
-	"net/http"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
@@ -59,6 +54,8 @@ func (p *statsProcessor) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Lo
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
 		resourceAttributes := rl.Resource().Attributes()
+		cid := OrgIdFromResource(resourceAttributes)
+		tenant := p.getTenant(cid)
 
 		serviceName := getServiceName(resourceAttributes)
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
@@ -66,7 +63,7 @@ func (p *statsProcessor) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Lo
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				lr := sl.LogRecords().At(k)
 				fp := getFingerprint(lr.Attributes())
-				if err := p.recordLog(now, ee, serviceName, fp, rl, sl, lr); err != nil {
+				if err := p.recordLog(tenant, now, ee, serviceName, fp, rl, sl, lr); err != nil {
 					p.logger.Error("Failed to record log", zap.Error(err))
 				}
 			}
@@ -76,16 +73,19 @@ func (p *statsProcessor) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Lo
 	return ld, nil
 }
 
-func (p *statsProcessor) recordLog(now time.Time, environment authenv.Environment, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) error {
+func (p *statsProcessor) recordLog(tenant *Tenant, now time.Time, environment authenv.Environment, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) error {
+	orgID := OrgIdFromResource(rl.Resource().Attributes())
+
 	if p.enableLogMetrics {
 		message := lr.Body().AsString()
 		logSize := int64(len(message))
 
-		enrichmentAttributes := p.processEnrichments(map[string]pcommon.Map{
-			"resource": rl.Resource().Attributes(),
-			"scope":    sl.Scope().Attributes(),
-			"log":      lr.Attributes(),
-		})
+		enrichmentAttributes := p.processEnrichments(orgID,
+			map[string]pcommon.Map{
+				"resource": rl.Resource().Attributes(),
+				"scope":    sl.Scope().Attributes(),
+				"log":      lr.Attributes(),
+			})
 
 		if lr.SeverityNumber() != plog.SeverityNumberUnspecified {
 			enrichmentAttributes = append(enrichmentAttributes, &chqpb.Attribute{
@@ -98,24 +98,24 @@ func (p *statsProcessor) recordLog(now time.Time, environment authenv.Environmen
 		}
 
 		if p.enableLogMetrics {
-			err := p.logstats.Record(serviceName, fingerprint, p.pbPhase, p.id.Name(), environment.CollectorID(), environment.CustomerID(), enrichmentAttributes, 1, logSize)
+			err := tenant.logstats.Record(serviceName, fingerprint, p.pbPhase, p.id.Name(), environment.CollectorID(), environment.CustomerID(), enrichmentAttributes, 1, logSize)
 			if err != nil && errors.Is(err, chqpb.ErrCacheFull) {
 				telemetry.CounterAdd(p.cacheFull, 1)
 			}
 		}
 	}
 
-	p.addLogExemplar(rl, sl, lr, serviceName, fingerprint)
+	p.addLogExemplar(tenant, rl, sl, lr, serviceName, fingerprint)
 	telemetry.HistogramRecord(p.recordLatency, int64(time.Since(now)))
 
 	return nil
 }
 
-func (p *statsProcessor) addLogExemplar(rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord, serviceName string, fingerprint int64) {
+func (p *statsProcessor) addLogExemplar(tenant *Tenant, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord, serviceName string, fingerprint int64) {
 	if p.pbPhase == chqpb.Phase_PRE {
 		key := p.toExemplarKey(serviceName, fingerprint)
 
-		if p.logExemplars.Contains(key) {
+		if tenant.logExemplars.Contains(key) {
 			return
 		}
 
@@ -131,57 +131,6 @@ func (p *statsProcessor) addLogExemplar(rl plog.ResourceLogs, sl plog.ScopeLogs,
 		if me != nil {
 			return
 		}
-		p.logExemplars.Put(key, marshalled)
+		tenant.logExemplars.Put(key, marshalled)
 	}
-}
-
-func (p *statsProcessor) sendLogStats(statsList []*chqpb.EventStats) {
-	for _, stat := range statsList {
-		key := p.toExemplarKey(stat.ServiceName, stat.Fingerprint)
-		exemplarBytes, found := p.logExemplars.Get(key)
-		if !found {
-			continue
-		}
-		stat.Exemplar = exemplarBytes.([]byte)
-	}
-
-	wrapper := &chqpb.EventStatsReport{
-		SubmittedAt: time.Now().UnixMilli(),
-		Stats:       statsList}
-
-	if err := p.postLogStats(context.Background(), wrapper); err != nil {
-		p.logger.Error("Failed to send log stats", zap.Error(err))
-	}
-}
-
-func (p *statsProcessor) postLogStats(ctx context.Context, wrapper *chqpb.EventStatsReport) error {
-	b, err := proto.Marshal(wrapper)
-	if err != nil {
-		return err
-	}
-	telemetry.HistogramRecord(p.statsBatchSize, int64(len(b)))
-	endpoint := p.config.Endpoint + "/api/v1/logstats"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/x-protobuf")
-
-	resp, err := p.httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			p.logger.Error("Failed to close response body", zap.Error(err))
-		}
-	}(resp.Body)
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		p.logger.Error("Failed to send log stats", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-	return nil
 }

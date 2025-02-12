@@ -192,3 +192,9 @@ func OrgIdFromResource(resource pcommon.Map) string {
 	}
 	return orgID.AsString()
 }
+
+func attributesFor(cid string) attribute.Set {
+	return attribute.NewSet(
+		attribute.String("organization_id", cid),
+	)
+}

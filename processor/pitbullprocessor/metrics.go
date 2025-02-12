@@ -41,9 +41,11 @@ func (p *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 		if !transformationsFound && !lucFound {
 			return false
 		}
+		attrSet := attributesFor(cid)
+
 		transformCtx := ottlresource.NewTransformContext(rm.Resource(), rm)
 		if transformations != nil {
-			transformations.ExecuteResourceTransforms(p.logger, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
+			transformations.ExecuteResourceTransforms(p.logger, attrSet, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
 			if _, found := rattr.Get(translate.CardinalFieldDropMarker); found {
 				return true
 			}
@@ -53,7 +55,7 @@ func (p *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 			sattr := ilm.Scope().Attributes()
 			transformCtx := ottlscope.NewTransformContext(ilm.Scope(), rm.Resource(), rm)
 			if transformations != nil {
-				transformations.ExecuteScopeTransforms(p.logger, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
+				transformations.ExecuteScopeTransforms(p.logger, attrSet, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
 				if _, found := sattr.Get(translate.CardinalFieldDropMarker); found {
 					return true
 				}
@@ -70,7 +72,7 @@ func (p *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						if transformations == nil {
 							return false
 						}
-						transformations.ExecuteDatapointTransforms(p.logger, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
+						transformations.ExecuteDatapointTransforms(p.logger, attrSet, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
 					})
@@ -83,7 +85,7 @@ func (p *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						if transformations == nil {
 							return false
 						}
-						transformations.ExecuteDatapointTransforms(p.logger, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
+						transformations.ExecuteDatapointTransforms(p.logger, attrSet, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
 					})
@@ -96,7 +98,7 @@ func (p *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						if transformations == nil {
 							return false
 						}
-						transformations.ExecuteDatapointTransforms(p.logger, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
+						transformations.ExecuteDatapointTransforms(p.logger, attrSet, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
 					})
@@ -109,7 +111,7 @@ func (p *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						if transformations == nil {
 							return false
 						}
-						transformations.ExecuteDatapointTransforms(p.logger, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
+						transformations.ExecuteDatapointTransforms(p.logger, attrSet, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
 					})
@@ -122,7 +124,7 @@ func (p *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetr
 						if transformations == nil {
 							return false
 						}
-						transformations.ExecuteDatapointTransforms(p.logger, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
+						transformations.ExecuteDatapointTransforms(p.logger, attrSet, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
 					})

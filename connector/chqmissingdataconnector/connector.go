@@ -55,6 +55,8 @@ func (c *md) Shutdown(ctx context.Context) error {
 func (c *md) emitter() {
 	for {
 		select {
+		case <-c.emitterDone:
+			return
 		case <-time.Tick(c.config.Interval):
 			now := time.Now()
 			emitList := []Stamp{}
@@ -67,8 +69,6 @@ func (c *md) emitter() {
 				return true
 			})
 			c.emitList(emitList)
-		case <-c.emitterDone:
-			return
 		}
 	}
 }

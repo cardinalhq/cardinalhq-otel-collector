@@ -56,6 +56,7 @@ func TestPrefixedName(t *testing.T) {
 		})
 	}
 }
+
 func TestBuildMetrics(t *testing.T) {
 	tests := []struct {
 		name     string

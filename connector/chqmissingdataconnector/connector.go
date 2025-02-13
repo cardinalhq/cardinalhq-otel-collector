@@ -1,3 +1,17 @@
+// Copyright 2024-2025 CardinalHQ, Inc
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package chqmissingdataconnector
 
 import (
@@ -11,7 +25,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/oteltools/pkg/syncmap"
-	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 type md struct {
@@ -28,16 +41,6 @@ type md struct {
 func (c *md) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: false}
 }
-
-var (
-	resourceAttributesToCopy = []string{
-		translate.CardinalFieldCustomerID,
-	}
-
-	datapointAttributesToCopy = []string{
-		translate.CardinalFieldCustomerID,
-	}
-)
 
 func (c *md) Start(ctx context.Context, host component.Host) error {
 	go c.emitter()
@@ -70,8 +73,57 @@ func (c *md) emitter() {
 	}
 }
 
+func (c *md) prefixedName(name string) string {
+	if c.config.NamePrefix == "" {
+		return name
+	}
+	return c.config.NamePrefix + name
+}
+
+func (c *md) buildMetrics(emitList []Stamp) pmetric.Metrics {
+	now := time.Now()
+	md := pmetric.NewMetrics()
+	resourceMap := map[uint64]pmetric.ResourceMetrics{}
+
+	for _, stamp := range emitList {
+		resourceKey := hashAttributes(stamp.ResourceAttributes)
+		rm, exists := resourceMap[resourceKey]
+		var sm pmetric.ScopeMetrics
+		if exists {
+			sm = rm.ScopeMetrics().At(0)
+		} else {
+			rm = md.ResourceMetrics().AppendEmpty()
+			stamp.ResourceAttributes.CopyTo(rm.Resource().Attributes())
+			sm = rm.ScopeMetrics().AppendEmpty()
+			resourceMap[resourceKey] = rm
+		}
+
+		metric := sm.Metrics().AppendEmpty()
+		metric.SetName(c.prefixedName(stamp.MetricName))
+		metric.SetDescription("Missing data indicator")
+		metric.SetUnit("s")
+
+		dp := metric.SetEmptyGauge().DataPoints().AppendEmpty()
+		dp.SetStartTimestamp(pcommon.NewTimestampFromTime(now))
+		dp.SetTimestamp(pcommon.NewTimestampFromTime(now))
+		dp.SetDoubleValue(now.Sub(stamp.LastSeen).Seconds())
+	}
+
+	return md
+}
+
 func (c *md) emitList(emitList []Stamp) {
 	c.logger.Info("emitting", zap.Int("count", len(emitList)))
+
+	md := c.buildMetrics(emitList)
+
+	if md.DataPointCount() == 0 {
+		return
+	}
+
+	if err := c.metricsConsumer.ConsumeMetrics(context.Background(), md); err != nil {
+		c.logger.Error("failed to emit metrics", zap.Error(err))
+	}
 }
 
 func (c *md) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
@@ -90,13 +142,13 @@ func (c *md) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
 				metric := scopeMetrics.Metrics().At(k)
 
 				newResourceAttributes := pcommon.NewMap()
-				for _, key := range resourceAttributesToCopy {
+				for _, key := range c.config.ResourceAtttributesToCopy {
 					if value, found := resourceMetric.Resource().Attributes().Get(key); found {
 						newResourceAttributes.PutStr(key, value.AsString())
 					}
 				}
 
-				hashkey := makeStampHash(metric.Name(), newResourceAttributes)
+				hashkey := hashMetricNameAndAttributes(metric.Name(), newResourceAttributes)
 				found := c.entries.Touch(hashkey, func(s *Stamp) *Stamp {
 					s.Touch(now)
 					return s
@@ -108,12 +160,4 @@ func (c *md) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
 		}
 	}
 	return nil
-}
-
-func OrgIdFromResource(resource pcommon.Map) string {
-	orgID, found := resource.Get(translate.CardinalFieldCustomerID)
-	if !found {
-		return "default"
-	}
-	return orgID.AsString()
 }

@@ -53,7 +53,7 @@ func (s *Stamp) Hash() uint64 {
 
 func hashMetricNameAndAttributes(metricName string, resourceAttributes pcommon.Map) uint64 {
 	xh := xxhash.New()
-	xh.WriteString(metricName)
+	_, _ = xh.WriteString(metricName)
 	hashAttributesWithHasher(resourceAttributes, xh)
 	return xh.Sum64()
 }
@@ -73,8 +73,8 @@ func hashAttributesWithHasher(attrs pcommon.Map, xh *xxhash.Digest) {
 	slices.Sort(keys)
 
 	for _, k := range keys {
-		xh.WriteString(k)
+		_, _ = xh.WriteString(k)
 		v, _ := attrs.Get(k)
-		xh.WriteString(v.AsString())
+		_, _ = xh.WriteString(v.AsString())
 	}
 }

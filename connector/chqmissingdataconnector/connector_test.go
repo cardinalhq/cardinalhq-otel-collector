@@ -492,6 +492,96 @@ func TestConsumeMetrics(t *testing.T) {
 	}
 }
 
+func TestFilteredAttributes(t *testing.T) {
+	tests := []struct {
+		name     string
+		attrs    pcommon.Map
+		keys     []string
+		expected pcommon.Map
+	}{
+		{
+			name: "No attributes",
+			attrs: func() pcommon.Map {
+				m := pcommon.NewMap()
+				return m
+			}(),
+			keys: []string{"key1", "key2"},
+			expected: func() pcommon.Map {
+				m := pcommon.NewMap()
+				return m
+			}(),
+		},
+		{
+			name: "No keys",
+			attrs: func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("key1", "value1")
+				m.PutInt("key2", 2)
+				return m
+			}(),
+			keys: []string{},
+			expected: func() pcommon.Map {
+				m := pcommon.NewMap()
+				return m
+			}(),
+		},
+		{
+			name: "Some matching keys",
+			attrs: func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("key1", "value1")
+				m.PutInt("key2", 2)
+				m.PutStr("key3", "value3")
+				return m
+			}(),
+			keys: []string{"key1", "key3"},
+			expected: func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("key1", "value1")
+				m.PutStr("key3", "value3")
+				return m
+			}(),
+		},
+		{
+			name: "All matching keys",
+			attrs: func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("key1", "value1")
+				m.PutInt("key2", 2)
+				return m
+			}(),
+			keys: []string{"key1", "key2"},
+			expected: func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("key1", "value1")
+				m.PutInt("key2", 2)
+				return m
+			}(),
+		},
+		{
+			name: "No matching keys",
+			attrs: func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("key1", "value1")
+				m.PutStr("key2", "value2")
+				return m
+			}(),
+			keys: []string{"key3", "key4"},
+			expected: func() pcommon.Map {
+				m := pcommon.NewMap()
+				return m
+			}(),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := filteredAttributes(tt.attrs, tt.keys)
+			assert.Equal(t, tt.expected.AsRaw(), result.AsRaw())
+		})
+	}
+}
+
 type mockMetricsConsumer struct {
 	err      error
 	received []pmetric.Metrics

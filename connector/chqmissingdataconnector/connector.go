@@ -215,6 +215,6 @@ func filteredAttributes(attrs pcommon.Map, keys []string) pcommon.Map {
 		}
 	}
 	ret := pcommon.NewMap()
-	ret.FromRaw(selected)
+	_ = ret.FromRaw(selected)
 	return ret
 }

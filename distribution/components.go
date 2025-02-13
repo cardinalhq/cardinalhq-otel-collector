@@ -14,6 +14,7 @@ import (
 	spanmetricsconnector "github.com/open-telemetry/opentelemetry-collector-contrib/connector/spanmetricsconnector"
 	servicegraphconnector "github.com/open-telemetry/opentelemetry-collector-contrib/connector/servicegraphconnector"
 	forwardconnector "go.opentelemetry.io/collector/connector/forwardconnector"
+	chqmissingdataconnector "github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector"
 	datadogexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/datadogexporter"
 	loadbalancingexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/loadbalancingexporter"
 	splunkhecexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/splunkhecexporter"
@@ -236,6 +237,7 @@ func components() (otelcol.Factories, error) {
 		spanmetricsconnector.NewFactory(),
 		servicegraphconnector.NewFactory(),
 		forwardconnector.NewFactory(),
+		chqmissingdataconnector.NewFactory(),
 	)
 	if err != nil {
 		return otelcol.Factories{}, err
@@ -245,6 +247,7 @@ func components() (otelcol.Factories, error) {
 	factories.ConnectorModules[spanmetricsconnector.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/connector/spanmetricsconnector v0.119.0"
 	factories.ConnectorModules[servicegraphconnector.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/connector/servicegraphconnector v0.119.0"
 	factories.ConnectorModules[forwardconnector.NewFactory().Type()] = "go.opentelemetry.io/collector/connector/forwardconnector v0.119.0"
+	factories.ConnectorModules[chqmissingdataconnector.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector v0.119.0"
 
 	return factories, nil
 }

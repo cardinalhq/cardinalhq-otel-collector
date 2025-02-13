@@ -22,8 +22,8 @@ OTEL_VERSION=v0.119.0
 # These are targets for "make local"
 BINARIES = cardinalhq-otel-collector
 
-MODULE_SOURCE_PATHS = `ls -1d {receiver,processor,exporter,extension}/*` internal
-SUMFILES = $(shell ls -1 {receiver,processor,exporter,extension}/*/go.sum internal/go.sum)
+MODULE_SOURCE_PATHS = `ls -1d {connector,receiver,processor,exporter,extension}/*` internal
+SUMFILES = $(shell ls -1 {connector,receiver,processor,exporter,extension}/*/go.sum internal/go.sum)
 ALLGOFILES = $(shell find ${MODULE_SOURCE_PATHS} -name '*.go')
 
 #

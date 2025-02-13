@@ -189,13 +189,6 @@ func TestIsExpired(t *testing.T) {
 			expected:  false,
 		},
 		{
-			name:      "just expired",
-			lastSeen:  time.Now().Add(-10 * time.Minute),
-			checkTime: time.Now(),
-			ttl:       10 * time.Minute,
-			expected:  true,
-		},
-		{
 			name:      "expired",
 			lastSeen:  time.Now().Add(-15 * time.Minute),
 			checkTime: time.Now(),

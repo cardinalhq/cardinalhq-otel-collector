@@ -29,13 +29,15 @@ type Stamp struct {
 	DatapointAttributes pcommon.Map
 }
 
-func NewStamp(metricName string, rattrs pcommon.Map, t time.Time) *Stamp {
+func NewStamp(metricName string, rattrs pcommon.Map, dattrs pcommon.Map, t time.Time) *Stamp {
 	s := &Stamp{
-		LastSeen:           t,
-		MetricName:         metricName,
-		ResourceAttributes: pcommon.NewMap(),
+		LastSeen:            t,
+		MetricName:          metricName,
+		ResourceAttributes:  pcommon.NewMap(),
+		DatapointAttributes: pcommon.NewMap(),
 	}
 	rattrs.CopyTo(s.ResourceAttributes)
+	dattrs.CopyTo(s.DatapointAttributes)
 	return s
 }
 
@@ -48,13 +50,14 @@ func (s *Stamp) IsExpired(t time.Time, ttl time.Duration) bool {
 }
 
 func (s *Stamp) Hash() uint64 {
-	return hashMetricNameAndAttributes(s.MetricName, s.ResourceAttributes)
+	return hashMetric(s.MetricName, s.ResourceAttributes, s.DatapointAttributes)
 }
 
-func hashMetricNameAndAttributes(metricName string, resourceAttributes pcommon.Map) uint64 {
+func hashMetric(metricName string, resourceAttributes pcommon.Map, dpattrs pcommon.Map) uint64 {
 	xh := xxhash.New()
 	_, _ = xh.WriteString(metricName)
 	hashAttributesWithHasher(resourceAttributes, xh)
+	hashAttributesWithHasher(dpattrs, xh)
 	return xh.Sum64()
 }
 

@@ -17,6 +17,8 @@ package chqmissingdataconnector
 import (
 	"fmt"
 	"time"
+
+	"go.uber.org/multierr"
 )
 
 var (
@@ -27,18 +29,40 @@ var (
 )
 
 type Config struct {
-	MaximumAge                time.Duration `mapstructure:"maximum_age"`
-	Interval                  time.Duration `mapstructure:"interval"`
-	NamePrefix                string        `mapstructure:"name_prefix"`
-	ResourceAtttributesToCopy []string      `mapstructure:"resource_attributes_to_copy"`
+	MaximumAge               time.Duration  `mapstructure:"maximum_age"`
+	Interval                 time.Duration  `mapstructure:"interval"`
+	NamePrefix               string         `mapstructure:"name_prefix"`
+	ResourceAttributesToCopy []string       `mapstructure:"resource_attributes_to_copy"`
+	Metrics                  []MetricConfig `mapstructure:"metrics"`
+
+	metricAttributes map[string][]string
+}
+
+type MetricConfig struct {
+	Name       string   `mapstructure:"name"`
+	Attributes []string `mapstructure:"attributes"`
 }
 
 func (c *Config) Validate() error {
+	var errs error
+
 	if c.MaximumAge <= 1*time.Minute {
-		return fmt.Errorf("maximum_age must be greater than 1 minute")
+		errs = multierr.Append(errs, fmt.Errorf("maximum_age must be greater than 1 minute"))
 	}
 	if c.Interval <= 1*time.Second {
-		return fmt.Errorf("interval must be greater than 1 second")
+		errs = multierr.Append(errs, fmt.Errorf("interval must be greater than 1 second"))
 	}
-	return nil
+
+	for i, metric := range c.Metrics {
+		if metric.Name == "" {
+			errs = multierr.Append(errs, fmt.Errorf("metric name must not be empty: %d", i))
+		}
+		if _, found := c.metricAttributes[metric.Name]; found {
+			errs = multierr.Append(errs, fmt.Errorf("duplicate metric name: %s", metric.Name))
+			continue
+		}
+		c.metricAttributes[metric.Name] = metric.Attributes
+	}
+
+	return errs
 }

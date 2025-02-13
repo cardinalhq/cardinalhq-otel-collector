@@ -67,18 +67,21 @@ func TestHashMetricNameAndAttributes(t *testing.T) {
 		name               string
 		metricName         string
 		resourceAttributes pcommon.Map
+		dpAttributes       pcommon.Map
 		expected           uint64
 	}{
 		{
 			name:               "empty metric name and attributes",
 			metricName:         "",
 			resourceAttributes: pcommon.NewMap(),
+			dpAttributes:       pcommon.NewMap(),
 			expected:           0xef46db3751d8e999,
 		},
 		{
 			name:               "metric name only",
 			metricName:         "metric1",
 			resourceAttributes: pcommon.NewMap(),
+			dpAttributes:       pcommon.NewMap(),
 			expected:           0x4e2e35d7ea4a9770,
 		},
 		{
@@ -89,7 +92,8 @@ func TestHashMetricNameAndAttributes(t *testing.T) {
 				m.PutStr("key1", "value1")
 				return m
 			}(),
-			expected: 0xbac8b377be93de3f,
+			dpAttributes: pcommon.NewMap(),
+			expected:     0xbac8b377be93de3f,
 		},
 		{
 			name:       "metric name with multiple attributes",
@@ -100,13 +104,14 @@ func TestHashMetricNameAndAttributes(t *testing.T) {
 				m.PutStr("key2", "value2")
 				return m
 			}(),
-			expected: 0x84cd396ce2678d25,
+			dpAttributes: pcommon.NewMap(),
+			expected:     0x84cd396ce2678d25,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := hashMetricNameAndAttributes(tt.metricName, tt.resourceAttributes)
+			result := hashMetric(tt.metricName, tt.resourceAttributes, tt.dpAttributes)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -117,12 +122,14 @@ func TestNewStamp(t *testing.T) {
 		name       string
 		metricName string
 		rattrs     pcommon.Map
+		dpattrs    pcommon.Map
 		timestamp  time.Time
 	}{
 		{
 			name:       "empty attributes",
 			metricName: "metric1",
 			rattrs:     pcommon.NewMap(),
+			dpattrs:    pcommon.NewMap(),
 			timestamp:  time.Now(),
 		},
 		{
@@ -133,6 +140,7 @@ func TestNewStamp(t *testing.T) {
 				m.PutStr("key1", "value1")
 				return m
 			}(),
+			dpattrs:   pcommon.NewMap(),
 			timestamp: time.Now(),
 		},
 		{
@@ -144,13 +152,14 @@ func TestNewStamp(t *testing.T) {
 				m.PutStr("key2", "value2")
 				return m
 			}(),
+			dpattrs:   pcommon.NewMap(),
 			timestamp: time.Now(),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stamp := NewStamp(tt.metricName, tt.rattrs, tt.timestamp)
+			stamp := NewStamp(tt.metricName, tt.rattrs, tt.dpattrs, tt.timestamp)
 			assert.Equal(t, tt.timestamp, stamp.LastSeen)
 			assert.Equal(t, tt.metricName, stamp.MetricName)
 			assert.Equal(t, tt.rattrs.Len(), stamp.ResourceAttributes.Len())
@@ -165,7 +174,7 @@ func TestNewStamp(t *testing.T) {
 
 func TestTouch(t *testing.T) {
 	initialTime := time.Now()
-	stamp := NewStamp("metric1", pcommon.NewMap(), initialTime)
+	stamp := NewStamp("metric1", pcommon.NewMap(), pcommon.NewMap(), initialTime)
 
 	newTime := initialTime.Add(1 * time.Hour)
 	stamp.Touch(newTime)
@@ -213,18 +222,21 @@ func TestStampHash(t *testing.T) {
 		name       string
 		metricName string
 		rattrs     pcommon.Map
+		dpattrs    pcommon.Map
 		expected   uint64
 	}{
 		{
 			name:       "empty metric name and attributes",
 			metricName: "",
 			rattrs:     pcommon.NewMap(),
+			dpattrs:    pcommon.NewMap(),
 			expected:   0xef46db3751d8e999,
 		},
 		{
 			name:       "metric name only",
 			metricName: "metric1",
 			rattrs:     pcommon.NewMap(),
+			dpattrs:    pcommon.NewMap(),
 			expected:   0x4e2e35d7ea4a9770,
 		},
 		{
@@ -235,6 +247,7 @@ func TestStampHash(t *testing.T) {
 				m.PutStr("key1", "value1")
 				return m
 			}(),
+			dpattrs:  pcommon.NewMap(),
 			expected: 0xbac8b377be93de3f,
 		},
 		{
@@ -246,13 +259,14 @@ func TestStampHash(t *testing.T) {
 				m.PutStr("key2", "value2")
 				return m
 			}(),
+			dpattrs:  pcommon.NewMap(),
 			expected: 0x84cd396ce2678d25,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stamp := NewStamp(tt.metricName, tt.rattrs, time.Now())
+			stamp := NewStamp(tt.metricName, tt.rattrs, tt.dpattrs, time.Now())
 			result := stamp.Hash()
 			assert.Equal(t, tt.expected, result)
 		})
@@ -275,10 +289,11 @@ func BenchmarkHashMetricNameAndAttributes(b *testing.B) {
 	attrs := pcommon.NewMap()
 	attrs.PutStr("key1", "value1")
 	attrs.PutStr("key2", "value2")
-	attrs.PutStr("key3", "value3")
+	dpattrs := pcommon.NewMap()
+	dpattrs.PutStr("key3", "value3")
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		hashMetricNameAndAttributes("metric1", attrs)
+		hashMetric("metric1", attrs, dpattrs)
 	}
 }

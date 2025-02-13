@@ -140,24 +140,81 @@ func (c *md) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
 
 			for k := 0; k < scopeMetrics.Metrics().Len(); k++ {
 				metric := scopeMetrics.Metrics().At(k)
+				dpAttrsToSelect, found := c.config.metricAttributes[metric.Name()]
+				if !found {
+					continue
+				}
+				rattrs := filteredAttributes(resourceMetric.Resource().Attributes(), c.config.ResourceAttributesToCopy)
 
-				newResourceAttributes := pcommon.NewMap()
-				for _, key := range c.config.ResourceAtttributesToCopy {
-					if value, found := resourceMetric.Resource().Attributes().Get(key); found {
-						newResourceAttributes.PutStr(key, value.AsString())
+				uniqueDatapoints := map[uint64]pcommon.Map{}
+				switch metric.Type() {
+				case pmetric.MetricTypeGauge:
+					gauge := metric.Gauge()
+					for l := 0; l < gauge.DataPoints().Len(); l++ {
+						dp := gauge.DataPoints().At(l)
+						dpattrs := filteredAttributes(dp.Attributes(), dpAttrsToSelect)
+						dphash := hashAttributes(dpattrs)
+						uniqueDatapoints[dphash] = dpattrs
+					}
+				case pmetric.MetricTypeSum:
+					sum := metric.Sum()
+					for l := 0; l < sum.DataPoints().Len(); l++ {
+						dp := sum.DataPoints().At(l)
+						dpattrs := filteredAttributes(dp.Attributes(), dpAttrsToSelect)
+						dphash := hashAttributes(dpattrs)
+						uniqueDatapoints[dphash] = dpattrs
+					}
+				case pmetric.MetricTypeHistogram:
+					h := metric.Histogram()
+					for l := 0; l < h.DataPoints().Len(); l++ {
+						dp := h.DataPoints().At(l)
+						dpattrs := filteredAttributes(dp.Attributes(), dpAttrsToSelect)
+						dphash := hashAttributes(dpattrs)
+						uniqueDatapoints[dphash] = dpattrs
+					}
+				case pmetric.MetricTypeExponentialHistogram:
+					eh := metric.ExponentialHistogram()
+					for l := 0; l < eh.DataPoints().Len(); l++ {
+						dp := eh.DataPoints().At(l)
+						dpattrs := filteredAttributes(dp.Attributes(), dpAttrsToSelect)
+						dphash := hashAttributes(dpattrs)
+						uniqueDatapoints[dphash] = dpattrs
+					}
+				case pmetric.MetricTypeSummary:
+					s := metric.Summary()
+					for l := 0; l < s.DataPoints().Len(); l++ {
+						dp := s.DataPoints().At(l)
+						dpattrs := filteredAttributes(dp.Attributes(), dpAttrsToSelect)
+						dphash := hashAttributes(dpattrs)
+						uniqueDatapoints[dphash] = dpattrs
 					}
 				}
 
-				hashkey := hashMetricNameAndAttributes(metric.Name(), newResourceAttributes)
-				found := c.entries.Touch(hashkey, func(s *Stamp) *Stamp {
-					s.Touch(now)
-					return s
-				})
-				if !found {
-					c.entries.Store(hashkey, NewStamp(metric.Name(), newResourceAttributes, now))
+				for _, dpattr := range uniqueDatapoints {
+					hashkey := hashMetric(metric.Name(), rattrs, dpattr)
+					found := c.entries.Touch(hashkey, func(s *Stamp) *Stamp {
+						s.Touch(now)
+						return s
+					})
+					if !found {
+						c.entries.Store(hashkey, NewStamp(metric.Name(), rattrs, dpattr, now))
+					}
 				}
 			}
 		}
 	}
 	return nil
+}
+
+func filteredAttributes(attrs pcommon.Map, keys []string) pcommon.Map {
+	raw := attrs.AsRaw()
+	selected := map[string]any{}
+	for _, key := range keys {
+		if value, found := raw[key]; found {
+			selected[key] = value
+		}
+	}
+	ret := pcommon.NewMap()
+	ret.FromRaw(selected)
+	return ret
 }

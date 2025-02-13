@@ -34,10 +34,10 @@ func NewFactory() connector.Factory {
 
 func createDefaultConfig() component.Config {
 	return &Config{
-		MaximumAge:                defaultMaximumAge,
-		Interval:                  defaultInterval,
-		NamePrefix:                defaultNamePrefix,
-		ResourceAtttributesToCopy: defaultResourcesToCopy,
+		MaximumAge:               defaultMaximumAge,
+		Interval:                 defaultInterval,
+		NamePrefix:               defaultNamePrefix,
+		ResourceAttributesToCopy: defaultResourcesToCopy,
 	}
 }
 

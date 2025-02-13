@@ -2,11 +2,12 @@
 
 module go.opentelemetry.io/collector/cmd/builder
 
-go 1.23
+go 1.23.0
 
 toolchain go1.23.5
 
 require (
+	github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector v0.119.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.119.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.119.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqkubeeventsexporter v0.119.0
@@ -210,7 +211,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/briandowns/spinner v1.23.0 // indirect
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 // indirect
-	github.com/cardinalhq/oteltools v0.12.1 // indirect
+	github.com/cardinalhq/oteltools v0.12.3 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -544,6 +545,8 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
+
+replace github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector v0.119.0 => ../connector/chqmissingdataconnector
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.119.0 => ../extension/chqauthextension
 

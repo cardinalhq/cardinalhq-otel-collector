@@ -2,35 +2,25 @@ package chqmissingdataconnector
 
 import (
 	"fmt"
+	"time"
+)
+
+var (
+	defaultMaximumAge = 24 * time.Hour
+	defaultInterval   = 1 * time.Minute
 )
 
 type Config struct {
-	Metrics map[string]MetricInfo `mapstructure:"metrics"`
-}
-
-type MetricInfo struct {
-	Description string            `mapstructure:"description"`
-	Conditions  []string          `mapstructure:"conditions"`
-	Attributes  []AttributeConfig `mapstructure:"attributes"`
-}
-
-type AttributeConfig struct {
-	Key   string `mapstructure:"key"`
-	Value string `mapstructure:"value"`
+	MaximumAge time.Duration `mapstructure:"maximum_age"`
+	Interval   time.Duration `mapstructure:"interval"`
 }
 
 func (c *Config) Validate() error {
-	return nil
-}
-
-func (i *MetricInfo) validateAttributes() error {
-	for _, attr := range i.Attributes {
-		if attr.Key == "" {
-			return fmt.Errorf("attribute key missing")
-		}
-		if attr.Value == "" {
-			return fmt.Errorf("attribute value missing")
-		}
+	if c.MaximumAge <= 1*time.Minute {
+		return fmt.Errorf("maximum_age must be greater than 1 minute")
+	}
+	if c.Interval <= 1*time.Second {
+		return fmt.Errorf("interval must be greater than 1 second")
 	}
 	return nil
 }

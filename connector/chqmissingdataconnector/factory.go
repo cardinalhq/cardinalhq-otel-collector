@@ -10,7 +10,6 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector/internal/metadata"
 )
 
-// NewFactory returns a ConnectorFactory.
 func NewFactory() connector.Factory {
 	return connector.NewFactory(
 		metadata.Type,
@@ -20,13 +19,18 @@ func NewFactory() connector.Factory {
 }
 
 func createDefaultConfig() component.Config {
-	return &Config{}
+	return &Config{
+		MaximumAge: defaultMaximumAge,
+		Interval:   defaultInterval,
+	}
 }
 
-// createMetricsToMetrics creates a metricds to metrics connector based on provided config.
-func createMetricsToMetrics(_ context.Context, set connector.Settings, _ component.Config, nextConsumer consumer.Metrics) (connector.Metrics, error) {
+func createMetricsToMetrics(_ context.Context, set connector.Settings, cc component.Config, nextConsumer consumer.Metrics) (connector.Metrics, error) {
+	cfg := cc.(*Config)
 	return &md{
+		config:          cfg,
 		metricsConsumer: nextConsumer,
 		logger:          set.Logger,
+		emitterDone:     make(chan struct{}),
 	}, nil
 }

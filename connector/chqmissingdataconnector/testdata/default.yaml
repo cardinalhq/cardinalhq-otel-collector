@@ -1,0 +1,17 @@
+receivers:
+  nop:
+
+connectors:
+  chqmissingdata:
+
+exporters:
+  nop:
+
+service:
+  pipelines:
+    metrics/1:
+      receivers: [nop]
+      exporters: [chqmissingdata]
+    metrics/2:
+      receivers: [chqmissingdata]
+      exporters: [nop]

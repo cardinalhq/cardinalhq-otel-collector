@@ -14,15 +14,15 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
-// count can count spans, span event, metrics, data points, or log records
-// and emit the counts onto a metrics pipeline.
 type md struct {
+	config          *Config
 	metricsConsumer consumer.Metrics
 	logger          *zap.Logger
 	component.StartFunc
 	component.ShutdownFunc
 
-	entries syncmap.SyncMap[uint64, *Stamp]
+	entries     syncmap.SyncMap[uint64, *Stamp]
+	emitterDone chan struct{}
 }
 
 func (c *md) Capabilities() consumer.Capabilities {
@@ -40,13 +40,38 @@ var (
 )
 
 func (c *md) Start(ctx context.Context, host component.Host) error {
-	c.logger.Info("Starting")
+	go c.emitter()
 	return nil
 }
 
 func (c *md) Shutdown(ctx context.Context) error {
-	c.logger.Info("Shutting down")
+	close(c.emitterDone)
 	return nil
+}
+
+func (c *md) emitter() {
+	for {
+		select {
+		case <-time.Tick(c.config.Interval):
+			now := time.Now()
+			emitList := []Stamp{}
+			c.entries.Range(func(key uint64, value *Stamp) bool {
+				if value.IsExpired(now, c.config.MaximumAge) {
+					c.entries.Delete(key)
+					return true
+				}
+				emitList = append(emitList, *value)
+				return true
+			})
+			c.emitList(emitList)
+		case <-c.emitterDone:
+			return
+		}
+	}
+}
+
+func (c *md) emitList(emitList []Stamp) {
+	c.logger.Info("emitting", zap.Int("count", len(emitList)))
 }
 
 func (c *md) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {

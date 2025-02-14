@@ -22,9 +22,21 @@ import (
 )
 
 var (
-	defaultMaximumAge          = 24 * time.Hour
-	defaultInterval            = 1 * time.Minute
-	defaultResourcesToCopy     = []string{"service.name"}
+	defaultMaximumAge      = 24 * time.Hour
+	defaultInterval        = 1 * time.Minute
+	defaultResourcesToCopy = []string{
+		"service.name",
+		"k8s.cluster.name",
+		"k8s.pod.name",
+		"k8s.node.name",
+		"k8s.namespace.name",
+		"k8s.deployment.name",
+		"k8s.daemonset.name",
+		"k8s.statefulset.name",
+		"k8s.replicaset.name",
+		"k8s.job.name",
+		"k8s.cronjob.name",
+	}
 	defaultMetricName          = "missingdata.age"
 	defaultMetricNameAttribute = "missingdata.metric.name"
 )
@@ -36,13 +48,12 @@ type Config struct {
 	Metrics                  []MetricConfig `mapstructure:"metrics"`
 	MetricName               string         `mapstructure:"metric_name"`
 	MetricNameAttribute      string         `mapstructure:"metric_name_attribute"`
-
-	metricAttributes map[string][]string
 }
 
 type MetricConfig struct {
-	Name       string   `mapstructure:"name"`
-	Attributes []string `mapstructure:"attributes"`
+	Name               string   `mapstructure:"name"`
+	Attributes         []string `mapstructure:"attributes"`
+	ResourceAttributes []string `mapstructure:"resource_attributes"`
 }
 
 func (c *Config) Validate() error {
@@ -61,16 +72,25 @@ func (c *Config) Validate() error {
 		errs = multierr.Append(errs, fmt.Errorf("metric_name_attribute must not be empty"))
 	}
 
-	c.metricAttributes = make(map[string][]string, len(c.Metrics))
+	if err := c.validateMetrics(); err != nil {
+		errs = multierr.Append(errs, err)
+	}
+
+	return errs
+}
+
+func (c *Config) validateMetrics() error {
+	var errs error
+
+	foundNames := make(map[string]struct{}, len(c.Metrics))
 	for i, metric := range c.Metrics {
 		if metric.Name == "" {
 			errs = multierr.Append(errs, fmt.Errorf("metric name must not be empty: %d", i))
-		}
-		if _, found := c.metricAttributes[metric.Name]; found {
-			errs = multierr.Append(errs, fmt.Errorf("duplicate metric name: %s", metric.Name))
 			continue
 		}
-		c.metricAttributes[metric.Name] = metric.Attributes
+		if _, found := foundNames[metric.Name]; found {
+			errs = multierr.Append(errs, fmt.Errorf("duplicate metric name: %s", metric.Name))
+		}
 	}
 
 	return errs

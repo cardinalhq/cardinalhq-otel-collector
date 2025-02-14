@@ -273,6 +273,133 @@ func TestStampHash(t *testing.T) {
 	}
 }
 
+func TestStampEquals(t *testing.T) {
+	tests := []struct {
+		name     string
+		stamp1   *Stamp
+		stamp2   *Stamp
+		expected bool
+	}{
+		{
+			name: "equal stamps",
+			stamp1: NewStamp("metric1", func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("key1", "value1")
+				return m
+			}(), func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("dpkey1", "dpvalue1")
+				return m
+			}(), time.Now()),
+			stamp2: NewStamp("metric1", func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("key1", "value1")
+				return m
+			}(), func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("dpkey1", "dpvalue1")
+				return m
+			}(), time.Now()),
+			expected: true,
+		},
+		{
+			name: "different metric names",
+			stamp1: NewStamp("metric1", func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("key1", "value1")
+				return m
+			}(), func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("dpkey1", "dpvalue1")
+				return m
+			}(), time.Now()),
+			stamp2: NewStamp("metric2", func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("key1", "value1")
+				return m
+			}(), func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("dpkey1", "dpvalue1")
+				return m
+			}(), time.Now()),
+			expected: false,
+		},
+		{
+			name: "different resource attributes",
+			stamp1: NewStamp("metric1", func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("key1", "value1")
+				return m
+			}(), func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("dpkey1", "dpvalue1")
+				return m
+			}(), time.Now()),
+			stamp2: NewStamp("metric1", func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("key2", "value2")
+				return m
+			}(), func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("dpkey1", "dpvalue1")
+				return m
+			}(), time.Now()),
+			expected: false,
+		},
+		{
+			name: "different datapoint attributes",
+			stamp1: NewStamp("metric1", func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("key1", "value1")
+				return m
+			}(), func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("dpkey1", "dpvalue1")
+				return m
+			}(), time.Now()),
+			stamp2: NewStamp("metric1", func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("key1", "value1")
+				return m
+			}(), func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("dpkey2", "dpvalue2")
+				return m
+			}(), time.Now()),
+			expected: false,
+		},
+		{
+			name: "different last seen times",
+			stamp1: NewStamp("metric1", func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("key1", "value1")
+				return m
+			}(), func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("dpkey1", "dpvalue1")
+				return m
+			}(), time.Now().Add(-1*time.Hour)),
+			stamp2: NewStamp("metric1", func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("key1", "value1")
+				return m
+			}(), func() pcommon.Map {
+				m := pcommon.NewMap()
+				m.PutStr("dpkey1", "dpvalue1")
+				return m
+			}(), time.Now()),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.stamp1.Equals(tt.stamp2)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func BenchmarkHashAttributes(b *testing.B) {
 	attrs := pcommon.NewMap()
 	attrs.PutStr("key1", "value1")

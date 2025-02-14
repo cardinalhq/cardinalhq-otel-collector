@@ -100,7 +100,6 @@ func (c *md) buildMetrics(emitList []Stamp) pmetric.Metrics {
 		dp.SetStartTimestamp(pcommon.NewTimestampFromTime(now))
 		dp.SetTimestamp(pcommon.NewTimestampFromTime(now))
 		dp.SetDoubleValue(now.Sub(stamp.LastSeen).Seconds())
-		dp.Attributes().Clear()
 		stamp.DatapointAttributes.CopyTo(dp.Attributes())
 		dp.Attributes().PutStr(c.config.MetricNameAttribute, stamp.MetricName)
 	}

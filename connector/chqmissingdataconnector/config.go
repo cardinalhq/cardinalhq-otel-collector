@@ -22,18 +22,20 @@ import (
 )
 
 var (
-	defaultMaximumAge      = 24 * time.Hour
-	defaultInterval        = 1 * time.Minute
-	defaultNamePrefix      = "missingdata"
-	defaultResourcesToCopy = []string{"service.name"}
+	defaultMaximumAge          = 24 * time.Hour
+	defaultInterval            = 1 * time.Minute
+	defaultResourcesToCopy     = []string{"service.name"}
+	defaultMetricName          = "missingdata.age"
+	defaultMetricNameAttribute = "missingdata.metric.name"
 )
 
 type Config struct {
 	MaximumAge               time.Duration  `mapstructure:"maximum_age"`
 	Interval                 time.Duration  `mapstructure:"interval"`
-	NamePrefix               string         `mapstructure:"name_prefix"`
 	ResourceAttributesToCopy []string       `mapstructure:"resource_attributes_to_copy"`
 	Metrics                  []MetricConfig `mapstructure:"metrics"`
+	MetricName               string         `mapstructure:"metric_name"`
+	MetricNameAttribute      string         `mapstructure:"metric_name_attribute"`
 
 	metricAttributes map[string][]string
 }
@@ -51,6 +53,12 @@ func (c *Config) Validate() error {
 	}
 	if c.Interval <= 1*time.Second {
 		errs = multierr.Append(errs, fmt.Errorf("interval must be greater than 1 second"))
+	}
+	if c.MetricName == "" {
+		errs = multierr.Append(errs, fmt.Errorf("metric_name must not be empty"))
+	}
+	if c.MetricNameAttribute == "" {
+		errs = multierr.Append(errs, fmt.Errorf("metric_name_attribute must not be empty"))
 	}
 
 	for i, metric := range c.Metrics {

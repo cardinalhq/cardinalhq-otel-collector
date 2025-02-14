@@ -73,13 +73,6 @@ func (c *md) emitter() {
 	}
 }
 
-func (c *md) prefixedName(name string) string {
-	if c.config.NamePrefix == "" {
-		return name
-	}
-	return c.config.NamePrefix + name
-}
-
 func (c *md) buildMetrics(emitList []Stamp) pmetric.Metrics {
 	now := time.Now()
 	md := pmetric.NewMetrics()
@@ -99,14 +92,17 @@ func (c *md) buildMetrics(emitList []Stamp) pmetric.Metrics {
 		}
 
 		metric := sm.Metrics().AppendEmpty()
-		metric.SetName(c.prefixedName(stamp.MetricName))
-		metric.SetDescription("Missing data indicator")
+		metric.SetName(c.config.MetricName)
+		metric.SetDescription("Missing data age in seconds")
 		metric.SetUnit("s")
 
 		dp := metric.SetEmptyGauge().DataPoints().AppendEmpty()
 		dp.SetStartTimestamp(pcommon.NewTimestampFromTime(now))
 		dp.SetTimestamp(pcommon.NewTimestampFromTime(now))
 		dp.SetDoubleValue(now.Sub(stamp.LastSeen).Seconds())
+		dp.Attributes().Clear()
+		stamp.DatapointAttributes.CopyTo(dp.Attributes())
+		dp.Attributes().PutStr(c.config.MetricNameAttribute, stamp.MetricName)
 	}
 
 	return md

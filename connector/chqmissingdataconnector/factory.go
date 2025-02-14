@@ -33,11 +33,16 @@ func NewFactory() connector.Factory {
 }
 
 func createDefaultConfig() component.Config {
+	return getDefaultConfig()
+}
+
+func getDefaultConfig() *Config {
 	return &Config{
 		MaximumAge:               defaultMaximumAge,
 		Interval:                 defaultInterval,
-		NamePrefix:               defaultNamePrefix,
 		ResourceAttributesToCopy: defaultResourcesToCopy,
+		MetricName:               defaultMetricName,
+		MetricNameAttribute:      defaultMetricNameAttribute,
 	}
 }
 

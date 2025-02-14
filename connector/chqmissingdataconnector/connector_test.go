@@ -27,36 +27,6 @@ import (
 	"go.uber.org/zap"
 )
 
-func TestPrefixedName(t *testing.T) {
-	tests := []struct {
-		name     string
-		config   *Config
-		input    string
-		expected string
-	}{
-		{
-			name:     "No prefix",
-			config:   &Config{NamePrefix: ""},
-			input:    "metricName",
-			expected: "metricName",
-		},
-		{
-			name:     "With prefix",
-			config:   &Config{NamePrefix: "prefix_"},
-			input:    "metricName",
-			expected: "prefix_metricName",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			md := &md{config: tt.config}
-			result := md.prefixedName(tt.input)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
 func TestBuildMetrics(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -66,7 +36,7 @@ func TestBuildMetrics(t *testing.T) {
 	}{
 		{
 			name:     "Empty emit list",
-			config:   &Config{NamePrefix: ""},
+			config:   getDefaultConfig(),
 			emitList: []Stamp{},
 			verify: func(t *testing.T, metrics pmetric.Metrics) {
 				assert.Equal(t, 0, metrics.DataPointCount())
@@ -74,14 +44,9 @@ func TestBuildMetrics(t *testing.T) {
 		},
 		{
 			name:   "Single stamp",
-			config: &Config{NamePrefix: "prefix_"},
+			config: getDefaultConfig(),
 			emitList: []Stamp{
-				{
-					MetricName:          "metricName",
-					ResourceAttributes:  pcommon.NewMap(),
-					DatapointAttributes: pcommon.NewMap(),
-					LastSeen:            time.Now().Add(-time.Minute),
-				},
+				*NewStamp("metricName", pcommon.NewMap(), pcommon.NewMap(), time.Now().Add(-time.Minute)),
 			},
 			verify: func(t *testing.T, metrics pmetric.Metrics) {
 				assert.Equal(t, 1, metrics.DataPointCount())
@@ -89,27 +54,25 @@ func TestBuildMetrics(t *testing.T) {
 				sm := rm.ScopeMetrics().At(0)
 				metric := sm.Metrics().At(0)
 
-				assert.Equal(t, "prefix_metricName", metric.Name())
-				assert.Equal(t, "Missing data indicator", metric.Description())
+				assert.Equal(t, defaultMetricName, metric.Name())
+				assert.Equal(t, "Missing data age in seconds", metric.Description())
 				assert.Equal(t, "s", metric.Unit())
+
+				assert.Equal(t, pmetric.MetricTypeGauge, metric.Type())
+
+				dp := metric.Gauge().DataPoints().At(0)
+				assert.Equal(t, pmetric.NumberDataPointValueTypeDouble, dp.ValueType())
+				v, found := dp.Attributes().Get(defaultMetricNameAttribute)
+				assert.True(t, found)
+				assert.Equal(t, "metricName", v.AsString())
 			},
 		},
 		{
 			name:   "Multiple stamps",
-			config: &Config{NamePrefix: "prefix_"},
+			config: getDefaultConfig(),
 			emitList: []Stamp{
-				{
-					MetricName:          "metricName1",
-					ResourceAttributes:  pcommon.NewMap(),
-					DatapointAttributes: pcommon.NewMap(),
-					LastSeen:            time.Now().Add(-time.Minute),
-				},
-				{
-					MetricName:          "metricName2",
-					ResourceAttributes:  pcommon.NewMap(),
-					DatapointAttributes: pcommon.NewMap(),
-					LastSeen:            time.Now().Add(-2 * time.Minute),
-				},
+				*NewStamp("metricName1", pcommon.NewMap(), pcommon.NewMap(), time.Now().Add(-time.Minute)),
+				*NewStamp("metricName2", pcommon.NewMap(), pcommon.NewMap(), time.Now().Add(-2*time.Minute)),
 			},
 			verify: func(t *testing.T, metrics pmetric.Metrics) {
 				assert.Equal(t, 2, metrics.DataPointCount())
@@ -117,26 +80,30 @@ func TestBuildMetrics(t *testing.T) {
 				sm := rm.ScopeMetrics().At(0)
 				metric1 := sm.Metrics().At(0)
 				metric2 := sm.Metrics().At(1)
-				assert.Equal(t, "prefix_metricName1", metric1.Name())
-				assert.Equal(t, "prefix_metricName2", metric2.Name())
+				assert.Equal(t, defaultMetricName, metric1.Name())
+				assert.Equal(t, defaultMetricName, metric2.Name())
+
+				assert.Equal(t, pmetric.MetricTypeGauge, metric1.Type())
+				assert.Equal(t, pmetric.MetricTypeGauge, metric2.Type())
+
+				dp1 := metric1.Gauge().DataPoints().At(0)
+				dp2 := metric2.Gauge().DataPoints().At(0)
+
+				v, found := dp1.Attributes().Get(defaultMetricNameAttribute)
+				assert.True(t, found)
+				assert.Equal(t, "metricName1", v.AsString())
+
+				v, found = dp2.Attributes().Get(defaultMetricNameAttribute)
+				assert.True(t, found)
+				assert.Equal(t, "metricName2", v.AsString())
 			},
 		},
 		{
 			name:   "Multiple stamps with same resource",
-			config: &Config{NamePrefix: "prefix_"},
+			config: getDefaultConfig(),
 			emitList: []Stamp{
-				{
-					MetricName:          "metricName1",
-					ResourceAttributes:  pcommon.NewMap(),
-					DatapointAttributes: pcommon.NewMap(),
-					LastSeen:            time.Now().Add(-time.Minute),
-				},
-				{
-					MetricName:          "metricName2",
-					ResourceAttributes:  pcommon.NewMap(),
-					DatapointAttributes: pcommon.NewMap(),
-					LastSeen:            time.Now().Add(-2 * time.Minute),
-				},
+				*NewStamp("metricName1", pcommon.NewMap(), pcommon.NewMap(), time.Now().Add(-time.Minute)),
+				*NewStamp("metricName2", pcommon.NewMap(), pcommon.NewMap(), time.Now().Add(-2*time.Minute)),
 			},
 			verify: func(t *testing.T, metrics pmetric.Metrics) {
 				assert.Equal(t, 2, metrics.DataPointCount())
@@ -144,34 +111,38 @@ func TestBuildMetrics(t *testing.T) {
 				sm := rm.ScopeMetrics().At(0)
 				metric1 := sm.Metrics().At(0)
 				metric2 := sm.Metrics().At(1)
-				assert.Equal(t, "prefix_metricName1", metric1.Name())
-				assert.Equal(t, "prefix_metricName2", metric2.Name())
+				assert.Equal(t, defaultMetricName, metric1.Name())
+				assert.Equal(t, defaultMetricName, metric2.Name())
+
+				assert.Equal(t, pmetric.MetricTypeGauge, metric1.Type())
+				assert.Equal(t, pmetric.MetricTypeGauge, metric2.Type())
+
+				dp1 := metric1.Gauge().DataPoints().At(0)
+				dp2 := metric2.Gauge().DataPoints().At(0)
+
+				v, found := dp1.Attributes().Get(defaultMetricNameAttribute)
+				assert.True(t, found)
+				assert.Equal(t, "metricName1", v.AsString())
+
+				v, found = dp2.Attributes().Get(defaultMetricNameAttribute)
+				assert.True(t, found)
+				assert.Equal(t, "metricName2", v.AsString())
 			},
 		},
 		{
 			name:   "Multiple stamps with different resources",
-			config: &Config{NamePrefix: "prefix_"},
+			config: getDefaultConfig(),
 			emitList: []Stamp{
-				{
-					MetricName: "metricName1",
-					ResourceAttributes: func() pcommon.Map {
-						m := pcommon.NewMap()
-						m.PutStr("key1", "value1")
-						return m
-					}(),
-					DatapointAttributes: pcommon.NewMap(),
-					LastSeen:            time.Now().Add(-time.Minute),
-				},
-				{
-					MetricName: "metricName2",
-					ResourceAttributes: func() pcommon.Map {
-						m := pcommon.NewMap()
-						m.PutStr("key2", "value2")
-						return m
-					}(),
-					DatapointAttributes: pcommon.NewMap(),
-					LastSeen:            time.Now().Add(-2 * time.Minute),
-				},
+				*NewStamp("metricName1", func() pcommon.Map {
+					m := pcommon.NewMap()
+					m.PutStr("key1", "value1")
+					return m
+				}(), pcommon.NewMap(), time.Now().Add(-time.Minute)),
+				*NewStamp("metricName2", func() pcommon.Map {
+					m := pcommon.NewMap()
+					m.PutStr("key2", "value2")
+					return m
+				}(), pcommon.NewMap(), time.Now().Add(-2*time.Minute)),
 			},
 			verify: func(t *testing.T, metrics pmetric.Metrics) {
 				assert.Equal(t, 2, metrics.DataPointCount())
@@ -181,8 +152,33 @@ func TestBuildMetrics(t *testing.T) {
 				sm2 := rm2.ScopeMetrics().At(0)
 				metric1 := sm1.Metrics().At(0)
 				metric2 := sm2.Metrics().At(0)
-				assert.Equal(t, "prefix_metricName1", metric1.Name())
-				assert.Equal(t, "prefix_metricName2", metric2.Name())
+				assert.Equal(t, defaultMetricName, metric1.Name())
+				assert.Equal(t, defaultMetricName, metric2.Name())
+
+				v, found := rm1.Resource().Attributes().Get("key1")
+				assert.True(t, found)
+				assert.Equal(t, "value1", v.AsString())
+
+				v, found = rm2.Resource().Attributes().Get("key2")
+				assert.True(t, found)
+				assert.Equal(t, "value2", v.AsString())
+
+				assert.Equal(t, pmetric.MetricTypeGauge, metric1.Type())
+				assert.Equal(t, pmetric.MetricTypeGauge, metric2.Type())
+
+				dp1 := metric1.Gauge().DataPoints().At(0)
+				dp2 := metric2.Gauge().DataPoints().At(0)
+
+				v, found = dp1.Attributes().Get(defaultMetricNameAttribute)
+				assert.True(t, found)
+				assert.Equal(t, "metricName1", v.AsString())
+
+				v, found = dp2.Attributes().Get(defaultMetricNameAttribute)
+				assert.True(t, found)
+				assert.Equal(t, "metricName2", v.AsString())
+
+				assert.Equal(t, pmetric.NumberDataPointValueTypeDouble, dp1.ValueType())
+				assert.Equal(t, pmetric.NumberDataPointValueTypeDouble, dp2.ValueType())
 			},
 		},
 	}
@@ -206,38 +202,26 @@ func TestEmitList(t *testing.T) {
 	}{
 		{
 			name:          "Empty emit list",
-			config:        &Config{NamePrefix: ""},
+			config:        getDefaultConfig(),
 			emitList:      []Stamp{},
 			consumer:      &mockMetricsConsumer{nil, nil},
 			expectedCount: 0,
 		},
 		{
 			name:   "Single stamp",
-			config: &Config{NamePrefix: "prefix_"},
+			config: getDefaultConfig(),
 			emitList: []Stamp{
-				{
-					MetricName:         "metricName",
-					ResourceAttributes: pcommon.NewMap(),
-					LastSeen:           time.Now().Add(-time.Minute),
-				},
+				*NewStamp("metricName", pcommon.NewMap(), pcommon.NewMap(), time.Now().Add(-time.Minute)),
 			},
 			consumer:      &mockMetricsConsumer{nil, nil},
 			expectedCount: 1,
 		},
 		{
 			name:   "Multiple stamps",
-			config: &Config{NamePrefix: "prefix_"},
+			config: getDefaultConfig(),
 			emitList: []Stamp{
-				{
-					MetricName:         "metricName1",
-					ResourceAttributes: pcommon.NewMap(),
-					LastSeen:           time.Now().Add(-time.Minute),
-				},
-				{
-					MetricName:         "metricName2",
-					ResourceAttributes: pcommon.NewMap(),
-					LastSeen:           time.Now().Add(-2 * time.Minute),
-				},
+				*NewStamp("metricName1", pcommon.NewMap(), pcommon.NewMap(), time.Now().Add(-time.Minute)),
+				*NewStamp("metricName2", pcommon.NewMap(), pcommon.NewMap(), time.Now().Add(-2*time.Minute)),
 			},
 			consumer:      &mockMetricsConsumer{nil, nil},
 			expectedCount: 2,

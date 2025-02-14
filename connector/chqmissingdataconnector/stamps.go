@@ -15,7 +15,9 @@
 package chqmissingdataconnector
 
 import (
+	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/cespare/xxhash/v2"
@@ -39,6 +41,43 @@ func NewStamp(metricName string, rattrs pcommon.Map, dattrs pcommon.Map, t time.
 	rattrs.CopyTo(s.ResourceAttributes)
 	dattrs.CopyTo(s.DatapointAttributes)
 	return s
+}
+
+func (s *Stamp) Equals(other *Stamp) bool {
+	return s.LastSeen.Unix() == other.LastSeen.Unix() &&
+		s.MetricName == other.MetricName &&
+		hashAttributes(s.ResourceAttributes) == hashAttributes(other.ResourceAttributes) &&
+		hashAttributes(s.DatapointAttributes) == hashAttributes(other.DatapointAttributes)
+}
+
+func (s *Stamp) String() string {
+	sb := strings.Builder{}
+	sb.WriteString("Stamp{")
+	sb.WriteString(fmt.Sprintf("MetricName: %s, ", s.MetricName))
+
+	sb.WriteString("ResourceAttributes: {")
+	sb.WriteString(attributesToSortedString(s.ResourceAttributes))
+	sb.WriteString("}, ")
+
+	sb.WriteString("DatapointAttributes: {")
+	sb.WriteString(attributesToSortedString(s.DatapointAttributes))
+	sb.WriteString("}")
+
+	sb.WriteString("}")
+
+	return sb.String()
+}
+
+func attributesToSortedString(attrs pcommon.Map) string {
+	items := []string{}
+
+	attrs.Range(func(k string, v pcommon.Value) bool {
+		items = append(items, k+"="+v.AsString())
+		return true
+	})
+	slices.Sort(items)
+
+	return strings.Join(items, ", ")
 }
 
 func (s *Stamp) Touch(t time.Time) {

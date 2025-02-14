@@ -37,6 +37,9 @@ type md struct {
 
 	entries     syncmap.SyncMap[uint64, *Stamp]
 	emitterDone chan struct{}
+
+	metricAttributes   map[string][]string
+	resourceAttributes map[string][]string
 }
 
 func (c *md) Capabilities() consumer.Capabilities {
@@ -44,8 +47,20 @@ func (c *md) Capabilities() consumer.Capabilities {
 }
 
 func (c *md) Start(ctx context.Context, host component.Host) error {
+	c.buildAttributeMaps()
+
 	go c.emitter()
+
 	return nil
+}
+
+func (c *md) buildAttributeMaps() {
+	c.metricAttributes = make(map[string][]string)
+	c.resourceAttributes = make(map[string][]string)
+	for _, metric := range c.config.Metrics {
+		c.metricAttributes[metric.Name] = metric.Attributes
+		c.resourceAttributes[metric.Name] = metric.ResourceAttributes
+	}
 }
 
 func (c *md) Shutdown(ctx context.Context) error {
@@ -60,21 +75,26 @@ func (c *md) emitter() {
 			return
 		case <-time.Tick(c.config.Interval):
 			now := time.Now()
-			emitList := []Stamp{}
-			c.entries.Range(func(key uint64, value *Stamp) bool {
-				if value.IsExpired(now, c.config.MaximumAge) {
-					c.entries.Delete(key)
-					return true
-				}
-				emitList = append(emitList, *value)
-				return true
-			})
+			emitList := c.buildEmitList(now)
 			c.emitList(emitList)
 		}
 	}
 }
 
-func (c *md) buildMetrics(emitList []Stamp) pmetric.Metrics {
+func (c *md) buildEmitList(now time.Time) []*Stamp {
+	emitList := []*Stamp{}
+	c.entries.Range(func(key uint64, value *Stamp) bool {
+		if value.IsExpired(now, c.config.MaximumAge) {
+			c.entries.Delete(key)
+			return true
+		}
+		emitList = append(emitList, value)
+		return true
+	})
+	return emitList
+}
+
+func (c *md) buildMetrics(emitList []*Stamp) pmetric.Metrics {
 	now := time.Now()
 	md := pmetric.NewMetrics()
 	resourceMap := map[uint64]pmetric.ResourceMetrics{}
@@ -109,7 +129,7 @@ func (c *md) buildMetrics(emitList []Stamp) pmetric.Metrics {
 	return md
 }
 
-func (c *md) emitList(emitList []Stamp) {
+func (c *md) emitList(emitList []*Stamp) {
 	c.logger.Info("emitting", zap.Int("count", len(emitList)))
 
 	md := c.buildMetrics(emitList)
@@ -137,11 +157,15 @@ func (c *md) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
 
 			for k := 0; k < scopeMetrics.Metrics().Len(); k++ {
 				metric := scopeMetrics.Metrics().At(k)
-				dpAttrsToSelect, found := c.config.metricAttributes[metric.Name()]
+				dpAttrsToSelect, found := c.metricAttributes[metric.Name()]
 				if !found {
 					continue
 				}
-				rattrs := filteredAttributes(resourceMetric.Resource().Attributes(), c.config.ResourceAttributesToCopy)
+
+				wantedResourceAttrs := c.config.ResourceAttributesToCopy
+				metricResourceAttrs := c.resourceAttributes[metric.Name()]
+				wantedResourceAttrs = append(wantedResourceAttrs, metricResourceAttrs...)
+				rattrs := filteredAttributes(resourceMetric.Resource().Attributes(), wantedResourceAttrs)
 
 				uniqueDatapoints := map[uint64]pcommon.Map{}
 				switch metric.Type() {

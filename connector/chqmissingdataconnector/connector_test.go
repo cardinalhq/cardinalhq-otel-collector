@@ -28,16 +28,17 @@ import (
 )
 
 func TestBuildMetrics(t *testing.T) {
+	now := time.Now()
 	tests := []struct {
 		name     string
 		config   *Config
-		emitList []Stamp
+		emitList []*Stamp
 		verify   func(t *testing.T, metrics pmetric.Metrics)
 	}{
 		{
 			name:     "Empty emit list",
 			config:   getDefaultConfig(),
-			emitList: []Stamp{},
+			emitList: []*Stamp{},
 			verify: func(t *testing.T, metrics pmetric.Metrics) {
 				assert.Equal(t, 0, metrics.DataPointCount())
 			},
@@ -45,8 +46,8 @@ func TestBuildMetrics(t *testing.T) {
 		{
 			name:   "Single stamp",
 			config: getDefaultConfig(),
-			emitList: []Stamp{
-				*NewStamp("metricName", pcommon.NewMap(), pcommon.NewMap(), time.Now().Add(-time.Minute)),
+			emitList: []*Stamp{
+				NewStamp("metricName", pcommon.NewMap(), pcommon.NewMap(), now.Add(-time.Minute)),
 			},
 			verify: func(t *testing.T, metrics pmetric.Metrics) {
 				assert.Equal(t, 1, metrics.DataPointCount())
@@ -70,9 +71,9 @@ func TestBuildMetrics(t *testing.T) {
 		{
 			name:   "Multiple stamps",
 			config: getDefaultConfig(),
-			emitList: []Stamp{
-				*NewStamp("metricName1", pcommon.NewMap(), pcommon.NewMap(), time.Now().Add(-time.Minute)),
-				*NewStamp("metricName2", pcommon.NewMap(), pcommon.NewMap(), time.Now().Add(-2*time.Minute)),
+			emitList: []*Stamp{
+				NewStamp("metricName1", pcommon.NewMap(), pcommon.NewMap(), now.Add(-time.Minute)),
+				NewStamp("metricName2", pcommon.NewMap(), pcommon.NewMap(), now.Add(-2*time.Minute)),
 			},
 			verify: func(t *testing.T, metrics pmetric.Metrics) {
 				assert.Equal(t, 2, metrics.DataPointCount())
@@ -101,9 +102,9 @@ func TestBuildMetrics(t *testing.T) {
 		{
 			name:   "Multiple stamps with same resource",
 			config: getDefaultConfig(),
-			emitList: []Stamp{
-				*NewStamp("metricName1", pcommon.NewMap(), pcommon.NewMap(), time.Now().Add(-time.Minute)),
-				*NewStamp("metricName2", pcommon.NewMap(), pcommon.NewMap(), time.Now().Add(-2*time.Minute)),
+			emitList: []*Stamp{
+				NewStamp("metricName1", pcommon.NewMap(), pcommon.NewMap(), now.Add(-time.Minute)),
+				NewStamp("metricName2", pcommon.NewMap(), pcommon.NewMap(), now.Add(-2*time.Minute)),
 			},
 			verify: func(t *testing.T, metrics pmetric.Metrics) {
 				assert.Equal(t, 2, metrics.DataPointCount())
@@ -132,17 +133,17 @@ func TestBuildMetrics(t *testing.T) {
 		{
 			name:   "Multiple stamps with different resources",
 			config: getDefaultConfig(),
-			emitList: []Stamp{
-				*NewStamp("metricName1", func() pcommon.Map {
+			emitList: []*Stamp{
+				NewStamp("metricName1", func() pcommon.Map {
 					m := pcommon.NewMap()
 					m.PutStr("key1", "value1")
 					return m
-				}(), pcommon.NewMap(), time.Now().Add(-time.Minute)),
-				*NewStamp("metricName2", func() pcommon.Map {
+				}(), pcommon.NewMap(), now.Add(-time.Minute)),
+				NewStamp("metricName2", func() pcommon.Map {
 					m := pcommon.NewMap()
 					m.PutStr("key2", "value2")
 					return m
-				}(), pcommon.NewMap(), time.Now().Add(-2*time.Minute)),
+				}(), pcommon.NewMap(), now.Add(-2*time.Minute)),
 			},
 			verify: func(t *testing.T, metrics pmetric.Metrics) {
 				assert.Equal(t, 2, metrics.DataPointCount())
@@ -193,25 +194,26 @@ func TestBuildMetrics(t *testing.T) {
 }
 
 func TestEmitList(t *testing.T) {
+	now := time.Now()
 	tests := []struct {
 		name          string
 		config        *Config
-		emitList      []Stamp
+		emitList      []*Stamp
 		consumer      *mockMetricsConsumer
 		expectedCount int
 	}{
 		{
 			name:          "Empty emit list",
 			config:        getDefaultConfig(),
-			emitList:      []Stamp{},
+			emitList:      []*Stamp{},
 			consumer:      &mockMetricsConsumer{nil, nil},
 			expectedCount: 0,
 		},
 		{
 			name:   "Single stamp",
 			config: getDefaultConfig(),
-			emitList: []Stamp{
-				*NewStamp("metricName", pcommon.NewMap(), pcommon.NewMap(), time.Now().Add(-time.Minute)),
+			emitList: []*Stamp{
+				NewStamp("metricName", pcommon.NewMap(), pcommon.NewMap(), now.Add(-time.Minute)),
 			},
 			consumer:      &mockMetricsConsumer{nil, nil},
 			expectedCount: 1,
@@ -219,9 +221,9 @@ func TestEmitList(t *testing.T) {
 		{
 			name:   "Multiple stamps",
 			config: getDefaultConfig(),
-			emitList: []Stamp{
-				*NewStamp("metricName1", pcommon.NewMap(), pcommon.NewMap(), time.Now().Add(-time.Minute)),
-				*NewStamp("metricName2", pcommon.NewMap(), pcommon.NewMap(), time.Now().Add(-2*time.Minute)),
+			emitList: []*Stamp{
+				NewStamp("metricName1", pcommon.NewMap(), pcommon.NewMap(), now.Add(-time.Minute)),
+				NewStamp("metricName2", pcommon.NewMap(), pcommon.NewMap(), now.Add(-2*time.Minute)),
 			},
 			consumer:      &mockMetricsConsumer{nil, nil},
 			expectedCount: 2,
@@ -248,54 +250,69 @@ func TestEmitList(t *testing.T) {
 }
 
 func TestConsumeMetrics(t *testing.T) {
+	now := time.Now()
 	tests := []struct {
 		name               string
 		config             *Config
+		metricAttributes   map[string][]string
+		resourceAttributes map[string][]string
 		inputMetrics       pmetric.Metrics
-		expectedEntriesLen int
+		expectedEntries    []*Stamp
 	}{
 		{
 			name: "Empty metrics",
 			config: &Config{
 				ResourceAttributesToCopy: []string{},
-				metricAttributes: map[string][]string{
-					"metricName": {"attr1", "attr2"},
-				},
 			},
-			inputMetrics:       pmetric.NewMetrics(),
-			expectedEntriesLen: 0,
+			metricAttributes: map[string][]string{
+				"metricName": {"attr1", "attr2"},
+			},
+
+			inputMetrics:    pmetric.NewMetrics(),
+			expectedEntries: []*Stamp{},
 		},
 		{
 			name: "Single metric",
 			config: &Config{
 				ResourceAttributesToCopy: []string{"key1"},
-				metricAttributes: map[string][]string{
-					"metricName": {"attr1", "attr2"},
-				},
+			},
+			metricAttributes: map[string][]string{
+				"metricName": {"attr1", "attr2"},
+			},
+			resourceAttributes: map[string][]string{
+				"metricName": {"resourceKey1", "resourceKey2"},
 			},
 			inputMetrics: func() pmetric.Metrics {
 				md := pmetric.NewMetrics()
 				rm := md.ResourceMetrics().AppendEmpty()
 				rm.Resource().Attributes().PutStr("key1", "value1")
+				rm.Resource().Attributes().PutStr("resourceKey1", "resourceValue1")
 				sm := rm.ScopeMetrics().AppendEmpty()
 				metric := sm.Metrics().AppendEmpty()
 				metric.SetName("metricName")
 				dp := metric.SetEmptyGauge().DataPoints().AppendEmpty()
-				dp.SetStartTimestamp(pcommon.NewTimestampFromTime(time.Now()))
-				dp.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
+				dp.SetStartTimestamp(pcommon.NewTimestampFromTime(now))
+				dp.SetTimestamp(pcommon.NewTimestampFromTime(now))
 				dp.SetDoubleValue(1)
 				return md
 			}(),
-			expectedEntriesLen: 1,
+			expectedEntries: []*Stamp{
+				NewStamp("metricName", func() pcommon.Map {
+					m := pcommon.NewMap()
+					m.PutStr("key1", "value1")
+					m.PutStr("resourceKey1", "resourceValue1")
+					return m
+				}(), pcommon.NewMap(), now),
+			},
 		},
 		{
 			name: "Multiple metrics with same resource",
 			config: &Config{
 				ResourceAttributesToCopy: []string{"key1"},
-				metricAttributes: map[string][]string{
-					"metricName1": {"attr1", "attr2"},
-					"metricName2": {"attr1", "attr2"},
-				},
+			},
+			metricAttributes: map[string][]string{
+				"metricName1": {"attr1", "attr2"},
+				"metricName2": {"attr1", "attr2"},
 			},
 			inputMetrics: func() pmetric.Metrics {
 				md := pmetric.NewMetrics()
@@ -306,29 +323,40 @@ func TestConsumeMetrics(t *testing.T) {
 				metric1 := sm.Metrics().AppendEmpty()
 				metric1.SetName("metricName1")
 				dp1 := metric1.SetEmptyGauge().DataPoints().AppendEmpty()
-				dp1.SetStartTimestamp(pcommon.NewTimestampFromTime(time.Now()))
-				dp1.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
+				dp1.SetStartTimestamp(pcommon.NewTimestampFromTime(now))
+				dp1.SetTimestamp(pcommon.NewTimestampFromTime(now))
 				dp1.SetDoubleValue(1)
 
 				metric2 := sm.Metrics().AppendEmpty()
 				metric2.SetName("metricName2")
 				dp2 := metric2.SetEmptyGauge().DataPoints().AppendEmpty()
-				dp2.SetStartTimestamp(pcommon.NewTimestampFromTime(time.Now()))
-				dp2.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
+				dp2.SetStartTimestamp(pcommon.NewTimestampFromTime(now))
+				dp2.SetTimestamp(pcommon.NewTimestampFromTime(now))
 				dp2.SetDoubleValue(1)
 
 				return md
 			}(),
-			expectedEntriesLen: 2,
+			expectedEntries: []*Stamp{
+				NewStamp("metricName1", func() pcommon.Map {
+					m := pcommon.NewMap()
+					m.PutStr("key1", "value1")
+					return m
+				}(), pcommon.NewMap(), now),
+				NewStamp("metricName2", func() pcommon.Map {
+					m := pcommon.NewMap()
+					m.PutStr("key1", "value1")
+					return m
+				}(), pcommon.NewMap(), now),
+			},
 		},
 		{
 			name: "Multiple metrics with different resources",
 			config: &Config{
 				ResourceAttributesToCopy: []string{"key1", "key2"},
-				metricAttributes: map[string][]string{
-					"metricName1": {"attr1", "attr2"},
-					"metricName2": {"attr1", "attr2"},
-				},
+			},
+			metricAttributes: map[string][]string{
+				"metricName1": {"attr1", "attr2"},
+				"metricName2": {"attr1", "attr2"},
 			},
 			inputMetrics: func() pmetric.Metrics {
 				md := pmetric.NewMetrics()
@@ -338,8 +366,8 @@ func TestConsumeMetrics(t *testing.T) {
 				metric1 := sm1.Metrics().AppendEmpty()
 				metric1.SetName("metricName1")
 				dp1 := metric1.SetEmptyGauge().DataPoints().AppendEmpty()
-				dp1.SetStartTimestamp(pcommon.NewTimestampFromTime(time.Now()))
-				dp1.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
+				dp1.SetStartTimestamp(pcommon.NewTimestampFromTime(now))
+				dp1.SetTimestamp(pcommon.NewTimestampFromTime(now))
 				dp1.SetDoubleValue(1)
 
 				rm2 := md.ResourceMetrics().AppendEmpty()
@@ -348,21 +376,32 @@ func TestConsumeMetrics(t *testing.T) {
 				metric2 := sm2.Metrics().AppendEmpty()
 				metric2.SetName("metricName2")
 				dp2 := metric2.SetEmptyGauge().DataPoints().AppendEmpty()
-				dp2.SetStartTimestamp(pcommon.NewTimestampFromTime(time.Now()))
-				dp2.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
+				dp2.SetStartTimestamp(pcommon.NewTimestampFromTime(now))
+				dp2.SetTimestamp(pcommon.NewTimestampFromTime(now))
 				dp2.SetDoubleValue(1)
 
 				return md
 			}(),
-			expectedEntriesLen: 2,
+			expectedEntries: []*Stamp{
+				NewStamp("metricName1", func() pcommon.Map {
+					m := pcommon.NewMap()
+					m.PutStr("key1", "value1")
+					return m
+				}(), pcommon.NewMap(), now),
+				NewStamp("metricName2", func() pcommon.Map {
+					m := pcommon.NewMap()
+					m.PutStr("key2", "value2")
+					return m
+				}(), pcommon.NewMap(), now),
+			},
 		},
 		{
 			name: "Multiple metrics with the same name",
 			config: &Config{
 				ResourceAttributesToCopy: []string{"key1"},
-				metricAttributes: map[string][]string{
-					"metricName": {"attr1", "attr2"},
-				},
+			},
+			metricAttributes: map[string][]string{
+				"metricName": {"attr1", "attr2"},
 			},
 			inputMetrics: func() pmetric.Metrics {
 				md := pmetric.NewMetrics()
@@ -372,28 +411,34 @@ func TestConsumeMetrics(t *testing.T) {
 				metric1 := sm.Metrics().AppendEmpty()
 				metric1.SetName("metricName")
 				dp1 := metric1.SetEmptyGauge().DataPoints().AppendEmpty()
-				dp1.SetStartTimestamp(pcommon.NewTimestampFromTime(time.Now()))
-				dp1.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
+				dp1.SetStartTimestamp(pcommon.NewTimestampFromTime(now))
+				dp1.SetTimestamp(pcommon.NewTimestampFromTime(now))
 				dp1.SetDoubleValue(1)
 
 				metric2 := sm.Metrics().AppendEmpty()
 				metric2.SetName("metricName")
 				dp2 := metric2.SetEmptyGauge().DataPoints().AppendEmpty()
-				dp2.SetStartTimestamp(pcommon.NewTimestampFromTime(time.Now()))
-				dp2.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
+				dp2.SetStartTimestamp(pcommon.NewTimestampFromTime(now))
+				dp2.SetTimestamp(pcommon.NewTimestampFromTime(now))
 				dp2.SetDoubleValue(1)
 
 				return md
 			}(),
-			expectedEntriesLen: 1,
+			expectedEntries: []*Stamp{
+				NewStamp("metricName", func() pcommon.Map {
+					m := pcommon.NewMap()
+					m.PutStr("key1", "value1")
+					return m
+				}(), pcommon.NewMap(), now),
+			},
 		},
 		{
 			name: "Multiple metrics with the same name and different resources",
 			config: &Config{
 				ResourceAttributesToCopy: []string{"key1"},
-				metricAttributes: map[string][]string{
-					"metricName": {"attr1", "attr2"},
-				},
+			},
+			metricAttributes: map[string][]string{
+				"metricName": {"attr1", "attr2"},
 			},
 			inputMetrics: func() pmetric.Metrics {
 				md := pmetric.NewMetrics()
@@ -403,8 +448,8 @@ func TestConsumeMetrics(t *testing.T) {
 				metric1 := sm1.Metrics().AppendEmpty()
 				metric1.SetName("metricName")
 				dp1 := metric1.SetEmptyGauge().DataPoints().AppendEmpty()
-				dp1.SetStartTimestamp(pcommon.NewTimestampFromTime(time.Now()))
-				dp1.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
+				dp1.SetStartTimestamp(pcommon.NewTimestampFromTime(now))
+				dp1.SetTimestamp(pcommon.NewTimestampFromTime(now))
 				dp1.SetDoubleValue(1)
 
 				rm2 := md.ResourceMetrics().AppendEmpty()
@@ -413,21 +458,28 @@ func TestConsumeMetrics(t *testing.T) {
 				metric2 := sm2.Metrics().AppendEmpty()
 				metric2.SetName("metricName")
 				dp2 := metric2.SetEmptyGauge().DataPoints().AppendEmpty()
-				dp2.SetStartTimestamp(pcommon.NewTimestampFromTime(time.Now()))
-				dp2.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
+				dp2.SetStartTimestamp(pcommon.NewTimestampFromTime(now))
+				dp2.SetTimestamp(pcommon.NewTimestampFromTime(now))
 				dp2.SetDoubleValue(1)
 
 				return md
 			}(),
-			expectedEntriesLen: 2,
+			expectedEntries: []*Stamp{
+				NewStamp("metricName", func() pcommon.Map {
+					m := pcommon.NewMap()
+					m.PutStr("key1", "value1")
+					return m
+				}(), pcommon.NewMap(), now),
+				NewStamp("metricName", pcommon.NewMap(), pcommon.NewMap(), now),
+			},
 		},
 		{
 			name: "Multiple metrics with the same name and the same resource but different attributes",
 			config: &Config{
 				ResourceAttributesToCopy: []string{"key1"},
-				metricAttributes: map[string][]string{
-					"metricName": {"attr1", "attr2"},
-				},
+			},
+			metricAttributes: map[string][]string{
+				"metricName": {"attr1", "attr2"},
 			},
 			inputMetrics: func() pmetric.Metrics {
 				md := pmetric.NewMetrics()
@@ -437,8 +489,8 @@ func TestConsumeMetrics(t *testing.T) {
 				metric1 := sm.Metrics().AppendEmpty()
 				metric1.SetName("metricName")
 				dp1 := metric1.SetEmptyGauge().DataPoints().AppendEmpty()
-				dp1.SetStartTimestamp(pcommon.NewTimestampFromTime(time.Now()))
-				dp1.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
+				dp1.SetStartTimestamp(pcommon.NewTimestampFromTime(now))
+				dp1.SetTimestamp(pcommon.NewTimestampFromTime(now))
 				dp1.SetDoubleValue(1)
 				dp1.Attributes().PutStr("attr1", "value1")
 
@@ -446,32 +498,53 @@ func TestConsumeMetrics(t *testing.T) {
 				metric2.SetName("metricName")
 				metric2.SetDescription("description")
 				dp2 := metric2.SetEmptyGauge().DataPoints().AppendEmpty()
-				dp2.SetStartTimestamp(pcommon.NewTimestampFromTime(time.Now()))
-				dp2.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
+				dp2.SetStartTimestamp(pcommon.NewTimestampFromTime(now))
+				dp2.SetTimestamp(pcommon.NewTimestampFromTime(now))
 				dp2.SetDoubleValue(1)
 				dp2.Attributes().PutStr("attr2", "value2")
 
 				return md
 			}(),
-			expectedEntriesLen: 2,
+			expectedEntries: []*Stamp{
+				NewStamp("metricName", func() pcommon.Map {
+					m := pcommon.NewMap()
+					m.PutStr("key1", "value1")
+					return m
+				}(), func() pcommon.Map {
+					m := pcommon.NewMap()
+					m.PutStr("attr1", "value1")
+					return m
+				}(), now),
+				NewStamp("metricName", func() pcommon.Map {
+					m := pcommon.NewMap()
+					m.PutStr("key1", "value1")
+					return m
+				}(), func() pcommon.Map {
+					m := pcommon.NewMap()
+					m.PutStr("attr2", "value2")
+					return m
+				}(), now),
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			md := &md{
-				config: tt.config,
+				config:             tt.config,
+				metricAttributes:   tt.metricAttributes,
+				resourceAttributes: tt.resourceAttributes,
 			}
 
 			err := md.ConsumeMetrics(context.Background(), tt.inputMetrics)
 			require.NoError(t, err)
 
-			count := 0
+			values := []*Stamp{}
 			md.entries.Range(func(key uint64, value *Stamp) bool {
-				count++
+				values = append(values, value)
 				return true
 			})
-			assert.Equal(t, tt.expectedEntriesLen, count)
+			assertStampsEqual(t, tt.expectedEntries, values)
 		})
 	}
 }
@@ -564,6 +637,170 @@ func TestFilteredAttributes(t *testing.T) {
 			assert.Equal(t, tt.expected.AsRaw(), result.AsRaw())
 		})
 	}
+}
+
+func TestBuildAttributeMaps(t *testing.T) {
+	tests := []struct {
+		name                  string
+		config                *Config
+		expectedMetricAttrs   map[string][]string
+		expectedResourceAttrs map[string][]string
+	}{
+		{
+			name: "Empty config",
+			config: &Config{
+				Metrics: []MetricConfig{},
+			},
+			expectedMetricAttrs:   map[string][]string{},
+			expectedResourceAttrs: map[string][]string{},
+		},
+		{
+			name: "Single metric",
+			config: &Config{
+				Metrics: []MetricConfig{
+					{
+						Name:               "metric1",
+						Attributes:         []string{"attr1", "attr2"},
+						ResourceAttributes: []string{"resAttr1"},
+					},
+				},
+			},
+			expectedMetricAttrs: map[string][]string{
+				"metric1": {"attr1", "attr2"},
+			},
+			expectedResourceAttrs: map[string][]string{
+				"metric1": {"resAttr1"},
+			},
+		},
+		{
+			name: "Multiple metrics",
+			config: &Config{
+				Metrics: []MetricConfig{
+					{
+						Name:               "metric1",
+						Attributes:         []string{"attr1", "attr2"},
+						ResourceAttributes: []string{"resAttr1"},
+					},
+					{
+						Name:               "metric2",
+						Attributes:         []string{"attr3", "attr4"},
+						ResourceAttributes: []string{"resAttr2"},
+					},
+				},
+			},
+			expectedMetricAttrs: map[string][]string{
+				"metric1": {"attr1", "attr2"},
+				"metric2": {"attr3", "attr4"},
+			},
+			expectedResourceAttrs: map[string][]string{
+				"metric1": {"resAttr1"},
+				"metric2": {"resAttr2"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			md := &md{config: tt.config}
+			md.buildAttributeMaps()
+			assert.Equal(t, tt.expectedMetricAttrs, md.metricAttributes)
+			assert.Equal(t, tt.expectedResourceAttrs, md.resourceAttributes)
+		})
+	}
+}
+
+func TestBuildEmitList(t *testing.T) {
+	now := time.Now()
+	tests := []struct {
+		name          string
+		config        *Config
+		entries       map[uint64]*Stamp
+		now           time.Time
+		expectedEmit  []*Stamp
+		expectedCount int
+	}{
+		{
+			name: "No entries",
+			config: &Config{
+				MaximumAge: time.Minute,
+			},
+			entries:       map[uint64]*Stamp{},
+			now:           now,
+			expectedEmit:  []*Stamp{},
+			expectedCount: 0,
+		},
+		{
+			name: "Single non-expired entry",
+			config: &Config{
+				MaximumAge: time.Minute,
+			},
+			entries: map[uint64]*Stamp{
+				1: NewStamp("metricName", pcommon.NewMap(), pcommon.NewMap(), now.Add(-30*time.Second)),
+			},
+			now: now,
+			expectedEmit: []*Stamp{
+				NewStamp("metricName", pcommon.NewMap(), pcommon.NewMap(), now.Add(-30*time.Second)),
+			},
+			expectedCount: 1,
+		},
+		{
+			name: "Single expired entry",
+			config: &Config{
+				MaximumAge: time.Minute,
+			},
+			entries: map[uint64]*Stamp{
+				1: NewStamp("metricName", pcommon.NewMap(), pcommon.NewMap(), now.Add(-2*time.Minute)),
+			},
+			now:           now,
+			expectedEmit:  []*Stamp{},
+			expectedCount: 0,
+		},
+		{
+			name: "Multiple entries with mixed expiration",
+			config: &Config{
+				MaximumAge: time.Minute,
+			},
+			entries: map[uint64]*Stamp{
+				1: NewStamp("metricName1", pcommon.NewMap(), pcommon.NewMap(), now.Add(-30*time.Second)),
+				2: NewStamp("metricName2", pcommon.NewMap(), pcommon.NewMap(), now.Add(-2*time.Minute)),
+			},
+			now: now,
+			expectedEmit: []*Stamp{
+				NewStamp("metricName1", pcommon.NewMap(), pcommon.NewMap(), now.Add(-30*time.Second)),
+			},
+			expectedCount: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			md := &md{
+				config: tt.config,
+			}
+
+			for k, v := range tt.entries {
+				md.entries.Store(k, v)
+			}
+
+			emitList := md.buildEmitList(tt.now)
+			assert.Equal(t, tt.expectedCount, len(emitList))
+			assertStampsEqual(t, tt.expectedEmit, emitList)
+		})
+	}
+}
+
+func assertStampsEqual(t *testing.T, expected []*Stamp, actual []*Stamp) {
+	expectedStrings := []string{}
+	for _, s := range expected {
+		expectedStrings = append(expectedStrings, s.String())
+	}
+
+	actualStrings := []string{}
+	for _, s := range actual {
+		actualStrings = append(actualStrings, s.String())
+	}
+
+	assert.ElementsMatch(t, expectedStrings, actualStrings)
 }
 
 type mockMetricsConsumer struct {

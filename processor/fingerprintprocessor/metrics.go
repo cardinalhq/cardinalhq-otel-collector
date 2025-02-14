@@ -73,4 +73,5 @@ func (p *fingerprintProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Me
 func (p *fingerprintProcessor) processDatapoint(extra map[string]string, environment authenv.Environment, rattr, sattr, dattr pcommon.Map) {
 	tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
 	dattr.PutInt(translate.CardinalFieldTID, tid)
+	p.normalize(dattr)
 }

@@ -17,7 +17,9 @@ package fingerprintprocessor
 import (
 	"context"
 	"encoding/binary"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"hash/fnv"
+	"regexp"
 	"slices"
 	"sync"
 
@@ -219,4 +221,35 @@ func (p *fingerprintProcessor) getTenantUnlocked(cid string) *tenantState {
 	}
 
 	return tenant
+}
+
+const (
+	DBQuerySummary = "db.query.summary"
+	DBStatement    = "db.statement"
+)
+
+func (p *fingerprintProcessor) normalize(l pcommon.Map) {
+	dbQuery := getValue(l, string(semconv.DBQueryTextKey), DBStatement, DBQuerySummary)
+	if dbQuery != "" {
+		l.PutStr(string(semconv.DBQueryTextKey), normalizeSQL(dbQuery))
+	}
+}
+
+func normalizeSQL(query string) string {
+	// Regex to match:
+	// - Numbers (\b\d+\b)
+	// - Single-quoted strings ('[^']*')
+	// - Double-quoted strings ("[^"]*")
+	pattern := `\b\d+\.\d+\b|\b\d+\b|'[^']*'|"[^"]*"`
+	re := regexp.MustCompile(pattern)
+	return re.ReplaceAllString(query, "?")
+}
+
+func getValue(attributes pcommon.Map, fallbackChain ...string) string {
+	for _, key := range fallbackChain {
+		if value, found := attributes.Get(key); found {
+			return value.AsString()
+		}
+	}
+	return ""
 }

@@ -226,12 +226,28 @@ func (p *fingerprintProcessor) getTenantUnlocked(cid string) *tenantState {
 const (
 	DBQuerySummary = "db.query.summary"
 	DBStatement    = "db.statement"
+	NetPeerName    = "net.peer.name"
 )
 
 func (p *fingerprintProcessor) normalize(l pcommon.Map) {
+	// Normalize DB Attributes
 	dbQuery := getValue(l, string(semconv.DBQueryTextKey), DBStatement, DBQuerySummary)
 	if dbQuery != "" {
 		l.PutStr(string(semconv.DBQueryTextKey), normalizeSQL(dbQuery))
+	}
+
+	dbInstance := getValue(l, string(semconv.ServerAddressKey),
+		string(semconv.NetworkPeerAddressKey),
+		NetPeerName,
+		string(semconv.RPCServiceKey))
+
+	if dbInstance != "" {
+		l.PutStr(string(semconv.NetworkPeerAddressKey), dbInstance)
+	}
+
+	dbCollection := getValue(l, string(semconv.DBCollectionNameKey), string(semconv.AWSDynamoDBTableNamesKey))
+	if dbCollection != "" {
+		l.PutStr(string(semconv.DBCollectionNameKey), dbCollection)
 	}
 }
 

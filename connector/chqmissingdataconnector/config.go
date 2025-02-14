@@ -61,6 +61,7 @@ func (c *Config) Validate() error {
 		errs = multierr.Append(errs, fmt.Errorf("metric_name_attribute must not be empty"))
 	}
 
+	c.metricAttributes = make(map[string][]string, len(c.Metrics))
 	for i, metric := range c.Metrics {
 		if metric.Name == "" {
 			errs = multierr.Append(errs, fmt.Errorf("metric name must not be empty: %d", i))

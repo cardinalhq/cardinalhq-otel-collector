@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cardinalhq/oteltools/pkg/translate"
+	"go.opentelemetry.io/collector/component"
 	"go.uber.org/multierr"
 )
 
@@ -42,12 +44,13 @@ var (
 )
 
 type Config struct {
-	MaximumAge               time.Duration  `mapstructure:"maximum_age"`
+	ConfigurationExtension   *component.ID  `mapstructure:"configuration_extension"`
 	Interval                 time.Duration  `mapstructure:"interval"`
-	ResourceAttributesToCopy []string       `mapstructure:"resource_attributes_to_copy"`
-	Metrics                  []MetricConfig `mapstructure:"metrics"`
+	MaximumAge               time.Duration  `mapstructure:"maximum_age"`
 	MetricName               string         `mapstructure:"metric_name"`
 	MetricNameAttribute      string         `mapstructure:"metric_name_attribute"`
+	Metrics                  []MetricConfig `mapstructure:"metrics"`
+	ResourceAttributesToCopy []string       `mapstructure:"resource_attributes_to_copy"`
 }
 
 type MetricConfig struct {
@@ -72,8 +75,15 @@ func (c *Config) Validate() error {
 		errs = multierr.Append(errs, fmt.Errorf("metric_name_attribute must not be empty"))
 	}
 
-	if err := c.validateMetrics(); err != nil {
-		errs = multierr.Append(errs, err)
+	if c.ConfigurationExtension == nil {
+		if err := c.validateMetrics(); err != nil {
+			errs = multierr.Append(errs, err)
+		}
+	} else {
+		if len(c.Metrics) > 0 {
+			errs = multierr.Append(errs, fmt.Errorf("metrics must be empty when configuration_extension is set"))
+		}
+		c.ResourceAttributesToCopy = append(c.ResourceAttributesToCopy, translate.CardinalFieldCustomerID)
 	}
 
 	return errs

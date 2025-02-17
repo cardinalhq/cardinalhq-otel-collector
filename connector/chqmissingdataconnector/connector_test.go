@@ -19,8 +19,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector/internal/metadata"
+	"github.com/cardinalhq/oteltools/pkg/ottl"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
@@ -252,22 +255,22 @@ func TestEmitList(t *testing.T) {
 func TestConsumeMetrics(t *testing.T) {
 	now := time.Now()
 	tests := []struct {
-		name               string
-		config             *Config
-		metricAttributes   map[string][]string
-		resourceAttributes map[string][]string
-		inputMetrics       pmetric.Metrics
-		expectedEntries    []*Stamp
+		name            string
+		config          *Config
+		inputMetrics    pmetric.Metrics
+		expectedEntries []*Stamp
 	}{
 		{
 			name: "Empty metrics",
 			config: &Config{
 				ResourceAttributesToCopy: []string{},
+				Metrics: []MetricConfig{
+					{
+						Name:       "metricName",
+						Attributes: []string{"attr1", "attr2"},
+					},
+				},
 			},
-			metricAttributes: map[string][]string{
-				"metricName": {"attr1", "attr2"},
-			},
-
 			inputMetrics:    pmetric.NewMetrics(),
 			expectedEntries: []*Stamp{},
 		},
@@ -275,12 +278,13 @@ func TestConsumeMetrics(t *testing.T) {
 			name: "Single metric",
 			config: &Config{
 				ResourceAttributesToCopy: []string{"key1"},
-			},
-			metricAttributes: map[string][]string{
-				"metricName": {"attr1", "attr2"},
-			},
-			resourceAttributes: map[string][]string{
-				"metricName": {"resourceKey1", "resourceKey2"},
+				Metrics: []MetricConfig{
+					{
+						Name:               "metricName",
+						Attributes:         []string{"attr1", "attr2"},
+						ResourceAttributes: []string{"resourceKey1", "resourceKey2"},
+					},
+				},
 			},
 			inputMetrics: func() pmetric.Metrics {
 				md := pmetric.NewMetrics()
@@ -309,10 +313,16 @@ func TestConsumeMetrics(t *testing.T) {
 			name: "Multiple metrics with same resource",
 			config: &Config{
 				ResourceAttributesToCopy: []string{"key1"},
-			},
-			metricAttributes: map[string][]string{
-				"metricName1": {"attr1", "attr2"},
-				"metricName2": {"attr1", "attr2"},
+				Metrics: []MetricConfig{
+					{
+						Name:       "metricName1",
+						Attributes: []string{"attr1", "attr2"},
+					},
+					{
+						Name:       "metricName2",
+						Attributes: []string{"attr1", "attr2"},
+					},
+				},
 			},
 			inputMetrics: func() pmetric.Metrics {
 				md := pmetric.NewMetrics()
@@ -353,10 +363,16 @@ func TestConsumeMetrics(t *testing.T) {
 			name: "Multiple metrics with different resources",
 			config: &Config{
 				ResourceAttributesToCopy: []string{"key1", "key2"},
-			},
-			metricAttributes: map[string][]string{
-				"metricName1": {"attr1", "attr2"},
-				"metricName2": {"attr1", "attr2"},
+				Metrics: []MetricConfig{
+					{
+						Name:       "metricName1",
+						Attributes: []string{"attr1", "attr2"},
+					},
+					{
+						Name:       "metricName2",
+						Attributes: []string{"attr1", "attr2"},
+					},
+				},
 			},
 			inputMetrics: func() pmetric.Metrics {
 				md := pmetric.NewMetrics()
@@ -399,9 +415,12 @@ func TestConsumeMetrics(t *testing.T) {
 			name: "Multiple metrics with the same name",
 			config: &Config{
 				ResourceAttributesToCopy: []string{"key1"},
-			},
-			metricAttributes: map[string][]string{
-				"metricName": {"attr1", "attr2"},
+				Metrics: []MetricConfig{
+					{
+						Name:       "metricName",
+						Attributes: []string{"attr1", "attr2"},
+					},
+				},
 			},
 			inputMetrics: func() pmetric.Metrics {
 				md := pmetric.NewMetrics()
@@ -436,9 +455,12 @@ func TestConsumeMetrics(t *testing.T) {
 			name: "Multiple metrics with the same name and different resources",
 			config: &Config{
 				ResourceAttributesToCopy: []string{"key1"},
-			},
-			metricAttributes: map[string][]string{
-				"metricName": {"attr1", "attr2"},
+				Metrics: []MetricConfig{
+					{
+						Name:       "metricName",
+						Attributes: []string{"attr1", "attr2"},
+					},
+				},
 			},
 			inputMetrics: func() pmetric.Metrics {
 				md := pmetric.NewMetrics()
@@ -477,9 +499,12 @@ func TestConsumeMetrics(t *testing.T) {
 			name: "Multiple metrics with the same name and the same resource but different attributes",
 			config: &Config{
 				ResourceAttributesToCopy: []string{"key1"},
-			},
-			metricAttributes: map[string][]string{
-				"metricName": {"attr1", "attr2"},
+				Metrics: []MetricConfig{
+					{
+						Name:       "metricName",
+						Attributes: []string{"attr1", "attr2"},
+					},
+				},
 			},
 			inputMetrics: func() pmetric.Metrics {
 				md := pmetric.NewMetrics()
@@ -531,10 +556,9 @@ func TestConsumeMetrics(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			md := &md{
-				config:             tt.config,
-				metricAttributes:   tt.metricAttributes,
-				resourceAttributes: tt.resourceAttributes,
+				config: tt.config,
 			}
+			md.setupStaticConfig()
 
 			err := md.ConsumeMetrics(context.Background(), tt.inputMetrics)
 			require.NoError(t, err)
@@ -639,76 +663,6 @@ func TestFilteredAttributes(t *testing.T) {
 	}
 }
 
-func TestBuildAttributeMaps(t *testing.T) {
-	tests := []struct {
-		name                  string
-		config                *Config
-		expectedMetricAttrs   map[string][]string
-		expectedResourceAttrs map[string][]string
-	}{
-		{
-			name: "Empty config",
-			config: &Config{
-				Metrics: []MetricConfig{},
-			},
-			expectedMetricAttrs:   map[string][]string{},
-			expectedResourceAttrs: map[string][]string{},
-		},
-		{
-			name: "Single metric",
-			config: &Config{
-				Metrics: []MetricConfig{
-					{
-						Name:               "metric1",
-						Attributes:         []string{"attr1", "attr2"},
-						ResourceAttributes: []string{"resAttr1"},
-					},
-				},
-			},
-			expectedMetricAttrs: map[string][]string{
-				"metric1": {"attr1", "attr2"},
-			},
-			expectedResourceAttrs: map[string][]string{
-				"metric1": {"resAttr1"},
-			},
-		},
-		{
-			name: "Multiple metrics",
-			config: &Config{
-				Metrics: []MetricConfig{
-					{
-						Name:               "metric1",
-						Attributes:         []string{"attr1", "attr2"},
-						ResourceAttributes: []string{"resAttr1"},
-					},
-					{
-						Name:               "metric2",
-						Attributes:         []string{"attr3", "attr4"},
-						ResourceAttributes: []string{"resAttr2"},
-					},
-				},
-			},
-			expectedMetricAttrs: map[string][]string{
-				"metric1": {"attr1", "attr2"},
-				"metric2": {"attr3", "attr4"},
-			},
-			expectedResourceAttrs: map[string][]string{
-				"metric1": {"resAttr1"},
-				"metric2": {"resAttr2"},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			md := &md{config: tt.config}
-			md.buildAttributeMaps()
-			assert.Equal(t, tt.expectedMetricAttrs, md.metricAttributes)
-			assert.Equal(t, tt.expectedResourceAttrs, md.resourceAttributes)
-		})
-	}
-}
-
 func TestBuildEmitList(t *testing.T) {
 	now := time.Now()
 	tests := []struct {
@@ -785,6 +739,227 @@ func TestBuildEmitList(t *testing.T) {
 			emitList := md.buildEmitList(tt.now)
 			assert.Equal(t, tt.expectedCount, len(emitList))
 			assertStampsEqual(t, tt.expectedEmit, emitList)
+		})
+	}
+}
+
+func TestConfigUpdateCallback(t *testing.T) {
+	tests := []struct {
+		name            string
+		initialTenants  map[string]*Tenant
+		config          ottl.ControlPlaneConfig
+		expectedTenants map[string]*Tenant
+	}{
+		{
+			name: "Empty config",
+			initialTenants: map[string]*Tenant{
+				"tenant1": {},
+			},
+			config: ottl.ControlPlaneConfig{
+				Configs: map[string]ottl.TenantConfig{},
+			},
+			expectedTenants: map[string]*Tenant{},
+		},
+		{
+			name:           "Add new tenant",
+			initialTenants: map[string]*Tenant{},
+			config: ottl.ControlPlaneConfig{
+				Configs: map[string]ottl.TenantConfig{
+					"tenant1": {
+						MissingDataConfig: map[string]*ottl.MissingDataConfig{
+							"connectorName": {
+								Metrics: []ottl.MissingDataMetric{
+									{Name: "metric1"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedTenants: map[string]*Tenant{
+				"tenant1": {
+					metricAttributes: map[string][]string{
+						"metric1": nil,
+					},
+					resourceAttributes: map[string][]string{
+						"metric1": nil,
+					},
+				},
+			},
+		},
+		{
+			name: "Remove tenant",
+			initialTenants: map[string]*Tenant{
+				"tenant1": {},
+			},
+			config: ottl.ControlPlaneConfig{
+				Configs: map[string]ottl.TenantConfig{},
+			},
+			expectedTenants: map[string]*Tenant{},
+		},
+		{
+			name: "Update tenant",
+			initialTenants: map[string]*Tenant{
+				"tenant1": {
+					metricAttributes: map[string][]string{
+						"metric1": nil,
+					},
+					resourceAttributes: map[string][]string{
+						"metric1": nil,
+					},
+				},
+			},
+			config: ottl.ControlPlaneConfig{
+				Configs: map[string]ottl.TenantConfig{
+					"tenant1": {
+						MissingDataConfig: map[string]*ottl.MissingDataConfig{
+							"connectorName": {
+								Metrics: []ottl.MissingDataMetric{
+									{Name: "metric2"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedTenants: map[string]*Tenant{
+				"tenant1": {
+					metricAttributes: map[string][]string{
+						"metric2": nil,
+					},
+					resourceAttributes: map[string][]string{
+						"metric2": nil,
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			md := &md{
+				id: component.NewIDWithName(metadata.Type, "connectorName"),
+			}
+
+			for k, v := range tt.initialTenants {
+				md.tenants.Store(k, v)
+			}
+
+			md.configUpdateCallback(tt.config)
+
+			actualTenants := map[string]*Tenant{}
+			md.tenants.Range(func(key string, value *Tenant) bool {
+				actualTenants[key] = value
+				return true
+			})
+
+			assert.Equal(t, tt.expectedTenants, actualTenants)
+		})
+	}
+}
+
+func TestBuildAttributeMaps(t *testing.T) {
+	tests := []struct {
+		name          string
+		tid           string
+		initialTenant *Tenant
+		metrics       []ottl.MissingDataMetric
+		expected      *Tenant
+	}{
+		{
+			name:          "Empty metrics",
+			tid:           "tenant1",
+			initialTenant: &Tenant{},
+			metrics:       []ottl.MissingDataMetric{},
+			expected: &Tenant{
+				metricAttributes:   map[string][]string{},
+				resourceAttributes: map[string][]string{},
+			},
+		},
+		{
+			name:          "Single metric",
+			tid:           "tenant1",
+			initialTenant: &Tenant{},
+			metrics: []ottl.MissingDataMetric{
+				{
+					Name:               "metric1",
+					Attributes:         []string{"attr1", "attr2"},
+					ResourceAttributes: []string{"resAttr1", "resAttr2"},
+				},
+			},
+			expected: &Tenant{
+				metricAttributes: map[string][]string{
+					"metric1": {"attr1", "attr2"},
+				},
+				resourceAttributes: map[string][]string{
+					"metric1": {"resAttr1", "resAttr2"},
+				},
+			},
+		},
+		{
+			name:          "Multiple metrics",
+			tid:           "tenant1",
+			initialTenant: &Tenant{},
+			metrics: []ottl.MissingDataMetric{
+				{
+					Name:               "metric1",
+					Attributes:         []string{"attr1", "attr2"},
+					ResourceAttributes: []string{"resAttr1", "resAttr2"},
+				},
+				{
+					Name:               "metric2",
+					Attributes:         []string{"attr3", "attr4"},
+					ResourceAttributes: []string{"resAttr3", "resAttr4"},
+				},
+			},
+			expected: &Tenant{
+				metricAttributes: map[string][]string{
+					"metric1": {"attr1", "attr2"},
+					"metric2": {"attr3", "attr4"},
+				},
+				resourceAttributes: map[string][]string{
+					"metric1": {"resAttr1", "resAttr2"},
+					"metric2": {"resAttr3", "resAttr4"},
+				},
+			},
+		},
+		{
+			name: "update tenant",
+			tid:  "tenant1",
+			initialTenant: &Tenant{
+				metricAttributes: map[string][]string{
+					"metric1": {"attr1", "attr2"},
+				},
+				resourceAttributes: map[string][]string{
+					"metric1": {"resAttr1", "resAttr2"},
+				},
+			},
+			metrics: []ottl.MissingDataMetric{
+				{
+					Name:               "metric2",
+					Attributes:         []string{"attr3", "attr4"},
+					ResourceAttributes: []string{"resAttr3", "resAttr4"},
+				},
+			},
+			expected: &Tenant{
+				metricAttributes: map[string][]string{
+					"metric2": {"attr3", "attr4"},
+				},
+				resourceAttributes: map[string][]string{
+					"metric2": {"resAttr3", "resAttr4"},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			md := &md{}
+			md.buildAttributeMaps(tt.tid, tt.metrics)
+
+			actual, ok := md.tenants.Load(tt.tid)
+			require.True(t, ok)
+			assert.Equal(t, tt.expected, actual)
 		})
 	}
 }

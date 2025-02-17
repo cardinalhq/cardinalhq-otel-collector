@@ -1,11 +1,11 @@
 module github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver
 
-go 1.23
+go 1.23.0
 
-toolchain go1.23.3
+toolchain go1.23.5
 
 require (
-	github.com/DataDog/datadog-agent/pkg/proto v0.62.1
+	github.com/DataDog/datadog-agent/pkg/proto v0.62.3
 	github.com/barweiss/go-tuple v1.1.2
 	github.com/stretchr/testify v1.10.0
 	github.com/vmihailenco/msgpack/v4 v4.3.13
@@ -30,7 +30,7 @@ require (
 	go.opentelemetry.io/collector/component/componenttest v0.119.0
 	go.opentelemetry.io/collector/consumer/consumertest v0.119.0
 	go.opentelemetry.io/collector/receiver/receivertest v0.119.0
-	golang.org/x/exp v0.0.0-20250210185358-939b2ce775ac
+	golang.org/x/exp v0.0.0-20250215185904-eff6e970281f
 )
 
 require (
@@ -81,7 +81,7 @@ require (
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250207221924-e9438ea467c6 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250212204824-5a70512c5d8b // indirect
 	google.golang.org/grpc v1.70.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

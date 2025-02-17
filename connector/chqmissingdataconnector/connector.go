@@ -25,10 +25,14 @@ import (
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
+	"github.com/cardinalhq/oteltools/pkg/ottl"
 	"github.com/cardinalhq/oteltools/pkg/syncmap"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 type md struct {
+	id              component.ID
 	config          *Config
 	metricsConsumer consumer.Metrics
 	logger          *zap.Logger
@@ -38,6 +42,13 @@ type md struct {
 	entries     syncmap.SyncMap[uint64, *Stamp]
 	emitterDone chan struct{}
 
+	configExtension  *chqconfigextension.CHQConfigExtension
+	configCallbackID int
+
+	tenants syncmap.SyncMap[string, *Tenant]
+}
+
+type Tenant struct {
 	metricAttributes   map[string][]string
 	resourceAttributes map[string][]string
 }
@@ -47,23 +58,77 @@ func (c *md) Capabilities() consumer.Capabilities {
 }
 
 func (c *md) Start(ctx context.Context, host component.Host) error {
-	c.buildAttributeMaps()
+	// If we are dynamic, set that up here.
+	if c.config.ConfigurationExtension != nil {
+		if err := c.setupExtension(host); err != nil {
+			return err
+		}
+	} else {
+		c.setupStaticConfig()
+	}
 
 	go c.emitter()
 
 	return nil
 }
 
-func (c *md) buildAttributeMaps() {
-	c.metricAttributes = make(map[string][]string)
-	c.resourceAttributes = make(map[string][]string)
+func (c *md) setupStaticConfig() {
+	mm := []ottl.MissingDataMetric{}
 	for _, metric := range c.config.Metrics {
-		c.metricAttributes[metric.Name] = metric.Attributes
-		c.resourceAttributes[metric.Name] = metric.ResourceAttributes
+		mm = append(mm, ottl.MissingDataMetric{
+			Name:               metric.Name,
+			Attributes:         metric.Attributes,
+			ResourceAttributes: metric.ResourceAttributes,
+		})
+	}
+	c.buildAttributeMaps("default", mm)
+}
+
+func (c *md) setupExtension(host component.Host) error {
+	ext, found := host.GetExtensions()[*c.config.ConfigurationExtension]
+	if !found {
+		return nil
+	}
+	cext, ok := ext.(*chqconfigextension.CHQConfigExtension)
+	if !ok {
+		return nil
+	}
+	c.configExtension = cext
+	c.configCallbackID = c.configExtension.RegisterCallback(c.id.String()+"/metrics", c.configUpdateCallback)
+	return nil
+}
+
+func (c *md) configUpdateCallback(sc ottl.ControlPlaneConfig) {
+	currentTenants := c.tenants.Keys()
+	for _, tid := range currentTenants {
+		if _, found := sc.Configs[tid]; !found {
+			c.tenants.Delete(tid)
+		}
+	}
+
+	for tid, tc := range sc.Configs {
+		if mdc, found := tc.MissingDataConfig[c.id.Name()]; found {
+			c.buildAttributeMaps(tid, mdc.Metrics)
+		}
 	}
 }
 
+func (c *md) buildAttributeMaps(tid string, metrics []ottl.MissingDataMetric) {
+	tenant := &Tenant{
+		metricAttributes:   make(map[string][]string),
+		resourceAttributes: make(map[string][]string),
+	}
+	for _, metric := range metrics {
+		tenant.metricAttributes[metric.Name] = metric.Attributes
+		tenant.resourceAttributes[metric.Name] = metric.ResourceAttributes
+	}
+	c.tenants.Store(tid, tenant)
+}
+
 func (c *md) Shutdown(ctx context.Context) error {
+	if c.configExtension != nil {
+		c.configExtension.UnregisterCallback(c.configCallbackID)
+	}
 	close(c.emitterDone)
 	return nil
 }
@@ -151,19 +216,24 @@ func (c *md) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
 
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
 		resourceMetric := md.ResourceMetrics().At(i)
+		cid := OrgIdFromResource(resourceMetric.Resource().Attributes())
+		tenant, found := c.tenants.Load(cid)
+		if !found {
+			continue
+		}
 
 		for j := 0; j < resourceMetric.ScopeMetrics().Len(); j++ {
 			scopeMetrics := resourceMetric.ScopeMetrics().At(j)
 
 			for k := 0; k < scopeMetrics.Metrics().Len(); k++ {
 				metric := scopeMetrics.Metrics().At(k)
-				dpAttrsToSelect, found := c.metricAttributes[metric.Name()]
+				dpAttrsToSelect, found := tenant.metricAttributes[metric.Name()]
 				if !found {
 					continue
 				}
 
 				wantedResourceAttrs := c.config.ResourceAttributesToCopy
-				metricResourceAttrs := c.resourceAttributes[metric.Name()]
+				metricResourceAttrs := tenant.resourceAttributes[metric.Name()]
 				wantedResourceAttrs = append(wantedResourceAttrs, metricResourceAttrs...)
 				rattrs := filteredAttributes(resourceMetric.Resource().Attributes(), wantedResourceAttrs)
 
@@ -250,4 +320,12 @@ func addEnvironmentTags(attrs pcommon.Map) {
 	if val := os.Getenv("K8S_NODE_NAME"); val != "" {
 		attrs.PutStr("missingdata.k8s.node.name", val)
 	}
+}
+
+func OrgIdFromResource(resource pcommon.Map) string {
+	orgID, found := resource.Get(translate.CardinalFieldCustomerID)
+	if !found {
+		return "default"
+	}
+	return orgID.AsString()
 }

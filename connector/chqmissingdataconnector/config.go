@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cardinalhq/oteltools/pkg/translate"
 	"go.opentelemetry.io/collector/component"
 	"go.uber.org/multierr"
 )
@@ -78,8 +79,11 @@ func (c *Config) Validate() error {
 		if err := c.validateMetrics(); err != nil {
 			errs = multierr.Append(errs, err)
 		}
-	} else if len(c.Metrics) > 0 {
-		errs = multierr.Append(errs, fmt.Errorf("metrics must be empty when configuration_extension is set"))
+	} else {
+		if len(c.Metrics) > 0 {
+			errs = multierr.Append(errs, fmt.Errorf("metrics must be empty when configuration_extension is set"))
+		}
+		c.ResourceAttributesToCopy = append(c.ResourceAttributesToCopy, translate.CardinalFieldCustomerID)
 	}
 
 	return errs

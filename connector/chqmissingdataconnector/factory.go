@@ -49,11 +49,10 @@ func getDefaultConfig() *Config {
 func createMetricsToMetrics(_ context.Context, set connector.Settings, cc component.Config, nextConsumer consumer.Metrics) (connector.Metrics, error) {
 	cfg := cc.(*Config)
 	return &md{
-		config:             cfg,
-		metricsConsumer:    nextConsumer,
-		logger:             set.Logger,
-		emitterDone:        make(chan struct{}),
-		metricAttributes:   make(map[string][]string),
-		resourceAttributes: make(map[string][]string),
+		id:              set.ID,
+		config:          cfg,
+		metricsConsumer: nextConsumer,
+		logger:          set.Logger,
+		emitterDone:     make(chan struct{}),
 	}, nil
 }

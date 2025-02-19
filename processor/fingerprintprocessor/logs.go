@@ -57,7 +57,6 @@ func (p *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plo
 					lr.SetSeverityText(strings.ToUpper(levelfromFingerprinter))
 				}
 				lr.Attributes().PutStr(translate.CardinalFieldLevel, lr.SeverityText())
-				p.normalize(lr.Attributes())
 			}
 		}
 	}

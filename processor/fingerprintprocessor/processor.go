@@ -17,9 +17,7 @@ package fingerprintprocessor
 import (
 	"context"
 	"encoding/binary"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"hash/fnv"
-	"regexp"
 	"slices"
 	"sync"
 
@@ -221,51 +219,4 @@ func (p *fingerprintProcessor) getTenantUnlocked(cid string) *tenantState {
 	}
 
 	return tenant
-}
-
-const (
-	DBQuerySummary = "db.query.summary"
-	DBStatement    = "db.statement"
-	NetPeerName    = "net.peer.name"
-)
-
-func (p *fingerprintProcessor) normalize(l pcommon.Map) {
-	// Normalize DB Attributes
-	dbQuery := getValue(l, string(semconv.DBQueryTextKey), DBStatement, DBQuerySummary)
-	if dbQuery != "" {
-		l.PutStr(string(semconv.DBQueryTextKey), normalizeSQL(dbQuery))
-	}
-
-	dbInstance := getValue(l, string(semconv.ServerAddressKey),
-		string(semconv.NetworkPeerAddressKey),
-		NetPeerName,
-		string(semconv.RPCServiceKey))
-
-	if dbInstance != "" {
-		l.PutStr(string(semconv.NetworkPeerAddressKey), dbInstance)
-	}
-
-	dbCollection := getValue(l, string(semconv.DBCollectionNameKey), string(semconv.AWSDynamoDBTableNamesKey))
-	if dbCollection != "" {
-		l.PutStr(string(semconv.DBCollectionNameKey), dbCollection)
-	}
-}
-
-func normalizeSQL(query string) string {
-	// Regex to match:
-	// - Numbers (\b\d+\b)
-	// - Single-quoted strings ('[^']*')
-	// - Double-quoted strings ("[^"]*")
-	pattern := `\b\d+\.\d+\b|\b\d+\b|'[^']*'|"[^"]*"`
-	re := regexp.MustCompile(pattern)
-	return re.ReplaceAllString(query, "?")
-}
-
-func getValue(attributes pcommon.Map, fallbackChain ...string) string {
-	for _, key := range fallbackChain {
-		if value, found := attributes.Get(key); found {
-			return value.AsString()
-		}
-	}
-	return ""
 }

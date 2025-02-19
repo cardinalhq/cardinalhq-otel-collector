@@ -42,7 +42,6 @@ func (p *fingerprintProcessor) ConsumeTraces(ctx context.Context, td ptrace.Trac
 
 				isSlow := p.isSpanSlow(tenant, spanDuration, uint64(spanFingerprint))
 				sr.Attributes().PutBool(translate.CardinalFieldSpanIsSlow, isSlow)
-				p.normalize(sr.Attributes())
 			}
 		}
 	}

@@ -15,9 +15,11 @@
 package chqstatsprocessor
 
 import (
+	"go.opentelemetry.io/collector/pdata/pmetric"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -53,4 +55,26 @@ func TestPostMetricStats(t *testing.T) {
 	}))
 
 	defer server.Close()
+}
+
+func TestSingularExemplar(t *testing.T) {
+	exemplarData, err := os.ReadFile("testdata/exemplar.json")
+	assert.NoError(t, err, "Failed to read exemplar data")
+
+	unmarshaller := pmetric.JSONUnmarshaler{}
+	exemplar, err := unmarshaller.UnmarshalMetrics(exemplarData)
+	assert.NotNil(t, exemplar)
+
+	rm := exemplar.ResourceMetrics().At(0)
+	sm := rm.ScopeMetrics().At(0)
+	mm := sm.Metrics().At(0)
+
+	for k := 0; k < sm.Metrics().Len(); k++ {
+		m := sm.Metrics().At(k)
+		e := toExemplar(rm, sm, mm, m.Type())
+		assert.True(t, e.ResourceMetrics().Len() == 1)
+		assert.True(t, e.ResourceMetrics().At(0).ScopeMetrics().Len() == 1)
+		assert.True(t, e.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().Len() == 1)
+		assert.True(t, e.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Sum().DataPoints().Len() == 1)
+	}
 }

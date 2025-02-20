@@ -193,46 +193,66 @@ func (p *statsProcessor) addMetricsExemplar(tenant *Tenant, rm pmetric.ResourceM
 			return
 		}
 
-		exemplarLm := pmetric.NewMetrics()
-		copyRm := exemplarLm.ResourceMetrics().AppendEmpty()
-		rm.Resource().CopyTo(copyRm.Resource())
-		copySm := copyRm.ScopeMetrics().AppendEmpty()
-		sm.Scope().CopyTo(copySm.Scope())
-		copyMm := copySm.Metrics().AppendEmpty()
-		mm.CopyTo(copyMm)
-		switch metricType {
-		case pmetric.MetricTypeGauge:
-			if mm.Gauge().DataPoints().Len() > 0 {
-				ccd := copyMm.Gauge().DataPoints().AppendEmpty()
-				mm.Gauge().DataPoints().At(0).CopyTo(ccd)
-			}
-		case pmetric.MetricTypeSum:
-			if mm.Sum().DataPoints().Len() > 0 {
-				ccd := copyMm.Sum().DataPoints().AppendEmpty()
-				mm.Sum().DataPoints().At(0).CopyTo(ccd)
-			}
-		case pmetric.MetricTypeHistogram:
-			if mm.Histogram().DataPoints().Len() > 0 {
-				ccd := copyMm.Histogram().DataPoints().AppendEmpty()
-				mm.Histogram().DataPoints().At(0).CopyTo(ccd)
-			}
-		case pmetric.MetricTypeSummary:
-			if mm.Summary().DataPoints().Len() > 0 {
-				ccd := copyMm.Summary().DataPoints().AppendEmpty()
-				mm.Summary().DataPoints().At(0).CopyTo(ccd)
-			}
-		case pmetric.MetricTypeExponentialHistogram:
-			if mm.ExponentialHistogram().DataPoints().Len() > 0 {
-				ccd := copyMm.ExponentialHistogram().DataPoints().AppendEmpty()
-				mm.ExponentialHistogram().DataPoints().At(0).CopyTo(ccd)
-			}
-		default:
-		}
-		marshalled, me := p.jsonMarshaller.metricsMarshaler.MarshalMetrics(exemplarLm)
-		if me != nil {
+		exemplarLm := toExemplar(rm, sm, mm, metricType)
+
+		marshalled, err := p.jsonMarshaller.metricsMarshaler.MarshalMetrics(exemplarLm)
+		if err != nil {
+			p.logger.Error("Failed to marshal exemplar metric", zap.Error(err))
 			return
 		}
+
 		tenant.metricExemplars.Put(fingerprint, marshalled)
 		*newFingerprints = append(*newFingerprints, fingerprintString)
 	}
+}
+
+func toExemplar(rm pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, mm pmetric.Metric, metricType pmetric.MetricType) pmetric.Metrics {
+	exemplarLm := pmetric.NewMetrics()
+	copyRm := exemplarLm.ResourceMetrics().AppendEmpty()
+	rm.Resource().CopyTo(copyRm.Resource())
+	copySm := copyRm.ScopeMetrics().AppendEmpty()
+	sm.Scope().CopyTo(copySm.Scope())
+	copyMm := copySm.Metrics().AppendEmpty()
+	copyMm.SetName(mm.Name())
+	copyMm.SetDescription(mm.Description())
+	copyMm.SetUnit(mm.Unit())
+
+	switch metricType {
+	case pmetric.MetricTypeGauge:
+		if mm.Gauge().DataPoints().Len() > 0 {
+			newGauge := copyMm.SetEmptyGauge()
+			dp := mm.Gauge().DataPoints().At(0)
+			ccd := newGauge.DataPoints().AppendEmpty()
+			dp.CopyTo(ccd)
+		}
+	case pmetric.MetricTypeSum:
+		if mm.Sum().DataPoints().Len() > 0 {
+			newSum := copyMm.SetEmptySum()
+			dp := mm.Sum().DataPoints().At(0)
+			ccd := newSum.DataPoints().AppendEmpty()
+			dp.CopyTo(ccd)
+		}
+	case pmetric.MetricTypeHistogram:
+		if mm.Histogram().DataPoints().Len() > 0 {
+			newHistogram := copyMm.SetEmptyHistogram()
+			dp := mm.Histogram().DataPoints().At(0)
+			ccd := newHistogram.DataPoints().AppendEmpty()
+			dp.CopyTo(ccd)
+		}
+	case pmetric.MetricTypeSummary:
+		if mm.Summary().DataPoints().Len() > 0 {
+			newSummary := copyMm.SetEmptySummary()
+			dp := mm.Summary().DataPoints().At(0)
+			ccd := newSummary.DataPoints().AppendEmpty()
+			dp.CopyTo(ccd)
+		}
+	case pmetric.MetricTypeExponentialHistogram:
+		if mm.ExponentialHistogram().DataPoints().Len() > 0 {
+			newExponentialHistogram := copyMm.SetEmptyExponentialHistogram()
+			dp := mm.ExponentialHistogram().DataPoints().At(0)
+			ccd := newExponentialHistogram.DataPoints().AppendEmpty()
+			dp.CopyTo(ccd)
+		}
+	}
+	return exemplarLm
 }

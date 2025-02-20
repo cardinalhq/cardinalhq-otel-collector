@@ -27,7 +27,15 @@ func (e *entityGraphExporter) ConsumeLogs(ctx context.Context, ld plog.Logs) err
 		resourceAttributes := rl.Resource().Attributes()
 		cid := OrgIdFromResource(resourceAttributes)
 		cache := e.GetEntityCache(cid)
-		cache.ProvisionResourceAttributes(resourceAttributes)
+		globalEntityMap := cache.ProvisionResourceAttributes(resourceAttributes)
+
+		for j := 0; j < rl.ScopeLogs().Len(); j++ {
+			sl := rl.ScopeLogs().At(j)
+			for k := 0; k < sl.LogRecords().Len(); k++ {
+				lr := sl.LogRecords().At(k)
+				cache.ProvisionRecordAttributes(globalEntityMap, lr.Attributes())
+			}
+		}
 	}
 
 	return nil

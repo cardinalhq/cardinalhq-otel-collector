@@ -16,6 +16,7 @@ package chqmissingdataconnector
 
 import (
 	"context"
+	"errors"
 	"os"
 	"time"
 
@@ -45,10 +46,10 @@ type md struct {
 	configExtension  *chqconfigextension.CHQConfigExtension
 	configCallbackID int
 
-	tenants syncmap.SyncMap[string, *Tenant]
+	tenants syncmap.SyncMap[string, *tenantConfig]
 }
 
-type Tenant struct {
+type tenantConfig struct {
 	metricAttributes   map[string][]string
 	resourceAttributes map[string][]string
 }
@@ -57,13 +58,15 @@ func (c *md) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: false}
 }
 
-func (c *md) Start(ctx context.Context, host component.Host) error {
+func (c *md) Start(_ context.Context, host component.Host) error {
 	// If we are dynamic, set that up here.
 	if c.config.ConfigurationExtension != nil {
+		c.logger.Info("dynamic configuration enabled")
 		if err := c.setupExtension(host); err != nil {
 			return err
 		}
 	} else {
+		c.logger.Info("static configuration enabled")
 		c.setupStaticConfig()
 	}
 
@@ -87,11 +90,11 @@ func (c *md) setupStaticConfig() {
 func (c *md) setupExtension(host component.Host) error {
 	ext, found := host.GetExtensions()[*c.config.ConfigurationExtension]
 	if !found {
-		return nil
+		return errors.New("extension not found")
 	}
 	cext, ok := ext.(*chqconfigextension.CHQConfigExtension)
 	if !ok {
-		return nil
+		return errors.New("extension is not a chqconfigextension")
 	}
 	c.configExtension = cext
 	c.configCallbackID = c.configExtension.RegisterCallback(c.id.String()+"/metrics", c.configUpdateCallback)
@@ -114,7 +117,7 @@ func (c *md) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 }
 
 func (c *md) buildAttributeMaps(tid string, metrics []ottl.MissingDataMetric) {
-	tenant := &Tenant{
+	tenant := &tenantConfig{
 		metricAttributes:   make(map[string][]string),
 		resourceAttributes: make(map[string][]string),
 	}

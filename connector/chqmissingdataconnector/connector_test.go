@@ -746,23 +746,23 @@ func TestBuildEmitList(t *testing.T) {
 func TestConfigUpdateCallback(t *testing.T) {
 	tests := []struct {
 		name            string
-		initialTenants  map[string]*Tenant
+		initialTenants  map[string]*tenantConfig
 		config          ottl.ControlPlaneConfig
-		expectedTenants map[string]*Tenant
+		expectedTenants map[string]*tenantConfig
 	}{
 		{
 			name: "Empty config",
-			initialTenants: map[string]*Tenant{
+			initialTenants: map[string]*tenantConfig{
 				"tenant1": {},
 			},
 			config: ottl.ControlPlaneConfig{
 				Configs: map[string]ottl.TenantConfig{},
 			},
-			expectedTenants: map[string]*Tenant{},
+			expectedTenants: map[string]*tenantConfig{},
 		},
 		{
 			name:           "Add new tenant",
-			initialTenants: map[string]*Tenant{},
+			initialTenants: map[string]*tenantConfig{},
 			config: ottl.ControlPlaneConfig{
 				Configs: map[string]ottl.TenantConfig{
 					"tenant1": {
@@ -776,7 +776,7 @@ func TestConfigUpdateCallback(t *testing.T) {
 					},
 				},
 			},
-			expectedTenants: map[string]*Tenant{
+			expectedTenants: map[string]*tenantConfig{
 				"tenant1": {
 					metricAttributes: map[string][]string{
 						"metric1": nil,
@@ -789,17 +789,17 @@ func TestConfigUpdateCallback(t *testing.T) {
 		},
 		{
 			name: "Remove tenant",
-			initialTenants: map[string]*Tenant{
+			initialTenants: map[string]*tenantConfig{
 				"tenant1": {},
 			},
 			config: ottl.ControlPlaneConfig{
 				Configs: map[string]ottl.TenantConfig{},
 			},
-			expectedTenants: map[string]*Tenant{},
+			expectedTenants: map[string]*tenantConfig{},
 		},
 		{
 			name: "Update tenant",
-			initialTenants: map[string]*Tenant{
+			initialTenants: map[string]*tenantConfig{
 				"tenant1": {
 					metricAttributes: map[string][]string{
 						"metric1": nil,
@@ -822,7 +822,7 @@ func TestConfigUpdateCallback(t *testing.T) {
 					},
 				},
 			},
-			expectedTenants: map[string]*Tenant{
+			expectedTenants: map[string]*tenantConfig{
 				"tenant1": {
 					metricAttributes: map[string][]string{
 						"metric2": nil,
@@ -847,8 +847,8 @@ func TestConfigUpdateCallback(t *testing.T) {
 
 			md.configUpdateCallback(tt.config)
 
-			actualTenants := map[string]*Tenant{}
-			md.tenants.Range(func(key string, value *Tenant) bool {
+			actualTenants := map[string]*tenantConfig{}
+			md.tenants.Range(func(key string, value *tenantConfig) bool {
 				actualTenants[key] = value
 				return true
 			})
@@ -862,16 +862,16 @@ func TestBuildAttributeMaps(t *testing.T) {
 	tests := []struct {
 		name          string
 		tid           string
-		initialTenant *Tenant
+		initialTenant *tenantConfig
 		metrics       []ottl.MissingDataMetric
-		expected      *Tenant
+		expected      *tenantConfig
 	}{
 		{
 			name:          "Empty metrics",
 			tid:           "tenant1",
-			initialTenant: &Tenant{},
+			initialTenant: &tenantConfig{},
 			metrics:       []ottl.MissingDataMetric{},
-			expected: &Tenant{
+			expected: &tenantConfig{
 				metricAttributes:   map[string][]string{},
 				resourceAttributes: map[string][]string{},
 			},
@@ -879,7 +879,7 @@ func TestBuildAttributeMaps(t *testing.T) {
 		{
 			name:          "Single metric",
 			tid:           "tenant1",
-			initialTenant: &Tenant{},
+			initialTenant: &tenantConfig{},
 			metrics: []ottl.MissingDataMetric{
 				{
 					Name:               "metric1",
@@ -887,7 +887,7 @@ func TestBuildAttributeMaps(t *testing.T) {
 					ResourceAttributes: []string{"resAttr1", "resAttr2"},
 				},
 			},
-			expected: &Tenant{
+			expected: &tenantConfig{
 				metricAttributes: map[string][]string{
 					"metric1": {"attr1", "attr2"},
 				},
@@ -899,7 +899,7 @@ func TestBuildAttributeMaps(t *testing.T) {
 		{
 			name:          "Multiple metrics",
 			tid:           "tenant1",
-			initialTenant: &Tenant{},
+			initialTenant: &tenantConfig{},
 			metrics: []ottl.MissingDataMetric{
 				{
 					Name:               "metric1",
@@ -912,7 +912,7 @@ func TestBuildAttributeMaps(t *testing.T) {
 					ResourceAttributes: []string{"resAttr3", "resAttr4"},
 				},
 			},
-			expected: &Tenant{
+			expected: &tenantConfig{
 				metricAttributes: map[string][]string{
 					"metric1": {"attr1", "attr2"},
 					"metric2": {"attr3", "attr4"},
@@ -926,7 +926,7 @@ func TestBuildAttributeMaps(t *testing.T) {
 		{
 			name: "update tenant",
 			tid:  "tenant1",
-			initialTenant: &Tenant{
+			initialTenant: &tenantConfig{
 				metricAttributes: map[string][]string{
 					"metric1": {"attr1", "attr2"},
 				},
@@ -941,7 +941,7 @@ func TestBuildAttributeMaps(t *testing.T) {
 					ResourceAttributes: []string{"resAttr3", "resAttr4"},
 				},
 			},
-			expected: &Tenant{
+			expected: &tenantConfig{
 				metricAttributes: map[string][]string{
 					"metric2": {"attr3", "attr4"},
 				},

@@ -107,17 +107,14 @@ func (c *md) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 	for _, tid := range currentTenants {
 		if _, found := sc.Configs[tid]; !found {
 			c.tenants.Delete(tid)
-			c.logger.Info("tenant config removed", zap.String("tenant", tid))
 		}
 	}
 
-	c.logger.Info("config update", zap.Int("tenants", len(sc.Configs)))
 	for tid, tc := range sc.Configs {
 		keys := []string{}
 		for key := range tc.MissingDataConfig {
 			keys = append(keys, key)
 		}
-		c.logger.Info("Looking for my ID", zap.String("ID", c.id.Name()), zap.Any("keys", keys))
 		if mdc, found := tc.MissingDataConfig[c.id.Name()]; found {
 			c.buildAttributeMaps(tid, mdc.Metrics)
 		}
@@ -134,7 +131,6 @@ func (c *md) buildAttributeMaps(tid string, metrics []ottl.MissingDataMetric) {
 		tenant.resourceAttributes[metric.Name] = metric.ResourceAttributes
 	}
 	c.tenants.Store(tid, tenant)
-	c.logger.Info("tenant config loaded", zap.String("tenant", tid), zap.Int("metricAttribute", len(tenant.metricAttributes)), zap.Int("resourceAttributes", len(tenant.resourceAttributes)))
 }
 
 func (c *md) Shutdown(_ context.Context) error {
@@ -207,8 +203,6 @@ func (c *md) buildMetrics(emitList []*stamp) pmetric.Metrics {
 }
 
 func (c *md) emitList(emitList []*stamp) {
-	c.logger.Info("emitting", zap.Int("count", len(emitList)))
-
 	md := c.buildMetrics(emitList)
 
 	if md.DataPointCount() == 0 {

@@ -43,6 +43,7 @@ var (
 	defaultMetricNameAttribute = "missingdata.metric.name"
 )
 
+// Config defines configuration for the CardinalHQ Missing Data Connector.
 type Config struct {
 	ConfigurationExtension   *component.ID  `mapstructure:"configuration_extension"`
 	Interval                 time.Duration  `mapstructure:"interval"`
@@ -53,12 +54,14 @@ type Config struct {
 	ResourceAttributesToCopy []string       `mapstructure:"resource_attributes_to_copy"`
 }
 
+// MetricConfig defines configuration for a metric.
 type MetricConfig struct {
 	Name               string   `mapstructure:"name"`
 	Attributes         []string `mapstructure:"attributes"`
 	ResourceAttributes []string `mapstructure:"resource_attributes"`
 }
 
+// Validate validates the configuration.
 func (c *Config) Validate() error {
 	var errs error
 

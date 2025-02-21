@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package metadata contains the CardinalHQ Missing Data Connector metadata.
 package metadata
 
 import (
@@ -19,10 +20,14 @@ import (
 )
 
 var (
-	Type      = component.MustNewType("chqmissingdata")
+	// Type is the component type for the CardinalHQ Missing Data Connector.
+	Type = component.MustNewType("chqmissingdata")
+
+	// ScopeName is the scope name for the CardinalHQ Missing Data Connector.
 	ScopeName = "github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector"
 )
 
 const (
+	// MetricsToMetricsStability is the stability level for the CardinalHQ Missing Data Connector.
 	MetricsToMetricsStability = component.StabilityLevelAlpha
 )

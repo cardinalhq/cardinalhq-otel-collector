@@ -35,13 +35,13 @@ func TestBuildMetrics(t *testing.T) {
 	tests := []struct {
 		name     string
 		config   *Config
-		emitList []*Stamp
+		emitList []*stamp
 		verify   func(t *testing.T, metrics pmetric.Metrics)
 	}{
 		{
 			name:     "Empty emit list",
 			config:   getDefaultConfig(),
-			emitList: []*Stamp{},
+			emitList: []*stamp{},
 			verify: func(t *testing.T, metrics pmetric.Metrics) {
 				assert.Equal(t, 0, metrics.DataPointCount())
 			},
@@ -49,8 +49,8 @@ func TestBuildMetrics(t *testing.T) {
 		{
 			name:   "Single stamp",
 			config: getDefaultConfig(),
-			emitList: []*Stamp{
-				NewStamp("metricName", pcommon.NewMap(), pcommon.NewMap(), now.Add(-time.Minute)),
+			emitList: []*stamp{
+				newStamp("metricName", pcommon.NewMap(), pcommon.NewMap(), now.Add(-time.Minute)),
 			},
 			verify: func(t *testing.T, metrics pmetric.Metrics) {
 				assert.Equal(t, 1, metrics.DataPointCount())
@@ -74,9 +74,9 @@ func TestBuildMetrics(t *testing.T) {
 		{
 			name:   "Multiple stamps",
 			config: getDefaultConfig(),
-			emitList: []*Stamp{
-				NewStamp("metricName1", pcommon.NewMap(), pcommon.NewMap(), now.Add(-time.Minute)),
-				NewStamp("metricName2", pcommon.NewMap(), pcommon.NewMap(), now.Add(-2*time.Minute)),
+			emitList: []*stamp{
+				newStamp("metricName1", pcommon.NewMap(), pcommon.NewMap(), now.Add(-time.Minute)),
+				newStamp("metricName2", pcommon.NewMap(), pcommon.NewMap(), now.Add(-2*time.Minute)),
 			},
 			verify: func(t *testing.T, metrics pmetric.Metrics) {
 				assert.Equal(t, 2, metrics.DataPointCount())
@@ -105,9 +105,9 @@ func TestBuildMetrics(t *testing.T) {
 		{
 			name:   "Multiple stamps with same resource",
 			config: getDefaultConfig(),
-			emitList: []*Stamp{
-				NewStamp("metricName1", pcommon.NewMap(), pcommon.NewMap(), now.Add(-time.Minute)),
-				NewStamp("metricName2", pcommon.NewMap(), pcommon.NewMap(), now.Add(-2*time.Minute)),
+			emitList: []*stamp{
+				newStamp("metricName1", pcommon.NewMap(), pcommon.NewMap(), now.Add(-time.Minute)),
+				newStamp("metricName2", pcommon.NewMap(), pcommon.NewMap(), now.Add(-2*time.Minute)),
 			},
 			verify: func(t *testing.T, metrics pmetric.Metrics) {
 				assert.Equal(t, 2, metrics.DataPointCount())
@@ -136,13 +136,13 @@ func TestBuildMetrics(t *testing.T) {
 		{
 			name:   "Multiple stamps with different resources",
 			config: getDefaultConfig(),
-			emitList: []*Stamp{
-				NewStamp("metricName1", func() pcommon.Map {
+			emitList: []*stamp{
+				newStamp("metricName1", func() pcommon.Map {
 					m := pcommon.NewMap()
 					m.PutStr("key1", "value1")
 					return m
 				}(), pcommon.NewMap(), now.Add(-time.Minute)),
-				NewStamp("metricName2", func() pcommon.Map {
+				newStamp("metricName2", func() pcommon.Map {
 					m := pcommon.NewMap()
 					m.PutStr("key2", "value2")
 					return m
@@ -201,22 +201,22 @@ func TestEmitList(t *testing.T) {
 	tests := []struct {
 		name          string
 		config        *Config
-		emitList      []*Stamp
+		emitList      []*stamp
 		consumer      *mockMetricsConsumer
 		expectedCount int
 	}{
 		{
 			name:          "Empty emit list",
 			config:        getDefaultConfig(),
-			emitList:      []*Stamp{},
+			emitList:      []*stamp{},
 			consumer:      &mockMetricsConsumer{nil, nil},
 			expectedCount: 0,
 		},
 		{
 			name:   "Single stamp",
 			config: getDefaultConfig(),
-			emitList: []*Stamp{
-				NewStamp("metricName", pcommon.NewMap(), pcommon.NewMap(), now.Add(-time.Minute)),
+			emitList: []*stamp{
+				newStamp("metricName", pcommon.NewMap(), pcommon.NewMap(), now.Add(-time.Minute)),
 			},
 			consumer:      &mockMetricsConsumer{nil, nil},
 			expectedCount: 1,
@@ -224,9 +224,9 @@ func TestEmitList(t *testing.T) {
 		{
 			name:   "Multiple stamps",
 			config: getDefaultConfig(),
-			emitList: []*Stamp{
-				NewStamp("metricName1", pcommon.NewMap(), pcommon.NewMap(), now.Add(-time.Minute)),
-				NewStamp("metricName2", pcommon.NewMap(), pcommon.NewMap(), now.Add(-2*time.Minute)),
+			emitList: []*stamp{
+				newStamp("metricName1", pcommon.NewMap(), pcommon.NewMap(), now.Add(-time.Minute)),
+				newStamp("metricName2", pcommon.NewMap(), pcommon.NewMap(), now.Add(-2*time.Minute)),
 			},
 			consumer:      &mockMetricsConsumer{nil, nil},
 			expectedCount: 2,
@@ -258,7 +258,7 @@ func TestConsumeMetrics(t *testing.T) {
 		name            string
 		config          *Config
 		inputMetrics    pmetric.Metrics
-		expectedEntries []*Stamp
+		expectedEntries []*stamp
 	}{
 		{
 			name: "Empty metrics",
@@ -272,7 +272,7 @@ func TestConsumeMetrics(t *testing.T) {
 				},
 			},
 			inputMetrics:    pmetric.NewMetrics(),
-			expectedEntries: []*Stamp{},
+			expectedEntries: []*stamp{},
 		},
 		{
 			name: "Single metric",
@@ -300,8 +300,8 @@ func TestConsumeMetrics(t *testing.T) {
 				dp.SetDoubleValue(1)
 				return md
 			}(),
-			expectedEntries: []*Stamp{
-				NewStamp("metricName", func() pcommon.Map {
+			expectedEntries: []*stamp{
+				newStamp("metricName", func() pcommon.Map {
 					m := pcommon.NewMap()
 					m.PutStr("key1", "value1")
 					m.PutStr("resourceKey1", "resourceValue1")
@@ -346,13 +346,13 @@ func TestConsumeMetrics(t *testing.T) {
 
 				return md
 			}(),
-			expectedEntries: []*Stamp{
-				NewStamp("metricName1", func() pcommon.Map {
+			expectedEntries: []*stamp{
+				newStamp("metricName1", func() pcommon.Map {
 					m := pcommon.NewMap()
 					m.PutStr("key1", "value1")
 					return m
 				}(), pcommon.NewMap(), now),
-				NewStamp("metricName2", func() pcommon.Map {
+				newStamp("metricName2", func() pcommon.Map {
 					m := pcommon.NewMap()
 					m.PutStr("key1", "value1")
 					return m
@@ -398,13 +398,13 @@ func TestConsumeMetrics(t *testing.T) {
 
 				return md
 			}(),
-			expectedEntries: []*Stamp{
-				NewStamp("metricName1", func() pcommon.Map {
+			expectedEntries: []*stamp{
+				newStamp("metricName1", func() pcommon.Map {
 					m := pcommon.NewMap()
 					m.PutStr("key1", "value1")
 					return m
 				}(), pcommon.NewMap(), now),
-				NewStamp("metricName2", func() pcommon.Map {
+				newStamp("metricName2", func() pcommon.Map {
 					m := pcommon.NewMap()
 					m.PutStr("key2", "value2")
 					return m
@@ -443,8 +443,8 @@ func TestConsumeMetrics(t *testing.T) {
 
 				return md
 			}(),
-			expectedEntries: []*Stamp{
-				NewStamp("metricName", func() pcommon.Map {
+			expectedEntries: []*stamp{
+				newStamp("metricName", func() pcommon.Map {
 					m := pcommon.NewMap()
 					m.PutStr("key1", "value1")
 					return m
@@ -486,13 +486,13 @@ func TestConsumeMetrics(t *testing.T) {
 
 				return md
 			}(),
-			expectedEntries: []*Stamp{
-				NewStamp("metricName", func() pcommon.Map {
+			expectedEntries: []*stamp{
+				newStamp("metricName", func() pcommon.Map {
 					m := pcommon.NewMap()
 					m.PutStr("key1", "value1")
 					return m
 				}(), pcommon.NewMap(), now),
-				NewStamp("metricName", pcommon.NewMap(), pcommon.NewMap(), now),
+				newStamp("metricName", pcommon.NewMap(), pcommon.NewMap(), now),
 			},
 		},
 		{
@@ -530,8 +530,8 @@ func TestConsumeMetrics(t *testing.T) {
 
 				return md
 			}(),
-			expectedEntries: []*Stamp{
-				NewStamp("metricName", func() pcommon.Map {
+			expectedEntries: []*stamp{
+				newStamp("metricName", func() pcommon.Map {
 					m := pcommon.NewMap()
 					m.PutStr("key1", "value1")
 					return m
@@ -540,7 +540,7 @@ func TestConsumeMetrics(t *testing.T) {
 					m.PutStr("attr1", "value1")
 					return m
 				}(), now),
-				NewStamp("metricName", func() pcommon.Map {
+				newStamp("metricName", func() pcommon.Map {
 					m := pcommon.NewMap()
 					m.PutStr("key1", "value1")
 					return m
@@ -563,8 +563,8 @@ func TestConsumeMetrics(t *testing.T) {
 			err := md.ConsumeMetrics(context.Background(), tt.inputMetrics)
 			require.NoError(t, err)
 
-			values := []*Stamp{}
-			md.entries.Range(func(key uint64, value *Stamp) bool {
+			values := []*stamp{}
+			md.entries.Range(func(_ uint64, value *stamp) bool {
 				values = append(values, value)
 				return true
 			})
@@ -668,9 +668,9 @@ func TestBuildEmitList(t *testing.T) {
 	tests := []struct {
 		name          string
 		config        *Config
-		entries       map[uint64]*Stamp
+		entries       map[uint64]*stamp
 		now           time.Time
-		expectedEmit  []*Stamp
+		expectedEmit  []*stamp
 		expectedCount int
 	}{
 		{
@@ -678,9 +678,9 @@ func TestBuildEmitList(t *testing.T) {
 			config: &Config{
 				MaximumAge: time.Minute,
 			},
-			entries:       map[uint64]*Stamp{},
+			entries:       map[uint64]*stamp{},
 			now:           now,
-			expectedEmit:  []*Stamp{},
+			expectedEmit:  []*stamp{},
 			expectedCount: 0,
 		},
 		{
@@ -688,12 +688,12 @@ func TestBuildEmitList(t *testing.T) {
 			config: &Config{
 				MaximumAge: time.Minute,
 			},
-			entries: map[uint64]*Stamp{
-				1: NewStamp("metricName", pcommon.NewMap(), pcommon.NewMap(), now.Add(-30*time.Second)),
+			entries: map[uint64]*stamp{
+				1: newStamp("metricName", pcommon.NewMap(), pcommon.NewMap(), now.Add(-30*time.Second)),
 			},
 			now: now,
-			expectedEmit: []*Stamp{
-				NewStamp("metricName", pcommon.NewMap(), pcommon.NewMap(), now.Add(-30*time.Second)),
+			expectedEmit: []*stamp{
+				newStamp("metricName", pcommon.NewMap(), pcommon.NewMap(), now.Add(-30*time.Second)),
 			},
 			expectedCount: 1,
 		},
@@ -702,11 +702,11 @@ func TestBuildEmitList(t *testing.T) {
 			config: &Config{
 				MaximumAge: time.Minute,
 			},
-			entries: map[uint64]*Stamp{
-				1: NewStamp("metricName", pcommon.NewMap(), pcommon.NewMap(), now.Add(-2*time.Minute)),
+			entries: map[uint64]*stamp{
+				1: newStamp("metricName", pcommon.NewMap(), pcommon.NewMap(), now.Add(-2*time.Minute)),
 			},
 			now:           now,
-			expectedEmit:  []*Stamp{},
+			expectedEmit:  []*stamp{},
 			expectedCount: 0,
 		},
 		{
@@ -714,13 +714,13 @@ func TestBuildEmitList(t *testing.T) {
 			config: &Config{
 				MaximumAge: time.Minute,
 			},
-			entries: map[uint64]*Stamp{
-				1: NewStamp("metricName1", pcommon.NewMap(), pcommon.NewMap(), now.Add(-30*time.Second)),
-				2: NewStamp("metricName2", pcommon.NewMap(), pcommon.NewMap(), now.Add(-2*time.Minute)),
+			entries: map[uint64]*stamp{
+				1: newStamp("metricName1", pcommon.NewMap(), pcommon.NewMap(), now.Add(-30*time.Second)),
+				2: newStamp("metricName2", pcommon.NewMap(), pcommon.NewMap(), now.Add(-2*time.Minute)),
 			},
 			now: now,
-			expectedEmit: []*Stamp{
-				NewStamp("metricName1", pcommon.NewMap(), pcommon.NewMap(), now.Add(-30*time.Second)),
+			expectedEmit: []*stamp{
+				newStamp("metricName1", pcommon.NewMap(), pcommon.NewMap(), now.Add(-30*time.Second)),
 			},
 			expectedCount: 1,
 		},
@@ -964,7 +964,7 @@ func TestBuildAttributeMaps(t *testing.T) {
 	}
 }
 
-func assertStampsEqual(t *testing.T, expected []*Stamp, actual []*Stamp) {
+func assertStampsEqual(t *testing.T, expected []*stamp, actual []*stamp) {
 	expectedStrings := []string{}
 	for _, s := range expected {
 		expectedStrings = append(expectedStrings, s.String())
@@ -983,7 +983,7 @@ type mockMetricsConsumer struct {
 	received []pmetric.Metrics
 }
 
-func (m *mockMetricsConsumer) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
+func (m *mockMetricsConsumer) ConsumeMetrics(_ context.Context, md pmetric.Metrics) error {
 	m.received = append(m.received, md)
 	return m.err
 }

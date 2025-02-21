@@ -24,6 +24,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector/internal/metadata"
 )
 
+// NewFactory creates a new factory for the CardinalHQ Missing Data Connector.
 func NewFactory() connector.Factory {
 	return connector.NewFactory(
 		metadata.Type,

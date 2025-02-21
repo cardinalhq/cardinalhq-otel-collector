@@ -40,7 +40,7 @@ type md struct {
 	component.StartFunc
 	component.ShutdownFunc
 
-	entries     syncmap.SyncMap[uint64, *Stamp]
+	entries     syncmap.SyncMap[uint64, *stamp]
 	emitterDone chan struct{}
 
 	configExtension  *chqconfigextension.CHQConfigExtension
@@ -126,9 +126,10 @@ func (c *md) buildAttributeMaps(tid string, metrics []ottl.MissingDataMetric) {
 		tenant.resourceAttributes[metric.Name] = metric.ResourceAttributes
 	}
 	c.tenants.Store(tid, tenant)
+	c.logger.Info("tenant config loaded", zap.String("tenant", tid), zap.Int("metricAttribute", len(tenant.metricAttributes)), zap.Int("resourceAttributes", len(tenant.resourceAttributes)))
 }
 
-func (c *md) Shutdown(ctx context.Context) error {
+func (c *md) Shutdown(_ context.Context) error {
 	if c.configExtension != nil {
 		c.configExtension.UnregisterCallback(c.configCallbackID)
 	}
@@ -149,10 +150,10 @@ func (c *md) emitter() {
 	}
 }
 
-func (c *md) buildEmitList(now time.Time) []*Stamp {
-	emitList := []*Stamp{}
-	c.entries.Range(func(key uint64, value *Stamp) bool {
-		if value.IsExpired(now, c.config.MaximumAge) {
+func (c *md) buildEmitList(now time.Time) []*stamp {
+	emitList := []*stamp{}
+	c.entries.Range(func(key uint64, value *stamp) bool {
+		if value.isExpired(now, c.config.MaximumAge) {
 			c.entries.Delete(key)
 			return true
 		}
@@ -162,7 +163,7 @@ func (c *md) buildEmitList(now time.Time) []*Stamp {
 	return emitList
 }
 
-func (c *md) buildMetrics(emitList []*Stamp) pmetric.Metrics {
+func (c *md) buildMetrics(emitList []*stamp) pmetric.Metrics {
 	now := time.Now()
 	md := pmetric.NewMetrics()
 	resourceMap := map[uint64]pmetric.ResourceMetrics{}
@@ -197,7 +198,7 @@ func (c *md) buildMetrics(emitList []*Stamp) pmetric.Metrics {
 	return md
 }
 
-func (c *md) emitList(emitList []*Stamp) {
+func (c *md) emitList(emitList []*stamp) {
 	c.logger.Info("emitting", zap.Int("count", len(emitList)))
 
 	md := c.buildMetrics(emitList)
@@ -211,7 +212,7 @@ func (c *md) emitList(emitList []*Stamp) {
 	}
 }
 
-func (c *md) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
+func (c *md) ConsumeMetrics(_ context.Context, md pmetric.Metrics) error {
 	countMetrics := pmetric.NewMetrics()
 	countMetrics.ResourceMetrics().EnsureCapacity(md.ResourceMetrics().Len())
 
@@ -219,7 +220,7 @@ func (c *md) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
 
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
 		resourceMetric := md.ResourceMetrics().At(i)
-		cid := OrgIdFromResource(resourceMetric.Resource().Attributes())
+		cid := orgIDFromResource(resourceMetric.Resource().Attributes())
 		tenant, found := c.tenants.Load(cid)
 		if !found {
 			continue
@@ -286,12 +287,12 @@ func (c *md) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
 
 				for _, dpattr := range uniqueDatapoints {
 					hashkey := hashMetric(metric.Name(), rattrs, dpattr)
-					found := c.entries.Touch(hashkey, func(s *Stamp) *Stamp {
-						s.Touch(now)
+					found := c.entries.Touch(hashkey, func(s *stamp) *stamp {
+						s.touch(now)
 						return s
 					})
 					if !found {
-						c.entries.Store(hashkey, NewStamp(metric.Name(), rattrs, dpattr, now))
+						c.entries.Store(hashkey, newStamp(metric.Name(), rattrs, dpattr, now))
 					}
 				}
 			}
@@ -325,7 +326,7 @@ func addEnvironmentTags(attrs pcommon.Map) {
 	}
 }
 
-func OrgIdFromResource(resource pcommon.Map) string {
+func orgIDFromResource(resource pcommon.Map) string {
 	orgID, found := resource.Get(translate.CardinalFieldCustomerID)
 	if !found {
 		return "default"

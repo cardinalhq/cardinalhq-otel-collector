@@ -159,7 +159,7 @@ func TestNewStamp(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stamp := NewStamp(tt.metricName, tt.rattrs, tt.dpattrs, tt.timestamp)
+			stamp := newStamp(tt.metricName, tt.rattrs, tt.dpattrs, tt.timestamp)
 			assert.Equal(t, tt.timestamp, stamp.LastSeen)
 			assert.Equal(t, tt.metricName, stamp.MetricName)
 			assert.Equal(t, tt.rattrs.Len(), stamp.ResourceAttributes.Len())
@@ -174,10 +174,10 @@ func TestNewStamp(t *testing.T) {
 
 func TestTouch(t *testing.T) {
 	initialTime := time.Now()
-	stamp := NewStamp("metric1", pcommon.NewMap(), pcommon.NewMap(), initialTime)
+	stamp := newStamp("metric1", pcommon.NewMap(), pcommon.NewMap(), initialTime)
 
 	newTime := initialTime.Add(1 * time.Hour)
-	stamp.Touch(newTime)
+	stamp.touch(newTime)
 
 	assert.Equal(t, newTime, stamp.LastSeen)
 }
@@ -208,10 +208,10 @@ func TestIsExpired(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stamp := &Stamp{
+			stamp := &stamp{
 				LastSeen: tt.lastSeen,
 			}
-			result := stamp.IsExpired(tt.checkTime, tt.ttl)
+			result := stamp.isExpired(tt.checkTime, tt.ttl)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -266,8 +266,8 @@ func TestStampHash(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stamp := NewStamp(tt.metricName, tt.rattrs, tt.dpattrs, time.Now())
-			result := stamp.Hash()
+			stamp := newStamp(tt.metricName, tt.rattrs, tt.dpattrs, time.Now())
+			result := stamp.hash()
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -276,13 +276,13 @@ func TestStampHash(t *testing.T) {
 func TestStampEquals(t *testing.T) {
 	tests := []struct {
 		name     string
-		stamp1   *Stamp
-		stamp2   *Stamp
+		stamp1   *stamp
+		stamp2   *stamp
 		expected bool
 	}{
 		{
 			name: "equal stamps",
-			stamp1: NewStamp("metric1", func() pcommon.Map {
+			stamp1: newStamp("metric1", func() pcommon.Map {
 				m := pcommon.NewMap()
 				m.PutStr("key1", "value1")
 				return m
@@ -291,7 +291,7 @@ func TestStampEquals(t *testing.T) {
 				m.PutStr("dpkey1", "dpvalue1")
 				return m
 			}(), time.Now()),
-			stamp2: NewStamp("metric1", func() pcommon.Map {
+			stamp2: newStamp("metric1", func() pcommon.Map {
 				m := pcommon.NewMap()
 				m.PutStr("key1", "value1")
 				return m
@@ -304,7 +304,7 @@ func TestStampEquals(t *testing.T) {
 		},
 		{
 			name: "different metric names",
-			stamp1: NewStamp("metric1", func() pcommon.Map {
+			stamp1: newStamp("metric1", func() pcommon.Map {
 				m := pcommon.NewMap()
 				m.PutStr("key1", "value1")
 				return m
@@ -313,7 +313,7 @@ func TestStampEquals(t *testing.T) {
 				m.PutStr("dpkey1", "dpvalue1")
 				return m
 			}(), time.Now()),
-			stamp2: NewStamp("metric2", func() pcommon.Map {
+			stamp2: newStamp("metric2", func() pcommon.Map {
 				m := pcommon.NewMap()
 				m.PutStr("key1", "value1")
 				return m
@@ -326,7 +326,7 @@ func TestStampEquals(t *testing.T) {
 		},
 		{
 			name: "different resource attributes",
-			stamp1: NewStamp("metric1", func() pcommon.Map {
+			stamp1: newStamp("metric1", func() pcommon.Map {
 				m := pcommon.NewMap()
 				m.PutStr("key1", "value1")
 				return m
@@ -335,7 +335,7 @@ func TestStampEquals(t *testing.T) {
 				m.PutStr("dpkey1", "dpvalue1")
 				return m
 			}(), time.Now()),
-			stamp2: NewStamp("metric1", func() pcommon.Map {
+			stamp2: newStamp("metric1", func() pcommon.Map {
 				m := pcommon.NewMap()
 				m.PutStr("key2", "value2")
 				return m
@@ -348,7 +348,7 @@ func TestStampEquals(t *testing.T) {
 		},
 		{
 			name: "different datapoint attributes",
-			stamp1: NewStamp("metric1", func() pcommon.Map {
+			stamp1: newStamp("metric1", func() pcommon.Map {
 				m := pcommon.NewMap()
 				m.PutStr("key1", "value1")
 				return m
@@ -357,7 +357,7 @@ func TestStampEquals(t *testing.T) {
 				m.PutStr("dpkey1", "dpvalue1")
 				return m
 			}(), time.Now()),
-			stamp2: NewStamp("metric1", func() pcommon.Map {
+			stamp2: newStamp("metric1", func() pcommon.Map {
 				m := pcommon.NewMap()
 				m.PutStr("key1", "value1")
 				return m
@@ -370,7 +370,7 @@ func TestStampEquals(t *testing.T) {
 		},
 		{
 			name: "different last seen times",
-			stamp1: NewStamp("metric1", func() pcommon.Map {
+			stamp1: newStamp("metric1", func() pcommon.Map {
 				m := pcommon.NewMap()
 				m.PutStr("key1", "value1")
 				return m
@@ -379,7 +379,7 @@ func TestStampEquals(t *testing.T) {
 				m.PutStr("dpkey1", "dpvalue1")
 				return m
 			}(), time.Now().Add(-1*time.Hour)),
-			stamp2: NewStamp("metric1", func() pcommon.Map {
+			stamp2: newStamp("metric1", func() pcommon.Map {
 				m := pcommon.NewMap()
 				m.PutStr("key1", "value1")
 				return m
@@ -394,7 +394,7 @@ func TestStampEquals(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tt.stamp1.Equals(tt.stamp2)
+			result := tt.stamp1.equals(tt.stamp2)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

@@ -98,6 +98,7 @@ func (c *md) setupExtension(host component.Host) error {
 	}
 	c.configExtension = cext
 	c.configCallbackID = c.configExtension.RegisterCallback(c.id.String()+"/metrics", c.configUpdateCallback)
+	c.logger.Info("registered config callback", zap.Int("callbackID", c.configCallbackID))
 	return nil
 }
 
@@ -106,10 +107,17 @@ func (c *md) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 	for _, tid := range currentTenants {
 		if _, found := sc.Configs[tid]; !found {
 			c.tenants.Delete(tid)
+			c.logger.Info("tenant config removed", zap.String("tenant", tid))
 		}
 	}
 
+	c.logger.Info("config update", zap.Int("tenants", len(sc.Configs)))
 	for tid, tc := range sc.Configs {
+		keys := []string{}
+		for key := range tc.MissingDataConfig {
+			keys = append(keys, key)
+		}
+		c.logger.Info("Looking for my ID", zap.String("ID", c.id.Name()), zap.Any("keys", keys))
 		if mdc, found := tc.MissingDataConfig[c.id.Name()]; found {
 			c.buildAttributeMaps(tid, mdc.Metrics)
 		}

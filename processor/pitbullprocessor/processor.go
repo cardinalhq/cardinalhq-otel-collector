@@ -23,14 +23,12 @@ import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor/internal/metadata"
 	"github.com/cardinalhq/oteltools/pkg/ottl"
 	"github.com/cardinalhq/oteltools/pkg/syncmap"
-	"github.com/cardinalhq/oteltools/pkg/telemetry"
 	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
@@ -51,67 +49,18 @@ type pitbull struct {
 	metricTransformations syncmap.SyncMap[string, *ottl.Transformations]
 	metricsLookupConfigs  syncmap.SyncMap[string, *[]ottl.LookupConfig]
 
-	ottlProcessed *telemetry.DeferrableInt64Counter
-	ottlErrors    *telemetry.DeferrableInt64Counter
-	histogram     *telemetry.DeferrableInt64Histogram
+	ottlTelemetry *ottl.Telemetry
 }
 
 func newPitbull(config *Config, ttype string, set processor.Settings) (*pitbull, error) {
-	p := &pitbull{
+	return &pitbull{
 		id:                set.ID,
 		ttype:             ttype,
 		config:            config,
 		telemetrySettings: set.TelemetrySettings,
 		logger:            set.Logger,
-	}
-
-	attrset := attribute.NewSet(
-		attribute.String("processor", set.ID.String()),
-		attribute.String("signal", ttype),
-	)
-	counter, counterError := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
-		"ottl_rules_processed",
-		[]metric.Int64CounterOption{
-			metric.WithDescription("The results of OTTL processing"),
-			metric.WithUnit("1"),
-		},
-		[]metric.AddOption{
-			metric.WithAttributeSet(attrset),
-		},
-	)
-	if counterError != nil {
-		return nil, counterError
-	}
-	p.ottlProcessed = counter
-
-	errorCounter, errCounterError := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
-		"ottl_rule_eval_errors",
-		[]metric.Int64CounterOption{
-			metric.WithDescription("The number of errors encountered during OTTL processing"),
-			metric.WithUnit("1"),
-		},
-		[]metric.AddOption{
-			metric.WithAttributeSet(attrset),
-		},
-	)
-	if errCounterError != nil {
-		return nil, errCounterError
-	}
-	p.ottlErrors = errorCounter
-
-	histogram, histogramError := telemetry.NewDeferrableHistogram(metadata.Meter(set.TelemetrySettings),
-		"ottl_rule_eval_time",
-		[]metric.Int64HistogramOption{},
-		[]metric.RecordOption{
-			metric.WithAttributeSet(attrset),
-		},
-	)
-	if histogramError != nil {
-		return nil, histogramError
-	}
-	p.histogram = histogram
-
-	return p, nil
+		ottlTelemetry:     ottl.NewTelemetry(metadata.Meter(set.TelemetrySettings)),
+	}, nil
 }
 
 func (p *pitbull) Capabilities() consumer.Capabilities {
@@ -183,8 +132,10 @@ func orgIDFromResource(resource pcommon.Map) string {
 	return orgID.AsString()
 }
 
-func attributesFor(cid string) attribute.Set {
+func (p *pitbull) attributesFor(cid string) attribute.Set {
 	return attribute.NewSet(
+		attribute.String("processor", p.id.String()),
+		attribute.String("signal", p.ttype),
 		attribute.String("organization_id", cid),
 	)
 }

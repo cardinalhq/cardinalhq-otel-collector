@@ -28,14 +28,14 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
-func (p *pitbull) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
+func (p *pitbull) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
 	if md.ResourceMetrics().Len() == 0 {
 		return md, nil
 	}
 
 	md.ResourceMetrics().RemoveIf(func(rm pmetric.ResourceMetrics) bool {
 		rattr := rm.Resource().Attributes()
-		cid := OrgIdFromResource(rattr)
+		cid := orgIDFromResource(rattr)
 		transformations, transformationsFound := p.metricTransformations.Load(cid)
 		luc, lucFound := p.metricsLookupConfigs.Load(cid)
 		if !transformationsFound && !lucFound {

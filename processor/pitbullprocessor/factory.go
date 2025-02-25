@@ -26,6 +26,7 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor/internal/metadata"
 )
 
+// NewFactory returns a new factory for the Pitbull processor.
 func NewFactory() processor.Factory {
 	return processor.NewFactory(
 		metadata.Type,

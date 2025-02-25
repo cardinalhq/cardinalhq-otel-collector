@@ -118,7 +118,7 @@ func (p *pitbull) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: true}
 }
 
-func (p *pitbull) Start(ctx context.Context, host component.Host) error {
+func (p *pitbull) Start(_ context.Context, host component.Host) error {
 	ext, found := host.GetExtensions()[*p.config.ConfigurationExtension]
 	if !found {
 		return errors.New("configuration extension " + p.config.ConfigurationExtension.String() + " not found")
@@ -134,7 +134,7 @@ func (p *pitbull) Start(ctx context.Context, host component.Host) error {
 	return nil
 }
 
-func (p *pitbull) Shutdown(ctx context.Context) error {
+func (p *pitbull) Shutdown(_ context.Context) error {
 	p.configExtension.UnregisterCallback(p.configCallbackID)
 	return nil
 }
@@ -175,7 +175,7 @@ func (p *pitbull) shutdownTraceForTenant(cid string) {
 	p.tracesLookupConfigs.Delete(cid)
 }
 
-func OrgIdFromResource(resource pcommon.Map) string {
+func orgIDFromResource(resource pcommon.Map) string {
 	orgID, found := resource.Get(translate.CardinalFieldCustomerID)
 	if !found {
 		return "default"

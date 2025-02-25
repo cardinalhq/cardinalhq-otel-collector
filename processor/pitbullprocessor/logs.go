@@ -52,7 +52,7 @@ func (p *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 	}
 
 	ld.ResourceLogs().RemoveIf(func(rl plog.ResourceLogs) bool {
-		cid := OrgIdFromResource(rl.Resource().Attributes())
+		cid := orgIDFromResource(rl.Resource().Attributes())
 		transformations, transformationsFound := p.logTransformations.Load(cid)
 		luc, lucFound := p.logsLookupConfigs.Load(cid)
 		if !transformationsFound && !lucFound {

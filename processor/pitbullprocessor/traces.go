@@ -34,7 +34,7 @@ func (p *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 	}
 
 	td.ResourceSpans().RemoveIf(func(rs ptrace.ResourceSpans) bool {
-		cid := OrgIdFromResource(rs.Resource().Attributes())
+		cid := orgIDFromResource(rs.Resource().Attributes())
 		transformations, transformationsFound := p.traceTransformations.Load(cid)
 		luc, lucFound := p.tracesLookupConfigs.Load(cid)
 		if !transformationsFound && !lucFound {

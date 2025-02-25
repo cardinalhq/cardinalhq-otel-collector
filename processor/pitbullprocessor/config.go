@@ -23,6 +23,7 @@ import (
 	"go.uber.org/multierr"
 )
 
+// Config defines configuration for Pitbull processor.
 type Config struct {
 	MetricAggregation      MetricAggregationConfig `mapstructure:"metric_aggregation"`
 	LogsConfig             LogsConfig              `mapstructure:"logs"`

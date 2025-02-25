@@ -34,17 +34,17 @@ func (p *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 	}
 
 	td.ResourceSpans().RemoveIf(func(rs ptrace.ResourceSpans) bool {
-		cid := OrgIdFromResource(rs.Resource().Attributes())
+		cid := orgIDFromResource(rs.Resource().Attributes())
 		transformations, transformationsFound := p.traceTransformations.Load(cid)
 		luc, lucFound := p.tracesLookupConfigs.Load(cid)
 		if !transformationsFound && !lucFound {
 			return false
 		}
-		attrSet := attributesFor(cid)
+		attrSet := p.attributesFor(cid)
 
 		transformCtx := ottlresource.NewTransformContext(rs.Resource(), rs)
 		if transformations != nil {
-			transformations.ExecuteResourceTransforms(p.logger, attrSet, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
+			transformations.ExecuteResourceTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
 			if _, found := rs.Resource().Attributes().Get(translate.CardinalFieldDropMarker); found {
 				return true
 			}
@@ -52,7 +52,7 @@ func (p *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 		rs.ScopeSpans().RemoveIf(func(iss ptrace.ScopeSpans) bool {
 			transformCtx := ottlscope.NewTransformContext(iss.Scope(), rs.Resource(), rs)
 			if transformations != nil {
-				transformations.ExecuteScopeTransforms(p.logger, attrSet, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
+				transformations.ExecuteScopeTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
 				if _, found := iss.Scope().Attributes().Get(translate.CardinalFieldDropMarker); found {
 					return true
 				}
@@ -67,7 +67,7 @@ func (p *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 				if transformations == nil {
 					return false
 				}
-				transformations.ExecuteSpanTransforms(p.logger, attrSet, p.ottlProcessed, p.ottlErrors, p.histogram, transformCtx)
+				transformations.ExecuteSpanTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
 				_, found := sr.Attributes().Get(translate.CardinalFieldDropMarker)
 				return found
 			})

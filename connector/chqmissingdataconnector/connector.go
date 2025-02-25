@@ -111,10 +111,6 @@ func (c *md) configUpdateCallback(sc ottl.ControlPlaneConfig) {
 	}
 
 	for tid, tc := range sc.Configs {
-		keys := []string{}
-		for key := range tc.MissingDataConfig {
-			keys = append(keys, key)
-		}
 		if mdc, found := tc.MissingDataConfig[c.id.Name()]; found {
 			c.buildAttributeMaps(tid, mdc.Metrics)
 		}

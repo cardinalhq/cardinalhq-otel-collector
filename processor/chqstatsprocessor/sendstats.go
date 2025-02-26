@@ -165,8 +165,30 @@ func (p *statsProcessor) postSpanStats(ctx context.Context, wrapper *chqpb.Event
 
 func (p *statsProcessor) sendMetricStats(wrappers []*chqpb.MetricStatsWrapper) {
 	statsList := make([]*chqpb.MetricStats, 0)
+	exemplarsList := make([]*chqpb.MetricExemplar, 0)
 	for _, wrapper := range wrappers {
 		if wrapper.Dirty {
+			p.tenantLock.Lock()
+			tenant, found := p.tenants[wrapper.Stats.CustomerId]
+			p.tenantLock.Unlock()
+
+			if found {
+				fingerprint := p.toMetricExemplarFingerprint(wrapper.Stats.ServiceName, wrapper.Stats.MetricName, wrapper.Stats.MetricType)
+				exemplar, exemplarFound := tenant.metricExemplars.Get(fingerprint)
+				if exemplarFound {
+					exemplarBytes := exemplar.([]byte)
+					exemplarsList = append(exemplarsList, &chqpb.MetricExemplar{
+						ServiceName: wrapper.Stats.ServiceName,
+						MetricName:  wrapper.Stats.MetricName,
+						MetricType:  wrapper.Stats.MetricType,
+						ProcessorId: p.id.Name(),
+						Exemplar:    exemplarBytes,
+						CustomerId:  wrapper.Stats.CustomerId,
+						CollectorId: wrapper.Stats.CollectorId,
+					})
+				}
+			}
+
 			slice, err := wrapper.Hll.ToCompactSlice()
 			if err != nil {
 				continue
@@ -183,6 +205,7 @@ func (p *statsProcessor) sendMetricStats(wrappers []*chqpb.MetricStatsWrapper) {
 	wrapper := &chqpb.MetricStatsReport{
 		SubmittedAt: time.Now().UnixMilli(),
 		Stats:       statsList,
+		Exemplars:   exemplarsList,
 	}
 	if len(statsList) > 0 {
 		sampleStat := wrapper.GetStats()[0]

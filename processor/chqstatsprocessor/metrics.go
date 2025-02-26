@@ -17,14 +17,12 @@ package chqstatsprocessor
 import (
 	"context"
 	"errors"
-	"strconv"
-	"strings"
-	"time"
-
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
+	"strconv"
+	"strings"
 
 	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
@@ -41,7 +39,6 @@ func (p *statsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics)
 		rattr := rm.Resource().Attributes()
 		cid := OrgIdFromResource(rattr)
 		tenant := p.getTenant(cid)
-		newFingerprintsDetected := make([]string, 0)
 
 		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
 			ilm := rm.ScopeMetrics().At(j)
@@ -51,7 +48,7 @@ func (p *statsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics)
 				metricName := m.Name()
 				extra := map[string]string{"name": m.Name()}
 
-				p.addMetricsExemplar(tenant, rm, ilm, m, serviceName, metricName, m.Type(), &newFingerprintsDetected)
+				p.addMetricsExemplar(tenant, rm, ilm, m, serviceName, metricName, m.Type())
 
 				switch m.Type() {
 				case pmetric.MetricTypeGauge:
@@ -81,9 +78,6 @@ func (p *statsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics)
 					}
 				}
 			}
-		}
-		if len(newFingerprintsDetected) > 0 {
-			p.postExemplars(ee.CustomerID(), ee.CollectorID(), tenant, newFingerprintsDetected)
 		}
 	}
 
@@ -151,44 +145,13 @@ func (p *statsProcessor) recordMetric(tenant *Tenant, environment authenv.Enviro
 	return nil
 }
 
-func (p *statsProcessor) postExemplars(customerID, collectorID string, tenant *Tenant, fingerprints []string) {
-	var marshalledExemplars []*chqpb.MetricExemplar
-	for _, fingerprint := range fingerprints {
-		split := strings.Split(fingerprint, ":")
-		sName := split[0]
-		mName := split[1]
-		mType := split[2]
-		exemplar, found := tenant.metricExemplars.Get(hashString(fingerprint))
-		if found {
-			exemplarBytes := exemplar.([]byte)
-			marshalledExemplars = append(marshalledExemplars, &chqpb.MetricExemplar{
-				ServiceName: sName,
-				MetricName:  mName,
-				MetricType:  mType,
-				ProcessorId: p.id.Name(),
-				Exemplar:    exemplarBytes,
-				CustomerId:  customerID,
-				CollectorId: collectorID,
-			})
-		}
-	}
-
-	statsReport := &chqpb.MetricStatsReport{
-		SubmittedAt: time.Now().UnixMilli(),
-		Exemplars:   marshalledExemplars,
-	}
-	go func() {
-		err := p.sendReport(context.Background(), statsReport)
-		if err != nil {
-			p.logger.Error("Failed to send metric stats", zap.Error(err))
-		}
-	}()
+func (p *statsProcessor) toMetricExemplarFingerprint(serviceName, metricName, metricType string) int64 {
+	return hashString(serviceName + ":" + metricName + ":" + metricType)
 }
 
-func (p *statsProcessor) addMetricsExemplar(tenant *Tenant, rm pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, mm pmetric.Metric, serviceName, metricName string, metricType pmetric.MetricType, newFingerprints *[]string) {
+func (p *statsProcessor) addMetricsExemplar(tenant *Tenant, rm pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, mm pmetric.Metric, serviceName, metricName string, metricType pmetric.MetricType) {
 	if p.pbPhase == chqpb.Phase_PRE {
-		fingerprintString := serviceName + ":" + metricName + ":" + metricType.String()
-		fingerprint := hashString(fingerprintString)
+		fingerprint := p.toMetricExemplarFingerprint(serviceName, metricName, metricType.String())
 		if tenant.metricExemplars.Contains(fingerprint) {
 			return
 		}
@@ -202,7 +165,6 @@ func (p *statsProcessor) addMetricsExemplar(tenant *Tenant, rm pmetric.ResourceM
 		}
 
 		tenant.metricExemplars.Put(fingerprint, marshalled)
-		*newFingerprints = append(*newFingerprints, fingerprintString)
 	}
 }
 

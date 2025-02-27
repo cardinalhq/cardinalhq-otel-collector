@@ -163,12 +163,18 @@ func (p *statsProcessor) postSpanStats(ctx context.Context, wrapper *chqpb.Event
 // Metrics
 //
 
-func (p *statsProcessor) sendMetricStats(wrappers []*chqpb.MetricStatsWrapper) {
+func (p *statsProcessor) sendMetricStats(organizationID string) func(stats []*chqpb.MetricStatsWrapper) {
+	return func(stats []*chqpb.MetricStatsWrapper) {
+		p.sendMetricStatsFor(organizationID, stats)
+	}
+}
+
+func (p *statsProcessor) sendMetricStatsFor(organizationId string, wrappers []*chqpb.MetricStatsWrapper) {
 	statsList := make([]*chqpb.MetricStats, 0)
 	exemplarMap := make(map[int64]*chqpb.MetricExemplar)
 	for _, wrapper := range wrappers {
 		p.tenantLock.Lock()
-		tenant, found := p.tenants[wrapper.Stats.CustomerId]
+		tenant, found := p.tenants[organizationId]
 		p.tenantLock.Unlock()
 
 		if found {

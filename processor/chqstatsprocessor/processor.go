@@ -118,7 +118,7 @@ func (p *statsProcessor) getTenant(organizationID string) *Tenant {
 			tenant.logstats.Start()
 			tenant.logExemplars = NewLRUCache(1000, 5*time.Minute)
 		case "metrics":
-			tenant.metricstats = chqpb.NewMetricStatsCache(1000, 16, 5*time.Minute, p.sendMetricStats, chqpb.InitializeMetricStats, realClock)
+			tenant.metricstats = chqpb.NewMetricStatsCache(1000, 16, 5*time.Minute, p.sendMetricStats(organizationID), chqpb.InitializeMetricStats, realClock)
 			tenant.metricstats.Start()
 			tenant.metricExemplars = NewLRUCache(1000, 5*time.Minute)
 		case "traces":

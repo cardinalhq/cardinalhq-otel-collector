@@ -214,12 +214,6 @@ func (p *statsProcessor) sendMetricStats(wrappers []*chqpb.MetricStatsWrapper) {
 		Exemplars:   exemplarList,
 	}
 	if len(statsList) > 0 || len(exemplarMap) > 0 {
-		sampleStat := wrapper.GetStats()[0]
-		p.logger.Info("Sending metric stats", zap.Int("count", len(wrapper.Stats)),
-			zap.Int("statsLength", len(statsList)),
-			zap.Int("exemplarsLength", len(exemplarMap)),
-			zap.String("customerId", sampleStat.CustomerId), zap.String("collectorId", sampleStat.CollectorId),
-			zap.String("processorId", p.id.Name()))
 		err := p.sendReport(context.Background(), wrapper)
 		if err != nil {
 			p.logger.Error("Failed to send metric stats", zap.Error(err))

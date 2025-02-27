@@ -35,8 +35,8 @@ type piiRedactionProcessor struct {
 	telemetrySettings component.TelemetrySettings
 
 	detector   pii.Detector
-	detections telemetry.DeferrableCounter
-	redactions telemetry.DeferrableCounter
+	detections telemetry.DeferrableCounter[int64]
+	redactions telemetry.DeferrableCounter[int64]
 }
 
 func newProcessor(config *Config, set processor.Settings) (*piiRedactionProcessor, error) {

@@ -54,7 +54,7 @@ type aggregationProcessor struct {
 	aggregatorI          ottl.MetricAggregator[int64]
 	aggregatorF          ottl.MetricAggregator[float64]
 	lastEmitCheck        time.Time
-	aggregatedDatapoints *telemetry.DeferrableInt64Counter
+	aggregatedDatapoints telemetry.DeferrableCounter[int64]
 }
 
 func newPitbull(config *Config, ttype string, set processor.Settings, nextConsumer consumer.Metrics) (*aggregationProcessor, error) {

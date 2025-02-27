@@ -86,9 +86,9 @@ type statsProcessor struct {
 	jsonMarshaller otelJsonMarshaller
 
 	loadedConfig   atomic.Pointer[ottl.ControlPlaneConfig]
-	statsBatchSize telemetry.DeferrableHistogram
-	recordLatency  telemetry.DeferrableHistogram
-	cacheFull      telemetry.DeferrableCounter
+	statsBatchSize telemetry.DeferrableHistogram[int64]
+	recordLatency  telemetry.DeferrableHistogram[int64]
+	cacheFull      telemetry.DeferrableCounter[int64]
 
 	enableMetricMetrics bool
 	enableLogMetrics    bool

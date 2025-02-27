@@ -46,10 +46,10 @@ type extractor struct {
 	id                component.ID
 	ttype             string
 	telemetrySettings component.TelemetrySettings
-	rulesEvaluated    telemetry.DeferrableCounter
-	rulesExecuted     telemetry.DeferrableCounter
-	ruleErrors        telemetry.DeferrableCounter
-	ruleEvalTime      telemetry.DeferrableHistogram
+	rulesEvaluated    telemetry.DeferrableCounter[int64]
+	rulesExecuted     telemetry.DeferrableCounter[int64]
+	ruleErrors        telemetry.DeferrableCounter[int64]
+	ruleEvalTime      telemetry.DeferrableHistogram[int64]
 
 	configCallbackID int
 	logExtractors    syncmap.SyncMap[string, []*ottl.LogExtractor]

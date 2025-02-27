@@ -17,12 +17,13 @@ package chqstatsprocessor
 import (
 	"context"
 	"errors"
+	"strconv"
+	"strings"
+
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
-	"strconv"
-	"strings"
 
 	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
@@ -32,6 +33,12 @@ import (
 
 func (p *statsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
 	ee := authenv.GetEnvironment(ctx, p.idSource)
+
+	// Special case to disable stats gathering if we are running as a SaaS receiver.
+	auth := authenv.EnvironmentFromAuth(ctx)
+	if auth.CollectorID() != "" {
+		return md, nil
+	}
 
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
 		rm := md.ResourceMetrics().At(i)

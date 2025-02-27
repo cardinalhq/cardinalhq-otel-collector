@@ -15,14 +15,16 @@
 package chqstatsprocessor
 
 import (
-	"go.opentelemetry.io/collector/pdata/pmetric"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 
+	"go.opentelemetry.io/collector/pdata/pmetric"
+
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
@@ -63,6 +65,7 @@ func TestSingularExemplar(t *testing.T) {
 
 	unmarshaller := pmetric.JSONUnmarshaler{}
 	exemplar, err := unmarshaller.UnmarshalMetrics(exemplarData)
+	require.NoError(t, err)
 	assert.NotNil(t, exemplar)
 
 	rm := exemplar.ResourceMetrics().At(0)

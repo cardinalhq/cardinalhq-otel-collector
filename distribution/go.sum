@@ -1054,6 +1054,8 @@ github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusrec
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver v0.119.0/go.mod h1:DSrZFUPipQcZYE2mU7NfXA89ugRfrkT3aGr7BItni8s=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/splunkhecreceiver v0.119.0 h1:jsddAxsh6PN9tnFjdNeNLEh+BmhwgNE4urxJKVhQiHo=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/splunkhecreceiver v0.119.0/go.mod h1:41Nm9obC1vhxJDTJ/O8mHzJrzkqqEuZzCLMec3Sb+04=
+github.com/open-telemetry/opentelemetry-collector-contrib/receiver/statsdreceiver v0.119.0 h1:+CuIkAP+i1E6qHp5oK1ONZWFq2BGK1ICXE7HFW8wYUM=
+github.com/open-telemetry/opentelemetry-collector-contrib/receiver/statsdreceiver v0.119.0/go.mod h1:P53wbh+KnMutIgADI/dB1kzu2nMGXsHzmi30v6w86EU=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/tcplogreceiver v0.119.0 h1:NtERyX1qc6Tw9d2blqejITyq+5Su6t+s3jSgfwCmNVk=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/tcplogreceiver v0.119.0/go.mod h1:ltKS/8i+MT7oideTbeRC5wDnYmiBESFQHzjjYNIYlIw=
 github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8Oi/yOhh5U=

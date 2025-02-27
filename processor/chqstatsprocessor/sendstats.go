@@ -165,7 +165,7 @@ func (p *statsProcessor) postSpanStats(ctx context.Context, wrapper *chqpb.Event
 
 func (p *statsProcessor) sendMetricStats(wrappers []*chqpb.MetricStatsWrapper) {
 	statsList := make([]*chqpb.MetricStats, 0)
-	exemplarsList := make([]*chqpb.MetricExemplar, 0)
+	exemplarMap := make(map[int64]*chqpb.MetricExemplar)
 	for _, wrapper := range wrappers {
 		p.tenantLock.Lock()
 		tenant, found := p.tenants[wrapper.Stats.CustomerId]
@@ -176,15 +176,17 @@ func (p *statsProcessor) sendMetricStats(wrappers []*chqpb.MetricStatsWrapper) {
 			exemplar, exemplarFound := tenant.metricExemplars.Get(fingerprint)
 			if exemplarFound {
 				exemplarBytes := exemplar.([]byte)
-				exemplarsList = append(exemplarsList, &chqpb.MetricExemplar{
-					ServiceName: wrapper.Stats.ServiceName,
-					MetricName:  wrapper.Stats.MetricName,
-					MetricType:  wrapper.Stats.MetricType,
-					ProcessorId: p.id.Name(),
-					Exemplar:    exemplarBytes,
-					CustomerId:  wrapper.Stats.CustomerId,
-					CollectorId: wrapper.Stats.CollectorId,
-				})
+				if _, ok := exemplarMap[fingerprint]; !ok {
+					exemplarMap[fingerprint] = &chqpb.MetricExemplar{
+						ServiceName: wrapper.Stats.ServiceName,
+						MetricName:  wrapper.Stats.MetricName,
+						MetricType:  wrapper.Stats.MetricType,
+						ProcessorId: p.id.Name(),
+						Exemplar:    exemplarBytes,
+						CustomerId:  wrapper.Stats.CustomerId,
+						CollectorId: wrapper.Stats.CollectorId,
+					}
+				}
 			}
 		}
 		if wrapper.Dirty {
@@ -201,16 +203,21 @@ func (p *statsProcessor) sendMetricStats(wrappers []*chqpb.MetricStatsWrapper) {
 			statsList = append(statsList, wrapper.Stats)
 		}
 	}
+
+	exemplarList := make([]*chqpb.MetricExemplar, 0)
+	for _, exemplar := range exemplarMap {
+		exemplarList = append(exemplarList, exemplar)
+	}
 	wrapper := &chqpb.MetricStatsReport{
 		SubmittedAt: time.Now().UnixMilli(),
 		Stats:       statsList,
-		Exemplars:   exemplarsList,
+		Exemplars:   exemplarList,
 	}
-	if len(statsList) > 0 || len(exemplarsList) > 0 {
+	if len(statsList) > 0 || len(exemplarMap) > 0 {
 		sampleStat := wrapper.GetStats()[0]
 		p.logger.Info("Sending metric stats", zap.Int("count", len(wrapper.Stats)),
 			zap.Int("statsLength", len(statsList)),
-			zap.Int("exemplarsLength", len(exemplarsList)),
+			zap.Int("exemplarsLength", len(exemplarMap)),
 			zap.String("customerId", sampleStat.CustomerId), zap.String("collectorId", sampleStat.CollectorId),
 			zap.String("processorId", p.id.Name()))
 		err := p.sendReport(context.Background(), wrapper)

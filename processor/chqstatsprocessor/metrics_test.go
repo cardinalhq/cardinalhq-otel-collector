@@ -50,7 +50,7 @@ func TestPostMetricStats(t *testing.T) {
 		assert.Equal(t, "service_name", report.Stats[0].ServiceName)
 		assert.Equal(t, chqpb.Phase(2), report.Stats[0].Phase)
 		assert.Equal(t, int64(3), report.Stats[0].Count)
-		//assert.Equal(t, float64(4), report.Stats[0].CardinalityEstimate)
+		assert.InEpsilon(t, float64(4), report.Stats[0].CardinalityEstimate, 0.0001)
 		assert.Equal(t, []byte{10, 20, 30}, report.Stats[0].Hll)
 
 		w.WriteHeader(http.StatusOK)

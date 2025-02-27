@@ -24,7 +24,6 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/syncmap"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
 	"github.com/cardinalhq/oteltools/pkg/translate"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
 	"github.com/observiq/bindplane-otel-collector/receiver/routereceiver"
@@ -48,6 +47,7 @@ type extractor struct {
 	ttype             string
 	telemetrySettings component.TelemetrySettings
 	rulesEvaluated    *telemetry.DeferrableInt64Counter
+	rulesExecuted     *telemetry.DeferrableInt64Counter
 	ruleErrors        *telemetry.DeferrableInt64Counter
 	ruleEvalTime      *telemetry.DeferrableInt64Histogram
 
@@ -65,34 +65,39 @@ func newExtractor(config *Config, ttype string, set processor.Settings) (*extrac
 		logger:            set.Logger,
 	}
 
-	attrset := attribute.NewSet(
-		attribute.String("processor", set.ID.String()),
-		attribute.String("signal", ttype),
-	)
 	counter, counterError := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
-		"ottl_rules_processed",
+		"ottl.extract_rules.evaluated.count",
 		[]metric.Int64CounterOption{
-			metric.WithDescription("The number of rules evaluated"),
+			metric.WithDescription("The number of rule conditions evaluated"),
 			metric.WithUnit("1"),
 		},
-		[]metric.AddOption{
-			metric.WithAttributeSet(attrset),
-		},
+		[]metric.AddOption{},
 	)
 	if counterError != nil {
 		return nil, counterError
 	}
 	p.rulesEvaluated = counter
 
-	errorCounter, errorCounterError := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
-		"ottl_rule_eval_errors",
+	counter, counterError = telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
+		"ottl.extract_rules.executed.count",
 		[]metric.Int64CounterOption{
-			metric.WithDescription("The number of rules evaluated"),
+			metric.WithDescription("The number of rules executed"),
 			metric.WithUnit("1"),
 		},
-		[]metric.AddOption{
-			metric.WithAttributeSet(attrset),
+		[]metric.AddOption{},
+	)
+	if counterError != nil {
+		return nil, counterError
+	}
+	p.rulesExecuted = counter
+
+	errorCounter, errorCounterError := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
+		"ottl.extract_rules.error.count",
+		[]metric.Int64CounterOption{
+			metric.WithDescription("The number of errors encountered while evaluating rules"),
+			metric.WithUnit("1"),
 		},
+		[]metric.AddOption{},
 	)
 	if errorCounterError != nil {
 		return nil, counterError
@@ -100,11 +105,12 @@ func newExtractor(config *Config, ttype string, set processor.Settings) (*extrac
 	p.ruleErrors = errorCounter
 
 	histogram, histogramError := telemetry.NewDeferrableHistogram(metadata.Meter(set.TelemetrySettings),
-		"ottl_rule_eval_time",
-		[]metric.Int64HistogramOption{},
-		[]metric.RecordOption{
-			metric.WithAttributeSet(attrset),
+		"ottl.extract_rules.processing.time",
+		[]metric.Int64HistogramOption{
+			metric.WithDescription("The time taken to evaluate rules"),
+			metric.WithUnit("ns"),
 		},
+		[]metric.RecordOption{},
 	)
 	if histogramError != nil {
 		return nil, histogramError

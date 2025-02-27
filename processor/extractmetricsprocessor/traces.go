@@ -67,6 +67,15 @@ func (p *extractor) extractMetricsFromSpans(ctx context.Context, pt ptrace.Trace
 			scopeMetrics := resourceMetrics.ScopeMetrics().AppendEmpty()
 			scopeMetrics.Scope().SetName(componentType.String())
 
+			attrset := attribute.NewSet(
+				attribute.String("processor", p.id.String()),
+				attribute.String("signal", p.ttype),
+				attribute.String("ruleId", spanExtractor.RuleID),
+				attribute.String("metricName", spanExtractor.MetricName),
+				attribute.String("metricType", spanExtractor.MetricType),
+				attribute.String("organization_id", cid),
+			)
+
 			newMetric := scopeMetrics.Metrics().AppendEmpty()
 
 			newMetric.SetName(spanExtractor.MetricName)
@@ -93,27 +102,14 @@ func (p *extractor) extractMetricsFromSpans(ctx context.Context, pt ptrace.Trace
 					matches, err := spanExtractor.EvalSpanConditions(ctx, spanCtx)
 					if err != nil {
 						p.logger.Error("Failed when executing ottl match statement.", zap.Error(err))
-						attrset := attribute.NewSet(attribute.String("ruleId", spanExtractor.RuleID),
-							attribute.String("metricName", spanExtractor.MetricName),
-							attribute.String("metricType", spanExtractor.MetricType),
-							attribute.String("stage", "conditionEval"),
-							attribute.String("error_msg", err.Error()),
-							attribute.String("organization_id", cid),
-						)
 						telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
 						continue
 					}
-
+					telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 					if !matches {
-						attrset := attribute.NewSet(attribute.String("ruleId", spanExtractor.RuleID),
-							attribute.String("metricName", spanExtractor.MetricName),
-							attribute.String("metricType", spanExtractor.MetricType),
-							attribute.Bool("conditionsEvaluated", false),
-							attribute.String("organization_id", cid),
-						)
-						telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 						continue
 					}
+					telemetry.CounterAdd(p.rulesExecuted, 1, metric.WithAttributeSet(attrset))
 
 					p.spanRecordToDataPoint(ctx, cid, spanExtractor, sr, spanCtx, dpSlice)
 				}
@@ -123,11 +119,7 @@ func (p *extractor) extractMetricsFromSpans(ctx context.Context, pt ptrace.Trace
 				// Add the resource metric to the slice if we had any datapoints.
 				resourceMetrics.MoveTo(metrics.ResourceMetrics().AppendEmpty())
 			}
-			telemetry.HistogramRecord(p.ruleEvalTime, time.Since(startTime).Nanoseconds(),
-				metric.WithAttributes(
-					attribute.String("rule_id", spanExtractor.RuleID),
-					attribute.String("organization_id", cid),
-				))
+			telemetry.HistogramRecord(p.ruleEvalTime, time.Since(startTime).Nanoseconds(), metric.WithAttributeSet(attrset))
 		}
 		if metrics.ResourceMetrics().Len() > 0 {
 			totalMetrics = append(totalMetrics, metrics)

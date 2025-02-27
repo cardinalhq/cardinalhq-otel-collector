@@ -313,3 +313,11 @@ func OrgIdFromResource(resource pcommon.Map) string {
 	}
 	return orgID.AsString()
 }
+
+func CollectorIdFromResource(resource pcommon.Map) string {
+	collectorId, found := resource.Get(translate.CardinalFieldCollectorID)
+	if !found {
+		return "default"
+	}
+	return collectorId.AsString()
+}

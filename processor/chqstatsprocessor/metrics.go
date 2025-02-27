@@ -38,6 +38,7 @@ func (p *statsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics)
 		serviceName := getServiceName(rm.Resource().Attributes())
 		rattr := rm.Resource().Attributes()
 		cid := OrgIdFromResource(rattr)
+		collectorId := CollectorIdFromResource(rattr)
 		tenant := p.getTenant(cid)
 
 		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
@@ -54,27 +55,27 @@ func (p *statsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics)
 				case pmetric.MetricTypeGauge:
 					for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
 						dp := m.Gauge().DataPoints().At(l)
-						p.processDatapoint(tenant, ee, metricName, pmetric.MetricTypeGauge.String(), serviceName, extra, rattr, sattr, dp.Attributes())
+						p.processDatapoint(tenant, cid, collectorId, metricName, pmetric.MetricTypeGauge.String(), serviceName, extra, rattr, sattr, dp.Attributes(), ee)
 					}
 				case pmetric.MetricTypeSum:
 					for l := 0; l < m.Sum().DataPoints().Len(); l++ {
 						dp := m.Sum().DataPoints().At(l)
-						p.processDatapoint(tenant, ee, metricName, pmetric.MetricTypeSum.String(), serviceName, extra, rattr, sattr, dp.Attributes())
+						p.processDatapoint(tenant, cid, collectorId, metricName, pmetric.MetricTypeSum.String(), serviceName, extra, rattr, sattr, dp.Attributes(), ee)
 					}
 				case pmetric.MetricTypeHistogram:
 					for l := 0; l < m.Histogram().DataPoints().Len(); l++ {
 						dp := m.Histogram().DataPoints().At(l)
-						p.processDatapoint(tenant, ee, metricName, pmetric.MetricTypeHistogram.String(), serviceName, extra, rattr, sattr, dp.Attributes())
+						p.processDatapoint(tenant, cid, collectorId, metricName, pmetric.MetricTypeHistogram.String(), serviceName, extra, rattr, sattr, dp.Attributes(), ee)
 					}
 				case pmetric.MetricTypeSummary:
 					for l := 0; l < m.Summary().DataPoints().Len(); l++ {
 						dp := m.Summary().DataPoints().At(l)
-						p.processDatapoint(tenant, ee, metricName, pmetric.MetricTypeSummary.String(), serviceName, extra, rattr, sattr, dp.Attributes())
+						p.processDatapoint(tenant, cid, collectorId, metricName, pmetric.MetricTypeSummary.String(), serviceName, extra, rattr, sattr, dp.Attributes(), ee)
 					}
 				case pmetric.MetricTypeExponentialHistogram:
 					for l := 0; l < m.ExponentialHistogram().DataPoints().Len(); l++ {
 						dp := m.ExponentialHistogram().DataPoints().At(l)
-						p.processDatapoint(tenant, ee, metricName, pmetric.MetricTypeExponentialHistogram.String(), serviceName, extra, rattr, sattr, dp.Attributes())
+						p.processDatapoint(tenant, cid, collectorId, metricName, pmetric.MetricTypeExponentialHistogram.String(), serviceName, extra, rattr, sattr, dp.Attributes(), ee)
 					}
 				}
 			}
@@ -84,9 +85,9 @@ func (p *statsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics)
 	return md, nil
 }
 
-func (p *statsProcessor) processDatapoint(tenant *Tenant, environment authenv.Environment, metricName, metricType, serviceName string, extra map[string]string, rattr, sattr, dattr pcommon.Map) {
+func (p *statsProcessor) processDatapoint(tenant *Tenant, customerId, collectorId, metricName, metricType, serviceName string, extra map[string]string, rattr, sattr, dattr pcommon.Map, environment authenv.Environment) {
 	tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
-	if err := p.recordDatapoint(tenant, environment, metricName, metricType, serviceName, tid, rattr, sattr, dattr); err != nil {
+	if err := p.recordDatapoint(tenant, customerId, collectorId, metricName, metricType, serviceName, tid, rattr, sattr, dattr); err != nil {
 		p.logger.Error("Failed to record datapoint", zap.Error(err))
 	}
 }
@@ -100,7 +101,7 @@ func computeStatsOnField(k string) bool {
 	return !strings.HasPrefix(k, translate.CardinalFieldPrefixDot)
 }
 
-func (p *statsProcessor) recordDatapoint(tenant *Tenant, environment authenv.Environment, metricName, metricType, serviceName string, tid int64, rattr, sattr, dpAttr pcommon.Map) error {
+func (p *statsProcessor) recordDatapoint(tenant *Tenant, customerId, collectorId, metricName, metricType, serviceName string, tid int64, rattr, sattr, dpAttr pcommon.Map) error {
 	orgID := OrgIdFromResource(rattr)
 
 	var errs error
@@ -114,31 +115,31 @@ func (p *statsProcessor) recordDatapoint(tenant *Tenant, environment authenv.Env
 
 	rattr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, p.recordMetric(tenant, environment, metricName, metricType, serviceName, k, v.AsString(), "resource", attributes))
+			errs = multierr.Append(errs, p.recordMetric(tenant, customerId, collectorId, metricName, metricType, serviceName, k, v.AsString(), "resource", attributes))
 		}
 		return true
 	})
 	sattr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, p.recordMetric(tenant, environment, metricName, metricType, serviceName, k, v.AsString(), "scope", attributes))
+			errs = multierr.Append(errs, p.recordMetric(tenant, customerId, collectorId, metricName, metricType, serviceName, k, v.AsString(), "scope", attributes))
 		}
 		return true
 	})
 	dpAttr.Range(func(k string, v pcommon.Value) bool {
 		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, p.recordMetric(tenant, environment, metricName, metricType, serviceName, k, v.AsString(), "datapoint", attributes))
+			errs = multierr.Append(errs, p.recordMetric(tenant, customerId, collectorId, metricName, metricType, serviceName, k, v.AsString(), "datapoint", attributes))
 		}
 		return true
 	})
-	errs = multierr.Append(errs, p.recordMetric(tenant, environment, metricName, metricType, serviceName, translate.CardinalFieldTID, strconv.FormatInt(tid, 10), "metric", attributes))
+	errs = multierr.Append(errs, p.recordMetric(tenant, customerId, collectorId, metricName, metricType, serviceName, translate.CardinalFieldTID, strconv.FormatInt(tid, 10), "metric", attributes))
 	return errs
 }
 
-func (p *statsProcessor) recordMetric(tenant *Tenant, environment authenv.Environment, metricName, metricType, serviceName, tagName, tagValue, tagScope string, attributes []*chqpb.Attribute) error {
+func (p *statsProcessor) recordMetric(tenant *Tenant, customerId, collectorId, metricName, metricType, serviceName, tagName, tagValue, tagScope string, attributes []*chqpb.Attribute) error {
 	if !p.enableMetricMetrics {
 		return nil
 	}
-	err := tenant.metricstats.Record(p.pbPhase, metricName, metricType, tagScope, tagName, serviceName, p.id.Name(), environment.CollectorID(), environment.CustomerID(), tagValue, attributes)
+	err := tenant.metricstats.Record(p.pbPhase, metricName, metricType, tagScope, tagName, serviceName, p.id.Name(), collectorId, customerId, tagValue, attributes)
 	if err != nil && errors.Is(err, chqpb.ErrCacheFull) {
 		telemetry.CounterAdd(p.cacheFull, 1)
 	}

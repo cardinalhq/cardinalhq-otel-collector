@@ -70,10 +70,6 @@ func (e *kubeEventsExporter) ConsumeLogs(ctx context.Context, pl plog.Logs) erro
 				rawValue := lr.Body().AsRaw()
 				if _, ok := rawValue.(map[string]interface{}); ok {
 					bodyMap := lr.Body().Map().AsRaw()
-					marshalled, err := json.Marshal(bodyMap)
-					if err != nil {
-						e.logger.Info("Received event log", zap.String("log", string(marshalled)))
-					}
 					if object, objectPresent := bodyMap["object"]; objectPresent {
 						if objectMap, objectIsAMap := object.(map[string]interface{}); objectIsAMap {
 							topLevelKind, topLevelKindPresent := objectMap["kind"]

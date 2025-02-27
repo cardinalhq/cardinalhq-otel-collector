@@ -39,12 +39,10 @@ func TestGetServiceName(t *testing.T) {
 
 func TestTokenFields(t *testing.T) {
 	tenant := &tenantState{
-		mapstore:   NewMapStore(),
-		estimators: map[uint64]*SlidingEstimatorStat{},
+		mapstore: NewMapStore(),
 	}
 	e := &fingerprintProcessor{
 		logFingerprinter: fingerprinter.NewFingerprinter(fingerprinter.WithMaxTokens(30)),
-		tenants:          make(map[string]*tenantState),
 	}
 	ld := plog.NewLogs()
 	rl := ld.ResourceLogs().AppendEmpty()

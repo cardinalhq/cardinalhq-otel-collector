@@ -67,10 +67,10 @@ func (p *fingerprintProcessor) slowSpanPercentile(tenant *tenantState, fingerpri
 }
 
 func (p *fingerprintProcessor) findSpanSketch(tenant *tenantState, fingerprint uint64) *SlidingEstimatorStat {
-	sketch, ok := tenant.estimators[fingerprint]
+	sketch, ok := tenant.estimators.Load(fingerprint)
 	if !ok {
 		estimator := NewSlidingEstimatorStat(p.estimatorWindowSize, p.estimatorInterval)
-		tenant.estimators[fingerprint] = estimator
+		tenant.estimators.Store(fingerprint, estimator)
 		return estimator
 	}
 	return sketch

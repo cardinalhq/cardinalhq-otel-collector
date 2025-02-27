@@ -19,7 +19,6 @@ import (
 	"encoding/binary"
 	"hash/fnv"
 	"slices"
-	"sync"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
@@ -31,6 +30,7 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
 	"github.com/cardinalhq/oteltools/pkg/ottl"
+	"github.com/cardinalhq/oteltools/pkg/syncmap"
 	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
@@ -50,8 +50,7 @@ type fingerprintProcessor struct {
 	// for logs
 	logFingerprinter fingerprinter.Fingerprinter
 
-	tenants    map[string]*tenantState
-	tenantLock sync.Mutex
+	tenants syncmap.SyncMap[string, *tenantState]
 
 	estimatorWindowSize int
 	estimatorInterval   int64
@@ -61,7 +60,7 @@ type fingerprintProcessor struct {
 
 type tenantState struct {
 	mapstore   *MapStore
-	estimators map[uint64]*SlidingEstimatorStat
+	estimators syncmap.SyncMap[uint64, *SlidingEstimatorStat]
 }
 
 func newProcessor(config *Config, ttype string, set processor.Settings) (*fingerprintProcessor, error) {
@@ -71,7 +70,6 @@ func newProcessor(config *Config, ttype string, set processor.Settings) (*finger
 		config:              config,
 		telemetrySettings:   set.TelemetrySettings,
 		logger:              set.Logger,
-		tenants:             make(map[string]*tenantState),
 		estimatorWindowSize: config.TracesConfig.EstimatorWindowSize,
 		estimatorInterval:   config.TracesConfig.EstimatorInterval,
 	}
@@ -122,8 +120,6 @@ func (p *fingerprintProcessor) configUpdateCallback(sc ottl.ControlPlaneConfig) 
 		if newhash != p.logMappingsHash {
 			p.logMappingsHash = newhash
 			newMappings := makeFingerprintMap(sc)
-			p.tenantLock.Lock()
-			defer p.tenantLock.Unlock()
 			for cid, v := range newMappings {
 				p.logger.Info("Configuration updated for tenant", zap.String("instance", p.id.Name()), zap.String("tenant", cid), zap.Int("mappingsCount", len(v)))
 				tenant := p.getTenantUnlocked(cid)
@@ -203,19 +199,16 @@ func OrgIdFromResource(resource pcommon.Map) string {
 }
 
 func (p *fingerprintProcessor) getTenant(cid string) *tenantState {
-	p.tenantLock.Lock()
-	defer p.tenantLock.Unlock()
 	return p.getTenantUnlocked(cid)
 }
 
 func (p *fingerprintProcessor) getTenantUnlocked(cid string) *tenantState {
-	tenant, found := p.tenants[cid]
+	tenant, found := p.tenants.Load(cid)
 	if !found {
 		tenant = &tenantState{
-			mapstore:   NewMapStore(),
-			estimators: make(map[uint64]*SlidingEstimatorStat),
+			mapstore: NewMapStore(),
 		}
-		p.tenants[cid] = tenant
+		p.tenants.Store(cid, tenant)
 	}
 
 	return tenant

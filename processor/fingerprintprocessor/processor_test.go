@@ -110,14 +110,12 @@ func TestGetTenantUnlocked(t *testing.T) {
 			name: "tenant exists",
 			cid:  "tenant1",
 			setup: func(p *fingerprintProcessor) {
-				p.tenants["tenant1"] = &tenantState{
-					mapstore:   NewMapStore(),
-					estimators: make(map[uint64]*SlidingEstimatorStat),
-				}
+				p.tenants.Store("tenant1", &tenantState{
+					mapstore: NewMapStore(),
+				})
 			},
 			expected: &tenantState{
-				mapstore:   NewMapStore(),
-				estimators: make(map[uint64]*SlidingEstimatorStat),
+				mapstore: NewMapStore(),
 			},
 		},
 		{
@@ -125,23 +123,19 @@ func TestGetTenantUnlocked(t *testing.T) {
 			cid:   "tenant2",
 			setup: func(p *fingerprintProcessor) {},
 			expected: &tenantState{
-				mapstore:   NewMapStore(),
-				estimators: make(map[uint64]*SlidingEstimatorStat),
+				mapstore: NewMapStore(),
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &fingerprintProcessor{
-				tenants: make(map[string]*tenantState),
-			}
+			p := &fingerprintProcessor{}
 			tt.setup(p)
 
 			result := p.getTenantUnlocked(tt.cid)
 			assert.NotNil(t, result)
 			assert.NotNil(t, result.mapstore)
-			assert.NotNil(t, result.estimators)
 		})
 	}
 }

@@ -102,7 +102,7 @@ bin/cardinalhq-otel-collector: cardinalhq-otel-collector.yaml distribution/main.
 #
 .PHONY: images
 images: buildfiles
-	GITHUB_TOKEN=dummytoken goreleaser
+	GITHUB_TOKEN=dummytoken go run github.com/goreleaser/goreleaser/v2@latest
 
 #
 # Test targets

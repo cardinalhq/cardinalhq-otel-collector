@@ -45,6 +45,7 @@ type KubernetesEvent struct {
 
 const (
 	Kind           = "kind"
+	Event          = "event"
 	Name           = "name"
 	Namespace      = "namespace"
 	FirstTimestamp = "firstTimestamp"
@@ -53,6 +54,7 @@ const (
 	Type           = "type"
 	Normal         = "Normal"
 	Warning        = "Warning"
+	Image          = "image"
 )
 
 func (e *kubeEventsExporter) ConsumeLogs(ctx context.Context, pl plog.Logs) error {
@@ -68,6 +70,8 @@ func (e *kubeEventsExporter) ConsumeLogs(ctx context.Context, pl plog.Logs) erro
 			for k := 0; k < logs.Len(); k++ {
 				lr := logs.At(k)
 				rawValue := lr.Body().AsRaw()
+				e.logger.Info("Received kube event", zap.Any("body", rawValue))
+
 				if _, ok := rawValue.(map[string]interface{}); ok {
 					bodyMap := lr.Body().Map().AsRaw()
 					e.logger.Info("Received kube event", zap.Any("body", bodyMap))
@@ -108,7 +112,7 @@ func (e *kubeEventsExporter) ConsumeLogs(ctx context.Context, pl plog.Logs) erro
 														if kubeEvent.InvolvedObject.Metadata == nil {
 															kubeEvent.InvolvedObject.Metadata = make(map[string]string)
 														}
-														kubeEvent.InvolvedObject.Metadata["image"] = image
+														kubeEvent.InvolvedObject.Metadata[Image] = image
 														events = append(events, kubeEvent)
 													}
 

@@ -17,9 +17,10 @@ package chqkubeeventsexporter
 import (
 	"context"
 	"encoding/json"
+	"testing"
+
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.uber.org/zap"
-	"testing"
 
 	"github.com/stretchr/testify/assert"
 )

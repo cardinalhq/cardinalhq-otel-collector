@@ -17,9 +17,12 @@ package piiredactionprocessor
 import (
 	"testing"
 
+	"github.com/cardinalhq/oteltools/pkg/pii"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/pcommon"
+	"go.opentelemetry.io/collector/pdata/plog"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	"go.uber.org/zap"
 )
 
 func TestGetServiceName(t *testing.T) {
@@ -31,4 +34,104 @@ func TestGetServiceName(t *testing.T) {
 	attr = pcommon.NewMap()
 	serviceName = getServiceName(attr)
 	assert.Equal(t, "unknown", serviceName)
+}
+
+func TestPiiRedactionProcessor_SanitizeBodyString(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		sanitized string
+	}{
+		{
+			name:      "sanitize successful",
+			input:     "4111-1111-1111-1111",
+			sanitized: "REDACTED",
+		},
+	}
+
+	detector := pii.NewDetector()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logger := zap.NewNop()
+			processor := &piiRedactionProcessor{
+				detector: detector,
+				logger:   logger,
+			}
+
+			logRecord := plog.NewLogRecord()
+			logRecord.Body().SetStr(tt.input)
+
+			processor.sanitizeBodyString(logRecord)
+
+			assert.Equal(t, tt.sanitized, logRecord.Body().AsString())
+		})
+	}
+}
+
+func TestPiiRedactionProcessor_SanitizeBodyMap(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    map[string]any
+		expected map[string]any
+	}{
+		{
+			name: "sanitize string values",
+			input: map[string]any{
+				"totally-a-ccn": "the card is 4111-1111-1111-1111",
+				"key2":          "nothing here to hide",
+			},
+			expected: map[string]any{
+				"totally-a-ccn": "the card is REDACTED",
+				"key2":          "nothing here to hide",
+			},
+		},
+		{
+			name: "sanitize only top level strings",
+			input: map[string]any{
+				"totally-a-ccn": "the card is 4111-1111-1111-1111",
+				"nested": map[string]any{
+					"ssn": "123-45-6789",
+				},
+			},
+			expected: map[string]any{
+				"totally-a-ccn": "the card is REDACTED",
+				"nested": map[string]any{
+					"ssn": "123-45-6789",
+				},
+			},
+		},
+		{
+			name: "ignore non-string values",
+			input: map[string]any{
+				"totally-a-ccn": 4111111111111111,
+				"key2":          "nothing here to hide",
+			},
+			expected: map[string]any{
+				"totally-a-ccn": int64(4111111111111111),
+				"key2":          "nothing here to hide",
+			},
+		},
+	}
+
+	detector := pii.NewDetector()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logRecord := plog.NewLogRecord()
+			err := logRecord.Body().SetEmptyMap().FromRaw(tt.input)
+			assert.NoError(t, err)
+
+			logger := zap.NewNop()
+			processor := &piiRedactionProcessor{
+				detector: detector,
+				logger:   logger,
+			}
+
+			processor.sanitizeBodyMap(logRecord)
+
+			result := logRecord.Body().AsRaw()
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }

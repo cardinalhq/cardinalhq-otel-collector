@@ -38,27 +38,42 @@ func (p *piiRedactionProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (pl
 			sl := rl.ScopeLogs().At(j)
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				lr := sl.LogRecords().At(k)
-				tokens, err := p.detector.Tokenize(lr.Body().AsString())
-				if err != nil {
-					p.logger.Debug("Error tokenizing log", zap.Error(err))
-					continue
-				}
 				if lr.Body().Type() == pcommon.ValueTypeStr {
-					newBody := p.detector.Sanitize(lr.Body().AsString(), tokens)
-					lr.Body().SetStr(newBody)
+					p.sanitizeBodyString(lr)
 				} else if lr.Body().Type() == pcommon.ValueTypeMap {
-					bodyMap := lr.Body().Map()
-					bodyMap.Range(func(k string, v pcommon.Value) bool {
-						if v.Type() == pcommon.ValueTypeStr {
-							newValue := p.detector.Sanitize(v.AsString(), tokens)
-							bodyMap.PutStr(k, newValue)
-						}
-						return true
-					})
+					p.sanitizeBodyMap(lr)
 				}
 			}
 		}
 	}
 
 	return ld, nil
+}
+
+func (p *piiRedactionProcessor) sanitizeBodyString(lr plog.LogRecord) {
+	tokens, err := p.detector.Tokenize(lr.Body().AsString())
+	if err != nil {
+		p.logger.Debug("Error tokenizing log", zap.Error(err))
+		return
+	}
+	newBody := p.detector.Sanitize(lr.Body().AsString(), tokens)
+	lr.Body().SetStr(newBody)
+	return
+}
+
+func (p *piiRedactionProcessor) sanitizeBodyMap(lr plog.LogRecord) {
+	bodyMap := lr.Body().Map()
+	bodyMap.Range(func(k string, v pcommon.Value) bool {
+		if v.Type() == pcommon.ValueTypeStr {
+			tokens, err := p.detector.Tokenize(v.AsString())
+			if err != nil {
+				p.logger.Debug("Error tokenizing log", zap.Error(err))
+				return true
+			}
+			newValue := p.detector.Sanitize(v.AsString(), tokens)
+			bodyMap.PutStr(k, newValue)
+		}
+		return true
+	})
+	return
 }

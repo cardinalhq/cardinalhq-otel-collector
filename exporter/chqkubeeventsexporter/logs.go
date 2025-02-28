@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.uber.org/zap"
 	"io"
@@ -69,12 +70,11 @@ func (e *kubeEventsExporter) ConsumeLogs(ctx context.Context, pl plog.Logs) erro
 			logs := scopeLog.LogRecords()
 			for k := 0; k < logs.Len(); k++ {
 				lr := logs.At(k)
-				bodyMap := lr.Body().Map()
-				if bodyMap.Len() == 0 {
+				if lr.Body().Type() != pcommon.ValueTypeMap {
 					continue
 				}
 
-				rawValue := bodyMap.AsRaw()
+				rawValue := lr.Body().Map().AsRaw()
 				if rawValue == nil {
 					continue
 				}

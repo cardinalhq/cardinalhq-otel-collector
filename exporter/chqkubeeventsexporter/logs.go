@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.uber.org/zap"
 	"io"
@@ -46,7 +45,6 @@ type KubernetesEvent struct {
 
 const (
 	Kind           = "kind"
-	Event          = "event"
 	Name           = "name"
 	Namespace      = "namespace"
 	FirstTimestamp = "firstTimestamp"
@@ -55,7 +53,6 @@ const (
 	Type           = "type"
 	Normal         = "Normal"
 	Warning        = "Warning"
-	Image          = "image"
 )
 
 func (e *kubeEventsExporter) ConsumeLogs(ctx context.Context, pl plog.Logs) error {
@@ -70,18 +67,10 @@ func (e *kubeEventsExporter) ConsumeLogs(ctx context.Context, pl plog.Logs) erro
 			logs := scopeLog.LogRecords()
 			for k := 0; k < logs.Len(); k++ {
 				lr := logs.At(k)
-				if lr.Body().Type() != pcommon.ValueTypeMap {
-					continue
-				}
-
-				rawValue := lr.Body().Map().AsRaw()
-				if rawValue == nil {
-					continue
-				}
-
-				if rawValue != nil {
-					e.logger.Info("Received kube event", zap.Any("body", rawValue))
-					if object, objectPresent := rawValue["object"]; objectPresent {
+				rawValue := lr.Body().AsRaw()
+				if _, ok := rawValue.(map[string]interface{}); ok {
+					bodyMap := lr.Body().Map().AsRaw()
+					if object, objectPresent := bodyMap["object"]; objectPresent {
 						if objectMap, objectIsAMap := object.(map[string]interface{}); objectIsAMap {
 							topLevelKind, topLevelKindPresent := objectMap["kind"]
 							if topLevelKindPresent && topLevelKind == "Event" {
@@ -118,7 +107,7 @@ func (e *kubeEventsExporter) ConsumeLogs(ctx context.Context, pl plog.Logs) erro
 														if kubeEvent.InvolvedObject.Metadata == nil {
 															kubeEvent.InvolvedObject.Metadata = make(map[string]string)
 														}
-														kubeEvent.InvolvedObject.Metadata[Image] = image
+														kubeEvent.InvolvedObject.Metadata["image"] = image
 														events = append(events, kubeEvent)
 													}
 

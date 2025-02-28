@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
 	"go.uber.org/zap"
@@ -61,6 +62,10 @@ func (p *statsProcessor) sendLogStatsFor(cid string, statsList []*chqpb.EventSta
 
 	if err := p.postLogStats(context.Background(), wrapper); err != nil {
 		p.logger.Error("Failed to send log stats", zap.Error(err))
+	}
+
+	if p.idSource == authenv.EnvironmentSourceAuth {
+		p.logger.Info("Sent log stats", zap.Int("count", len(statsList)), zap.String("customer_id", cid))
 	}
 }
 

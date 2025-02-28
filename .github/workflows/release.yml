@@ -66,13 +66,13 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
         with:
           registry-type: public
-    
+
       - name: Run GoReleaser
         id: goreleaser
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
-          version: "latest"
+          version: "nightly"
           args: release --clean -f .goreleaser-release.yaml
         env:
           GITHUB_TOKEN: dummy

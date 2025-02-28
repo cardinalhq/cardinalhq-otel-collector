@@ -43,7 +43,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
-          version: "latest"
+          version: "nightly"
           args: release --clean --snapshot -f .goreleaser-buildonly.yaml
         env:
           GITHUB_TOKEN: dummy

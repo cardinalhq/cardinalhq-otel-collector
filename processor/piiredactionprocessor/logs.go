@@ -46,6 +46,15 @@ func (p *piiRedactionProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (pl
 				if lr.Body().Type() == pcommon.ValueTypeStr {
 					newBody := p.detector.Sanitize(lr.Body().AsString(), tokens)
 					lr.Body().SetStr(newBody)
+				} else if lr.Body().Type() == pcommon.ValueTypeMap {
+					bodyMap := lr.Body().Map()
+					bodyMap.Range(func(k string, v pcommon.Value) bool {
+						if v.Type() == pcommon.ValueTypeStr {
+							newValue := p.detector.Sanitize(v.AsString(), tokens)
+							bodyMap.PutStr(k, newValue)
+						}
+						return true
+					})
 				}
 			}
 		}

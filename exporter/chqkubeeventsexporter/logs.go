@@ -69,7 +69,16 @@ func (e *kubeEventsExporter) ConsumeLogs(ctx context.Context, pl plog.Logs) erro
 			logs := scopeLog.LogRecords()
 			for k := 0; k < logs.Len(); k++ {
 				lr := logs.At(k)
-				rawValue := lr.Body().Map().AsRaw()
+				bodyMap := lr.Body().Map()
+				if bodyMap.Len() == 0 {
+					continue
+				}
+
+				rawValue := bodyMap.AsRaw()
+				if rawValue == nil {
+					continue
+				}
+
 				if rawValue != nil {
 					e.logger.Info("Received kube event", zap.Any("body", rawValue))
 					if object, objectPresent := rawValue["object"]; objectPresent {

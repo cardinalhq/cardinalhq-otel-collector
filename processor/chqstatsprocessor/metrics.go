@@ -34,12 +34,6 @@ import (
 func (p *statsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
 	ee := authenv.GetEnvironment(ctx, p.idSource)
 
-	// Special case to disable stats gathering if we are running as a SaaS receiver.
-	auth := authenv.EnvironmentFromAuth(ctx)
-	if auth.CollectorID() != "" {
-		return md, nil
-	}
-
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
 		rm := md.ResourceMetrics().At(i)
 		serviceName := getServiceName(rm.Resource().Attributes())

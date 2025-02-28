@@ -49,12 +49,6 @@ func getFingerprint(l pcommon.Map) int64 {
 func (p *statsProcessor) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Logs, error) {
 	ee := authenv.GetEnvironment(ctx, p.idSource)
 
-	// Special case to disable stats gathering if we are running as a SaaS receiver.
-	auth := authenv.EnvironmentFromAuth(ctx)
-	if auth.CollectorID() != "" {
-		return ld, nil
-	}
-
 	now := time.Now()
 
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {

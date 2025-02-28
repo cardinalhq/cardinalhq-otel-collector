@@ -33,12 +33,6 @@ import (
 func (p *statsProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
 	ee := authenv.GetEnvironment(ctx, p.idSource)
 
-	// Special case to disable stats gathering if we are running as a SaaS receiver.
-	auth := authenv.EnvironmentFromAuth(ctx)
-	if auth.CollectorID() != "" {
-		return td, nil
-	}
-
 	now := time.Now()
 	for i := 0; i < td.ResourceSpans().Len(); i++ {
 		rs := td.ResourceSpans().At(i)

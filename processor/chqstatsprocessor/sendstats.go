@@ -135,6 +135,10 @@ func (p *statsProcessor) sendSpanStatsFor(cid string, statsList []*chqpb.EventSt
 	if err := p.postSpanStats(context.Background(), wrapper); err != nil {
 		p.logger.Error("Failed to send span stats", zap.Error(err))
 	}
+
+	if p.idSource == authenv.EnvironmentSourceAuth {
+		p.logger.Info("Sent span stats", zap.Int("count", len(statsList)), zap.String("customer_id", cid))
+	}
 }
 
 func (p *statsProcessor) postSpanStats(ctx context.Context, wrapper *chqpb.EventStatsReport) error {
@@ -223,6 +227,10 @@ func (p *statsProcessor) sendMetricStats(wrappers []*chqpb.MetricStatsWrapper) {
 		if err != nil {
 			p.logger.Error("Failed to send metric stats", zap.Error(err))
 		}
+	}
+
+	if p.idSource == authenv.EnvironmentSourceAuth {
+		p.logger.Info("Sent metric stats", zap.Int("count", len(statsList)), zap.Int("exemplar_count", len(exemplarMap)))
 	}
 }
 

@@ -43,8 +43,10 @@ func (p *piiRedactionProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (pl
 					p.logger.Debug("Error tokenizing log", zap.Error(err))
 					continue
 				}
-				newBody := p.detector.Sanitize(lr.Body().AsString(), tokens)
-				lr.Body().SetStr(newBody)
+				if lr.Body().Type() == pcommon.ValueTypeStr {
+					newBody := p.detector.Sanitize(lr.Body().AsString(), tokens)
+					lr.Body().SetStr(newBody)
+				}
 			}
 		}
 	}

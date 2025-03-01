@@ -160,6 +160,8 @@ func (e *entityGraphExporter) postEntityRelationships(ctx context.Context, ttype
 	endpoint := URLFor(e.config.Endpoint, ttype, cid)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/x-protobuf")
+
 	if err != nil {
 		return err
 	}

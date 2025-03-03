@@ -89,9 +89,6 @@ type statsProcessor struct {
 	statsBatchSize telemetry.DeferrableHistogram[int64]
 	recordLatency  telemetry.DeferrableHistogram[int64]
 	cacheFull      telemetry.DeferrableCounter[int64]
-
-	enableMetricMetrics bool
-	enableLogMetrics    bool
 }
 
 type Tenant struct {
@@ -151,13 +148,6 @@ func newStatsProcessor(config *Config, ttype string, set processor.Settings) (*s
 		return nil, err
 	}
 	p.idSource = idsource
-
-	//if os.Getenv("ENABLE_METRIC_METRICS") == "true" {
-	p.enableMetricMetrics = true
-	//}
-	//if os.Getenv("ENABLE_LOG_METRICS") == "true" {
-	p.enableLogMetrics = true
-	//}
 
 	if config.Statistics.Phase == "presample" {
 		p.pbPhase = chqpb.Phase_PRE

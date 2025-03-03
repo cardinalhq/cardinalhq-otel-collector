@@ -47,8 +47,11 @@ func getFingerprint(l pcommon.Map) int64 {
 }
 
 func (p *statsProcessor) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Logs, error) {
-	ee := authenv.GetEnvironment(ctx, p.idSource)
+	if !p.config.Statistics.Logs.StatisticsEnabled && !p.config.Statistics.Logs.ExemplarsEnabled {
+		return ld, nil
+	}
 
+	ee := authenv.GetEnvironment(ctx, p.idSource)
 	now := time.Now()
 
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
@@ -76,7 +79,7 @@ func (p *statsProcessor) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Lo
 func (p *statsProcessor) recordLog(tenant *Tenant, now time.Time, environment authenv.Environment, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) error {
 	orgID := OrgIdFromResource(rl.Resource().Attributes())
 
-	if p.enableLogMetrics {
+	if p.config.Statistics.Logs.StatisticsEnabled {
 		message := lr.Body().AsString()
 		logSize := int64(len(message))
 
@@ -97,15 +100,15 @@ func (p *statsProcessor) recordLog(tenant *Tenant, now time.Time, environment au
 			})
 		}
 
-		if p.enableLogMetrics {
-			err := tenant.logstats.Record(serviceName, fingerprint, p.pbPhase, p.id.Name(), environment.CollectorID(), environment.CustomerID(), enrichmentAttributes, 1, logSize)
-			if err != nil && errors.Is(err, chqpb.ErrCacheFull) {
-				telemetry.CounterAdd(p.cacheFull, 1)
-			}
+		err := tenant.logstats.Record(serviceName, fingerprint, p.pbPhase, p.id.Name(), environment.CollectorID(), environment.CustomerID(), enrichmentAttributes, 1, logSize)
+		if err != nil && errors.Is(err, chqpb.ErrCacheFull) {
+			telemetry.CounterAdd(p.cacheFull, 1)
 		}
 	}
 
-	p.addLogExemplar(tenant, rl, sl, lr, serviceName, fingerprint)
+	if p.config.Statistics.Logs.ExemplarsEnabled {
+		p.addLogExemplar(tenant, rl, sl, lr, serviceName, fingerprint)
+	}
 	telemetry.HistogramRecord(p.recordLatency, int64(time.Since(now)))
 
 	return nil

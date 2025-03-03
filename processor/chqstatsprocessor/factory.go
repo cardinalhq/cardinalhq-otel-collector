@@ -46,6 +46,18 @@ func createDefaultConfig() component.Config {
 		Statistics: StatisticsConfig{
 			Phase:    "postsample",
 			Interval: defaultStatisticsInterval,
+			Metrics: StatisticsTypeConfig{
+				StatisticsEnabled: false,
+				ExemplarsEnabled:  true,
+			},
+			Logs: StatisticsTypeConfig{
+				StatisticsEnabled: false,
+				ExemplarsEnabled:  true,
+			},
+			Traces: StatisticsTypeConfig{
+				StatisticsEnabled: false,
+				ExemplarsEnabled:  true,
+			},
 		},
 	}
 }

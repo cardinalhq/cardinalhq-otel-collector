@@ -67,6 +67,18 @@ func TestConfig(t *testing.T) {
 		Statistics: StatisticsConfig{
 			Interval: 100 * time.Second,
 			Phase:    "presample",
+			Metrics: StatisticsTypeConfig{
+				ExemplarsEnabled:  true,
+				StatisticsEnabled: false,
+			},
+			Logs: StatisticsTypeConfig{
+				ExemplarsEnabled:  true,
+				StatisticsEnabled: false,
+			},
+			Traces: StatisticsTypeConfig{
+				ExemplarsEnabled:  true,
+				StatisticsEnabled: false,
+			},
 		},
 	}
 	assert.Equal(t, expected, e)

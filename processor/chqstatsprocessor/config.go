@@ -33,8 +33,16 @@ type Config struct {
 }
 
 type StatisticsConfig struct {
-	Interval time.Duration `mapstructure:"interval"`
-	Phase    string        `mapstructure:"phase"`
+	Interval time.Duration        `mapstructure:"interval"`
+	Phase    string               `mapstructure:"phase"`
+	Metrics  StatisticsTypeConfig `mapstructure:"metrics"`
+	Logs     StatisticsTypeConfig `mapstructure:"logs"`
+	Traces   StatisticsTypeConfig `mapstructure:"traces"`
+}
+
+type StatisticsTypeConfig struct {
+	StatisticsEnabled bool `mapstructure:"statistics_enabled"`
+	ExemplarsEnabled  bool `mapstructure:"exemplars_enabled"`
 }
 
 type ContextID = string

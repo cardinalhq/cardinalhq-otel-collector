@@ -31,6 +31,10 @@ import (
 )
 
 func (p *statsProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
+	if !p.config.Statistics.Traces.StatisticsEnabled && !p.config.Statistics.Traces.ExemplarsEnabled {
+		return td, nil
+	}
+
 	ee := authenv.GetEnvironment(ctx, p.idSource)
 
 	now := time.Now()
@@ -78,34 +82,37 @@ func (p *statsProcessor) recordSpan(
 	orgID := OrgIdFromResource(rs.Resource().Attributes())
 	tenant := p.getTenant(orgID) // TODO move this to the top of the resource loop
 
-	// spanSize = (size of attributes + top level fields)
-	var spanSize = toSize(span.Attributes().AsRaw())
-	spanSize += int64(len(span.TraceID().String()))
-	spanSize += int64(len(span.Name()))
-	spanSize += int64(len(span.Kind().String()))
-	spanSize += int64(len(span.SpanID().String()))
+	if p.config.Statistics.Traces.StatisticsEnabled {
+		// spanSize = (size of attributes + top level fields)
+		var spanSize = toSize(span.Attributes().AsRaw())
+		spanSize += int64(len(span.TraceID().String()))
+		spanSize += int64(len(span.Name()))
+		spanSize += int64(len(span.Kind().String()))
+		spanSize += int64(len(span.SpanID().String()))
 
-	enrichmentAttributes := p.processEnrichments(orgID,
-		map[string]pcommon.Map{
-			"resource": rs.Resource().Attributes(),
-			"scope":    iss.Scope().Attributes(),
-			"span":     span.Attributes(),
-		})
+		enrichmentAttributes := p.processEnrichments(orgID,
+			map[string]pcommon.Map{
+				"resource": rs.Resource().Attributes(),
+				"scope":    iss.Scope().Attributes(),
+				"span":     span.Attributes(),
+			})
 
-	spanKindAttribute := toAttribute("span", "kind", pcommon.NewValueStr(span.Kind().String()), false)
-	statusCodeAttribute := toAttribute("span", "status_code", pcommon.NewValueStr(span.Status().Code().String()), false)
-	isSlowAttribute := toAttribute("span", "isSlow", pcommon.NewValueBool(isSlow), true)
+		spanKindAttribute := toAttribute("span", "kind", pcommon.NewValueStr(span.Kind().String()), false)
+		statusCodeAttribute := toAttribute("span", "status_code", pcommon.NewValueStr(span.Status().Code().String()), false)
+		isSlowAttribute := toAttribute("span", "isSlow", pcommon.NewValueBool(isSlow), true)
 
-	enrichmentAttributes = append(enrichmentAttributes, statusCodeAttribute)
-	enrichmentAttributes = append(enrichmentAttributes, isSlowAttribute)
-	enrichmentAttributes = append(enrichmentAttributes, spanKindAttribute)
+		enrichmentAttributes = append(enrichmentAttributes, statusCodeAttribute)
+		enrichmentAttributes = append(enrichmentAttributes, isSlowAttribute)
+		enrichmentAttributes = append(enrichmentAttributes, spanKindAttribute)
 
-	err := tenant.spanStats.Record(serviceName, fingerprint, p.pbPhase, p.id.Name(), environment.CollectorID(), environment.CustomerID(), enrichmentAttributes, 1, spanSize)
-	if err != nil && errors.Is(err, chqpb.ErrCacheFull) {
-		telemetry.CounterAdd(p.cacheFull, 1)
+		err := tenant.spanStats.Record(serviceName, fingerprint, p.pbPhase, p.id.Name(), environment.CollectorID(), environment.CustomerID(), enrichmentAttributes, 1, spanSize)
+		if err != nil && errors.Is(err, chqpb.ErrCacheFull) {
+			telemetry.CounterAdd(p.cacheFull, 1)
+		}
 	}
-	p.addSpanExemplar(tenant, rs, iss, span, serviceName, fingerprint)
-
+	if p.config.Statistics.Traces.ExemplarsEnabled {
+		p.addSpanExemplar(tenant, rs, iss, span, serviceName, fingerprint)
+	}
 	telemetry.HistogramRecord(p.recordLatency, int64(time.Since(now)))
 
 	return nil

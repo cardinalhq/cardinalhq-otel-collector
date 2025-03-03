@@ -57,8 +57,6 @@ exporters:
     path: ./exporter/chqdatadogexporter
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.119.0
     path: ./exporter/chqservicegraphexporter
-  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqkubeeventsexporter v0.119.0
-    path: ./exporter/chqkubeeventsexporter
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.119.0
     path: ./exporter/chqentitygraphexporter
 

@@ -58,7 +58,6 @@ func (p *piiRedactionProcessor) sanitizeBodyString(lr plog.LogRecord) {
 	}
 	newBody := p.detector.Sanitize(lr.Body().AsString(), tokens)
 	lr.Body().SetStr(newBody)
-	return
 }
 
 func (p *piiRedactionProcessor) sanitizeBodyMap(lr plog.LogRecord) {
@@ -75,5 +74,4 @@ func (p *piiRedactionProcessor) sanitizeBodyMap(lr plog.LogRecord) {
 		}
 		return true
 	})
-	return
 }

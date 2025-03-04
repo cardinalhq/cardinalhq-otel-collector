@@ -22,6 +22,7 @@ import (
 	"github.com/cespare/xxhash/v2"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 
+	"github.com/cardinalhq/oteltools/pkg/ottl/functions"
 	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
@@ -51,7 +52,8 @@ func (p *fingerprintProcessor) ConsumeTraces(ctx context.Context, td ptrace.Trac
 
 func calculateSpanFingerprint(sr ptrace.Span) int64 {
 	var fingerprintAttributes []string
-	fingerprintAttributes = append(fingerprintAttributes, sr.Name())
+	sanitizedName := functions.ScrubWord(sr.Name())
+	fingerprintAttributes = append(fingerprintAttributes, sanitizedName)
 	fingerprintAttributes = append(fingerprintAttributes, sr.Kind().String())
 	return int64(xxhash.Sum64String(strings.Join(fingerprintAttributes, "##")))
 }

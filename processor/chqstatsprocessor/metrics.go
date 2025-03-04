@@ -32,6 +32,10 @@ import (
 )
 
 func (p *statsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
+	if !p.config.Statistics.Metrics.StatisticsEnabled && !p.config.Statistics.Metrics.ExemplarsEnabled {
+		return md, nil
+	}
+
 	ee := authenv.GetEnvironment(ctx, p.idSource)
 
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
@@ -48,10 +52,16 @@ func (p *statsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics)
 			for k := 0; k < ilm.Metrics().Len(); k++ {
 				m := ilm.Metrics().At(k)
 				metricName := m.Name()
+
+				if p.config.Statistics.Metrics.ExemplarsEnabled {
+					p.addMetricsExemplar(tenant, rm, ilm, m, serviceName, metricName, m.Type())
+				}
+
+				if !p.config.Statistics.Metrics.StatisticsEnabled {
+					continue
+				}
+
 				extra := map[string]string{"name": m.Name()}
-
-				p.addMetricsExemplar(tenant, rm, ilm, m, serviceName, metricName, m.Type())
-
 				switch m.Type() {
 				case pmetric.MetricTypeGauge:
 					for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
@@ -137,9 +147,6 @@ func (p *statsProcessor) recordDatapoint(tenant *Tenant, customerId, collectorId
 }
 
 func (p *statsProcessor) recordMetric(tenant *Tenant, customerId, collectorId, metricName, metricType, serviceName, tagName, tagValue, tagScope string, attributes []*chqpb.Attribute) error {
-	if !p.enableMetricMetrics {
-		return nil
-	}
 	err := tenant.metricstats.Record(p.pbPhase, metricName, metricType, tagScope, tagName, serviceName, p.id.Name(), collectorId, customerId, tagValue, attributes)
 	if err != nil && errors.Is(err, chqpb.ErrCacheFull) {
 		telemetry.CounterAdd(p.cacheFull, 1)

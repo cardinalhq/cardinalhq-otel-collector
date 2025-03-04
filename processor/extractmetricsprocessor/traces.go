@@ -83,9 +83,6 @@ func (p *extractor) extractMetricsFromTraces(ctx context.Context, pl ptrace.Trac
 						if spanExtractor.MetricValue != nil {
 							computedVal, _, err := spanExtractor.MetricValue.Execute(ctx, logCtx)
 							if err != nil {
-								return nil
-							}
-							if err != nil {
 								p.logger.Error("Failed when extracting value.", zap.Error(err))
 								attrset := attribute.NewSet(attribute.String("ruleId", spanExtractor.RuleID),
 									attribute.String("metricName", spanExtractor.MetricName),
@@ -115,7 +112,7 @@ func (p *extractor) extractMetricsFromTraces(ctx context.Context, pl ptrace.Trac
 						floatVal, err := convertAnyToFloat(val)
 						if err != nil {
 							p.logger.Error("Failed when parsing float.", zap.Error(err))
-							return nil
+							continue
 						}
 						if _, ok := sums[spanExtractor]; !ok {
 							sums[spanExtractor] = make(map[uint64]float64)

@@ -29,7 +29,7 @@ import (
 )
 
 func (e *entityGraphExporter) ConsumeLogs(ctx context.Context, ld plog.Logs) error {
-	backingOffPods := make([]*graph.K8SPodObject, 0)
+	failingPods := make([]*graph.K8SPodObject, 0)
 
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
@@ -42,36 +42,32 @@ func (e *entityGraphExporter) ConsumeLogs(ctx context.Context, ld plog.Logs) err
 			sl := rl.ScopeLogs().At(j)
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				lr := sl.LogRecords().At(k)
-				isK8sObject := false
 				podObject := graph.ExtractPodObject(lr)
 				if podObject != nil {
 					cache.ProvisionPod(podObject)
-					if podObject.IsImagePullBackOff || podObject.IsCrashLoopBackOff {
-						backingOffPods = append(backingOffPods, podObject)
+					if podObject.IsImagePullBackOff || podObject.IsCrashLoopBackOff || podObject.IsOOMKilled {
+						failingPods = append(failingPods, podObject)
 					}
-					isK8sObject = true
 				}
-				deployment := graph.ExtractDeploymentObject(lr)
-				if deployment != nil {
-					cache.ProvisionDeployment(deployment)
-					isK8sObject = true
-				}
-				statefulSet := graph.ExtractStatefulSetObject(lr)
-				if statefulSet != nil {
-					cache.ProvisionStatefulSet(statefulSet)
-					isK8sObject = true
-				}
-				if !isK8sObject {
-					cache.ProvisionRecordAttributes(globalEntityMap, lr.Attributes())
-				}
+				//deployment := graph.ExtractDeploymentObject(lr)
+				//if deployment != nil {
+				//	cache.ProvisionDeployment(deployment)
+				//	isK8sObject = true
+				//}
+				//statefulSet := graph.ExtractStatefulSetObject(lr)
+				//if statefulSet != nil {
+				//	cache.ProvisionStatefulSet(statefulSet)
+				//	isK8sObject = true
+				//}
+				cache.ProvisionRecordAttributes(globalEntityMap, lr.Attributes())
 			}
 		}
 	}
 
 	// Tell external-api about backing off pods, so it can process them as events.
-	if len(backingOffPods) > 0 {
+	if len(failingPods) > 0 {
 		go func() {
-			err := e.postBackOffEvent(ctx, backingOffPods)
+			err := e.postBackOffEvent(ctx, failingPods)
 			if err != nil {
 				e.logger.Error("Failed to send backoff event", zap.Error(err))
 			}

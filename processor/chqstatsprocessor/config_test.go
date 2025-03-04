@@ -69,15 +69,15 @@ func TestConfig(t *testing.T) {
 			Phase:    "presample",
 			Metrics: StatisticsTypeConfig{
 				ExemplarsEnabled:  true,
-				StatisticsEnabled: false,
+				StatisticsEnabled: true,
 			},
 			Logs: StatisticsTypeConfig{
 				ExemplarsEnabled:  true,
-				StatisticsEnabled: false,
+				StatisticsEnabled: true,
 			},
 			Traces: StatisticsTypeConfig{
 				ExemplarsEnabled:  true,
-				StatisticsEnabled: false,
+				StatisticsEnabled: true,
 			},
 		},
 	}

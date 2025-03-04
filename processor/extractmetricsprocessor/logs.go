@@ -106,7 +106,9 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) []pmetric.Metrics
 						attrs := lex.ExtractAttributes(ctx, logCtx)
 						attributesMap := map[string]string{}
 						for k, v := range attrs {
-							attributesMap[k] = v.(string)
+							if strVal, ok := v.(string); ok {
+								attributesMap[k] = strVal
+							}
 						}
 						fingerprint := ottl.FingerprintTags(attributesMap)
 

@@ -114,6 +114,12 @@ test:
 		(echo ============ testing $$i ... && cd $$i && go test ./...) || exit 1; \
 	done
 
+.PHONY: bench bechmark
+bench benchmark:
+	for i in $(MODULE_SOURCE_PATHS); do \
+		(echo ============ benchmarking $$i ... && cd $$i && go test -bench=.) || exit 1; \
+	done
+
 #
 # Clean the world.
 #

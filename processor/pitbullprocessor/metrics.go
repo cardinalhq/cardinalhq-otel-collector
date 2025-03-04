@@ -16,6 +16,7 @@ package pitbullprocessor
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
@@ -29,8 +30,8 @@ import (
 )
 
 func (p *pitbull) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
-	if md.ResourceMetrics().Len() == 0 {
-		return md, nil
+	if md.DataPointCount() == 0 {
+		return md, processorhelper.ErrSkipProcessingData
 	}
 
 	md.ResourceMetrics().RemoveIf(func(rm pmetric.ResourceMetrics) bool {
@@ -43,8 +44,8 @@ func (p *pitbull) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pmetric
 		}
 		attrSet := p.attributesFor(cid)
 
-		transformCtx := ottlresource.NewTransformContext(rm.Resource(), rm)
 		if transformations != nil {
+			transformCtx := ottlresource.NewTransformContext(rm.Resource(), rm)
 			transformations.ExecuteResourceTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
 			if _, found := rattr.Get(translate.CardinalFieldDropMarker); found {
 				return true
@@ -52,9 +53,9 @@ func (p *pitbull) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pmetric
 		}
 
 		rm.ScopeMetrics().RemoveIf(func(ilm pmetric.ScopeMetrics) bool {
-			sattr := ilm.Scope().Attributes()
-			transformCtx := ottlscope.NewTransformContext(ilm.Scope(), rm.Resource(), rm)
 			if transformations != nil {
+				sattr := ilm.Scope().Attributes()
+				transformCtx := ottlscope.NewTransformContext(ilm.Scope(), rm.Resource(), rm)
 				transformations.ExecuteScopeTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
 				if _, found := sattr.Get(translate.CardinalFieldDropMarker); found {
 					return true
@@ -137,9 +138,11 @@ func (p *pitbull) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pmetric
 		return rm.ScopeMetrics().Len() == 0
 	})
 
-	if md.ResourceMetrics().Len() == 0 {
+	if md.DataPointCount() == 0 {
 		return md, processorhelper.ErrSkipProcessingData
 	}
+
+	slog.Info("Metrics transformed", slog.Int("resourceMetrics", md.ResourceMetrics().Len()))
 	return md, nil
 }
 

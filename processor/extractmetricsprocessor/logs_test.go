@@ -35,6 +35,72 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/ottl"
 )
 
+func TestExtractMetricsFromLogs_CounterMetric(t *testing.T) {
+	logger := zap.NewNop()
+
+	// Extractor config with no MetricValue expression, expecting a computed value of 2
+	extractorConfigs := []ottl.MetricExtractorConfig{
+		{
+			MetricName: "test_counter_metric",
+			MetricUnit: "count",
+			MetricType: counterDoubleType,
+			Conditions: []string{`attributes["log_type"] == "http"`},
+			Dimensions: map[string]string{
+				"statusCode": `attributes["status_code"]`,
+			},
+		},
+	}
+
+	// Parse extractor configs
+	configs, err := ottl.ParseLogExtractorConfigs(extractorConfigs, logger)
+	assert.NoError(t, err)
+	assert.Len(t, configs, 1)
+	logExtractor := configs[0]
+	assert.NotNil(t, logExtractor)
+	assert.Len(t, logExtractor.Dimensions, 1)
+	assert.NotNil(t, logExtractor.Conditions)
+
+	// Create the logs dataset
+	logs := plog.NewLogs()
+	rLogs := logs.ResourceLogs().AppendEmpty()
+	scopeLogs := rLogs.ScopeLogs().AppendEmpty()
+
+	// Log Record 1
+	logRecord1 := scopeLogs.LogRecords().AppendEmpty()
+	logRecord1.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
+	logRecord1.Body().SetEmptyMap()
+	logRecord1.Body().Map().PutDouble("sent_bytes", 100)
+	logRecord1.Attributes().PutStr("log_type", "http")
+	logRecord1.Attributes().PutStr("status_code", "OK")
+
+	// Log Record 2
+	logRecord2 := scopeLogs.LogRecords().AppendEmpty()
+	logRecord2.SetTimestamp(pcommon.NewTimestampFromTime(time.Now().Add(time.Minute)))
+	logRecord2.Body().SetEmptyMap()
+	logRecord2.Body().Map().PutDouble("sent_bytes", 100)
+	logRecord2.Attributes().PutStr("log_type", "http")
+	logRecord2.Attributes().PutStr("status_code", "OK")
+
+	// Extract metrics
+	e := newLogsTestExtractor(configs)
+	metrics := e.extract(context.Background(), logs)
+	assert.Len(t, metrics, 1)
+	metric := metrics[0]
+	assert.NotNil(t, metric)
+	assert.Equal(t, "test_counter_metric", metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Name())
+	assert.Equal(t, "count", metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Unit())
+
+	// Ensure the metric is a counter and that the value is correct
+	assert.Equal(t, 1, metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Sum().DataPoints().Len())
+	datapoint0 := metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Sum().DataPoints().At(0)
+	assert.Equal(t, 2.0, datapoint0.DoubleValue()) // Expected sum = 2
+
+	// Check status code tag
+	statusCode0, statusCode0Found := datapoint0.Attributes().Get("statusCode")
+	assert.True(t, statusCode0Found)
+	assert.Equal(t, "OK", statusCode0.Str())
+}
+
 func TestExtractMetricsFromLogs_MultipleLogsMatchingCondition(t *testing.T) {
 	logger := zap.NewNop()
 
@@ -81,20 +147,20 @@ func TestExtractMetricsFromLogs_MultipleLogsMatchingCondition(t *testing.T) {
 
 	// Extract metrics
 	e := newLogsTestExtractor(configs)
-	metrics := e.extractMetricsFromLogs(context.Background(), logs)
+	metrics := e.extract(context.Background(), logs)
 	assert.Len(t, metrics, 1)
 	metric := metrics[0]
 	assert.NotNil(t, metric)
 	assert.Equal(t, "test_metric", metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Name())
 	assert.Equal(t, "ms", metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Unit())
-	assert.Equal(t, 2, metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Gauge().DataPoints().Len())
+	assert.Equal(t, 1, metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Gauge().DataPoints().Len())
 	datapoint0 := metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Gauge().DataPoints().At(0)
 	assert.Equal(t, 100.0, datapoint0.DoubleValue())
 	statusCode0, statusCode0Found := datapoint0.Attributes().Get("statusCode")
 	assert.True(t, statusCode0Found)
 	assert.Equal(t, "OK", statusCode0.Str())
 
-	datapoint1 := metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Gauge().DataPoints().At(1)
+	datapoint1 := metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Gauge().DataPoints().At(0)
 	statusCode1, statusCode1Found := datapoint1.Attributes().Get("statusCode")
 	assert.True(t, statusCode1Found)
 	assert.Equal(t, "OK", statusCode1.Str())

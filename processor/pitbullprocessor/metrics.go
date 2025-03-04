@@ -16,8 +16,6 @@ package pitbullprocessor
 
 import (
 	"context"
-	"log/slog"
-
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
@@ -141,8 +139,6 @@ func (p *pitbull) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pmetric
 	if md.DataPointCount() == 0 {
 		return md, processorhelper.ErrSkipProcessingData
 	}
-
-	slog.Info("Metrics transformed", slog.Int("resourceMetrics", md.ResourceMetrics().Len()))
 	return md, nil
 }
 

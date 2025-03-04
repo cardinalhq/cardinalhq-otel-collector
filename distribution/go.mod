@@ -4,13 +4,13 @@ module go.opentelemetry.io/collector/cmd/builder
 
 go 1.23.0
 
-toolchain go1.24.0
+toolchain go1.23.5
 
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector v0.119.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.119.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.119.0
-	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqkubeeventsexporter v0.119.0
+	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqkubeeventsexporter v0.0.0-20250301195245-b051619b3dfe
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v0.119.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.119.0
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.119.0
@@ -214,7 +214,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.8.1 // indirect
 	github.com/briandowns/spinner v1.23.0 // indirect
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 // indirect
-	github.com/cardinalhq/oteltools v0.14.6 // indirect
+	github.com/cardinalhq/oteltools v0.14.7 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -566,8 +566,6 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v
 replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.119.0 => ../exporter/chqdatadogexporter
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.119.0 => ../exporter/chqservicegraphexporter
-
-replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqkubeeventsexporter v0.119.0 => ../exporter/chqkubeeventsexporter
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.119.0 => ../exporter/chqentitygraphexporter
 

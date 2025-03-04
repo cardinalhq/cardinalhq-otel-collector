@@ -144,28 +144,6 @@ func (p *extractor) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: false}
 }
 
-func convertAnyToInt(value any) (int64, error) {
-	switch value := value.(type) {
-	case int:
-		return int64(value), nil
-	case int32:
-		return int64(value), nil
-	case int64:
-		return value, nil
-	case float32:
-		return int64(value), nil
-	case float64:
-		return int64(value), nil
-	case string:
-		if i, err := strconv.ParseInt(value, 10, 64); err == nil {
-			return i, nil
-		}
-		return 0, fmt.Errorf("failed to convert string to int: %s", value)
-	default:
-		return 0, fmt.Errorf("invalid value type: %T", value)
-	}
-}
-
 func convertAnyToFloat(value any) (float64, error) {
 	switch value := value.(type) {
 	case int:

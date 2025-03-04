@@ -80,20 +80,20 @@ func TestExtractMetricsFromSpans_MultipleSpansMatchingCondition(t *testing.T) {
 
 	// Extract metrics
 	e := newSpansTestExtractor(configs)
-	metrics := e.extractMetricsFromSpans(context.Background(), traces)
+	metrics := e.extractMetricsFromTraces(context.Background(), traces)
 	assert.Len(t, metrics, 1)
 	metric := metrics[0]
 	assert.NotNil(t, metric)
 	assert.Equal(t, "test_metric", metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Name())
 	assert.Equal(t, "ms", metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Unit())
-	assert.Equal(t, 2, metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Gauge().DataPoints().Len())
+	assert.Equal(t, 1, metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Gauge().DataPoints().Len())
 	datapoint0 := metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Gauge().DataPoints().At(0)
 	assert.Equal(t, 100.0, datapoint0.DoubleValue())
 	statusCode0, statusCode0Found := datapoint0.Attributes().Get("statusCode")
 	assert.True(t, statusCode0Found)
 	assert.Equal(t, "OK", statusCode0.Str())
 
-	datapoint1 := metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Gauge().DataPoints().At(1)
+	datapoint1 := metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Gauge().DataPoints().At(0)
 	statusCode1, statusCode1Found := datapoint1.Attributes().Get("statusCode")
 	assert.True(t, statusCode1Found)
 	assert.Equal(t, "OK", statusCode1.Str())

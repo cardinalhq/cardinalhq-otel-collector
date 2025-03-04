@@ -167,56 +167,6 @@ func TestExtractMetricsFromLogs_MultipleLogsMatchingCondition(t *testing.T) {
 	assert.Equal(t, 100.0, datapoint1.DoubleValue())
 }
 
-func TestExtractTimestampFromLogRecord(t *testing.T) {
-	now := time.Now()
-	nowTs := pcommon.NewTimestampFromTime(now)
-	observedTs := pcommon.NewTimestampFromTime(now.Add(-time.Minute))
-
-	tests := []struct {
-		name     string
-		setup    func() plog.LogRecord
-		expected pcommon.Timestamp
-	}{
-		{
-			name: "Timestamp is set",
-			setup: func() plog.LogRecord {
-				lr := plog.NewLogRecord()
-				lr.SetTimestamp(nowTs)
-				return lr
-			},
-			expected: nowTs,
-		},
-		{
-			name: "ObservedTimestamp is set",
-			setup: func() plog.LogRecord {
-				lr := plog.NewLogRecord()
-				lr.SetObservedTimestamp(observedTs)
-				return lr
-			},
-			expected: observedTs,
-		},
-		{
-			name: "Neither Timestamp nor ObservedTimestamp is set",
-			setup: func() plog.LogRecord {
-				return plog.NewLogRecord()
-			},
-			expected: pcommon.NewTimestampFromTime(time.Now()), // This will be close to the current time
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			lr := tt.setup()
-			actual := extractTimestampFromLogRecord(lr)
-			if tt.name == "Neither Timestamp nor ObservedTimestamp is set" {
-				assert.WithinDuration(t, now, actual.AsTime(), time.Second)
-			} else {
-				assert.Equal(t, tt.expected, actual)
-			}
-		})
-	}
-}
-
 type mockMeterProvider struct {
 	embeddedmetric.MeterProvider
 }

@@ -83,9 +83,6 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) []pmetric.Metrics
 						if lex.MetricValue != nil {
 							computedVal, _, err := lex.MetricValue.Execute(ctx, logCtx)
 							if err != nil {
-								return nil
-							}
-							if err != nil {
 								p.logger.Error("Failed when extracting value.", zap.Error(err))
 								attrset := attribute.NewSet(attribute.String("ruleId", lex.RuleID),
 									attribute.String("metricName", lex.MetricName),

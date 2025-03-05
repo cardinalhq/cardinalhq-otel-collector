@@ -345,8 +345,8 @@ github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqkubeeventsexporter v
 github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqkubeeventsexporter v0.0.0-20250301195245-b051619b3dfe/go.mod h1:rTYXNNMuwGnqVXQ5R+jR7l2PRc7kbfKkFisyYOSNCJ8=
 github.com/cardinalhq/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver v0.0.0-20250203175806-8e7cb1880070 h1:2x87ipEYmsJRGOpGcRUwIGdCm4brNYS0hm3ina/Jj5k=
 github.com/cardinalhq/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver v0.0.0-20250203175806-8e7cb1880070/go.mod h1:ILh5ULzOBzIHVXznMRa4wRYduyJuxC7L/YjsQB3IGtU=
-github.com/cardinalhq/oteltools v0.14.7 h1:GR6i0iF4fC4I/epm77TTAMlkh2aXk+qg/bN8Gh5CfwY=
-github.com/cardinalhq/oteltools v0.14.7/go.mod h1:9CYo9HrjZqe4d4rgeOsarY2oRr1cTvnIGB2jH4jH1fY=
+github.com/cardinalhq/oteltools v0.14.8 h1:x07bIhCRmeCqbGUa37aKs+IPZZlBDb4hk1N33Q1AT0U=
+github.com/cardinalhq/oteltools v0.14.8/go.mod h1:9CYo9HrjZqe4d4rgeOsarY2oRr1cTvnIGB2jH4jH1fY=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
 github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=

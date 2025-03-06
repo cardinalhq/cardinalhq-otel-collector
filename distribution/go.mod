@@ -3,9 +3,7 @@
 module go.opentelemetry.io/collector/cmd/builder
 
 go 1.24
-go 1.24
 
-toolchain go1.24.1
 toolchain go1.24.1
 
 require (

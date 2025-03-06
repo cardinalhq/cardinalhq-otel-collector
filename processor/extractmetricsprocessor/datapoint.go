@@ -27,13 +27,13 @@ func updateDatapoint(ty string, name string, units string, builder *signalbuilde
 	case gaugeDoubleType, gaugeIntType:
 		metric, err := builder.Metric(name, units, pmetric.MetricTypeGauge)
 		if err != nil {
-			return fmt.Errorf("Failed when creating metric: %v", err)
+			return fmt.Errorf("failed when creating metric: %v", err)
 		}
 		updateDatapointGauge(metric, val, attrs, timestamp)
 	case counterDoubleType, counterIntType:
 		metric, err := builder.Metric(name, units, pmetric.MetricTypeSum)
 		if err != nil {
-			return fmt.Errorf("Failed when creating metric: %v", err)
+			return fmt.Errorf("failed when creating metric: %v", err)
 		}
 		updateDatapointSum(metric, val, attrs, timestamp)
 	}

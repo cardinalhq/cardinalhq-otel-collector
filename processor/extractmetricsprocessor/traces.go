@@ -18,6 +18,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/cardinalhq/oteltools/pkg/ottl"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
 	"github.com/cardinalhq/oteltools/signalbuilder"
 	"go.opentelemetry.io/otel/attribute"
@@ -41,7 +42,7 @@ func (p *extractor) extractMetricsFromTraces(ctx context.Context, pl ptrace.Trac
 	builder := signalbuilder.NewMetricsBuilder()
 
 	resourceSpans := pl.ResourceSpans()
-	for i := 0; i < resourceSpans.Len(); i++ {
+	for i := range resourceSpans.Len() {
 		resourceSpan := resourceSpans.At(i)
 		resource := resourceSpan.Resource()
 		cid := OrgIdFromResource(resource.Attributes())
@@ -53,62 +54,48 @@ func (p *extractor) extractMetricsFromTraces(ctx context.Context, pl ptrace.Trac
 		resourceBuilder := builder.Resource(resource.Attributes())
 		scopeBuilder := resourceBuilder.Scope(pcommon.NewMap())
 
-		for j := 0; j < resourceSpans.At(i).ScopeSpans().Len(); j++ {
+		for j := range resourceSpans.At(i).ScopeSpans().Len() {
 			scopeSpan := resourceSpans.At(i).ScopeSpans().At(j)
-			for k := 0; k < resourceSpans.At(i).ScopeSpans().At(j).Spans().Len(); k++ {
+			for k := range resourceSpans.At(i).ScopeSpans().At(j).Spans().Len() {
 				lr := resourceSpans.At(i).ScopeSpans().At(j).Spans().At(k)
-				logCtx := ottlspan.NewTransformContext(lr, scopeSpan.Scope(), resourceSpan.Resource(), scopeSpan, resourceSpan)
+				tc := ottlspan.NewTransformContext(lr, scopeSpan.Scope(), resourceSpan.Resource(), scopeSpan, resourceSpan)
 
-				for _, spanExtractor := range spanExtractors {
+				for _, lex := range spanExtractors {
 					attrset := attribute.NewSet(
 						attribute.String("processor", p.id.String()),
 						attribute.String("signal", p.ttype),
-						attribute.String("ruleId", spanExtractor.RuleID),
-						attribute.String("metricName", spanExtractor.MetricName),
-						attribute.String("metricType", spanExtractor.MetricType),
+						attribute.String("ruleId", lex.RuleID),
+						attribute.String("metricName", lex.MetricName),
+						attribute.String("metricType", lex.MetricType),
 						attribute.String("organization_id", cid),
 					)
 
-					matches, err := spanExtractor.EvalSpanConditions(ctx, logCtx)
+					matches, err := lex.EvalSpanConditions(ctx, tc)
 					if err != nil {
 						p.logger.Error("Failed when executing ottl match statement.", zap.Error(err))
 						telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
 						continue
 					}
-
 					if !matches {
 						continue
 					}
 
-					var val any
-					if spanExtractor.MetricValue != nil {
-						computedVal, _, err := spanExtractor.MetricValue.Execute(ctx, logCtx)
-						if err != nil {
-							p.logger.Error("Failed when extracting value.", zap.Error(err))
-							attrset := attribute.NewSet(attribute.String("ruleId", spanExtractor.RuleID),
-								attribute.String("metricName", spanExtractor.MetricName),
-								attribute.String("metricType", spanExtractor.MetricType),
-								attribute.String("stage", "metricValueExtraction"),
-								attribute.String("error", err.Error()),
-								attribute.String("organization_id", cid),
-							)
-
-							telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
-							continue
-						}
-						telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
-						val = computedVal
-					} else {
-						val = 1
-					}
-					fv, err := convertAnyToFloat(val)
+					val, err := p.extractSpanValue(ctx, tc, lex)
 					if err != nil {
-						p.logger.Error("Failed when converting value to float.", zap.Error(err))
+						p.logger.Error("Failed when extracting value.", zap.Error(err))
+						attrset := attribute.NewSet(attribute.String("ruleId", lex.RuleID),
+							attribute.String("metricName", lex.MetricName),
+							attribute.String("metricType", lex.MetricType),
+							attribute.String("stage", "metricValueExtraction"),
+							attribute.String("error", err.Error()),
+							attribute.String("organization_id", cid),
+						)
 						telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
 						continue
 					}
+					telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 
-					mapAttrs := spanExtractor.ExtractAttributes(ctx, logCtx)
+					mapAttrs := lex.ExtractAttributes(ctx, tc)
 					attrs := pcommon.NewMap()
 					if err := attrs.FromRaw(mapAttrs); err != nil {
 						p.logger.Error("Failed when extracting attributes.", zap.Error(err))
@@ -116,33 +103,10 @@ func (p *extractor) extractMetricsFromTraces(ctx context.Context, pl ptrace.Trac
 						continue
 					}
 
-					switch spanExtractor.MetricType {
-					case gaugeDoubleType, gaugeIntType:
-						metric, err := scopeBuilder.Metric(spanExtractor.MetricName, spanExtractor.MetricUnit, pmetric.MetricTypeGauge)
-						if err != nil {
-							p.logger.Error("Failed when creating metric.", zap.Error(err))
-							continue
-						}
-						dp, _, isNew := metric.Datapoint(attrs, timestamp)
-						if isNew {
-							dp.SetDoubleValue(fv)
-						} else {
-							if dp.DoubleValue() < fv {
-								dp.SetDoubleValue(fv)
-							}
-						}
-					case counterDoubleType, counterIntType:
-						metric, err := scopeBuilder.Metric(spanExtractor.MetricName, spanExtractor.MetricUnit, pmetric.MetricTypeSum)
-						if err != nil {
-							p.logger.Error("Failed when creating metric.", zap.Error(err))
-							continue
-						}
-						dp, _, isNew := metric.Datapoint(attrs, timestamp)
-						if isNew {
-							dp.SetDoubleValue(fv)
-						} else {
-							dp.SetDoubleValue(dp.DoubleValue() + fv)
-						}
+					if err := updateDatapoint(lex.MetricType, lex.MetricName, lex.MetricUnit, scopeBuilder, val, timestamp, attrs); err != nil {
+						p.logger.Error("Failed when updating datapoint.", zap.Error(err))
+						telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
+						continue
 					}
 				}
 			}
@@ -150,4 +114,15 @@ func (p *extractor) extractMetricsFromTraces(ctx context.Context, pl ptrace.Trac
 	}
 
 	return builder.Build()
+}
+
+func (p *extractor) extractSpanValue(ctx context.Context, tc ottlspan.TransformContext, e *ottl.SpanExtractor) (float64, error) {
+	if e.MetricValue != nil {
+		val, _, err := e.MetricValue.Execute(ctx, tc)
+		if err != nil {
+			return 0, err
+		}
+		return convertAnyToFloat(val)
+	}
+	return 1, nil
 }

@@ -3,7 +3,9 @@
 module go.opentelemetry.io/collector/cmd/builder
 
 go 1.24
+go 1.24
 
+toolchain go1.24.1
 toolchain go1.24.1
 
 require (
@@ -87,6 +89,7 @@ require (
 	go.opentelemetry.io/collector/receiver v0.119.0
 	go.opentelemetry.io/collector/receiver/nopreceiver v0.119.0
 	go.opentelemetry.io/collector/receiver/otlpreceiver v0.119.0
+	golang.org/x/sys v0.31.0
 	golang.org/x/sys v0.31.0
 )
 
@@ -213,7 +216,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.8.1 // indirect
 	github.com/briandowns/spinner v1.23.0 // indirect
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 // indirect
-	github.com/cardinalhq/oteltools v0.15.0 // indirect
+	github.com/cardinalhq/oteltools v0.15.1 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -517,11 +520,19 @@ require (
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
 	golang.org/x/mod v0.24.0 // indirect
 	golang.org/x/net v0.37.0 // indirect
+	golang.org/x/crypto v0.36.0 // indirect
+	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
+	golang.org/x/mod v0.24.0 // indirect
+	golang.org/x/net v0.37.0 // indirect
 	golang.org/x/oauth2 v0.26.0 // indirect
 	golang.org/x/sync v0.12.0 // indirect
 	golang.org/x/term v0.30.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/sync v0.12.0 // indirect
+	golang.org/x/term v0.30.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
+	golang.org/x/tools v0.31.0 // indirect
 	golang.org/x/tools v0.31.0 // indirect
 	gonum.org/v1/gonum v0.15.1 // indirect
 	google.golang.org/api v0.219.0 // indirect

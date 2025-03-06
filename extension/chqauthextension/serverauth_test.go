@@ -38,16 +38,18 @@ func newchq() *chqServerAuth {
 func TestGetCache(t *testing.T) {
 	now := time.Now()
 	tests := []struct {
-		name     string
-		contents []*authData
-		query    string
-		expected *authData
+		name            string
+		contents        []*authData
+		query           string
+		expected        *authData
+		expectedExpired bool
 	}{
 		{
 			"cache starts empty",
 			[]*authData{},
 			"key1",
 			nil,
+			false,
 		},
 		{
 			"cache hit",
@@ -64,6 +66,7 @@ func TestGetCache(t *testing.T) {
 				valid:  true,
 				expiry: now.Add(time.Hour),
 			},
+			false,
 		},
 		{
 			"item is expired",
@@ -75,7 +78,12 @@ func TestGetCache(t *testing.T) {
 				},
 			},
 			"key1",
-			nil,
+			&authData{
+				apiKey: "key1",
+				valid:  true,
+				expiry: now.Add(-time.Hour),
+			},
+			true,
 		},
 	}
 
@@ -85,8 +93,9 @@ func TestGetCache(t *testing.T) {
 			for _, ad := range tt.contents {
 				chq.lookupCache[ad.apiKey] = ad
 			}
-			ad := chq.getcache(tt.query)
+			ad, expired := chq.getcache(tt.query)
 			assert.Equal(t, tt.expected, ad)
+			assert.Equal(t, tt.expectedExpired, expired)
 		})
 	}
 }

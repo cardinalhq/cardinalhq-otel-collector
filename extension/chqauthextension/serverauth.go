@@ -124,24 +124,24 @@ type validateResponse struct {
 	Valid         bool   `json:"valid"`
 }
 
-func (chq *chqServerAuth) getcache(cacheKey string) *authData {
+func (chq *chqServerAuth) getcache(cacheKey string) (*authData, bool) {
 	chq.cacheLock.Lock()
 	defer chq.cacheLock.Unlock()
 	ad, ok := chq.lookupCache[cacheKey]
 	if !ok {
 		attrs := metric.WithAttributes(attribute.String("cache", "miss"))
 		chq.authCacheLookups.Add(context.Background(), 1, attrs)
-		return nil
+		return nil, false
 	}
 	if ad.expiry.Before(time.Now()) {
 		attrs := metric.WithAttributes(attribute.String("cache", "expired"))
 		chq.authCacheLookups.Add(context.Background(), 1, attrs)
 		delete(chq.lookupCache, cacheKey)
-		return nil
+		return ad, true
 	}
 	attrs := metric.WithAttributes(attribute.String("cache", "hit"))
 	chq.authCacheLookups.Add(context.Background(), 1, attrs)
-	return ad
+	return ad, false
 }
 
 func getCacheKey(apiKey, collectorID string) string {
@@ -156,12 +156,12 @@ func (chq *chqServerAuth) setcache(ad *authData) {
 }
 
 func (chq *chqServerAuth) authenticateAPIKey(ctx context.Context, apiKey, collectorID string) (*authData, error) {
-	ad := chq.getcache(getCacheKey(apiKey, collectorID))
-	if ad != nil {
-		if !ad.valid {
+	cached, expired := chq.getcache(getCacheKey(apiKey, collectorID))
+	if cached != nil && !expired {
+		if !cached.valid {
 			return nil, errDenied
 		}
-		return ad, nil
+		return cached, nil
 	}
 
 	ad, err := chq.callValidateAPI(ctx, apiKey, collectorID)
@@ -174,6 +174,12 @@ func (chq *chqServerAuth) authenticateAPIKey(ctx context.Context, apiKey, collec
 				expiry:      time.Now().Add(chq.config.ServerAuth.CacheTTLInvalid),
 			}
 			chq.setcache(ad)
+		}
+
+		// we have any error that isn't a definitive denial, we
+		// will return our perhaps expired cache entry
+		if cached != nil {
+			return cached, nil
 		}
 		return nil, err
 	}

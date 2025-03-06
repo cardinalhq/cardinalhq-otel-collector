@@ -1,8 +1,6 @@
 module github.com/cardinalhq/cardinalhq-otel-collector/internal
 
-go 1.23
-
-toolchain go1.23.3
+go 1.24
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0
@@ -10,7 +8,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/collector/component v0.119.0
 	go.opentelemetry.io/collector/pdata v1.25.0
-	golang.org/x/exp v0.0.0-20250210185358-939b2ce775ac
+	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
 	google.golang.org/protobuf v1.36.5
 )
 

@@ -1,11 +1,11 @@
 module github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter
 
-go 1.23
+go 1.24
 
-toolchain go1.23.5
+toolchain go1.24.1
 
 require (
-	github.com/cardinalhq/oteltools v0.14.10
+	github.com/cardinalhq/oteltools v0.15.0
 	github.com/jonboulle/clockwork v0.4.0
 	go.opentelemetry.io/collector/component v0.119.0
 	go.opentelemetry.io/collector/config/configcompression v1.25.0

@@ -1,8 +1,8 @@
 module github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension
 
-go 1.23
+go 1.24
 
-toolchain go1.23.3
+toolchain go1.24.1
 
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0

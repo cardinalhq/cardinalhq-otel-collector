@@ -1,14 +1,14 @@
 module github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter
 
-go 1.23
+go 1.24
 
-toolchain go1.23.3
+toolchain go1.24.1
 
 require (
 	github.com/DataDog/sketches-go v1.4.6
 	github.com/aws/aws-sdk-go v1.55.6
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
-	github.com/cardinalhq/oteltools v0.14.10
+	github.com/cardinalhq/oteltools v0.15.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/parquet-go/parquet-go v0.24.0
 	github.com/rs/xid v1.6.0
@@ -24,7 +24,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.34.0
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/exp v0.0.0-20250210185358-939b2ce775ac
+	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
 )
 
 require (

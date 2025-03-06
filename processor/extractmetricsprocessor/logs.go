@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
+	"github.com/cardinalhq/oteltools/signalbuilder"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
@@ -33,20 +34,16 @@ import (
 
 func (p *extractor) ConsumeLogs(ctx context.Context, pl plog.Logs) (plog.Logs, error) {
 	metrics := p.extract(ctx, pl)
-	for _, metricToSend := range metrics {
-		p.sendMetrics(ctx, p.config.Route, metricToSend)
-	}
+	p.sendMetrics(ctx, p.config.Route, metrics)
 	return pl, nil
 }
 
-func (p *extractor) extract(ctx context.Context, pl plog.Logs) []pmetric.Metrics {
-	metrics := pmetric.NewMetrics()
-	tagsByFingerprint := make(map[uint64]map[string]string)
-	sums := make(map[*ottl.LogExtractor]map[uint64]float64)
-	lastValue := make(map[*ottl.LogExtractor]map[uint64]float64)
+func (p *extractor) extract(ctx context.Context, pl plog.Logs) pmetric.Metrics {
+	timestamp := pcommon.NewTimestampFromTime(time.Now())
+	builder := signalbuilder.NewMetricsBuilder()
 
 	resourceLogs := pl.ResourceLogs()
-	for i := 0; i < resourceLogs.Len(); i++ {
+	for i := range resourceLogs.Len() {
 		resourceLog := resourceLogs.At(i)
 		resource := resourceLog.Resource()
 		cid := OrgIdFromResource(resource.Attributes())
@@ -55,11 +52,14 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) []pmetric.Metrics
 			continue
 		}
 
-		for j := 0; j < resourceLogs.At(i).ScopeLogs().Len(); j++ {
+		resourceBuilder := builder.Resource(resource.Attributes())
+		scopeBuilder := resourceBuilder.Scope(pcommon.NewMap())
+
+		for j := range resourceLogs.At(i).ScopeLogs().Len() {
 			scopeLog := resourceLogs.At(i).ScopeLogs().At(j)
-			for k := 0; k < resourceLogs.At(i).ScopeLogs().At(j).LogRecords().Len(); k++ {
+			for k := range resourceLogs.At(i).ScopeLogs().At(j).LogRecords().Len() {
 				lr := resourceLogs.At(i).ScopeLogs().At(j).LogRecords().At(k)
-				logCtx := ottllog.NewTransformContext(lr, scopeLog.Scope(), resourceLog.Resource(), scopeLog, resourceLog)
+				tc := ottllog.NewTransformContext(lr, scopeLog.Scope(), resourceLog.Resource(), scopeLog, resourceLog)
 
 				for _, lex := range logExtractors {
 					attrset := attribute.NewSet(
@@ -71,105 +71,61 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) []pmetric.Metrics
 						attribute.String("organization_id", cid),
 					)
 
-					matches, err := lex.EvalLogConditions(ctx, logCtx)
+					matches, err := lex.EvalLogConditions(ctx, tc)
 					if err != nil {
 						p.logger.Error("Failed when executing ottl match statement.", zap.Error(err))
 						telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
 						continue
 					}
+					if !matches {
+						continue
+					}
 
-					if matches {
-						var val any
-						if lex.MetricValue != nil {
-							computedVal, _, err := lex.MetricValue.Execute(ctx, logCtx)
-							if err != nil {
-								p.logger.Error("Failed when extracting value.", zap.Error(err))
-								attrset := attribute.NewSet(attribute.String("ruleId", lex.RuleID),
-									attribute.String("metricName", lex.MetricName),
-									attribute.String("metricType", lex.MetricType),
-									attribute.String("stage", "metricValueExtraction"),
-									attribute.String("error", err.Error()),
-									attribute.String("organization_id", cid),
-								)
+					val, err := p.extractLogValue(ctx, tc, lex)
+					if err != nil {
+						p.logger.Error("Failed when extracting value.", zap.Error(err))
+						attrset := attribute.NewSet(attribute.String("ruleId", lex.RuleID),
+							attribute.String("metricName", lex.MetricName),
+							attribute.String("metricType", lex.MetricType),
+							attribute.String("stage", "metricValueExtraction"),
+							attribute.String("error", err.Error()),
+							attribute.String("organization_id", cid),
+						)
 
-								telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
-								continue
-							}
-							telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
-							val = computedVal
-						} else {
-							val = 1
-						}
-						attrs := lex.ExtractAttributes(ctx, logCtx)
-						attributesMap := map[string]string{}
-						for k, v := range attrs {
-							if strVal, ok := v.(string); ok {
-								attributesMap[k] = strVal
-							}
-						}
-						fingerprint := ottl.FingerprintTags(attributesMap)
+						telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
+						continue
+					}
+					telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 
-						floatVal, err := convertAnyToFloat(val)
-						if err != nil {
-							p.logger.Error("Failed when parsing float.", zap.Error(err))
-							continue
-						}
-						if _, ok := sums[lex]; !ok {
-							sums[lex] = make(map[uint64]float64)
-						}
-						sums[lex][fingerprint] += floatVal
+					mapAttrs := lex.ExtractAttributes(ctx, tc)
+					attrs := pcommon.NewMap()
+					if err := attrs.FromRaw(mapAttrs); err != nil {
+						p.logger.Error("Failed when extracting attributes.", zap.Error(err))
+						telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
+						continue
+					}
 
-						if _, ok := lastValue[lex]; !ok {
-							lastValue[lex] = make(map[uint64]float64)
-						}
-						lastValue[lex][fingerprint] = floatVal
-						tagsByFingerprint[fingerprint] = attributesMap
+					if err := updateDatapoint(lex.MetricType, lex.MetricName, lex.MetricUnit, scopeBuilder, val, timestamp, attrs); err != nil {
+						p.logger.Error("Failed when updating datapoint.", zap.Error(err))
+						telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
+						continue
 					}
 				}
 			}
-		}
-
-		if len(sums) > 0 {
-			resourceMetrics := pmetric.NewResourceMetrics()
-			resource.Attributes().CopyTo(resourceMetrics.Resource().Attributes())
-			scopeMetrics := resourceMetrics.ScopeMetrics().AppendEmpty()
-			scopeMetrics.Scope().SetName(componentType.String())
-
-			for lex, sumMap := range sums {
-				newMetric := scopeMetrics.Metrics().AppendEmpty()
-				newMetric.SetName(lex.MetricName)
-				newMetric.SetUnit(lex.MetricUnit)
-
-				var dpSlice = pmetric.NewNumberDataPointSlice()
-				var stampLastValue bool
-				switch lex.MetricType {
-				case gaugeDoubleType, gaugeIntType:
-					dpSlice = newMetric.SetEmptyGauge().DataPoints()
-					stampLastValue = true
-				case counterDoubleType, counterIntType:
-					sum := newMetric.SetEmptySum()
-					dpSlice = sum.DataPoints()
-					sum.SetAggregationTemporality(pmetric.AggregationTemporalityDelta)
-					sum.SetIsMonotonic(false)
-				}
-
-				for fingerprint, sum := range sumMap {
-					dp := pmetric.NewNumberDataPoint()
-					dp.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
-					for k, v := range tagsByFingerprint[fingerprint] {
-						dp.Attributes().PutStr(k, v)
-					}
-					dp.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
-					if stampLastValue {
-						dp.SetDoubleValue(lastValue[lex][fingerprint])
-					} else {
-						dp.SetDoubleValue(sum)
-					}
-					dp.MoveTo(dpSlice.AppendEmpty())
-				}
-			}
-			resourceMetrics.MoveTo(metrics.ResourceMetrics().AppendEmpty())
 		}
 	}
-	return []pmetric.Metrics{metrics}
+
+	return builder.Build()
+
+}
+
+func (p *extractor) extractLogValue(ctx context.Context, tc ottllog.TransformContext, e *ottl.LogExtractor) (float64, error) {
+	if e.MetricValue != nil {
+		val, _, err := e.MetricValue.Execute(ctx, tc)
+		if err != nil {
+			return 0, err
+		}
+		return convertAnyToFloat(val)
+	}
+	return 1, nil
 }

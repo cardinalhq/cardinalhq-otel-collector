@@ -84,15 +84,13 @@ func TestExtractMetricsFromLogs_CounterMetric(t *testing.T) {
 	// Extract metrics
 	e := newLogsTestExtractor(configs)
 	metrics := e.extract(context.Background(), logs)
-	assert.Len(t, metrics, 1)
-	metric := metrics[0]
-	assert.NotNil(t, metric)
-	assert.Equal(t, "test_counter_metric", metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Name())
-	assert.Equal(t, "count", metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Unit())
+	assert.NotNil(t, metrics)
+	assert.Equal(t, "test_counter_metric", metrics.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Name())
+	assert.Equal(t, "count", metrics.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Unit())
 
 	// Ensure the metric is a counter and that the value is correct
-	assert.Equal(t, 1, metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Sum().DataPoints().Len())
-	datapoint0 := metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Sum().DataPoints().At(0)
+	assert.Equal(t, 1, metrics.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Sum().DataPoints().Len())
+	datapoint0 := metrics.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Sum().DataPoints().At(0)
 	assert.Equal(t, 2.0, datapoint0.DoubleValue()) // Expected sum = 2
 
 	// Check status code tag
@@ -108,7 +106,7 @@ func TestExtractMetricsFromLogs_MultipleLogsMatchingCondition(t *testing.T) {
 		{
 			MetricName:  "test_metric",
 			MetricUnit:  "ms",
-			MetricType:  gaugeDoubleType,
+			MetricType:  counterDoubleType,
 			MetricValue: `body["sent_bytes"]`,
 			Conditions:  []string{`attributes["log_type"] == "http"`},
 			Dimensions: map[string]string{
@@ -148,23 +146,14 @@ func TestExtractMetricsFromLogs_MultipleLogsMatchingCondition(t *testing.T) {
 	// Extract metrics
 	e := newLogsTestExtractor(configs)
 	metrics := e.extract(context.Background(), logs)
-	assert.Len(t, metrics, 1)
-	metric := metrics[0]
-	assert.NotNil(t, metric)
-	assert.Equal(t, "test_metric", metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Name())
-	assert.Equal(t, "ms", metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Unit())
-	assert.Equal(t, 1, metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Gauge().DataPoints().Len())
-	datapoint0 := metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Gauge().DataPoints().At(0)
-	assert.Equal(t, 100.0, datapoint0.DoubleValue())
+	assert.Equal(t, "test_metric", metrics.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Name())
+	assert.Equal(t, "ms", metrics.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Unit())
+	assert.Equal(t, 1, metrics.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Sum().DataPoints().Len())
+	datapoint0 := metrics.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Sum().DataPoints().At(0)
+	assert.Equal(t, 200.0, datapoint0.DoubleValue())
 	statusCode0, statusCode0Found := datapoint0.Attributes().Get("statusCode")
 	assert.True(t, statusCode0Found)
 	assert.Equal(t, "OK", statusCode0.Str())
-
-	datapoint1 := metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Gauge().DataPoints().At(0)
-	statusCode1, statusCode1Found := datapoint1.Attributes().Get("statusCode")
-	assert.True(t, statusCode1Found)
-	assert.Equal(t, "OK", statusCode1.Str())
-	assert.Equal(t, 100.0, datapoint1.DoubleValue())
 }
 
 type mockMeterProvider struct {

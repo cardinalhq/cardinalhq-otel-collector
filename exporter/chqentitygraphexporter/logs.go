@@ -37,21 +37,10 @@ func (e *entityGraphExporter) ConsumeLogs(ctx context.Context, ld plog.Logs) err
 				lr := sl.LogRecords().At(k)
 				podObject := graph.ExtractPodObject(lr)
 				if podObject != nil {
-					cache.ProvisionPod(podObject)
 					if podObject.IsImagePullBackOff || podObject.IsCrashLoopBackOff || podObject.IsOOMKilled {
 						failingPods = append(failingPods, podObject)
 					}
 				}
-				//deployment := graph.ExtractDeploymentObject(lr)
-				//if deployment != nil {
-				//	cache.ProvisionDeployment(deployment)
-				//	isK8sObject = true
-				//}
-				//statefulSet := graph.ExtractStatefulSetObject(lr)
-				//if statefulSet != nil {
-				//	cache.ProvisionStatefulSet(statefulSet)
-				//	isK8sObject = true
-				//}
 				cache.ProvisionRecordAttributes(globalEntityMap, lr.Attributes())
 			}
 		}

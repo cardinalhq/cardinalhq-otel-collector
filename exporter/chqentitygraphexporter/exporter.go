@@ -17,6 +17,8 @@ package chqentitygraphexporter
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -184,6 +186,42 @@ func (e *entityGraphExporter) postEntityRelationships(ctx context.Context, ttype
 			zap.Int("status", resp.StatusCode),
 			zap.String("body", string(body)),
 		)
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
+func (e *entityGraphExporter) postBackOffEvents(ctx context.Context, events []*graph.K8SPodObject) error {
+	endpoint := e.config.Endpoint + "/api/v1/backOffEvents"
+	b, err := json.Marshal(events)
+	e.logger.Info("Sending backoff event", zap.String("endpoint", endpoint), zap.String("events", string(b)))
+	if err != nil {
+		return fmt.Errorf("failed to marshal kube events: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := e.httpClient.Do(req)
+	if err != nil {
+		if errors.Is(ctx.Err(), context.Canceled) {
+			e.logger.Warn("Request canceled", zap.Error(ctx.Err()))
+			return nil
+		}
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		e.logger.Error("Failed to send kube events",
+			zap.Int("status", resp.StatusCode),
+			zap.String("body", string(body)))
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 

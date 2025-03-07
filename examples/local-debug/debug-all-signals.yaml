@@ -7,6 +7,7 @@ receivers:
         endpoint: "0.0.0.0:4318"  # default port for OTLP/HTTP (insecure)
 
 exporters:
+  nop:
   debug:
     verbosity: detailed
 
@@ -14,10 +15,13 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      exporters: [debug]
+      exporters:
+        - debug
     metrics:
       receivers: [otlp]
-      exporters: [debug]
+      exporters:
+        - debug
     logs:
       receivers: [otlp]
-      exporters: [debug]
+      exporters:
+        - debug

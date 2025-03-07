@@ -351,8 +351,8 @@ github.com/briandowns/spinner v1.23.0 h1:alDF2guRWqa/FOZZYWjlMIx2L6H0wyewPxo/CH4
 github.com/briandowns/spinner v1.23.0/go.mod h1:rPG4gmXeN3wQV/TsAY4w8lPdIM6RX3yqeBQJSrbXjuE=
 github.com/cardinalhq/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver v0.0.0-20250203175806-8e7cb1880070 h1:2x87ipEYmsJRGOpGcRUwIGdCm4brNYS0hm3ina/Jj5k=
 github.com/cardinalhq/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver v0.0.0-20250203175806-8e7cb1880070/go.mod h1:ILh5ULzOBzIHVXznMRa4wRYduyJuxC7L/YjsQB3IGtU=
-github.com/cardinalhq/oteltools v0.15.2 h1:1nuLDFhronqVT1cMNzwq7cWjcpFywC2p121mtQDq+us=
-github.com/cardinalhq/oteltools v0.15.2/go.mod h1:MIVat7gEMSnTVAJWwB78PUnUZdGJEeeOCFfdxHn+yAY=
+github.com/cardinalhq/oteltools v0.16.0 h1:QYKIpJhASf2V62HkyYwWFjwDy2/0K/j3sAvvZOsPV28=
+github.com/cardinalhq/oteltools v0.16.0/go.mod h1:5i/gUnHJ5vFHLwqljBsfhOz9AKZXWt4k07uP6dg6CXw=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
 github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=

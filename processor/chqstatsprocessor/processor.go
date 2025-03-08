@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/cardinalhq/oteltools/pkg/stats"
 	"hash/fnv"
 	"net/http"
 	"os"
@@ -99,6 +100,8 @@ type Tenant struct {
 	logExemplars    *LRUCache
 	traceExemplars  *LRUCache
 	metricExemplars *LRUCache
+
+	spanSketchCache *stats.SketchCache
 }
 
 var realClock = &chqpb.RealClock{}
@@ -122,6 +125,7 @@ func (p *statsProcessor) getTenant(organizationID string) *Tenant {
 			tenant.spanStats = chqpb.NewEventStatsCache(1000, 16, 5*time.Minute, p.sendSpanStats(organizationID), chqpb.InitializeEventStats, realClock)
 			tenant.spanStats.Start()
 			tenant.traceExemplars = NewLRUCache(1000, 5*time.Minute)
+			tenant.spanSketchCache = stats.NewSketchCache(1*time.Minute, p.sendSpanSketchesFor(organizationID))
 		}
 
 		p.tenants[organizationID] = tenant

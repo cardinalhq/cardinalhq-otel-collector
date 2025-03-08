@@ -16,8 +16,6 @@ package fingerprintprocessor
 
 import (
 	"errors"
-	"fmt"
-
 	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"go.opentelemetry.io/collector/component"
 	"go.uber.org/multierr"
@@ -25,13 +23,7 @@ import (
 
 type Config struct {
 	ConfigurationExtension *component.ID                   `mapstructure:"configuration_extension"`
-	TracesConfig           TracesConfig                    `mapstructure:"traces"`
 	IDSource               authenv.EnvironmentSourceString `mapstructure:"id_source"`
-}
-
-type TracesConfig struct {
-	EstimatorWindowSize int   `mapstructure:"estimator_window_size"`
-	EstimatorInterval   int64 `mapstructure:"estimator_interval"`
 }
 
 func (c *Config) Validate() error {
@@ -41,28 +33,5 @@ func (c *Config) Validate() error {
 		errs = multierr.Append(errs, errors.New("id_source must be a valid environment source: "+err.Error()))
 	}
 
-	errs = multierr.Append(errs, c.TracesConfig.Validate())
-
 	return errs
-}
-
-func (tc *TracesConfig) Validate() error {
-	var errors error
-	if tc.EstimatorWindowSize == 0 {
-		tc.EstimatorWindowSize = 30
-	}
-	if tc.EstimatorWindowSize < 10 {
-		err := fmt.Errorf("estimator_window_size must be greater than or equal to 10")
-		errors = multierr.Append(errors, err)
-	}
-
-	if tc.EstimatorInterval == 0 {
-		tc.EstimatorInterval = 10_000
-	}
-	if tc.EstimatorInterval < 1000 {
-		err := fmt.Errorf("estimator_interval must be greater than or equal to 1000")
-		errors = multierr.Append(errors, err)
-	}
-
-	return errors
 }

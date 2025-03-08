@@ -16,18 +16,12 @@ package chqstatsprocessor
 
 import (
 	"context"
-	"errors"
-	"time"
-
+	"github.com/cardinalhq/oteltools/pkg/chqpb"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
-	"go.uber.org/zap"
-
-	"github.com/cardinalhq/oteltools/pkg/authenv"
-	"github.com/cardinalhq/oteltools/pkg/chqpb"
-	"github.com/cardinalhq/oteltools/pkg/telemetry"
-	"github.com/cardinalhq/oteltools/pkg/translate"
+	"strconv"
 )
 
 func getServiceName(r pcommon.Map) string {
@@ -50,24 +44,19 @@ func (p *statsProcessor) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Lo
 	if !p.config.Statistics.Logs.StatisticsEnabled && !p.config.Statistics.Logs.ExemplarsEnabled {
 		return ld, nil
 	}
-
-	ee := authenv.GetEnvironment(ctx, p.idSource)
-	now := time.Now()
-
 	for i := 0; i < ld.ResourceLogs().Len(); i++ {
 		rl := ld.ResourceLogs().At(i)
 		resourceAttributes := rl.Resource().Attributes()
 		cid := OrgIdFromResource(resourceAttributes)
 		tenant := p.getTenant(cid)
 
-		serviceName := getServiceName(resourceAttributes)
 		for j := 0; j < rl.ScopeLogs().Len(); j++ {
 			sl := rl.ScopeLogs().At(j)
 			for k := 0; k < sl.LogRecords().Len(); k++ {
 				lr := sl.LogRecords().At(k)
-				fp := getFingerprint(lr.Attributes())
-				if err := p.recordLog(tenant, now, ee, serviceName, fp, rl, sl, lr); err != nil {
-					p.logger.Error("Failed to record log", zap.Error(err))
+				fingerprint := getFingerprint(lr.Attributes())
+				if p.config.Statistics.Logs.ExemplarsEnabled {
+					p.addLogExemplar(tenant, rl, sl, lr, fingerprint)
 				}
 			}
 		}
@@ -76,49 +65,10 @@ func (p *statsProcessor) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Lo
 	return ld, nil
 }
 
-func (p *statsProcessor) recordLog(tenant *Tenant, now time.Time, environment authenv.Environment, serviceName string, fingerprint int64, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) error {
-	orgID := OrgIdFromResource(rl.Resource().Attributes())
-
-	if p.config.Statistics.Logs.StatisticsEnabled {
-		message := lr.Body().AsString()
-		logSize := int64(len(message))
-
-		enrichmentAttributes := p.processEnrichments(orgID,
-			map[string]pcommon.Map{
-				"resource": rl.Resource().Attributes(),
-				"scope":    sl.Scope().Attributes(),
-				"log":      lr.Attributes(),
-			})
-
-		if lr.SeverityNumber() != plog.SeverityNumberUnspecified {
-			enrichmentAttributes = append(enrichmentAttributes, &chqpb.Attribute{
-				ContextId:   "log",
-				IsAttribute: false,
-				Type:        int32(pcommon.ValueTypeStr),
-				Key:         "severity",
-				Value:       lr.SeverityText(),
-			})
-		}
-
-		err := tenant.logstats.Record(serviceName, fingerprint, p.pbPhase, p.id.Name(), environment.CollectorID(), environment.CustomerID(), enrichmentAttributes, 1, logSize)
-		if err != nil && errors.Is(err, chqpb.ErrCacheFull) {
-			telemetry.CounterAdd(p.cacheFull, 1)
-		}
-	}
-
-	if p.config.Statistics.Logs.ExemplarsEnabled {
-		p.addLogExemplar(tenant, rl, sl, lr, serviceName, fingerprint)
-	}
-	telemetry.HistogramRecord(p.recordLatency, int64(time.Since(now)))
-
-	return nil
-}
-
-func (p *statsProcessor) addLogExemplar(tenant *Tenant, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord, serviceName string, fingerprint int64) {
+func (p *statsProcessor) addLogExemplar(tenant *Tenant, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord, fingerprint int64) {
 	if p.pbPhase == chqpb.Phase_PRE {
-		key := p.toExemplarKey(serviceName, fingerprint)
-
-		if tenant.logExemplars.Contains(key) {
+		keys, exemplarKey := computeExemplarKey(rl.Resource(), []string{translate.CardinalFieldFingerprint, strconv.FormatInt(fingerprint, 10)})
+		if tenant.logExemplars.Contains(exemplarKey) {
 			return
 		}
 
@@ -130,10 +80,6 @@ func (p *statsProcessor) addLogExemplar(tenant *Tenant, rl plog.ResourceLogs, sl
 		copyLr := copySl.LogRecords().AppendEmpty()
 		lr.CopyTo(copyLr)
 
-		marshalled, me := p.jsonMarshaller.logsMarshaler.MarshalLogs(exemplarLd)
-		if me != nil {
-			return
-		}
-		tenant.logExemplars.Put(key, marshalled)
+		tenant.logExemplars.Put(exemplarKey, keys, exemplarLd)
 	}
 }

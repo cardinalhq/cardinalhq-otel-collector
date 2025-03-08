@@ -17,239 +17,125 @@ package chqstatsprocessor
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"go.opentelemetry.io/collector/pdata/plog"
+	"go.opentelemetry.io/collector/pdata/pmetric"
+	"go.opentelemetry.io/collector/pdata/ptrace"
+	"go.uber.org/zap"
 	"io"
 	"net/http"
-	"time"
-
-	"github.com/cardinalhq/oteltools/pkg/chqpb"
-	"github.com/cardinalhq/oteltools/pkg/telemetry"
-	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 )
 
-//
-// Logs
-//
+type Exemplar struct {
+	Payload    []byte            `json:"payload"`
+	Attributes map[string]string `json:"attributes"`
+}
+type ExemplarPublishReport struct {
+	CustomerId    string      `json:"customer_id"`
+	ProcessorId   string      `json:"processor_id"`
+	TelemetryType string      `json:"telemetry_type"`
+	Exemplars     []*Exemplar `json:"exemplars"`
+}
 
-func (p *statsProcessor) sendLogStats(cid string) func([]*chqpb.EventStats) {
-	return func(stats []*chqpb.EventStats) {
-		p.sendLogStatsFor(cid, stats)
+func (p *statsProcessor) sendExemplars(cid, telemetryType, processorId string) func([]*Entry) {
+	return func(entries []*Entry) {
+		var batch []*Exemplar
+		accumulated := 0
+		batchSize := 50
+
+		for _, entry := range entries {
+			var data []byte
+			var err error
+
+			switch telemetryType {
+			case "logs":
+				data, err = p.jsonMarshaller.logsMarshaler.MarshalLogs(entry.value.(plog.Logs))
+			case "metrics":
+				data, err = p.jsonMarshaller.metricsMarshaler.MarshalMetrics(entry.value.(pmetric.Metrics))
+			case "traces":
+				data, err = p.jsonMarshaller.tracesMarshaler.MarshalTraces(entry.value.(ptrace.Traces))
+			default:
+				p.logger.Error("Unknown telemetry type", zap.String("type", telemetryType))
+				continue
+			}
+
+			if err != nil {
+				p.logger.Error("Failed to marshal telemetry data", zap.Error(err))
+				continue
+			}
+			exemplar := &Exemplar{
+				Payload:    data,
+				Attributes: entry.toAttributes(),
+			}
+			batch = append(batch, exemplar)
+			accumulated++
+
+			if accumulated >= batchSize {
+				p.sendBatchAsync(cid, telemetryType, processorId, batch)
+				accumulated = 0
+				batch = nil
+			}
+		}
+
+		// Send remaining batch if any
+		if accumulated > 0 {
+			p.sendBatchAsync(cid, telemetryType, processorId, batch)
+		}
 	}
 }
 
-func (p *statsProcessor) sendLogStatsFor(cid string, statsList []*chqpb.EventStats) {
-	p.tenantLock.Lock()
-	tenant, found := p.tenants[cid]
-	p.tenantLock.Unlock()
-	if !found {
+func (p *statsProcessor) sendBatchAsync(cid, telemetryType, processorId string, batch []*Exemplar) {
+	if len(batch) == 0 {
 		return
 	}
 
-	for _, stat := range statsList {
-		key := p.toExemplarKey(stat.ServiceName, stat.Fingerprint)
-		exemplarBytes, found := tenant.logExemplars.Get(key)
-		if !found {
-			continue
-		}
-		stat.Exemplar = exemplarBytes.([]byte)
+	exemplarReport := &ExemplarPublishReport{
+		CustomerId:    cid,
+		TelemetryType: telemetryType,
+		ProcessorId:   processorId,
+		Exemplars:     batch,
 	}
 
-	wrapper := &chqpb.EventStatsReport{
-		SubmittedAt: time.Now().UnixMilli(),
-		Stats:       statsList}
-
-	if err := p.postLogStats(context.Background(), wrapper); err != nil {
-		p.logger.Error("Failed to send log stats", zap.Error(err))
-	}
-}
-
-func (p *statsProcessor) postLogStats(ctx context.Context, wrapper *chqpb.EventStatsReport) error {
-	b, err := proto.Marshal(wrapper)
-	if err != nil {
-		return err
-	}
-	telemetry.HistogramRecord(p.statsBatchSize, int64(len(b)))
-	endpoint := p.config.Endpoint + "/api/v1/logstats"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/x-protobuf")
-
-	resp, err := p.httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
+	go func() {
+		err := p.postBatch(context.Background(), telemetryType, exemplarReport)
 		if err != nil {
-			p.logger.Error("Failed to close response body", zap.Error(err))
+			p.logger.Error("Failed to send exemplars", zap.Error(err))
 		}
-	}(resp.Body)
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		p.logger.Error("Failed to send log stats", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-	return nil
+	}()
 }
 
-//
-// Spans / Traces
-//
+func (p *statsProcessor) postBatch(ctx context.Context, telemetryType string, report *ExemplarPublishReport) error {
+	endpoint := fmt.Sprintf("%s/api/v1/exemplars/%s", p.config.Endpoint, telemetryType)
 
-func (p *statsProcessor) sendSpanStats(organizationID string) func(stats []*chqpb.EventStats) {
-	return func(stats []*chqpb.EventStats) {
-		p.sendSpanStatsFor(organizationID, stats)
-	}
-}
-
-func (p *statsProcessor) sendSpanStatsFor(cid string, statsList []*chqpb.EventStats) {
-	p.tenantLock.Lock()
-	tenant, found := p.tenants[cid]
-	p.tenantLock.Unlock()
-	if !found {
-		return
-	}
-
-	for _, stat := range statsList {
-		key := p.toExemplarKey(stat.ServiceName, stat.Fingerprint)
-		exemplarBytes, found := tenant.traceExemplars.Get(key)
-		if !found {
-			continue
-		}
-		stat.Exemplar = exemplarBytes.([]byte)
-	}
-
-	wrapper := &chqpb.EventStatsReport{
-		SubmittedAt: time.Now().UnixMilli(),
-		Stats:       statsList}
-
-	if err := p.postSpanStats(context.Background(), wrapper); err != nil {
-		p.logger.Error("Failed to send span stats", zap.Error(err))
-	}
-}
-
-func (p *statsProcessor) postSpanStats(ctx context.Context, wrapper *chqpb.EventStatsReport) error {
-	b, err := proto.Marshal(wrapper)
+	// Marshal report to JSON
+	marshalled, err := json.Marshal(report)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal batch: %w", err)
 	}
-	telemetry.HistogramRecord(p.statsBatchSize, int64(len(b)))
-	endpoint := p.config.Endpoint + "/api/v1/spanstats"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/x-protobuf")
 
+	// Create request
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(marshalled))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set proper JSON header
+	req.Header.Set("Content-Type", "application/json")
+
+	// Send request
 	resp, err := p.httpClient.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
 
+	// Read response body
+	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		p.logger.Error("Failed to send span stats", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
+		p.logger.Error("Failed to send exemplars", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
-	return nil
-}
 
-//
-// Metrics
-//
-
-func (p *statsProcessor) sendMetricStats(organizationID string) func(stats []*chqpb.MetricStatsWrapper) {
-	return func(stats []*chqpb.MetricStatsWrapper) {
-		p.sendMetricStatsFor(organizationID, stats)
-	}
-}
-
-func (p *statsProcessor) sendMetricStatsFor(organizationId string, wrappers []*chqpb.MetricStatsWrapper) {
-	statsList := make([]*chqpb.MetricStats, 0)
-	exemplarMap := make(map[int64]*chqpb.MetricExemplar)
-	for _, wrapper := range wrappers {
-		p.tenantLock.Lock()
-		tenant, found := p.tenants[organizationId]
-		p.tenantLock.Unlock()
-
-		if found {
-			fingerprint := p.toMetricExemplarFingerprint(wrapper.Stats.ServiceName, wrapper.Stats.MetricName, wrapper.Stats.MetricType)
-			exemplar, exemplarFound := tenant.metricExemplars.Get(fingerprint)
-			if exemplarFound {
-				exemplarBytes := exemplar.([]byte)
-				if _, ok := exemplarMap[fingerprint]; !ok {
-					exemplarMap[fingerprint] = &chqpb.MetricExemplar{
-						ServiceName: wrapper.Stats.ServiceName,
-						MetricName:  wrapper.Stats.MetricName,
-						MetricType:  wrapper.Stats.MetricType,
-						ProcessorId: p.id.Name(),
-						Exemplar:    exemplarBytes,
-						CustomerId:  wrapper.Stats.CustomerId,
-						CollectorId: wrapper.Stats.CollectorId,
-					}
-				}
-			}
-		}
-		if wrapper.Dirty {
-			slice, err := wrapper.Hll.ToCompactSlice()
-			if err != nil {
-				continue
-			}
-			estimate, err := wrapper.GetEstimate()
-			if err != nil {
-				continue
-			}
-			wrapper.Stats.CardinalityEstimate = estimate
-			wrapper.Stats.Hll = slice
-			statsList = append(statsList, wrapper.Stats)
-		}
-	}
-
-	exemplarList := make([]*chqpb.MetricExemplar, 0)
-	for _, exemplar := range exemplarMap {
-		exemplarList = append(exemplarList, exemplar)
-	}
-	wrapper := &chqpb.MetricStatsReport{
-		SubmittedAt: time.Now().UnixMilli(),
-		Stats:       statsList,
-		Exemplars:   exemplarList,
-	}
-	if len(statsList) > 0 || len(exemplarMap) > 0 {
-		err := p.sendReport(context.Background(), wrapper)
-		if err != nil {
-			p.logger.Error("Failed to send metric stats", zap.Error(err))
-		}
-	}
-}
-
-func (p *statsProcessor) sendReport(ctx context.Context, wrapper *chqpb.MetricStatsReport) error {
-	b, err := proto.Marshal(wrapper)
-	if err != nil {
-		return err
-	}
-	telemetry.HistogramRecord(p.statsBatchSize, int64(len(b)))
-	endpoint := p.config.Endpoint + "/api/v1/metricstats"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/x-protobuf")
-
-	resp, err := p.httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		p.logger.Error("Failed to send metric stats", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
 	return nil
 }

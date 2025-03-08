@@ -16,43 +16,29 @@ package chqstatsprocessor
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"time"
-
-	"go.opentelemetry.io/collector/pdata/pcommon"
-	"go.opentelemetry.io/collector/pdata/ptrace"
-	"go.uber.org/zap"
-
-	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
-	"github.com/cardinalhq/oteltools/pkg/telemetry"
 	"github.com/cardinalhq/oteltools/pkg/translate"
+	"go.opentelemetry.io/collector/pdata/ptrace"
+	"strconv"
 )
 
 func (p *statsProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
 	if !p.config.Statistics.Traces.StatisticsEnabled && !p.config.Statistics.Traces.ExemplarsEnabled {
 		return td, nil
 	}
-
-	ee := authenv.GetEnvironment(ctx, p.idSource)
-
-	now := time.Now()
 	for i := 0; i < td.ResourceSpans().Len(); i++ {
 		rs := td.ResourceSpans().At(i)
 		resourceAttributes := rs.Resource().Attributes()
-		serviceName := getServiceName(resourceAttributes)
+		cid := OrgIdFromResource(resourceAttributes)
+		tenant := p.getTenant(cid)
+
 		for j := 0; j < rs.ScopeSpans().Len(); j++ {
 			iss := rs.ScopeSpans().At(j)
 			for k := 0; k < iss.Spans().Len(); k++ {
 				sr := iss.Spans().At(k)
-				isSlow := false
-				if isslowValue, found := sr.Attributes().Get(translate.CardinalFieldSpanIsSlow); found {
-					isSlow = isslowValue.Bool()
-				}
 				fingerprint := getFingerprint(sr.Attributes())
-				if err := p.recordSpan(now, ee, serviceName, fingerprint, isSlow, sr, iss, rs); err != nil {
-					p.logger.Error("Failed to record span", zap.Error(err))
+				if p.config.Statistics.Traces.ExemplarsEnabled {
+					p.addSpanExemplar(tenant, rs, iss, sr, fingerprint)
 				}
 			}
 		}
@@ -61,70 +47,17 @@ func (p *statsProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) (p
 	return td, nil
 }
 
-func toSize(attributes map[string]interface{}) int64 {
-	var size int64 = 0
-	for key, value := range attributes {
-		size += int64(len(key) + len(fmt.Sprintf("%v", value)))
-	}
-	return size
-}
-
-func (p *statsProcessor) recordSpan(
-	now time.Time,
-	environment authenv.Environment,
-	serviceName string,
-	fingerprint int64,
-	isSlow bool,
-	span ptrace.Span,
-	iss ptrace.ScopeSpans,
-	rs ptrace.ResourceSpans,
-) error {
-	orgID := OrgIdFromResource(rs.Resource().Attributes())
-	tenant := p.getTenant(orgID) // TODO move this to the top of the resource loop
-
-	if p.config.Statistics.Traces.StatisticsEnabled {
-		// spanSize = (size of attributes + top level fields)
-		var spanSize = toSize(span.Attributes().AsRaw())
-		spanSize += int64(len(span.TraceID().String()))
-		spanSize += int64(len(span.Name()))
-		spanSize += int64(len(span.Kind().String()))
-		spanSize += int64(len(span.SpanID().String()))
-
-		enrichmentAttributes := p.processEnrichments(orgID,
-			map[string]pcommon.Map{
-				"resource": rs.Resource().Attributes(),
-				"scope":    iss.Scope().Attributes(),
-				"span":     span.Attributes(),
-			})
-
-		spanKindAttribute := toAttribute("span", "kind", pcommon.NewValueStr(span.Kind().String()), false)
-		statusCodeAttribute := toAttribute("span", "status_code", pcommon.NewValueStr(span.Status().Code().String()), false)
-		isSlowAttribute := toAttribute("span", "isSlow", pcommon.NewValueBool(isSlow), true)
-
-		enrichmentAttributes = append(enrichmentAttributes, statusCodeAttribute)
-		enrichmentAttributes = append(enrichmentAttributes, isSlowAttribute)
-		enrichmentAttributes = append(enrichmentAttributes, spanKindAttribute)
-
-		err := tenant.spanStats.Record(serviceName, fingerprint, p.pbPhase, p.id.Name(), environment.CollectorID(), environment.CustomerID(), enrichmentAttributes, 1, spanSize)
-		if err != nil && errors.Is(err, chqpb.ErrCacheFull) {
-			telemetry.CounterAdd(p.cacheFull, 1)
-		}
-	}
-	if p.config.Statistics.Traces.ExemplarsEnabled {
-		p.addSpanExemplar(tenant, rs, iss, span, serviceName, fingerprint)
-	}
-	telemetry.HistogramRecord(p.recordLatency, int64(time.Since(now)))
-
-	return nil
-}
-
-func (p *statsProcessor) addSpanExemplar(tenant *Tenant, rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span, serviceName string, fingerprint int64) {
+func (p *statsProcessor) addSpanExemplar(tenant *Tenant, rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span, fingerprint int64) {
 	if p.pbPhase != chqpb.Phase_PRE {
 		return
 	}
 
-	key := p.toExemplarKey(serviceName, fingerprint)
-	if tenant.traceExemplars.Contains(key) {
+	keys, exemplarKey := computeExemplarKey(rs.Resource(), []string{translate.CardinalFieldFingerprint, strconv.FormatInt(fingerprint, 10)})
+	if tenant.logExemplars.Contains(exemplarKey) {
+		return
+	}
+
+	if tenant.traceExemplars.Contains(exemplarKey) {
 		return
 	}
 	exemplarLd := ptrace.NewTraces()
@@ -134,9 +67,5 @@ func (p *statsProcessor) addSpanExemplar(tenant *Tenant, rs ptrace.ResourceSpans
 	ss.Scope().CopyTo(copySl.Scope())
 	copyLr := copySl.Spans().AppendEmpty()
 	sr.CopyTo(copyLr)
-	marshalled, me := p.jsonMarshaller.tracesMarshaler.MarshalTraces(exemplarLd)
-	if me != nil {
-		return
-	}
-	tenant.traceExemplars.Put(key, marshalled)
+	tenant.traceExemplars.Put(exemplarKey, keys, exemplarLd)
 }

@@ -16,19 +16,8 @@ package chqstatsprocessor
 
 import (
 	"context"
-	"errors"
-	"strconv"
-	"strings"
-
-	"go.opentelemetry.io/collector/pdata/pcommon"
-	"go.opentelemetry.io/collector/pdata/pmetric"
-	"go.uber.org/multierr"
-	"go.uber.org/zap"
-
-	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
-	"github.com/cardinalhq/oteltools/pkg/telemetry"
-	"github.com/cardinalhq/oteltools/pkg/translate"
+	"go.opentelemetry.io/collector/pdata/pmetric"
 )
 
 func (p *statsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
@@ -36,58 +25,20 @@ func (p *statsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics)
 		return md, nil
 	}
 
-	ee := authenv.GetEnvironment(ctx, p.idSource)
-
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
 		rm := md.ResourceMetrics().At(i)
-		serviceName := getServiceName(rm.Resource().Attributes())
 		rattr := rm.Resource().Attributes()
 		cid := OrgIdFromResource(rattr)
-		collectorId := CollectorIdFromResource(rattr)
 		tenant := p.getTenant(cid)
 
 		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
 			ilm := rm.ScopeMetrics().At(j)
-			sattr := ilm.Scope().Attributes()
 			for k := 0; k < ilm.Metrics().Len(); k++ {
 				m := ilm.Metrics().At(k)
 				metricName := m.Name()
 
 				if p.config.Statistics.Metrics.ExemplarsEnabled {
-					p.addMetricsExemplar(tenant, rm, ilm, m, serviceName, metricName, m.Type())
-				}
-
-				if !p.config.Statistics.Metrics.StatisticsEnabled {
-					continue
-				}
-
-				extra := map[string]string{"name": m.Name()}
-				switch m.Type() {
-				case pmetric.MetricTypeGauge:
-					for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
-						dp := m.Gauge().DataPoints().At(l)
-						p.processDatapoint(tenant, cid, collectorId, metricName, pmetric.MetricTypeGauge.String(), serviceName, extra, rattr, sattr, dp.Attributes(), ee)
-					}
-				case pmetric.MetricTypeSum:
-					for l := 0; l < m.Sum().DataPoints().Len(); l++ {
-						dp := m.Sum().DataPoints().At(l)
-						p.processDatapoint(tenant, cid, collectorId, metricName, pmetric.MetricTypeSum.String(), serviceName, extra, rattr, sattr, dp.Attributes(), ee)
-					}
-				case pmetric.MetricTypeHistogram:
-					for l := 0; l < m.Histogram().DataPoints().Len(); l++ {
-						dp := m.Histogram().DataPoints().At(l)
-						p.processDatapoint(tenant, cid, collectorId, metricName, pmetric.MetricTypeHistogram.String(), serviceName, extra, rattr, sattr, dp.Attributes(), ee)
-					}
-				case pmetric.MetricTypeSummary:
-					for l := 0; l < m.Summary().DataPoints().Len(); l++ {
-						dp := m.Summary().DataPoints().At(l)
-						p.processDatapoint(tenant, cid, collectorId, metricName, pmetric.MetricTypeSummary.String(), serviceName, extra, rattr, sattr, dp.Attributes(), ee)
-					}
-				case pmetric.MetricTypeExponentialHistogram:
-					for l := 0; l < m.ExponentialHistogram().DataPoints().Len(); l++ {
-						dp := m.ExponentialHistogram().DataPoints().At(l)
-						p.processDatapoint(tenant, cid, collectorId, metricName, pmetric.MetricTypeExponentialHistogram.String(), serviceName, extra, rattr, sattr, dp.Attributes(), ee)
-					}
+					p.addMetricsExemplar(tenant, rm, ilm, m, metricName, m.Type())
 				}
 			}
 		}
@@ -96,84 +47,18 @@ func (p *statsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics)
 	return md, nil
 }
 
-func (p *statsProcessor) processDatapoint(tenant *Tenant, customerId, collectorId, metricName, metricType, serviceName string, extra map[string]string, rattr, sattr, dattr pcommon.Map, environment authenv.Environment) {
-	tid := translate.CalculateTID(extra, rattr, sattr, dattr, "metric", environment)
-	if err := p.recordDatapoint(tenant, customerId, collectorId, metricName, metricType, serviceName, tid, rattr, sattr, dattr); err != nil {
-		p.logger.Error("Failed to record datapoint", zap.Error(err))
-	}
-}
-
-// TODO need to actually use environment here to record stats
-
-func computeStatsOnField(k string) bool {
-	if strings.HasPrefix(k, translate.CardinalFieldTID) {
-		return true
-	}
-	return !strings.HasPrefix(k, translate.CardinalFieldPrefixDot)
-}
-
-func (p *statsProcessor) recordDatapoint(tenant *Tenant, customerId, collectorId, metricName, metricType, serviceName string, tid int64, rattr, sattr, dpAttr pcommon.Map) error {
-	orgID := OrgIdFromResource(rattr)
-
-	var errs error
-
-	attributes := p.processEnrichments(orgID,
-		map[string]pcommon.Map{
-			"resource": rattr,
-			"scope":    sattr,
-			"metric":   dpAttr,
-		})
-
-	rattr.Range(func(k string, v pcommon.Value) bool {
-		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, p.recordMetric(tenant, customerId, collectorId, metricName, metricType, serviceName, k, v.AsString(), "resource", attributes))
-		}
-		return true
-	})
-	sattr.Range(func(k string, v pcommon.Value) bool {
-		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, p.recordMetric(tenant, customerId, collectorId, metricName, metricType, serviceName, k, v.AsString(), "scope", attributes))
-		}
-		return true
-	})
-	dpAttr.Range(func(k string, v pcommon.Value) bool {
-		if computeStatsOnField(k) {
-			errs = multierr.Append(errs, p.recordMetric(tenant, customerId, collectorId, metricName, metricType, serviceName, k, v.AsString(), "datapoint", attributes))
-		}
-		return true
-	})
-	errs = multierr.Append(errs, p.recordMetric(tenant, customerId, collectorId, metricName, metricType, serviceName, translate.CardinalFieldTID, strconv.FormatInt(tid, 10), "metric", attributes))
-	return errs
-}
-
-func (p *statsProcessor) recordMetric(tenant *Tenant, customerId, collectorId, metricName, metricType, serviceName, tagName, tagValue, tagScope string, attributes []*chqpb.Attribute) error {
-	err := tenant.metricstats.Record(p.pbPhase, metricName, metricType, tagScope, tagName, serviceName, p.id.Name(), collectorId, customerId, tagValue, attributes)
-	if err != nil && errors.Is(err, chqpb.ErrCacheFull) {
-		telemetry.CounterAdd(p.cacheFull, 1)
-	}
-	return nil
-}
-
-func (p *statsProcessor) toMetricExemplarFingerprint(serviceName, metricName, metricType string) int64 {
-	return hashString(serviceName + ":" + metricName + ":" + metricType)
-}
-
-func (p *statsProcessor) addMetricsExemplar(tenant *Tenant, rm pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, mm pmetric.Metric, serviceName, metricName string, metricType pmetric.MetricType) {
+func (p *statsProcessor) addMetricsExemplar(tenant *Tenant, rm pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, mm pmetric.Metric, metricName string, metricType pmetric.MetricType) {
 	if p.pbPhase == chqpb.Phase_PRE {
-		fingerprint := p.toMetricExemplarFingerprint(serviceName, metricName, metricType.String())
-		if tenant.metricExemplars.Contains(fingerprint) {
+		extraKeys := []string{
+			MetricNameKey, metricName,
+			MetricTypeKey, metricType.String(),
+		}
+		keys, exemplarKey := computeExemplarKey(rm.Resource(), extraKeys)
+		if tenant.metricExemplars.Contains(exemplarKey) {
 			return
 		}
-
 		exemplarLm := toExemplar(rm, sm, mm, metricType)
-
-		marshalled, err := p.jsonMarshaller.metricsMarshaler.MarshalMetrics(exemplarLm)
-		if err != nil {
-			p.logger.Error("Failed to marshal exemplar metric", zap.Error(err))
-			return
-		}
-
-		tenant.metricExemplars.Put(fingerprint, marshalled)
+		tenant.metricExemplars.Put(exemplarKey, keys, exemplarLm)
 	}
 }
 

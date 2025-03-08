@@ -17,8 +17,6 @@ package chqstatsprocessor
 import (
 	"context"
 	"errors"
-	"fmt"
-	"hash/fnv"
 	"net/http"
 	"os"
 	"sync"
@@ -92,16 +90,10 @@ type statsProcessor struct {
 }
 
 type Tenant struct {
-	logstats    *chqpb.EventStatsCache
-	spanStats   *chqpb.EventStatsCache
-	metricstats *chqpb.MetricStatsCache
-
 	logExemplars    *LRUCache
 	traceExemplars  *LRUCache
 	metricExemplars *LRUCache
 }
-
-var realClock = &chqpb.RealClock{}
 
 func (p *statsProcessor) getTenant(organizationID string) *Tenant {
 	p.tenantLock.Lock()
@@ -111,17 +103,11 @@ func (p *statsProcessor) getTenant(organizationID string) *Tenant {
 		tenant = &Tenant{}
 		switch p.ttype {
 		case "logs":
-			tenant.logstats = chqpb.NewEventStatsCache(1000, 16, 5*time.Minute, p.sendLogStats(organizationID), chqpb.InitializeEventStats, realClock)
-			tenant.logstats.Start()
-			tenant.logExemplars = NewLRUCache(1000, 5*time.Minute)
+			tenant.logExemplars = NewLRUCache(1000, 30*time.Minute, p.sendExemplars(organizationID, p.ttype, p.id.Name()))
 		case "metrics":
-			tenant.metricstats = chqpb.NewMetricStatsCache(1000, 16, 5*time.Minute, p.sendMetricStats(organizationID), chqpb.InitializeMetricStats, realClock)
-			tenant.metricstats.Start()
-			tenant.metricExemplars = NewLRUCache(1000, 5*time.Minute)
+			tenant.metricExemplars = NewLRUCache(1000, 30*time.Minute, p.sendExemplars(organizationID, p.ttype, p.id.Name()))
 		case "traces":
-			tenant.spanStats = chqpb.NewEventStatsCache(1000, 16, 5*time.Minute, p.sendSpanStats(organizationID), chqpb.InitializeEventStats, realClock)
-			tenant.spanStats.Start()
-			tenant.traceExemplars = NewLRUCache(1000, 5*time.Minute)
+			tenant.traceExemplars = NewLRUCache(1000, 30*time.Minute, p.sendExemplars(organizationID, p.ttype, p.id.Name()))
 		}
 
 		p.tenants[organizationID] = tenant
@@ -286,16 +272,6 @@ func (p *statsProcessor) configUpdateCallback(cpc ottl.ControlPlaneConfig) {
 	p.loadedConfig.Store(&cpc)
 }
 
-func hashString(s string) int64 {
-	h := fnv.New64a()
-	h.Write([]byte(s))
-	return int64(h.Sum64())
-}
-
-func (p *statsProcessor) toExemplarKey(serviceName string, fingerprint int64) int64 {
-	return hashString(fmt.Sprintf("%s-%d", serviceName, fingerprint))
-}
-
 func OrgIdFromResource(resource pcommon.Map) string {
 	orgID, found := resource.Get(translate.CardinalFieldCustomerID)
 	if !found {
@@ -310,4 +286,24 @@ func CollectorIdFromResource(resource pcommon.Map) string {
 		return "default"
 	}
 	return collectorId.AsString()
+}
+
+func getFromResource(rl pcommon.Resource, key string) string {
+	resourceAttributes := rl.Attributes()
+	clusterVal, clusterFound := resourceAttributes.Get(key)
+	cluster := clusterVal.AsString()
+	if !clusterFound {
+		cluster = "unknown"
+	}
+	return cluster
+}
+
+func computeExemplarKey(rl pcommon.Resource, extraKeys []string) ([]string, int64) {
+	keys := []string{
+		ClusterNameKey, getFromResource(rl, ServiceNameKey),
+		NamespaceNameKey, getFromResource(rl, NamespaceNameKey),
+		ServiceNameKey, getFromResource(rl, ServiceNameKey),
+	}
+	keys = append(keys, extraKeys...)
+	return keys, hashString(keys)
 }

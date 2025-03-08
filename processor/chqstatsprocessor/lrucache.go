@@ -16,32 +16,58 @@ package chqstatsprocessor
 
 import (
 	"container/list"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
+	"hash/fnv"
+	"strings"
 	"sync"
 	"time"
 )
 
+var ServiceNameKey = string(semconv.ServiceNameKey)
+var ClusterNameKey = string(semconv.K8SClusterNameKey)
+var NamespaceNameKey = string(semconv.K8SNamespaceNameKey)
+var MetricNameKey = "metric.name"
+var MetricTypeKey = "metric.type"
+
 type LRUCache struct {
-	capacity    int
-	cache       map[int64]*list.Element
-	list        *list.List
-	mutex       sync.RWMutex
-	expiry      time.Duration
-	stopCleanup chan struct{}
+	capacity        int
+	cache           map[int64]*list.Element
+	list            *list.List
+	mutex           sync.RWMutex
+	expiry          time.Duration
+	stopCleanup     chan struct{}
+	publishCallBack func(toPublish []*Entry)
 }
 
 type Entry struct {
-	key       int64
-	value     interface{}
-	timestamp time.Time
+	fingerprint     int64
+	keys            []string
+	value           interface{}
+	timestamp       time.Time
+	lastPublishTime time.Time
 }
 
-func NewLRUCache(capacity int, expiry time.Duration) *LRUCache {
+func (e *Entry) toAttributes() map[string]string {
+	attrs := make(map[string]string)
+	for i := 0; i < len(e.keys); i += 2 {
+		attrs[e.keys[i]] = e.keys[i+1]
+	}
+	return attrs
+}
+
+func (e *Entry) shouldPublish(expiry time.Duration) bool {
+	now := time.Now()
+	return now.Sub(e.lastPublishTime) > expiry/2
+}
+
+func NewLRUCache(capacity int, expiry time.Duration, publishCallBack func(expiredItems []*Entry)) *LRUCache {
 	lru := &LRUCache{
-		capacity:    capacity,
-		cache:       make(map[int64]*list.Element),
-		list:        list.New(),
-		expiry:      expiry,
-		stopCleanup: make(chan struct{}),
+		capacity:        capacity,
+		cache:           make(map[int64]*list.Element),
+		list:            list.New(),
+		expiry:          expiry,
+		stopCleanup:     make(chan struct{}),
+		publishCallBack: publishCallBack,
 	}
 	go lru.startCleanup()
 	return lru
@@ -66,30 +92,24 @@ func (l *LRUCache) cleanupExpiredEntries() {
 	defer l.mutex.Unlock()
 
 	now := time.Now()
+	itemsToPublish := make([]*Entry, 0)
 	for e := l.list.Back(); e != nil; {
 		entry := e.Value.(*Entry)
+		if entry.shouldPublish(l.expiry) {
+			itemsToPublish = append(itemsToPublish, entry)
+		}
 		if now.Sub(entry.timestamp) > l.expiry {
 			prev := e.Prev()
 			l.list.Remove(e)
-			delete(l.cache, entry.key)
+			delete(l.cache, entry.fingerprint)
 			e = prev
 		} else {
 			e = e.Prev()
 		}
 	}
-}
-
-func (l *LRUCache) Contains(key int64) bool {
-	l.mutex.RLock()
-	defer l.mutex.RUnlock()
-
-	elem, found := l.cache[key]
-	if !found {
-		return false
+	if len(itemsToPublish) > 0 {
+		l.publishCallBack(itemsToPublish)
 	}
-
-	entry := elem.Value.(*Entry)
-	return time.Since(entry.timestamp) <= l.expiry
 }
 
 func (l *LRUCache) Get(key int64) (interface{}, bool) {
@@ -113,14 +133,33 @@ func (l *LRUCache) Get(key int64) (interface{}, bool) {
 	return entry.value, true
 }
 
+func hashString(s []string) int64 {
+	h := fnv.New64a()
+	h.Write([]byte(strings.Join(s, ":")))
+	return int64(h.Sum64())
+}
+
+func (l *LRUCache) Contains(key int64) bool {
+	l.mutex.RLock()
+	defer l.mutex.RUnlock()
+
+	elem, found := l.cache[key]
+	if !found {
+		return false
+	}
+
+	entry := elem.Value.(*Entry)
+	return time.Since(entry.timestamp) <= l.expiry
+}
+
 // Put adds a value to the cache or updates it if it already exists.
-func (l *LRUCache) Put(key int64, value interface{}) {
+func (l *LRUCache) Put(fingerprint int64, keys []string, exemplar interface{}) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
-	if elem, found := l.cache[key]; found {
+	if elem, found := l.cache[fingerprint]; found {
 		entry := elem.Value.(*Entry)
-		entry.value = value
+		entry.value = exemplar
 		entry.timestamp = time.Now()
 		l.list.MoveToFront(elem)
 		return
@@ -129,14 +168,22 @@ func (l *LRUCache) Put(key int64, value interface{}) {
 	if l.list.Len() >= l.capacity {
 		back := l.list.Back()
 		if back != nil {
+			entry := back.Value.(*Entry)
+			l.publishCallBack([]*Entry{entry})
 			l.list.Remove(back)
-			delete(l.cache, back.Value.(*Entry).key)
+			delete(l.cache, entry.fingerprint)
 		}
 	}
 
-	newEntry := &Entry{key: key, value: value, timestamp: time.Now()}
+	now := time.Now()
+	newEntry := &Entry{
+		fingerprint:     fingerprint,
+		keys:            keys,
+		value:           exemplar,
+		timestamp:       now,
+		lastPublishTime: now}
 	elem := l.list.PushFront(newEntry)
-	l.cache[key] = elem
+	l.cache[fingerprint] = elem
 }
 
 func (l *LRUCache) Remove(key int64) {

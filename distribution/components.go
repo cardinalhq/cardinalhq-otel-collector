@@ -131,8 +131,6 @@ import (
 	sumologicprocessor "github.com/open-telemetry/opentelemetry-collector-contrib/processor/sumologicprocessor"
 	tailsamplingprocessor "github.com/open-telemetry/opentelemetry-collector-contrib/processor/tailsamplingprocessor"
 	transformprocessor "github.com/open-telemetry/opentelemetry-collector-contrib/processor/transformprocessor"
-	batchprocessor2 "go.opentelemetry.io/collector/processor/batchprocessor"
-	memorylimiterprocessor2 "go.opentelemetry.io/collector/processor/memorylimiterprocessor"
 	aggregationprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor"
 	chqstatsprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor"
 	pitbullprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor"
@@ -661,8 +659,6 @@ func components() (otelcol.Factories, error) {
 		sumologicprocessor.NewFactory(),
 		tailsamplingprocessor.NewFactory(),
 		transformprocessor.NewFactory(),
-		batchprocessor2.NewFactory(),
-		memorylimiterprocessor2.NewFactory(),
 		aggregationprocessor.NewFactory(),
 		chqstatsprocessor.NewFactory(),
 		pitbullprocessor.NewFactory(),
@@ -699,8 +695,6 @@ func components() (otelcol.Factories, error) {
 	factories.ProcessorModules[sumologicprocessor.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/processor/sumologicprocessor v0.121.0"
 	factories.ProcessorModules[tailsamplingprocessor.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/processor/tailsamplingprocessor v0.121.0"
 	factories.ProcessorModules[transformprocessor.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/processor/transformprocessor v0.121.0"
-	factories.ProcessorModules[batchprocessor2.NewFactory().Type()] = "go.opentelemetry.io/collector/processor/batchprocessor v0.121.0"
-	factories.ProcessorModules[memorylimiterprocessor2.NewFactory().Type()] = "go.opentelemetry.io/collector/processor/memorylimiterprocessor v0.121.0"
 	factories.ProcessorModules[aggregationprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.121.0"
 	factories.ProcessorModules[chqstatsprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor v0.121.0"
 	factories.ProcessorModules[pitbullprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.121.0"

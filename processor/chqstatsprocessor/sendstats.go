@@ -17,7 +17,9 @@ package chqstatsprocessor
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/cardinalhq/oteltools/pkg/stats"
 	"io"
 	"net/http"
 	"time"
@@ -227,6 +229,52 @@ func (p *statsProcessor) sendMetricStatsFor(organizationId string, wrappers []*c
 	}
 }
 
+func (p *statsProcessor) sendSpanSketchesFor(cid string) func(time.Time, []*stats.SpanSketch) {
+	return func(t time.Time, stats []*stats.SpanSketch) {
+		err := p.sendSpanSketches(cid, t, stats)
+		if err != nil {
+			p.logger.Error("Failed to send span sketches", zap.Error(err))
+		}
+	}
+}
+func (p *statsProcessor) sendSpanSketches(cid string, t time.Time, sketches []*stats.SpanSketch) error {
+	var payload [][]byte
+	for _, sketch := range sketches {
+		serialized, err := sketch.Serialize()
+		if err != nil {
+			continue
+		}
+		payload = append(payload, serialized)
+	}
+
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	query := fmt.Sprintf("%s=%s&%s=%d", "/api/v1/spanSketches?organizationID", cid, "step", t.UnixMilli())
+	endpoint := p.config.Endpoint + query
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint, bytes.NewReader(jsonPayload))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := p.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		p.logger.Error("Failed to send metric stats", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	return nil
+}
 func (p *statsProcessor) sendReport(ctx context.Context, wrapper *chqpb.MetricStatsReport) error {
 	b, err := proto.Marshal(wrapper)
 	if err != nil {

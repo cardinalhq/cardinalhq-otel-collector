@@ -16,11 +16,9 @@ package fingerprintprocessor
 
 import (
 	"context"
-	"strings"
-	"time"
-
 	"github.com/cespare/xxhash/v2"
 	"go.opentelemetry.io/collector/pdata/ptrace"
+	"strings"
 
 	"github.com/cardinalhq/oteltools/pkg/ottl/functions"
 	"github.com/cardinalhq/oteltools/pkg/translate"
@@ -29,8 +27,6 @@ import (
 func (p *fingerprintProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
 	for i := 0; i < td.ResourceSpans().Len(); i++ {
 		rs := td.ResourceSpans().At(i)
-		cid := OrgIdFromResource(rs.Resource().Attributes())
-		tenant := p.getTenant(cid)
 		for j := 0; j < rs.ScopeSpans().Len(); j++ {
 			iss := rs.ScopeSpans().At(j)
 			for k := 0; k < iss.Spans().Len(); k++ {
@@ -39,10 +35,7 @@ func (p *fingerprintProcessor) ConsumeTraces(ctx context.Context, td ptrace.Trac
 				sr.Attributes().PutInt(translate.CardinalFieldFingerprint, spanFingerprint)
 
 				spanDuration := float64(sr.EndTimestamp().AsTime().Sub(sr.StartTimestamp().AsTime()).Abs().Milliseconds())
-				sr.Attributes().PutDouble("_cardinalhq.span_duration", spanDuration)
-
-				isSlow := p.isSpanSlow(tenant, spanDuration, uint64(spanFingerprint))
-				sr.Attributes().PutBool(translate.CardinalFieldSpanIsSlow, isSlow)
+				sr.Attributes().PutDouble(translate.CardinalFieldSpanDuration, spanDuration)
 			}
 		}
 	}
@@ -56,24 +49,4 @@ func calculateSpanFingerprint(sr ptrace.Span) int64 {
 	fingerprintAttributes = append(fingerprintAttributes, sanitizedName)
 	fingerprintAttributes = append(fingerprintAttributes, sr.Kind().String())
 	return int64(xxhash.Sum64String(strings.Join(fingerprintAttributes, "##")))
-}
-
-func (p *fingerprintProcessor) isSpanSlow(tenant *tenantState, duration float64, fingerprint uint64) bool {
-	return p.slowSpanPercentile(tenant, fingerprint, duration)
-}
-
-func (p *fingerprintProcessor) slowSpanPercentile(tenant *tenantState, fingerprint uint64, duration float64) bool {
-	sketch := p.findSpanSketch(tenant, fingerprint)
-	sketch.Update(time.Now().UnixMilli(), duration)
-	return sketch.GreaterThanThreeStdDev(duration)
-}
-
-func (p *fingerprintProcessor) findSpanSketch(tenant *tenantState, fingerprint uint64) *SlidingEstimatorStat {
-	sketch, ok := tenant.estimators.Load(fingerprint)
-	if !ok {
-		estimator := NewSlidingEstimatorStat(p.estimatorWindowSize, p.estimatorInterval)
-		tenant.estimators.Store(fingerprint, estimator)
-		return estimator
-	}
-	return sketch
 }

@@ -27,7 +27,7 @@ import (
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/extension"
-	"go.opentelemetry.io/collector/extension/auth"
+	"go.opentelemetry.io/collector/extension/extensionauth"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
@@ -70,7 +70,7 @@ func (chq *chqServerAuth) setupServerTelemetry(params extension.Settings) error 
 	return nil
 }
 
-func newServerAuthExtension(cfg *Config, params extension.Settings) (auth.Server, error) {
+func newServerAuthExtension(cfg *Config, params extension.Settings) (extensionauth.Server, error) {
 	chq := chqServerAuth{
 		config:             cfg,
 		httpClientSettings: cfg.ServerAuth.ClientConfig,
@@ -81,10 +81,10 @@ func newServerAuthExtension(cfg *Config, params extension.Settings) (auth.Server
 	if err := chq.setupServerTelemetry(params); err != nil {
 		return nil, err
 	}
-	return auth.NewServer(
-		auth.WithServerStart(chq.serverStart),
-		auth.WithServerAuthenticate(chq.serverAuthenticate),
-	), nil
+	return extensionauth.NewServer(
+		extensionauth.WithServerStart(chq.serverStart),
+		extensionauth.WithServerAuthenticate(chq.serverAuthenticate),
+	)
 }
 
 func (chq *chqServerAuth) serverStart(_ context.Context, _ component.Host) error {

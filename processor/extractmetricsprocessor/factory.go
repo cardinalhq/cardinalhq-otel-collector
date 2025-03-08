@@ -25,8 +25,6 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor/internal/metadata"
 )
 
-var componentType = component.MustNewType("extractmetrics")
-
 func NewFactory() processor.Factory {
 	return processor.NewFactory(
 		metadata.Type,

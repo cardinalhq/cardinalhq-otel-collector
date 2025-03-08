@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	"go.opentelemetry.io/collector/extension"
-	"go.opentelemetry.io/collector/extension/auth"
+	"go.opentelemetry.io/collector/extension/extensionauth"
 	creds "google.golang.org/grpc/credentials"
 )
 
@@ -30,15 +30,15 @@ type chqClientAuth struct {
 	env      map[string]string
 }
 
-func newClientAuthExtension(cfg *Config, _ extension.Settings) auth.Client {
+func newClientAuthExtension(cfg *Config, _ extension.Settings) (extensionauth.Client, error) {
 	chq := chqClientAuth{
 		config:   cfg.ClientAuth,
 		insecure: cfg.ClientAuth.Insecure,
 		env:      cfg.ClientAuth.Environment,
 	}
-	return auth.NewClient(
-		auth.WithClientRoundTripper(chq.roundTripper),
-		auth.WithClientPerRPCCredentials(chq.perRPCCredentials),
+	return extensionauth.NewClient(
+		extensionauth.WithClientRoundTripper(chq.roundTripper),
+		extensionauth.WithClientPerRPCCredentials(chq.perRPCCredentials),
 	)
 }
 

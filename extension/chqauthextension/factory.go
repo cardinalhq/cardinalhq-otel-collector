@@ -50,7 +50,7 @@ func createExtension(_ context.Context, params extension.Settings, cfg component
 		if c.ClientAuth.APIKey == "" {
 			return nil, errNoClientAPIKey
 		}
-		return newClientAuthExtension(c, params), nil
+		return newClientAuthExtension(c, params)
 	}
 
 	if c.ServerAuth.Endpoint == "" {

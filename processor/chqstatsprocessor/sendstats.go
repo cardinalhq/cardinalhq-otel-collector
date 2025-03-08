@@ -229,15 +229,15 @@ func (p *statsProcessor) sendMetricStatsFor(organizationId string, wrappers []*c
 	}
 }
 
-func (p *statsProcessor) sendSpanSketchesFor(cid string) func(time.Time, []*stats.SpanSketch) {
-	return func(t time.Time, stats []*stats.SpanSketch) {
-		err := p.sendSpanSketches(cid, t, stats)
+func (p *statsProcessor) sendSpanSketchesFor(cid string) func([]*stats.SpanSketch) {
+	return func(stats []*stats.SpanSketch) {
+		err := p.sendSpanSketches(cid, stats)
 		if err != nil {
 			p.logger.Error("Failed to send span sketches", zap.Error(err))
 		}
 	}
 }
-func (p *statsProcessor) sendSpanSketches(cid string, t time.Time, sketches []*stats.SpanSketch) error {
+func (p *statsProcessor) sendSpanSketches(cid string, sketches []*stats.SpanSketch) error {
 	var payload [][]byte
 	for _, sketch := range sketches {
 		serialized, err := sketch.Serialize()
@@ -252,7 +252,7 @@ func (p *statsProcessor) sendSpanSketches(cid string, t time.Time, sketches []*s
 		return fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
-	query := fmt.Sprintf("%s=%s&%s=%d", "/api/v1/spanSketches?organizationID", cid, "step", t.UnixMilli())
+	query := fmt.Sprintf("%s=%s", "/api/v1/spanSketches?organizationID", cid)
 	endpoint := p.config.Endpoint + query
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint, bytes.NewReader(jsonPayload))
 	if err != nil {

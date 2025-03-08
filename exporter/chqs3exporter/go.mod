@@ -8,29 +8,17 @@ require (
 	github.com/DataDog/sketches-go v1.4.7
 	github.com/aws/aws-sdk-go v1.55.6
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
-<<<<<<< HEAD
 	github.com/cardinalhq/oteltools v0.16.5
-=======
-	github.com/cardinalhq/oteltools v0.16.4
->>>>>>> 380530a (Introduce Span Sketches)
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/parquet-go/parquet-go v0.25.0
 	github.com/rs/xid v1.6.0
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/collector/component v1.27.0
-<<<<<<< HEAD
 	go.opentelemetry.io/collector/component/componenttest v0.121.0
 	go.opentelemetry.io/collector/consumer v1.27.0
 	go.opentelemetry.io/collector/exporter v0.121.0
 	go.opentelemetry.io/collector/exporter/exportertest v0.121.0
 	go.opentelemetry.io/collector/otelcol/otelcoltest v0.121.0
-=======
-	go.opentelemetry.io/collector/component/componenttest v0.119.0
-	go.opentelemetry.io/collector/consumer v1.27.0
-	go.opentelemetry.io/collector/exporter v0.119.0
-	go.opentelemetry.io/collector/exporter/exportertest v0.119.0
-	go.opentelemetry.io/collector/otelcol/otelcoltest v0.119.0
->>>>>>> 380530a (Introduce Span Sketches)
 	go.opentelemetry.io/collector/pdata v1.27.0
 	go.opentelemetry.io/otel/metric v1.35.0
 	go.opentelemetry.io/otel/trace v1.35.0

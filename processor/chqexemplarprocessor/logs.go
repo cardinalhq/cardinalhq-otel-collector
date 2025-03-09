@@ -21,16 +21,7 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/translate"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
-
-func getServiceName(r pcommon.Map) string {
-	snk := string(semconv.ServiceNameKey)
-	if serviceNameField, found := r.Get(snk); found {
-		return serviceNameField.AsString()
-	}
-	return "unknown"
-}
 
 func getFingerprint(l pcommon.Map) int64 {
 	fnk := translate.CardinalFieldFingerprint

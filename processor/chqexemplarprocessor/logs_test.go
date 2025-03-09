@@ -19,21 +19,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/pcommon"
-	semconv "go.opentelemetry.io/otel/semconv/v1.27.0"
 
 	"github.com/cardinalhq/oteltools/pkg/translate"
 )
-
-func TestGetServiceName(t *testing.T) {
-	attr := pcommon.NewMap()
-	attr.PutStr(string(semconv.ServiceNameKey), "my-service")
-	serviceName := getServiceName(attr)
-	assert.Equal(t, "my-service", serviceName)
-
-	attr = pcommon.NewMap()
-	serviceName = getServiceName(attr)
-	assert.Equal(t, "unknown", serviceName)
-}
 
 func TestGetFingerprint(t *testing.T) {
 	attr := pcommon.NewMap()

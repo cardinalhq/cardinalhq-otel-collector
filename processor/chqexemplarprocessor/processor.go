@@ -33,12 +33,9 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	logsMarshaler    = &plog.JSONMarshaler{}
-	metricsMarshaler = &pmetric.JSONMarshaler{}
-	tracesMarshaler  = &ptrace.JSONMarshaler{}
-)
-
+// exemplarProcessor is a processor that sends exemplars to a remote service.
+// This is not a shared component, and so we can only initialize the
+// parts we need here and dedicate it to the specific telemetry type.
 type exemplarProcessor struct {
 	config     *Config
 	httpClient *http.Client
@@ -67,19 +64,19 @@ func (p *exemplarProcessor) getTenant(organizationID string) *Tenant {
 				p.config.Reporting.Logs.CacheSize,
 				p.config.Reporting.Logs.Expiry,
 				p.config.Reporting.Logs.Interval,
-				p.sendLogExemplars(organizationID, p.id.Name()))
+				sendExemplars[plog.Logs](p, organizationID, p.id.Name()))
 		case "metrics":
 			tenant.metricCache = NewLRUCache(
 				p.config.Reporting.Metrics.CacheSize,
 				p.config.Reporting.Metrics.Expiry,
 				p.config.Reporting.Metrics.Interval,
-				p.sendMetricExemplars(organizationID, p.id.Name()))
+				sendExemplars[pmetric.Metrics](p, organizationID, p.id.Name()))
 		case "traces":
 			tenant.traceCache = NewLRUCache(
 				p.config.Reporting.Traces.CacheSize,
 				p.config.Reporting.Traces.Expiry,
 				p.config.Reporting.Traces.Interval,
-				p.sendTraceExemplars(organizationID, p.id.Name()))
+				sendExemplars[ptrace.Traces](p, organizationID, p.id.Name()))
 		}
 		return tenant
 	})
@@ -120,29 +117,20 @@ func orgIdFromResource(resource pcommon.Map) string {
 	return orgID.AsString()
 }
 
-func CollectorIdFromResource(resource pcommon.Map) string {
-	collectorId, found := resource.Get(translate.CardinalFieldCollectorID)
-	if !found {
-		return "default"
-	}
-	return collectorId.AsString()
-}
-
-func getFromResource(rl pcommon.Resource, key string) string {
-	resourceAttributes := rl.Attributes()
-	clusterVal, clusterFound := resourceAttributes.Get(key)
-	cluster := clusterVal.AsString()
+func getFromResource(attr pcommon.Map, key string) string {
+	clusterVal, clusterFound := attr.Get(key)
 	if !clusterFound {
-		cluster = "unknown"
+		return "unknown"
 	}
-	return cluster
+	return clusterVal.AsString()
+
 }
 
 func computeExemplarKey(rl pcommon.Resource, extraKeys []string) ([]string, int64) {
 	keys := []string{
-		clusterNameKey, getFromResource(rl, serviceNameKey),
-		namespaceNameKey, getFromResource(rl, namespaceNameKey),
-		serviceNameKey, getFromResource(rl, serviceNameKey),
+		clusterNameKey, getFromResource(rl.Attributes(), serviceNameKey),
+		namespaceNameKey, getFromResource(rl.Attributes(), namespaceNameKey),
+		serviceNameKey, getFromResource(rl.Attributes(), serviceNameKey),
 	}
 	keys = append(keys, extraKeys...)
 	return keys, hashString(keys)

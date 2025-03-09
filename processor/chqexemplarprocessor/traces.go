@@ -26,15 +26,15 @@ func (p *exemplarProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces)
 	if !p.config.Reporting.Traces.Enabled {
 		return td, nil
 	}
-	for i := 0; i < td.ResourceSpans().Len(); i++ {
+
+	for i := range td.ResourceSpans().Len() {
 		rs := td.ResourceSpans().At(i)
 		resourceAttributes := rs.Resource().Attributes()
 		cid := orgIdFromResource(resourceAttributes)
 		tenant := p.getTenant(cid)
-
-		for j := 0; j < rs.ScopeSpans().Len(); j++ {
+		for j := range rs.ScopeSpans().Len() {
 			iss := rs.ScopeSpans().At(j)
-			for k := 0; k < iss.Spans().Len(); k++ {
+			for k := range iss.Spans().Len() {
 				sr := iss.Spans().At(k)
 				fingerprint := getFingerprint(sr.Attributes())
 				p.addSpanExemplar(tenant, rs, iss, sr, fingerprint)

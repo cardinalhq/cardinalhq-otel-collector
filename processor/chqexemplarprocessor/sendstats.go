@@ -39,14 +39,14 @@ type ExemplarPublishReport struct {
 	Exemplars     []*Exemplar `json:"exemplars"`
 }
 
-func (p *exemplarProcessor) sendLogExemplars(cid, processorId string) func([]*Entry) {
-	return func(entries []*Entry) {
+func (p *exemplarProcessor) sendLogExemplars(cid, processorId string) func([]*Entry[plog.Logs]) {
+	return func(entries []*Entry[plog.Logs]) {
 		var batch []*Exemplar
 		accumulated := 0
 		batchSize := 50
 
 		for _, entry := range entries {
-			data, err := logsMarshaler.MarshalLogs(entry.value.(plog.Logs))
+			data, err := logsMarshaler.MarshalLogs(entry.value)
 			if err != nil {
 				p.logger.Error("Failed to marshal telemetry data", zap.Error(err))
 				continue
@@ -69,14 +69,14 @@ func (p *exemplarProcessor) sendLogExemplars(cid, processorId string) func([]*En
 		}
 	}
 }
-func (p *exemplarProcessor) sendMetricExemplars(cid, processorId string) func([]*Entry) {
-	return func(entries []*Entry) {
+func (p *exemplarProcessor) sendMetricExemplars(cid, processorId string) func([]*Entry[pmetric.Metrics]) {
+	return func(entries []*Entry[pmetric.Metrics]) {
 		var batch []*Exemplar
 		accumulated := 0
 		batchSize := 50
 
 		for _, entry := range entries {
-			data, err := metricsMarshaler.MarshalMetrics(entry.value.(pmetric.Metrics))
+			data, err := metricsMarshaler.MarshalMetrics(entry.value)
 			if err != nil {
 				p.logger.Error("Failed to marshal telemetry data", zap.Error(err))
 				continue
@@ -100,14 +100,14 @@ func (p *exemplarProcessor) sendMetricExemplars(cid, processorId string) func([]
 	}
 }
 
-func (p *exemplarProcessor) sendTraceExemplars(cid, processorId string) func([]*Entry) {
-	return func(entries []*Entry) {
+func (p *exemplarProcessor) sendTraceExemplars(cid, processorId string) func([]*Entry[ptrace.Traces]) {
+	return func(entries []*Entry[ptrace.Traces]) {
 		var batch []*Exemplar
 		accumulated := 0
 		batchSize := 50
 
 		for _, entry := range entries {
-			data, err := tracesMarshaler.MarshalTraces(entry.value.(ptrace.Traces))
+			data, err := tracesMarshaler.MarshalTraces(entry.value)
 			if err != nil {
 				p.logger.Error("Failed to marshal telemetry data", zap.Error(err))
 				continue

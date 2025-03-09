@@ -25,15 +25,14 @@ func (p *exemplarProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metri
 		return md, nil
 	}
 
-	for i := 0; i < md.ResourceMetrics().Len(); i++ {
+	for i := range md.ResourceMetrics().Len() {
 		rm := md.ResourceMetrics().At(i)
 		rattr := rm.Resource().Attributes()
 		cid := orgIdFromResource(rattr)
 		tenant := p.getTenant(cid)
-
-		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
+		for j := range rm.ScopeMetrics().Len() {
 			ilm := rm.ScopeMetrics().At(j)
-			for k := 0; k < ilm.Metrics().Len(); k++ {
+			for k := range ilm.Metrics().Len() {
 				m := ilm.Metrics().At(k)
 				p.addMetricsExemplar(tenant, rm, ilm, m, m.Name(), m.Type())
 			}
@@ -52,13 +51,13 @@ func (p *exemplarProcessor) addMetricsExemplar(tenant *Tenant, rm pmetric.Resour
 	if tenant.metricCache.Contains(exemplarKey) {
 		return
 	}
-	exemplarLm := toExemplar(rm, sm, mm, metricType)
-	tenant.metricCache.Put(exemplarKey, keys, exemplarLm)
+	exemplarRecord := toExemplar(rm, sm, mm, metricType)
+	tenant.metricCache.Put(exemplarKey, keys, exemplarRecord)
 }
 
 func toExemplar(rm pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, mm pmetric.Metric, metricType pmetric.MetricType) pmetric.Metrics {
-	exemplarLm := pmetric.NewMetrics()
-	copyRm := exemplarLm.ResourceMetrics().AppendEmpty()
+	exemplarRecord := pmetric.NewMetrics()
+	copyRm := exemplarRecord.ResourceMetrics().AppendEmpty()
 	rm.Resource().CopyTo(copyRm.Resource())
 	copySm := copyRm.ScopeMetrics().AppendEmpty()
 	sm.Scope().CopyTo(copySm.Scope())
@@ -104,5 +103,5 @@ func toExemplar(rm pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, mm pmetric.
 			dp.CopyTo(ccd)
 		}
 	}
-	return exemplarLm
+	return exemplarRecord
 }

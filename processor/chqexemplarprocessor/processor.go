@@ -53,9 +53,9 @@ type exemplarProcessor struct {
 }
 
 type Tenant struct {
-	logCache    *LRUCache
-	metricCache *LRUCache
-	traceCache  *LRUCache
+	logCache    *LRUCache[plog.Logs]
+	metricCache *LRUCache[pmetric.Metrics]
+	traceCache  *LRUCache[ptrace.Traces]
 }
 
 func (p *exemplarProcessor) getTenant(organizationID string) *Tenant {
@@ -69,13 +69,13 @@ func (p *exemplarProcessor) getTenant(organizationID string) *Tenant {
 				p.config.Reporting.Logs.Interval,
 				p.sendLogExemplars(organizationID, p.id.Name()))
 		case "metrics":
-			tenant.logCache = NewLRUCache(
+			tenant.metricCache = NewLRUCache(
 				p.config.Reporting.Metrics.CacheSize,
 				p.config.Reporting.Metrics.Expiry,
 				p.config.Reporting.Metrics.Interval,
 				p.sendMetricExemplars(organizationID, p.id.Name()))
 		case "traces":
-			tenant.logCache = NewLRUCache(
+			tenant.traceCache = NewLRUCache(
 				p.config.Reporting.Traces.CacheSize,
 				p.config.Reporting.Traces.Expiry,
 				p.config.Reporting.Traces.Interval,

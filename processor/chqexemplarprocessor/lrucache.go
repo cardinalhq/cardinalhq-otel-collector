@@ -16,18 +16,19 @@ package chqexemplarprocessor
 
 import (
 	"container/list"
-	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"hash/fnv"
 	"strings"
 	"sync"
 	"time"
+
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 )
 
-var ServiceNameKey = string(semconv.ServiceNameKey)
-var ClusterNameKey = string(semconv.K8SClusterNameKey)
-var NamespaceNameKey = string(semconv.K8SNamespaceNameKey)
-var MetricNameKey = "metric.name"
-var MetricTypeKey = "metric.type"
+var serviceNameKey = string(semconv.ServiceNameKey)
+var clusterNameKey = string(semconv.K8SClusterNameKey)
+var namespaceNameKey = string(semconv.K8SNamespaceNameKey)
+var metricNameKey = "metric.name"
+var metricTypeKey = "metric.type"
 
 type LRUCache struct {
 	capacity        int
@@ -35,6 +36,7 @@ type LRUCache struct {
 	list            *list.List
 	mutex           sync.RWMutex
 	expiry          time.Duration
+	reportInterval  time.Duration
 	stopCleanup     chan struct{}
 	publishCallBack func(toPublish []*Entry)
 }
@@ -42,7 +44,7 @@ type LRUCache struct {
 type Entry struct {
 	fingerprint     int64
 	keys            []string
-	value           interface{}
+	value           any
 	timestamp       time.Time
 	lastPublishTime time.Time
 }
@@ -60,11 +62,12 @@ func (e *Entry) shouldPublish(expiry time.Duration) bool {
 	return now.Sub(e.lastPublishTime) > expiry/2
 }
 
-func NewLRUCache(capacity int, expiry time.Duration, publishCallBack func(expiredItems []*Entry)) *LRUCache {
+func NewLRUCache(capacity int, expiry time.Duration, reportInterval time.Duration, publishCallBack func(expiredItems []*Entry)) *LRUCache {
 	lru := &LRUCache{
 		capacity:        capacity,
 		cache:           make(map[int64]*list.Element),
 		list:            list.New(),
+		reportInterval:  reportInterval,
 		expiry:          expiry,
 		stopCleanup:     make(chan struct{}),
 		publishCallBack: publishCallBack,
@@ -74,12 +77,9 @@ func NewLRUCache(capacity int, expiry time.Duration, publishCallBack func(expire
 }
 
 func (l *LRUCache) startCleanup() {
-	ticker := time.NewTicker(l.expiry / 2)
-	defer ticker.Stop()
-
 	for {
 		select {
-		case <-ticker.C:
+		case <-time.NewTicker(l.reportInterval).C:
 			l.cleanupExpiredEntries()
 		case <-l.stopCleanup:
 			return
@@ -113,7 +113,7 @@ func (l *LRUCache) cleanupExpiredEntries() {
 	}
 }
 
-func (l *LRUCache) Get(key int64) (interface{}, bool) {
+func (l *LRUCache) Get(key int64) (any, bool) {
 	l.mutex.RLock()
 	elem, found := l.cache[key]
 	l.mutex.RUnlock()
@@ -154,7 +154,7 @@ func (l *LRUCache) Contains(key int64) bool {
 }
 
 // Put adds a value to the cache or updates it if it already exists.
-func (l *LRUCache) Put(fingerprint int64, keys []string, exemplar interface{}) {
+func (l *LRUCache) Put(fingerprint int64, keys []string, exemplar any) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 

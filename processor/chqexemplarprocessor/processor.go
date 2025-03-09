@@ -17,7 +17,6 @@ package chqexemplarprocessor
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/cardinalhq/oteltools/pkg/syncmap"
 	"github.com/cardinalhq/oteltools/pkg/translate"
@@ -34,19 +33,11 @@ import (
 	"go.uber.org/zap"
 )
 
-func newMarshaller() otelJsonMarshaller {
-	return otelJsonMarshaller{
-		logsMarshaler:    &plog.JSONMarshaler{},
-		tracesMarshaler:  &ptrace.JSONMarshaler{},
-		metricsMarshaler: &pmetric.JSONMarshaler{},
-	}
-}
-
-type otelJsonMarshaller struct {
-	logsMarshaler    plog.Marshaler
-	tracesMarshaler  ptrace.Marshaler
-	metricsMarshaler pmetric.Marshaler
-}
+var (
+	logsMarshaler    = &plog.JSONMarshaler{}
+	metricsMarshaler = &pmetric.JSONMarshaler{}
+	tracesMarshaler  = &ptrace.JSONMarshaler{}
+)
 
 type exemplarProcessor struct {
 	config     *Config
@@ -59,31 +50,39 @@ type exemplarProcessor struct {
 	telemetrySettings  component.TelemetrySettings
 
 	tenants syncmap.SyncMap[string, *Tenant]
-
-	jsonMarshaller otelJsonMarshaller
 }
 
 type Tenant struct {
-	logExemplars    *LRUCache
-	traceExemplars  *LRUCache
-	metricExemplars *LRUCache
+	logCache    *LRUCache
+	metricCache *LRUCache
+	traceCache  *LRUCache
 }
 
 func (p *exemplarProcessor) getTenant(organizationID string) *Tenant {
-	tenant, _ := p.tenants.LoadOrStore(organizationID, func() *Tenant {
+	return p.tenants.LoadOrStore(organizationID, func() *Tenant {
 		tenant := &Tenant{}
 		switch p.ttype {
 		case "logs":
-			tenant.logExemplars = NewLRUCache(1000, 30*time.Minute, p.sendExemplars(organizationID, p.ttype, p.id.Name()))
+			tenant.logCache = NewLRUCache(
+				p.config.Reporting.Logs.CacheSize,
+				p.config.Reporting.Logs.Expiry,
+				p.config.Reporting.Logs.Interval,
+				p.sendLogExemplars(organizationID, p.id.Name()))
 		case "metrics":
-			tenant.metricExemplars = NewLRUCache(1000, 30*time.Minute, p.sendExemplars(organizationID, p.ttype, p.id.Name()))
+			tenant.logCache = NewLRUCache(
+				p.config.Reporting.Metrics.CacheSize,
+				p.config.Reporting.Metrics.Expiry,
+				p.config.Reporting.Metrics.Interval,
+				p.sendMetricExemplars(organizationID, p.id.Name()))
 		case "traces":
-			tenant.traceExemplars = NewLRUCache(1000, 30*time.Minute, p.sendExemplars(organizationID, p.ttype, p.id.Name()))
+			tenant.logCache = NewLRUCache(
+				p.config.Reporting.Traces.CacheSize,
+				p.config.Reporting.Traces.Expiry,
+				p.config.Reporting.Traces.Interval,
+				p.sendTraceExemplars(organizationID, p.id.Name()))
 		}
 		return tenant
 	})
-
-	return tenant
 }
 
 func newProcessor(config *Config, ttype string, set processor.Settings) (*exemplarProcessor, error) {
@@ -93,9 +92,7 @@ func newProcessor(config *Config, ttype string, set processor.Settings) (*exempl
 		config:             config,
 		httpClientSettings: config.ClientConfig,
 		telemetrySettings:  set.TelemetrySettings,
-		jsonMarshaller:     newMarshaller(),
 		logger:             set.Logger,
-		tenants:            make(map[string]*Tenant),
 	}
 
 	return p, nil
@@ -143,9 +140,9 @@ func getFromResource(rl pcommon.Resource, key string) string {
 
 func computeExemplarKey(rl pcommon.Resource, extraKeys []string) ([]string, int64) {
 	keys := []string{
-		ClusterNameKey, getFromResource(rl, ServiceNameKey),
-		NamespaceNameKey, getFromResource(rl, NamespaceNameKey),
-		ServiceNameKey, getFromResource(rl, ServiceNameKey),
+		clusterNameKey, getFromResource(rl, serviceNameKey),
+		namespaceNameKey, getFromResource(rl, namespaceNameKey),
+		serviceNameKey, getFromResource(rl, serviceNameKey),
 	}
 	keys = append(keys, extraKeys...)
 	return keys, hashString(keys)

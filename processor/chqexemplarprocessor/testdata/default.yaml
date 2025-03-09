@@ -3,6 +3,7 @@ receivers:
 
 processors:
   chqexemplars:
+    endpoint: "http://example.com"
 
 exporters:
   nop:

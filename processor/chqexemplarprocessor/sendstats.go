@@ -39,28 +39,14 @@ type ExemplarPublishReport struct {
 	Exemplars     []*Exemplar `json:"exemplars"`
 }
 
-func (p *exemplarProcessor) sendExemplars(cid, telemetryType, processorId string) func([]*Entry) {
+func (p *exemplarProcessor) sendLogExemplars(cid, processorId string) func([]*Entry) {
 	return func(entries []*Entry) {
 		var batch []*Exemplar
 		accumulated := 0
 		batchSize := 50
 
 		for _, entry := range entries {
-			var data []byte
-			var err error
-
-			switch telemetryType {
-			case "logs":
-				data, err = p.jsonMarshaller.logsMarshaler.MarshalLogs(entry.value.(plog.Logs))
-			case "metrics":
-				data, err = p.jsonMarshaller.metricsMarshaler.MarshalMetrics(entry.value.(pmetric.Metrics))
-			case "traces":
-				data, err = p.jsonMarshaller.tracesMarshaler.MarshalTraces(entry.value.(ptrace.Traces))
-			default:
-				p.logger.Error("Unknown telemetry type", zap.String("type", telemetryType))
-				continue
-			}
-
+			data, err := logsMarshaler.MarshalLogs(entry.value.(plog.Logs))
 			if err != nil {
 				p.logger.Error("Failed to marshal telemetry data", zap.Error(err))
 				continue
@@ -73,15 +59,74 @@ func (p *exemplarProcessor) sendExemplars(cid, telemetryType, processorId string
 			accumulated++
 
 			if accumulated >= batchSize {
-				p.sendBatchAsync(cid, telemetryType, processorId, batch)
+				p.sendBatchAsync(cid, "logs", processorId, batch)
 				accumulated = 0
 				batch = nil
 			}
 		}
-
-		// Send remaining batch if any
 		if accumulated > 0 {
-			p.sendBatchAsync(cid, telemetryType, processorId, batch)
+			p.sendBatchAsync(cid, "logs", processorId, batch)
+		}
+	}
+}
+func (p *exemplarProcessor) sendMetricExemplars(cid, processorId string) func([]*Entry) {
+	return func(entries []*Entry) {
+		var batch []*Exemplar
+		accumulated := 0
+		batchSize := 50
+
+		for _, entry := range entries {
+			data, err := metricsMarshaler.MarshalMetrics(entry.value.(pmetric.Metrics))
+			if err != nil {
+				p.logger.Error("Failed to marshal telemetry data", zap.Error(err))
+				continue
+			}
+			exemplar := &Exemplar{
+				Payload:    data,
+				Attributes: entry.toAttributes(),
+			}
+			batch = append(batch, exemplar)
+			accumulated++
+
+			if accumulated >= batchSize {
+				p.sendBatchAsync(cid, "metric", processorId, batch)
+				accumulated = 0
+				batch = nil
+			}
+		}
+		if accumulated > 0 {
+			p.sendBatchAsync(cid, "metric", processorId, batch)
+		}
+	}
+}
+
+func (p *exemplarProcessor) sendTraceExemplars(cid, processorId string) func([]*Entry) {
+	return func(entries []*Entry) {
+		var batch []*Exemplar
+		accumulated := 0
+		batchSize := 50
+
+		for _, entry := range entries {
+			data, err := tracesMarshaler.MarshalTraces(entry.value.(ptrace.Traces))
+			if err != nil {
+				p.logger.Error("Failed to marshal telemetry data", zap.Error(err))
+				continue
+			}
+			exemplar := &Exemplar{
+				Payload:    data,
+				Attributes: entry.toAttributes(),
+			}
+			batch = append(batch, exemplar)
+			accumulated++
+
+			if accumulated >= batchSize {
+				p.sendBatchAsync(cid, "trace", processorId, batch)
+				accumulated = 0
+				batch = nil
+			}
+		}
+		if accumulated > 0 {
+			p.sendBatchAsync(cid, "trace", processorId, batch)
 		}
 	}
 }

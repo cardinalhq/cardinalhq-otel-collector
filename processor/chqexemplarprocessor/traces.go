@@ -47,19 +47,19 @@ func (p *exemplarProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces)
 
 func (p *exemplarProcessor) addSpanExemplar(tenant *Tenant, rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span, fingerprint int64) {
 	keys, exemplarKey := computeExemplarKey(rs.Resource(), []string{translate.CardinalFieldFingerprint, strconv.FormatInt(fingerprint, 10)})
-	if tenant.logExemplars.Contains(exemplarKey) {
+	if tenant.traceCache.Contains(exemplarKey) {
 		return
 	}
 
-	if tenant.traceExemplars.Contains(exemplarKey) {
+	if tenant.traceCache.Contains(exemplarKey) {
 		return
 	}
-	exemplarLd := ptrace.NewTraces()
-	copyRl := exemplarLd.ResourceSpans().AppendEmpty()
+	exemplarRecord := ptrace.NewTraces()
+	copyRl := exemplarRecord.ResourceSpans().AppendEmpty()
 	rs.Resource().CopyTo(copyRl.Resource())
 	copySl := copyRl.ScopeSpans().AppendEmpty()
 	ss.Scope().CopyTo(copySl.Scope())
 	copyLr := copySl.Spans().AppendEmpty()
 	sr.CopyTo(copyLr)
-	tenant.traceExemplars.Put(exemplarKey, keys, exemplarLd)
+	tenant.traceCache.Put(exemplarKey, keys, exemplarRecord)
 }

@@ -45,15 +45,15 @@ func (p *exemplarProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metri
 
 func (p *exemplarProcessor) addMetricsExemplar(tenant *Tenant, rm pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, mm pmetric.Metric, metricName string, metricType pmetric.MetricType) {
 	extraKeys := []string{
-		MetricNameKey, metricName,
-		MetricTypeKey, metricType.String(),
+		metricNameKey, metricName,
+		metricTypeKey, metricType.String(),
 	}
 	keys, exemplarKey := computeExemplarKey(rm.Resource(), extraKeys)
-	if tenant.metricExemplars.Contains(exemplarKey) {
+	if tenant.metricCache.Contains(exemplarKey) {
 		return
 	}
 	exemplarLm := toExemplar(rm, sm, mm, metricType)
-	tenant.metricExemplars.Put(exemplarKey, keys, exemplarLm)
+	tenant.metricCache.Put(exemplarKey, keys, exemplarLm)
 }
 
 func toExemplar(rm pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, mm pmetric.Metric, metricType pmetric.MetricType) pmetric.Metrics {

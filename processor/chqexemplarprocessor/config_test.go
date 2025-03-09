@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/component"
+	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/otelcol/otelcoltest"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqexemplarprocessor/internal/metadata"
@@ -40,10 +41,13 @@ func TestLoadConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
-	e := cfg.Processors[component.MustNewID("chqstats")].(*Config)
+	e := cfg.Processors[component.MustNewID(metadata.Type.String())].(*Config)
 	assert.NoError(t, e.Validate())
 	assert.NotNil(t, e.Reporting)
-	assert.Equal(t, createDefaultConfig(), e)
+	expected := createDefaultConfig()
+	actualConf := expected.(*Config)
+	actualConf.ClientConfig.Endpoint = "http://example.com"
+	assert.Equal(t, actualConf, e)
 }
 
 func TestConfig(t *testing.T) {
@@ -59,20 +63,31 @@ func TestConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
-	e := cfg.Processors[component.MustNewID("chqstats")].(*Config)
+	e := cfg.Processors[component.MustNewID(metadata.Type.String())].(*Config)
 	assert.NoError(t, e.Validate())
 	assert.NotNil(t, e.Reporting)
 	expected := &Config{
+		ClientConfig: confighttp.ClientConfig{
+			Endpoint: "http://example.com",
+		},
 		Reporting: ReportingConfig{
-			Interval: 100 * time.Second,
-			Metrics: EnabledOption{
-				Enabled: true,
-			},
 			Logs: EnabledOption{
-				Enabled: true,
+				Enabled:   true,
+				Expiry:    10 * time.Minute,
+				Interval:  5 * time.Minute,
+				CacheSize: 1001,
+			},
+			Metrics: EnabledOption{
+				Enabled:   true,
+				Expiry:    11 * time.Minute,
+				Interval:  4 * time.Minute,
+				CacheSize: 1002,
 			},
 			Traces: EnabledOption{
-				Enabled: true,
+				Enabled:   true,
+				Expiry:    12 * time.Minute,
+				Interval:  3 * time.Minute,
+				CacheSize: 1003,
 			},
 		},
 	}

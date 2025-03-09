@@ -29,14 +29,16 @@ type Config struct {
 }
 
 type ReportingConfig struct {
-	Interval time.Duration `mapstructure:"interval"`
-	Metrics  EnabledOption `mapstructure:"metrics"`
-	Logs     EnabledOption `mapstructure:"logs"`
-	Traces   EnabledOption `mapstructure:"traces"`
+	Metrics EnabledOption `mapstructure:"metrics"`
+	Logs    EnabledOption `mapstructure:"logs"`
+	Traces  EnabledOption `mapstructure:"traces"`
 }
 
 type EnabledOption struct {
-	Enabled bool `mapstructure:"exemplars_enabled"`
+	Enabled   bool          `mapstructure:"enabled"`
+	Interval  time.Duration `mapstructure:"interval"`
+	Expiry    time.Duration `mapstructure:"expiry"`
+	CacheSize int           `mapstructure:"cache_size"`
 }
 
 type ContextID = string
@@ -55,13 +57,30 @@ func (c *Config) Validate() error {
 
 func (c *ReportingConfig) Validate() error {
 	var errs error
-	if c.Interval == 0 {
-		c.Interval = 5 * time.Minute
-	}
 
-	if c.Interval < 0 {
-		errs = multierr.Append(errs, errors.New("interval must be greater than or equal to 0"))
-	}
+	errs = multierr.Append(errs, c.Metrics.Validate())
+	errs = multierr.Append(errs, c.Logs.Validate())
+	errs = multierr.Append(errs, c.Traces.Validate())
 
 	return errs
+}
+
+func (e *EnabledOption) Validate() error {
+	if e.Interval <= 0 {
+		return errors.New("interval must be positive")
+	}
+
+	if e.Expiry <= 0 {
+		return errors.New("expiry must be positive")
+	}
+
+	if e.Expiry < e.Interval*2 {
+		return errors.New("expiry must be at least twice the interval")
+	}
+
+	if e.CacheSize < 1000 {
+		return errors.New("LRU cache size must be at least 1000")
+	}
+
+	return nil
 }

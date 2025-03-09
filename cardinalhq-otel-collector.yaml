@@ -264,6 +264,8 @@ processors:
     path: ./processor/summarysplitprocessor
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.121.0
     path: ./processor/extractmetricsprocessor
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/chqexemplarprocessor v0.121.0
+    path: ./processor/chqexemplarprocessor
 
 connectors:
   - gomod: go.opentelemetry.io/collector/connector/forwardconnector v0.121.0

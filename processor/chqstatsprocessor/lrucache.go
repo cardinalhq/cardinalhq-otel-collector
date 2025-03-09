@@ -97,6 +97,7 @@ func (l *LRUCache) cleanupExpiredEntries() {
 		entry := e.Value.(*Entry)
 		if entry.shouldPublish(l.expiry) {
 			itemsToPublish = append(itemsToPublish, entry)
+			entry.lastPublishTime = now
 		}
 		if now.Sub(entry.timestamp) > l.expiry {
 			prev := e.Prev()

@@ -18,6 +18,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/signalnames"
 	"github.com/cardinalhq/oteltools/pkg/syncmap"
 	"github.com/cardinalhq/oteltools/pkg/translate"
 
@@ -37,18 +38,19 @@ import (
 // This is not a shared component, and so we can only initialize the
 // parts we need here and dedicate it to the specific telemetry type.
 type exemplarProcessor struct {
-	config     *Config
-	httpClient *http.Client
-	logger     *zap.Logger
-
+	config             *Config
+	httpClient         *http.Client
+	logger             *zap.Logger
 	id                 component.ID
-	ttype              string
+	ttype              signalnames.Name
 	httpClientSettings confighttp.ClientConfig
 	telemetrySettings  component.TelemetrySettings
 
 	tenants syncmap.SyncMap[string, *Tenant]
 }
 
+// Tenant holds the caches for each telemetry type, although for any given
+// processor instance, only one of these will be used.
 type Tenant struct {
 	logCache    *LRUCache[plog.Logs]
 	metricCache *LRUCache[pmetric.Metrics]
@@ -59,19 +61,19 @@ func (p *exemplarProcessor) getTenant(organizationID string) *Tenant {
 	return p.tenants.LoadOrStore(organizationID, func() *Tenant {
 		tenant := &Tenant{}
 		switch p.ttype {
-		case "logs":
+		case signalnames.Logs:
 			tenant.logCache = NewLRUCache(
 				p.config.Reporting.Logs.CacheSize,
 				p.config.Reporting.Logs.Expiry,
 				p.config.Reporting.Logs.Interval,
 				sendExemplars[plog.Logs](p, organizationID, p.id.Name()))
-		case "metrics":
+		case signalnames.Metrics:
 			tenant.metricCache = NewLRUCache(
 				p.config.Reporting.Metrics.CacheSize,
 				p.config.Reporting.Metrics.Expiry,
 				p.config.Reporting.Metrics.Interval,
 				sendExemplars[pmetric.Metrics](p, organizationID, p.id.Name()))
-		case "traces":
+		case signalnames.Traces:
 			tenant.traceCache = NewLRUCache(
 				p.config.Reporting.Traces.CacheSize,
 				p.config.Reporting.Traces.Expiry,
@@ -82,7 +84,7 @@ func (p *exemplarProcessor) getTenant(organizationID string) *Tenant {
 	})
 }
 
-func newProcessor(config *Config, ttype string, set processor.Settings) (*exemplarProcessor, error) {
+func newProcessor(config *Config, ttype signalnames.Name, set processor.Settings) (*exemplarProcessor, error) {
 	p := &exemplarProcessor{
 		id:                 set.ID,
 		ttype:              ttype,
@@ -128,7 +130,7 @@ func getFromResource(attr pcommon.Map, key string) string {
 
 func computeExemplarKey(rl pcommon.Resource, extraKeys []string) ([]string, int64) {
 	keys := []string{
-		clusterNameKey, getFromResource(rl.Attributes(), serviceNameKey),
+		clusterNameKey, getFromResource(rl.Attributes(), clusterNameKey),
 		namespaceNameKey, getFromResource(rl.Attributes(), namespaceNameKey),
 		serviceNameKey, getFromResource(rl.Attributes(), serviceNameKey),
 	}

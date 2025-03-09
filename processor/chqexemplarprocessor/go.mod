@@ -5,7 +5,9 @@ go 1.24
 toolchain go1.24.1
 
 require (
+	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
 	github.com/cardinalhq/oteltools v0.16.6
+	github.com/cespare/xxhash v1.1.0
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/collector/component v1.27.0
 	go.opentelemetry.io/collector/config/confighttp v0.121.0
@@ -25,7 +27,6 @@ require (
 	github.com/apache/datasketches-go v0.0.0-20250118213811-1dc6bd45f849 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
-	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/ebitengine/purego v0.8.2 // indirect

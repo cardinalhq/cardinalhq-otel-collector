@@ -26,6 +26,8 @@ import (
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/signalnames"
 )
 
 type Exemplar struct {
@@ -34,10 +36,10 @@ type Exemplar struct {
 }
 
 type ExemplarPublishReport struct {
-	CustomerId    string      `json:"customer_id"`
-	ProcessorId   string      `json:"processor_id"`
-	TelemetryType string      `json:"telemetry_type"`
-	Exemplars     []*Exemplar `json:"exemplars"`
+	CustomerId    string           `json:"customer_id"`
+	ProcessorId   string           `json:"processor_id"`
+	TelemetryType signalnames.Name `json:"telemetry_type"`
+	Exemplars     []*Exemplar      `json:"exemplars"`
 }
 
 var (
@@ -95,7 +97,7 @@ func marshalTelemetry[T supportedSignals](t T) ([]byte, error) {
 	}
 }
 
-func (p *exemplarProcessor) sendBatchAsync(cid, telemetryType, processorId string, batch []*Exemplar) {
+func (p *exemplarProcessor) sendBatchAsync(cid string, telemetryType signalnames.Name, processorId string, batch []*Exemplar) {
 	if len(batch) == 0 {
 		return
 	}
@@ -115,7 +117,7 @@ func (p *exemplarProcessor) sendBatchAsync(cid, telemetryType, processorId strin
 	}()
 }
 
-func (p *exemplarProcessor) postBatch(ctx context.Context, telemetryType string, report *ExemplarPublishReport) error {
+func (p *exemplarProcessor) postBatch(ctx context.Context, telemetryType signalnames.Name, report *ExemplarPublishReport) error {
 	endpoint := fmt.Sprintf("%s/api/v1/exemplars/%s", p.config.Endpoint, telemetryType)
 
 	marshalled, err := json.Marshal(report)

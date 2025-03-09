@@ -23,6 +23,7 @@ import (
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/collector/processor/processorhelper"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/signalnames"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqexemplarprocessor/internal/metadata"
 )
 
@@ -68,7 +69,7 @@ func createDefaultConfig() component.Config {
 }
 
 func createLogsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Logs) (processor.Logs, error) {
-	p, err := newProcessor(cfg.(*Config), "logs", set)
+	p, err := newProcessor(cfg.(*Config), signalnames.Logs, set)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +81,7 @@ func createLogsProcessor(ctx context.Context, set processor.Settings, cfg compon
 }
 
 func createMetricsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Metrics) (processor.Metrics, error) {
-	p, err := newProcessor(cfg.(*Config), "metrics", set)
+	p, err := newProcessor(cfg.(*Config), signalnames.Metrics, set)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +93,7 @@ func createMetricsProcessor(ctx context.Context, set processor.Settings, cfg com
 }
 
 func createSpansProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Traces) (processor.Traces, error) {
-	p, err := newProcessor(cfg.(*Config), "traces", set)
+	p, err := newProcessor(cfg.(*Config), signalnames.Traces, set)
 	if err != nil {
 		return nil, err
 	}

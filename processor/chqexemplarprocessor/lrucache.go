@@ -16,11 +16,11 @@ package chqexemplarprocessor
 
 import (
 	"container/list"
-	"hash/fnv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/cespare/xxhash"
 	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 )
 
@@ -135,7 +135,7 @@ func (l *LRUCache[T]) Get(key int64) (any, bool) {
 }
 
 func hashString(s []string) int64 {
-	h := fnv.New64a()
+	h := xxhash.New()
 	h.Write([]byte(strings.Join(s, ":")))
 	return int64(h.Sum64())
 }

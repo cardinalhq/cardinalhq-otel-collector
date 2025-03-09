@@ -26,6 +26,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/signalnames"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor/internal/metadata"
 	"github.com/cardinalhq/oteltools/pkg/ottl"
 	"github.com/cardinalhq/oteltools/pkg/syncmap"
@@ -36,7 +37,7 @@ type pitbull struct {
 	config            *Config
 	logger            *zap.Logger
 	id                component.ID
-	ttype             string
+	ttype             signalnames.Name
 	telemetrySettings component.TelemetrySettings
 
 	configExtension  *chqconfigextension.CHQConfigExtension
@@ -52,7 +53,7 @@ type pitbull struct {
 	ottlTelemetry *ottl.Telemetry
 }
 
-func newPitbull(config *Config, ttype string, set processor.Settings) (*pitbull, error) {
+func newPitbull(config *Config, ttype signalnames.Name, set processor.Settings) (*pitbull, error) {
 	return &pitbull{
 		id:                set.ID,
 		ttype:             ttype,
@@ -78,7 +79,7 @@ func (p *pitbull) Start(_ context.Context, host component.Host) error {
 	}
 	p.configExtension = cext
 
-	p.configCallbackID = p.configExtension.RegisterCallback(p.id.String()+"/"+p.ttype, p.configUpdateCallback)
+	p.configCallbackID = p.configExtension.RegisterCallback(p.id.String()+"/"+p.ttype.String(), p.configUpdateCallback)
 
 	return nil
 }
@@ -135,7 +136,7 @@ func orgIDFromResource(resource pcommon.Map) string {
 func (p *pitbull) attributesFor(cid string) attribute.Set {
 	return attribute.NewSet(
 		attribute.String("processor", p.id.String()),
-		attribute.String("signal", p.ttype),
+		attribute.String("signal", p.ttype.String()),
 		attribute.String("organization_id", cid),
 	)
 }

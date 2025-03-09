@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/cardinalhq/oteltools/pkg/stats"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/pdata/ptrace"
@@ -134,6 +135,53 @@ func (p *statsProcessor) postBatch(ctx context.Context, telemetryType string, re
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 		p.logger.Error("Failed to send exemplars", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
+func (p *statsProcessor) sendSpanSketchesFor(cid string) func([]*stats.SpanSketch) {
+	return func(stats []*stats.SpanSketch) {
+		err := p.sendSpanSketches(cid, stats)
+		if err != nil {
+			p.logger.Error("Failed to send span sketches", zap.Error(err))
+		}
+	}
+}
+func (p *statsProcessor) sendSpanSketches(cid string, sketches []*stats.SpanSketch) error {
+	var payload [][]byte
+	for _, sketch := range sketches {
+		serialized, err := sketch.Serialize()
+		if err != nil {
+			continue
+		}
+		payload = append(payload, serialized)
+	}
+
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	query := fmt.Sprintf("%s=%s", "/api/v1/spanSketches?organizationID", cid)
+	endpoint := p.config.Endpoint + query
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint, bytes.NewReader(jsonPayload))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := p.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		p.logger.Error("Failed to send metric stats", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 

@@ -17,6 +17,7 @@ package chqstatsprocessor
 import (
 	"context"
 	"errors"
+	"github.com/cardinalhq/oteltools/pkg/stats"
 	"net/http"
 	"os"
 	"sync"
@@ -93,6 +94,8 @@ type Tenant struct {
 	logExemplars    *LRUCache
 	traceExemplars  *LRUCache
 	metricExemplars *LRUCache
+
+	spanSketches *stats.SketchCache
 }
 
 func (p *statsProcessor) getTenant(organizationID string) *Tenant {
@@ -108,6 +111,7 @@ func (p *statsProcessor) getTenant(organizationID string) *Tenant {
 			tenant.metricExemplars = NewLRUCache(1000, 30*time.Minute, p.sendExemplars(organizationID, p.ttype, p.id.Name()))
 		case "traces":
 			tenant.traceExemplars = NewLRUCache(1000, 30*time.Minute, p.sendExemplars(organizationID, p.ttype, p.id.Name()))
+			tenant.spanSketches = stats.NewSketchCache(1*time.Minute, p.sendSpanSketchesFor(organizationID))
 		}
 
 		p.tenants[organizationID] = tenant

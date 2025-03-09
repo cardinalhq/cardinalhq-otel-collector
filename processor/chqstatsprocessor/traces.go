@@ -19,6 +19,7 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"github.com/cardinalhq/oteltools/pkg/translate"
 	"go.opentelemetry.io/collector/pdata/ptrace"
+	"go.uber.org/zap"
 	"strconv"
 )
 
@@ -31,12 +32,19 @@ func (p *statsProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) (p
 		resourceAttributes := rs.Resource().Attributes()
 		cid := OrgIdFromResource(resourceAttributes)
 		tenant := p.getTenant(cid)
+		serviceName := getServiceName(resourceAttributes)
 
 		for j := 0; j < rs.ScopeSpans().Len(); j++ {
 			iss := rs.ScopeSpans().At(j)
 			for k := 0; k < iss.Spans().Len(); k++ {
 				sr := iss.Spans().At(k)
 				fingerprint := getFingerprint(sr.Attributes())
+				if p.config.Statistics.Traces.StatisticsEnabled {
+					err := tenant.spanSketches.UpdateSpanSketch(serviceName, sr)
+					if err != nil {
+						p.logger.Error("Failed to update span sketch", zap.Error(err))
+					}
+				}
 				if p.config.Statistics.Traces.ExemplarsEnabled {
 					p.addSpanExemplar(tenant, rs, iss, sr, fingerprint)
 				}

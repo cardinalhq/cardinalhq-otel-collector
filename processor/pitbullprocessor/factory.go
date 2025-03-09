@@ -20,20 +20,25 @@ import (
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
+	"go.opentelemetry.io/collector/consumer/xconsumer"
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/collector/processor/processorhelper"
+	"go.opentelemetry.io/collector/processor/processorhelper/xprocessorhelper"
+	"go.opentelemetry.io/collector/processor/xprocessor"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/signalnames"
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor/internal/metadata"
 )
 
 // NewFactory returns a new factory for the Pitbull processor.
-func NewFactory() processor.Factory {
-	return processor.NewFactory(
+func NewFactory() xprocessor.Factory {
+	return xprocessor.NewFactory(
 		metadata.Type,
 		createDefaultConfig,
-		processor.WithTraces(createSpansProcessor, metadata.TracesStability),
-		processor.WithLogs(createLogsProcessor, metadata.LogsStability),
-		processor.WithMetrics(createMetricsProcessor, metadata.MetricsStability),
+		xprocessor.WithTraces(createTracesProcessor, metadata.TracesStability),
+		xprocessor.WithLogs(createLogsProcessor, metadata.LogsStability),
+		xprocessor.WithMetrics(createMetricsProcessor, metadata.MetricsStability),
+		xprocessor.WithProfiles(createProfilesProcessor, metadata.ProfilesStability),
 	)
 }
 
@@ -55,7 +60,7 @@ func createDefaultConfig() component.Config {
 }
 
 func createLogsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Logs) (processor.Logs, error) {
-	p, err := newPitbull(cfg.(*Config), "logs", set)
+	p, err := newPitbull(cfg.(*Config), signalnames.Logs, set)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +73,7 @@ func createLogsProcessor(ctx context.Context, set processor.Settings, cfg compon
 }
 
 func createMetricsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Metrics) (processor.Metrics, error) {
-	p, err := newPitbull(cfg.(*Config), "metrics", set)
+	p, err := newPitbull(cfg.(*Config), signalnames.Metrics, set)
 	if err != nil {
 		return nil, err
 	}
@@ -80,8 +85,8 @@ func createMetricsProcessor(ctx context.Context, set processor.Settings, cfg com
 		processorhelper.WithCapabilities(p.Capabilities()))
 }
 
-func createSpansProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Traces) (processor.Traces, error) {
-	p, err := newPitbull(cfg.(*Config), "traces", set)
+func createTracesProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Traces) (processor.Traces, error) {
+	p, err := newPitbull(cfg.(*Config), signalnames.Traces, set)
 	if err != nil {
 		return nil, err
 	}
@@ -91,4 +96,17 @@ func createSpansProcessor(ctx context.Context, set processor.Settings, cfg compo
 		processorhelper.WithStart(p.Start),
 		processorhelper.WithShutdown(p.Shutdown),
 		processorhelper.WithCapabilities(p.Capabilities()))
+}
+
+func createProfilesProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer xconsumer.Profiles) (xprocessor.Profiles, error) {
+	p, err := newPitbull(cfg.(*Config), signalnames.Profiles, set)
+	if err != nil {
+		return nil, err
+	}
+	return xprocessorhelper.NewProfiles(
+		ctx, set, cfg, nextConsumer,
+		p.ConsumeProfiles,
+		xprocessorhelper.WithStart(p.Start),
+		xprocessorhelper.WithShutdown(p.Shutdown),
+		xprocessorhelper.WithCapabilities(p.Capabilities()))
 }

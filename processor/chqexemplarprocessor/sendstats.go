@@ -118,30 +118,24 @@ func (p *exemplarProcessor) sendBatchAsync(cid, telemetryType, processorId strin
 func (p *exemplarProcessor) postBatch(ctx context.Context, telemetryType string, report *ExemplarPublishReport) error {
 	endpoint := fmt.Sprintf("%s/api/v1/exemplars/%s", p.config.Endpoint, telemetryType)
 
-	// Marshal report to JSON
 	marshalled, err := json.Marshal(report)
 	if err != nil {
 		return fmt.Errorf("failed to marshal batch: %w", err)
 	}
 
-	// Create request
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(marshalled))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Set proper JSON header
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("content-type", "application/json")
 
-	// Send request
 	resp, err := p.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}
-	defer resp.Body.Close()
-
-	// Read response body
 	body, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 		p.logger.Error("Failed to send exemplars", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)

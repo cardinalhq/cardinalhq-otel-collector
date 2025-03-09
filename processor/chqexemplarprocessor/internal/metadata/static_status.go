@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	Type = component.MustNewType("chqexemplars")
+	Type = component.MustNewType("chqexemplar")
 )
 
 const (
@@ -31,9 +31,9 @@ const (
 )
 
 func Meter(settings component.TelemetrySettings) metric.Meter {
-	return settings.MeterProvider.Meter("otelcol/chqexemplars")
+	return settings.MeterProvider.Meter("otelcol/chqexemplar")
 }
 
 func Tracer(settings component.TelemetrySettings) trace.Tracer {
-	return settings.TracerProvider.Tracer("otelcol/chqexemplars")
+	return settings.TracerProvider.Tracer("otelcol/chqexemplar")
 }

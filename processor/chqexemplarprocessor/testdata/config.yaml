@@ -2,7 +2,7 @@ receivers:
   nop:
 
 processors:
-  chqexemplars:
+  chqexemplar:
     endpoint: "http://example.com"
     reporting:
       logs:
@@ -28,15 +28,15 @@ service:
   pipelines:
     traces:
       receivers: [nop]
-      processors: [chqexemplars]
+      processors: [chqexemplar]
       exporters: [nop]
     metrics:
       receivers: [nop]
-      processors: [chqexemplars]
+      processors: [chqexemplar]
       exporters: [nop]
     logs:
       receivers: [nop]
-      processors: [chqexemplars]
+      processors: [chqexemplar]
       exporters: [nop]
 
 extensions:

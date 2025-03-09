@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/pdata/plog"
 )
 
@@ -552,25 +553,43 @@ func TestSplitLogs_NodeJSStackTraceHandling(t *testing.T) {
 		},
 	}
 
-	groupedLogs := ddr.splitLogs(logs, "apiKey")
+	got := ddr.splitLogs(logs, "apiKey")
+	require.Len(t, got, 2)
 
-	assert.Len(t, groupedLogs, 2)
+	expected := []groupedLogs{
+		{
+			Service:  "server",
+			Hostname: "node-server-1",
+			DDSource: "nodejs",
+			Tags: map[string]string{
+				"timestamp": "1706705701200",
+				"host":      "node-server-1",
+			},
+			Messages: []Message{
+				{
+					Timestamp: 1706705701200000000,
+					Body:      "2025-01-31T12:15:01.200Z    info    server.main    Server started on port 8080",
+				},
+			},
+		},
+		{
+			Service:  "database",
+			Hostname: "node-server-1",
+			DDSource: "nodejs",
+			Tags: map[string]string{
+				"timestamp": "1706705705123",
+				"host":      "node-server-1",
+			},
+			Messages: []Message{
+				{
+					Timestamp: 1706705705123000000,
+					Body:      "2025-01-31T12:15:05.123Z    error   db.connector   Database query failed\nError: Connection lost: The server closed the connection.\n    at Connection._handleFatalError (/app/node_modules/mysql/lib/Connection.js:123 +0x25b)\n    at Connection.end (/app/node_modules/mysql/lib/Connection.js:148 +0x48)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)",
+				},
+			},
+		},
+	}
 
-	assert.Equal(t, "server", groupedLogs[0].Service)
-	assert.Equal(t, "node-server-1", groupedLogs[0].Hostname)
-	assert.Len(t, groupedLogs[0].Messages, 1)
-	assert.Equal(t, "2025-01-31T12:15:01.200Z    info    server.main    Server started on port 8080", groupedLogs[0].Messages[0].Body)
-
-	assert.Equal(t, "database", groupedLogs[1].Service)
-	assert.Len(t, groupedLogs[1].Messages, 1)
-
-	expectedStackTrace := `2025-01-31T12:15:05.123Z    error   db.connector   Database query failed
-Error: Connection lost: The server closed the connection.
-    at Connection._handleFatalError (/app/node_modules/mysql/lib/Connection.js:123 +0x25b)
-    at Connection.end (/app/node_modules/mysql/lib/Connection.js:148 +0x48)
-    at processTicksAndRejections (node:internal/process/task_queues:95:5)`
-
-	assert.Equal(t, expectedStackTrace, groupedLogs[1].Messages[0].Body)
+	assert.ElementsMatch(t, expected, got)
 }
 
 func TestSplitLogs_NoValidStartLines_ShouldBeIndividualMessages(t *testing.T) {

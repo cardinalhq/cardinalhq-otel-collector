@@ -1,0 +1,43 @@
+receivers:
+  nop:
+
+processors:
+  chqexemplar:
+    endpoint: "http://example.com"
+    reporting:
+      logs:
+        enabled: true
+        expiry: 10m
+        interval: 5m
+        cache_size: 1001
+      metrics:
+        enabled: true
+        expiry: 11m
+        interval: 4m
+        cache_size: 1002
+      traces:
+        enabled: true
+        expiry: 12m
+        interval: 3m
+        cache_size: 1003
+
+exporters:
+  nop:
+
+service:
+  pipelines:
+    traces:
+      receivers: [nop]
+      processors: [chqexemplar]
+      exporters: [nop]
+    metrics:
+      receivers: [nop]
+      processors: [chqexemplar]
+      exporters: [nop]
+    logs:
+      receivers: [nop]
+      processors: [chqexemplar]
+      exporters: [nop]
+
+extensions:
+  nop:

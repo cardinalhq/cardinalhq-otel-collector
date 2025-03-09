@@ -16,19 +16,19 @@ package chqexemplarprocessor
 
 import (
 	"container/list"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/cespare/xxhash"
 	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 )
 
-var serviceNameKey = string(semconv.ServiceNameKey)
-var clusterNameKey = string(semconv.K8SClusterNameKey)
-var namespaceNameKey = string(semconv.K8SNamespaceNameKey)
-var metricNameKey = "metric.name"
-var metricTypeKey = "metric.type"
+const (
+	serviceNameKey   = string(semconv.ServiceNameKey)
+	clusterNameKey   = string(semconv.K8SClusterNameKey)
+	namespaceNameKey = string(semconv.K8SNamespaceNameKey)
+	metricNameKey    = "metric.name"
+	metricTypeKey    = "metric.type"
+)
 
 type LRUCache[T any] struct {
 	capacity        int
@@ -42,8 +42,8 @@ type LRUCache[T any] struct {
 }
 
 type Entry[T any] struct {
-	fingerprint     int64
-	keys            []string
+	key             int64
+	attributes      []string
 	value           T
 	timestamp       time.Time
 	lastPublishTime time.Time
@@ -51,8 +51,8 @@ type Entry[T any] struct {
 
 func (e *Entry[T]) toAttributes() map[string]string {
 	attrs := make(map[string]string)
-	for i := 0; i < len(e.keys); i += 2 {
-		attrs[e.keys[i]] = e.keys[i+1]
+	for i := 0; i < len(e.attributes); i += 2 {
+		attrs[e.attributes[i]] = e.attributes[i+1]
 	}
 	return attrs
 }
@@ -102,7 +102,7 @@ func (l *LRUCache[T]) cleanupExpiredEntries() {
 		if now.Sub(entry.timestamp) > l.expiry {
 			prev := e.Prev()
 			l.list.Remove(e)
-			delete(l.cache, entry.fingerprint)
+			delete(l.cache, entry.key)
 			e = prev
 		} else {
 			e = e.Prev()
@@ -125,19 +125,13 @@ func (l *LRUCache[T]) Get(key int64) (any, bool) {
 	entry := elem.Value.(*Entry[T])
 	if time.Since(entry.timestamp) > l.expiry {
 		l.mutex.Lock()
-		defer l.mutex.Unlock()
 		l.list.Remove(elem)
 		delete(l.cache, key)
+		l.mutex.Unlock()
 		return nil, false
 	}
 
 	return entry.value, true
-}
-
-func hashString(s []string) int64 {
-	h := xxhash.New()
-	h.Write([]byte(strings.Join(s, ":")))
-	return int64(h.Sum64())
 }
 
 func (l *LRUCache[T]) Contains(key int64) bool {
@@ -154,11 +148,11 @@ func (l *LRUCache[T]) Contains(key int64) bool {
 }
 
 // Put adds a value to the cache or updates it if it already exists.
-func (l *LRUCache[T]) Put(fingerprint int64, keys []string, exemplar T) {
+func (l *LRUCache[T]) Put(key int64, keys []string, exemplar T) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
-	if elem, found := l.cache[fingerprint]; found {
+	if elem, found := l.cache[key]; found {
 		entry := elem.Value.(*Entry[T])
 		entry.value = exemplar
 		entry.timestamp = time.Now()
@@ -172,19 +166,19 @@ func (l *LRUCache[T]) Put(fingerprint int64, keys []string, exemplar T) {
 			entry := back.Value.(*Entry[T])
 			l.publishCallBack([]*Entry[T]{entry})
 			l.list.Remove(back)
-			delete(l.cache, entry.fingerprint)
+			delete(l.cache, entry.key)
 		}
 	}
 
 	now := time.Now()
 	newEntry := &Entry[T]{
-		fingerprint:     fingerprint,
-		keys:            keys,
+		key:             key,
+		attributes:      keys,
 		value:           exemplar,
 		timestamp:       now,
 		lastPublishTime: now}
 	elem := l.list.PushFront(newEntry)
-	l.cache[fingerprint] = elem
+	l.cache[key] = elem
 }
 
 func (l *LRUCache[T]) Remove(key int64) {

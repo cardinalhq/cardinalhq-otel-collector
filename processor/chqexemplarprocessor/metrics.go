@@ -51,11 +51,11 @@ func (p *exemplarProcessor) addMetricsExemplar(tenant *Tenant, rm pmetric.Resour
 	if tenant.metricCache.Contains(exemplarKey) {
 		return
 	}
-	exemplarRecord := toExemplar(rm, sm, mm, metricType)
+	exemplarRecord := toMetricExemplar(rm, sm, mm, metricType)
 	tenant.metricCache.Put(exemplarKey, keys, exemplarRecord)
 }
 
-func toExemplar(rm pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, mm pmetric.Metric, metricType pmetric.MetricType) pmetric.Metrics {
+func toMetricExemplar(rm pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, mm pmetric.Metric, metricType pmetric.MetricType) pmetric.Metrics {
 	exemplarRecord := pmetric.NewMetrics()
 	copyRm := exemplarRecord.ResourceMetrics().AppendEmpty()
 	rm.Resource().CopyTo(copyRm.Resource())

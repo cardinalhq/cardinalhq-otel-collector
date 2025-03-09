@@ -55,11 +55,18 @@ func (p *exemplarProcessor) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog
 }
 
 func (p *exemplarProcessor) addLogExemplar(tenant *Tenant, rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord, fingerprint int64) {
-	keys, exemplarKey := computeExemplarKey(rl.Resource(), []string{translate.CardinalFieldFingerprint, strconv.FormatInt(fingerprint, 10)})
+	extraKeys := []string{
+		translate.CardinalFieldFingerprint, strconv.FormatInt(fingerprint, 10),
+	}
+	keys, exemplarKey := computeExemplarKey(rl.Resource(), extraKeys)
 	if tenant.logCache.Contains(exemplarKey) {
 		return
 	}
+	exemplarRecord := toLogExemplar(rl, sl, lr)
+	tenant.logCache.Put(exemplarKey, keys, exemplarRecord)
+}
 
+func toLogExemplar(rl plog.ResourceLogs, sl plog.ScopeLogs, lr plog.LogRecord) plog.Logs {
 	exemplarRecord := plog.NewLogs()
 	copyRl := exemplarRecord.ResourceLogs().AppendEmpty()
 	rl.Resource().CopyTo(copyRl.Resource())
@@ -68,5 +75,5 @@ func (p *exemplarProcessor) addLogExemplar(tenant *Tenant, rl plog.ResourceLogs,
 	copyLr := copySl.LogRecords().AppendEmpty()
 	lr.CopyTo(copyLr)
 
-	tenant.logCache.Put(exemplarKey, keys, exemplarRecord)
+	return exemplarRecord
 }

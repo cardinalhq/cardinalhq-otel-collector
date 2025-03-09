@@ -72,7 +72,7 @@ func TestSingularExemplar(t *testing.T) {
 
 	for k := 0; k < sm.Metrics().Len(); k++ {
 		m := sm.Metrics().At(k)
-		e := toExemplar(rm, sm, mm, m.Type())
+		e := toMetricExemplar(rm, sm, mm, m.Type())
 		assert.True(t, e.ResourceMetrics().Len() == 1)
 		assert.True(t, e.ResourceMetrics().At(0).ScopeMetrics().Len() == 1)
 		assert.True(t, e.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().Len() == 1)

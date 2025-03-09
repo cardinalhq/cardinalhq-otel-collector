@@ -19,6 +19,7 @@ import (
 	"net/http"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/signalnames"
+	"github.com/cardinalhq/oteltools/hashutils"
 	"github.com/cardinalhq/oteltools/pkg/syncmap"
 	"github.com/cardinalhq/oteltools/pkg/translate"
 
@@ -135,5 +136,5 @@ func computeExemplarKey(rl pcommon.Resource, extraKeys []string) ([]string, int6
 		serviceNameKey, getFromResource(rl.Attributes(), serviceNameKey),
 	}
 	keys = append(keys, extraKeys...)
-	return keys, hashString(keys)
+	return keys, int64(hashutils.HashStrings(nil, keys...))
 }

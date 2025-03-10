@@ -17,7 +17,6 @@ package chqmissingdataconnector
 import (
 	"context"
 	"errors"
-	"os"
 	"time"
 
 	"go.opentelemetry.io/collector/component"
@@ -177,7 +176,6 @@ func (c *md) buildMetrics(emitList []*stamp) pmetric.Metrics {
 		} else {
 			rm = md.ResourceMetrics().AppendEmpty()
 			stamp.ResourceAttributes.CopyTo(rm.Resource().Attributes())
-			addEnvironmentTags(rm.Resource().Attributes())
 			sm = rm.ScopeMetrics().AppendEmpty()
 			resourceMap[resourceKey] = rm
 		}
@@ -310,18 +308,6 @@ func filteredAttributes(attrs pcommon.Map, keys []string) pcommon.Map {
 	ret := pcommon.NewMap()
 	_ = ret.FromRaw(selected)
 	return ret
-}
-
-func addEnvironmentTags(attrs pcommon.Map) {
-	if podid := os.Getenv("POD_NAME"); podid != "" {
-		attrs.PutStr("missingdata.k8s.pod.name", podid)
-	}
-	if podid := os.Getenv("POD_NAMESPACE"); podid != "" {
-		attrs.PutStr("missingdata.k8s.pod.namespace", podid)
-	}
-	if val := os.Getenv("K8S_NODE_NAME"); val != "" {
-		attrs.PutStr("missingdata.k8s.node.name", val)
-	}
 }
 
 func orgIDFromResource(resource pcommon.Map) string {

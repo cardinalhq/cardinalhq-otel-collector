@@ -150,7 +150,7 @@ func (c *md) emitter() {
 }
 
 func (c *md) buildEmitList(now time.Time) []*stamp {
-	emitList := []*stamp{}
+	var emitList []*stamp
 	c.entries.Range(func(key uint64, value *stamp) bool {
 		if value.isExpired(now, c.config.MaximumAge) {
 			c.entries.Delete(key)

@@ -36,10 +36,10 @@ type Exemplar struct {
 }
 
 type ExemplarPublishReport struct {
-	CustomerId    string           `json:"customer_id"`
-	ProcessorId   string           `json:"processor_id"`
-	TelemetryType signalnames.Name `json:"telemetry_type"`
-	Exemplars     []*Exemplar      `json:"exemplars"`
+	OrganizationID string           `json:"organization_id"`
+	ProcessorId    string           `json:"processor_id"`
+	TelemetryType  signalnames.Name `json:"telemetry_type"`
+	Exemplars      []*Exemplar      `json:"exemplars"`
 }
 
 var (
@@ -103,10 +103,10 @@ func (p *exemplarProcessor) sendBatchAsync(cid string, telemetryType signalnames
 	}
 
 	exemplarReport := &ExemplarPublishReport{
-		CustomerId:    cid,
-		TelemetryType: telemetryType,
-		ProcessorId:   processorId,
-		Exemplars:     batch,
+		OrganizationID: cid,
+		TelemetryType:  telemetryType,
+		ProcessorId:    processorId,
+		Exemplars:      batch,
 	}
 
 	go func() {

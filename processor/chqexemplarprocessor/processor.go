@@ -59,7 +59,7 @@ type Tenant struct {
 }
 
 func (p *exemplarProcessor) getTenant(organizationID string) *Tenant {
-	return p.tenants.LoadOrStore(organizationID, func() *Tenant {
+	tenant, _ := p.tenants.LoadOrStore(organizationID, func() (*Tenant, error) {
 		tenant := &Tenant{}
 		switch p.ttype {
 		case signalnames.Logs:
@@ -81,8 +81,9 @@ func (p *exemplarProcessor) getTenant(organizationID string) *Tenant {
 				p.config.Reporting.Traces.Interval,
 				sendExemplars[ptrace.Traces](p, organizationID, p.id.Name()))
 		}
-		return tenant
+		return tenant, nil
 	})
+	return tenant
 }
 
 func newProcessor(config *Config, ttype signalnames.Name, set processor.Settings) (*exemplarProcessor, error) {

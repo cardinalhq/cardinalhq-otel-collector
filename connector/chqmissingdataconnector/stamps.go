@@ -15,7 +15,6 @@
 package chqmissingdataconnector
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 	"time"
@@ -26,15 +25,13 @@ import (
 
 type stamp struct {
 	LastSeen            time.Time
-	MetricName          string
 	ResourceAttributes  pcommon.Map
 	DatapointAttributes pcommon.Map
 }
 
-func newStamp(metricName string, rattrs pcommon.Map, dattrs pcommon.Map, t time.Time) *stamp {
+func newStamp(rattrs pcommon.Map, dattrs pcommon.Map, t time.Time) *stamp {
 	s := &stamp{
 		LastSeen:            t,
-		MetricName:          metricName,
 		ResourceAttributes:  pcommon.NewMap(),
 		DatapointAttributes: pcommon.NewMap(),
 	}
@@ -43,17 +40,9 @@ func newStamp(metricName string, rattrs pcommon.Map, dattrs pcommon.Map, t time.
 	return s
 }
 
-func (s *stamp) equals(other *stamp) bool {
-	return s.LastSeen.Unix() == other.LastSeen.Unix() &&
-		s.MetricName == other.MetricName &&
-		hashAttributes(s.ResourceAttributes) == hashAttributes(other.ResourceAttributes) &&
-		hashAttributes(s.DatapointAttributes) == hashAttributes(other.DatapointAttributes)
-}
-
 func (s *stamp) String() string {
 	sb := strings.Builder{}
 	sb.WriteString("Stamp{")
-	sb.WriteString(fmt.Sprintf("MetricName: %s, ", s.MetricName))
 
 	sb.WriteString("ResourceAttributes: {")
 	sb.WriteString(attributesToSortedString(s.ResourceAttributes))
@@ -89,12 +78,11 @@ func (s *stamp) isExpired(t time.Time, ttl time.Duration) bool {
 }
 
 func (s *stamp) hash() uint64 {
-	return hashMetric(s.MetricName, s.ResourceAttributes, s.DatapointAttributes)
+	return hashMetric(s.ResourceAttributes, s.DatapointAttributes)
 }
 
-func hashMetric(metricName string, resourceAttributes pcommon.Map, dpattrs pcommon.Map) uint64 {
+func hashMetric(resourceAttributes pcommon.Map, dpattrs pcommon.Map) uint64 {
 	xh := xxhash.New()
-	_, _ = xh.WriteString(metricName)
 	hashAttributesWithHasher(resourceAttributes, xh)
 	hashAttributesWithHasher(dpattrs, xh)
 	return xh.Sum64()

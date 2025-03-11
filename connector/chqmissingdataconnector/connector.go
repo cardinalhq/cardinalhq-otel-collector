@@ -17,6 +17,7 @@ package chqmissingdataconnector
 import (
 	"context"
 	"errors"
+	"os"
 	"time"
 
 	"go.opentelemetry.io/collector/component"
@@ -29,6 +30,7 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/ottl"
 	"github.com/cardinalhq/oteltools/pkg/syncmap"
 	"github.com/cardinalhq/oteltools/pkg/translate"
+	"github.com/cardinalhq/oteltools/signalbuilder"
 )
 
 type md struct {
@@ -67,6 +69,13 @@ func (c *md) Start(_ context.Context, host component.Host) error {
 	} else {
 		c.logger.Info("static configuration enabled")
 		c.setupStaticConfig()
+	}
+
+	// If POD_NAME is set, add it to the resource attributes.
+	podName := os.Getenv("POD_NAME")
+	if podName != "" {
+		c.logger.Info("POD_NAME environment variable set, adding 'missingdata.pod.name' to resource attributes")
+		c.config.AdditionalResourceAttributes["missingdata.pod.name"] = podName
 	}
 
 	go c.emitter()
@@ -164,36 +173,23 @@ func (c *md) buildEmitList(now time.Time) []*stamp {
 
 func (c *md) buildMetrics(emitList []*stamp) pmetric.Metrics {
 	now := time.Now()
-	md := pmetric.NewMetrics()
-	resourceMap := map[uint64]pmetric.ResourceMetrics{}
+	nowTimestamp := pcommon.NewTimestampFromTime(now)
+	builder := signalbuilder.NewMetricsBuilder()
+	emptymap := pcommon.NewMap()
 
 	for _, stamp := range emitList {
-		resourceKey := hashAttributes(stamp.ResourceAttributes)
-		rm, exists := resourceMap[resourceKey]
-		var sm pmetric.ScopeMetrics
-		if exists {
-			sm = rm.ScopeMetrics().At(0)
-		} else {
-			rm = md.ResourceMetrics().AppendEmpty()
-			stamp.ResourceAttributes.CopyTo(rm.Resource().Attributes())
-			sm = rm.ScopeMetrics().AppendEmpty()
-			resourceMap[resourceKey] = rm
+		rm := builder.Resource(stamp.ResourceAttributes)
+		sm := rm.Scope(emptymap)
+		m, err := sm.Metric(c.config.MetricName, "s", pmetric.MetricTypeGauge)
+		if err != nil {
+			c.logger.Error("failed to create metric", zap.Error(err))
+			continue
 		}
-
-		metric := sm.Metrics().AppendEmpty()
-		metric.SetName(c.config.MetricName)
-		metric.SetDescription("Missing data age in seconds")
-		metric.SetUnit("s")
-
-		dp := metric.SetEmptyGauge().DataPoints().AppendEmpty()
-		dp.SetStartTimestamp(pcommon.NewTimestampFromTime(now))
-		dp.SetTimestamp(pcommon.NewTimestampFromTime(now))
+		dp, _, _ := m.Datapoint(stamp.DatapointAttributes, nowTimestamp)
 		dp.SetDoubleValue(now.Sub(stamp.LastSeen).Seconds())
-		stamp.DatapointAttributes.CopyTo(dp.Attributes())
-		dp.Attributes().PutStr(c.config.MetricNameAttribute, stamp.MetricName)
 	}
 
-	return md
+	return builder.Build()
 }
 
 func (c *md) emitList(emitList []*stamp) {
@@ -214,7 +210,7 @@ func (c *md) ConsumeMetrics(_ context.Context, md pmetric.Metrics) error {
 
 	now := time.Now()
 
-	for i := 0; i < md.ResourceMetrics().Len(); i++ {
+	for i := range md.ResourceMetrics().Len() {
 		resourceMetric := md.ResourceMetrics().At(i)
 		cid := orgIDFromResource(resourceMetric.Resource().Attributes())
 		tenant, found := c.tenants.Load(cid)
@@ -222,10 +218,10 @@ func (c *md) ConsumeMetrics(_ context.Context, md pmetric.Metrics) error {
 			continue
 		}
 
-		for j := 0; j < resourceMetric.ScopeMetrics().Len(); j++ {
+		for j := range resourceMetric.ScopeMetrics().Len() {
 			scopeMetrics := resourceMetric.ScopeMetrics().At(j)
 
-			for k := 0; k < scopeMetrics.Metrics().Len(); k++ {
+			for k := range scopeMetrics.Metrics().Len() {
 				metric := scopeMetrics.Metrics().At(k)
 				dpAttrsToSelect, found := tenant.metricAttributes[metric.Name()]
 				if !found {
@@ -236,65 +232,77 @@ func (c *md) ConsumeMetrics(_ context.Context, md pmetric.Metrics) error {
 				metricResourceAttrs := tenant.resourceAttributes[metric.Name()]
 				wantedResourceAttrs = append(wantedResourceAttrs, metricResourceAttrs...)
 				rattrs := filteredAttributes(resourceMetric.Resource().Attributes(), wantedResourceAttrs)
+				for key, value := range c.config.AdditionalResourceAttributes {
+					rattrs.PutStr(key, value)
+				}
 
 				uniqueDatapoints := map[uint64]pcommon.Map{}
 				switch metric.Type() {
 				case pmetric.MetricTypeGauge:
 					gauge := metric.Gauge()
-					for l := 0; l < gauge.DataPoints().Len(); l++ {
+					for l := range gauge.DataPoints().Len() {
 						dp := gauge.DataPoints().At(l)
 						dpattrs := filteredAttributes(dp.Attributes(), dpAttrsToSelect)
+						c.addMetricNameAttribute(dpattrs, metric.Name())
 						dphash := hashAttributes(dpattrs)
 						uniqueDatapoints[dphash] = dpattrs
 					}
 				case pmetric.MetricTypeSum:
 					sum := metric.Sum()
-					for l := 0; l < sum.DataPoints().Len(); l++ {
+					for l := range sum.DataPoints().Len() {
 						dp := sum.DataPoints().At(l)
 						dpattrs := filteredAttributes(dp.Attributes(), dpAttrsToSelect)
+						c.addMetricNameAttribute(dpattrs, metric.Name())
 						dphash := hashAttributes(dpattrs)
 						uniqueDatapoints[dphash] = dpattrs
 					}
 				case pmetric.MetricTypeHistogram:
 					h := metric.Histogram()
-					for l := 0; l < h.DataPoints().Len(); l++ {
+					for l := range h.DataPoints().Len() {
 						dp := h.DataPoints().At(l)
 						dpattrs := filteredAttributes(dp.Attributes(), dpAttrsToSelect)
+						c.addMetricNameAttribute(dpattrs, metric.Name())
 						dphash := hashAttributes(dpattrs)
 						uniqueDatapoints[dphash] = dpattrs
 					}
 				case pmetric.MetricTypeExponentialHistogram:
 					eh := metric.ExponentialHistogram()
-					for l := 0; l < eh.DataPoints().Len(); l++ {
+					for l := range eh.DataPoints().Len() {
 						dp := eh.DataPoints().At(l)
 						dpattrs := filteredAttributes(dp.Attributes(), dpAttrsToSelect)
+						c.addMetricNameAttribute(dpattrs, metric.Name())
 						dphash := hashAttributes(dpattrs)
 						uniqueDatapoints[dphash] = dpattrs
 					}
 				case pmetric.MetricTypeSummary:
 					s := metric.Summary()
-					for l := 0; l < s.DataPoints().Len(); l++ {
+					for l := range s.DataPoints().Len() {
 						dp := s.DataPoints().At(l)
 						dpattrs := filteredAttributes(dp.Attributes(), dpAttrsToSelect)
+						c.addMetricNameAttribute(dpattrs, metric.Name())
 						dphash := hashAttributes(dpattrs)
 						uniqueDatapoints[dphash] = dpattrs
 					}
 				}
 
 				for _, dpattr := range uniqueDatapoints {
-					hashkey := hashMetric(metric.Name(), rattrs, dpattr)
+					hashkey := hashMetric(rattrs, dpattr)
 					found := c.entries.Touch(hashkey, func(s *stamp) *stamp {
 						s.touch(now)
 						return s
 					})
 					if !found {
-						c.entries.Store(hashkey, newStamp(metric.Name(), rattrs, dpattr, now))
+						c.entries.Store(hashkey, newStamp(rattrs, dpattr, now))
 					}
 				}
 			}
 		}
 	}
 	return nil
+}
+
+func (c *md) addMetricNameAttribute(attrs pcommon.Map, metricName string) {
+	attrs.PutStr(c.config.MetricNameAttribute, metricName)
 }
 
 func filteredAttributes(attrs pcommon.Map, keys []string) pcommon.Map {

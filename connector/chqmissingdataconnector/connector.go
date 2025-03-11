@@ -17,6 +17,7 @@ package chqmissingdataconnector
 import (
 	"context"
 	"errors"
+	"os"
 	"time"
 
 	"go.opentelemetry.io/collector/component"
@@ -68,6 +69,13 @@ func (c *md) Start(_ context.Context, host component.Host) error {
 	} else {
 		c.logger.Info("static configuration enabled")
 		c.setupStaticConfig()
+	}
+
+	// If POD_NAME is set, add it to the resource attributes.
+	podName := os.Getenv("POD_NAME")
+	if podName != "" {
+		c.logger.Info("POD_NAME environment variable set, adding 'missingdata.pod.name' to resource attributes")
+		c.config.AdditionalResourceAttributes["missingdata.pod.name"] = podName
 	}
 
 	go c.emitter()
@@ -224,6 +232,9 @@ func (c *md) ConsumeMetrics(_ context.Context, md pmetric.Metrics) error {
 				metricResourceAttrs := tenant.resourceAttributes[metric.Name()]
 				wantedResourceAttrs = append(wantedResourceAttrs, metricResourceAttrs...)
 				rattrs := filteredAttributes(resourceMetric.Resource().Attributes(), wantedResourceAttrs)
+				for key, value := range c.config.AdditionalResourceAttributes {
+					rattrs.PutStr(key, value)
+				}
 
 				uniqueDatapoints := map[uint64]pcommon.Map{}
 				switch metric.Type() {

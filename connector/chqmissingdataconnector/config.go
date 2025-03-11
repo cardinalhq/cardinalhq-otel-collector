@@ -37,13 +37,14 @@ var (
 
 // Config defines configuration for the CardinalHQ Missing Data Connector.
 type Config struct {
-	ConfigurationExtension   *component.ID  `mapstructure:"configuration_extension"`
-	Interval                 time.Duration  `mapstructure:"interval"`
-	MaximumAge               time.Duration  `mapstructure:"maximum_age"`
-	MetricName               string         `mapstructure:"metric_name"`
-	MetricNameAttribute      string         `mapstructure:"metric_name_attribute"`
-	Metrics                  []MetricConfig `mapstructure:"metrics"`
-	ResourceAttributesToCopy []string       `mapstructure:"resource_attributes_to_copy"`
+	ConfigurationExtension       *component.ID     `mapstructure:"configuration_extension"`
+	Interval                     time.Duration     `mapstructure:"interval"`
+	MaximumAge                   time.Duration     `mapstructure:"maximum_age"`
+	MetricName                   string            `mapstructure:"metric_name"`
+	MetricNameAttribute          string            `mapstructure:"metric_name_attribute"`
+	Metrics                      []MetricConfig    `mapstructure:"metrics"`
+	ResourceAttributesToCopy     []string          `mapstructure:"resource_attributes_to_copy"`
+	AdditionalResourceAttributes map[string]string `mapstructure:"additional_resource_attributes"`
 }
 
 // MetricConfig defines configuration for a metric.

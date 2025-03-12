@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -31,7 +32,7 @@ import (
 )
 
 type Exemplar struct {
-	Payload    []byte            `json:"payload"`
+	Payload    string            `json:"payload"`
 	Attributes map[string]string `json:"attributes"`
 }
 
@@ -84,17 +85,23 @@ func sendExemplars[T supportedSignals](p *exemplarProcessor, cid, processorId st
 }
 
 // marshalTelemetry dispatches to the correct marshaller
-func marshalTelemetry[T supportedSignals](t T) ([]byte, error) {
+func marshalTelemetry[T supportedSignals](t T) (string, error) {
+	var b []byte
+	var err error
 	switch v := any(t).(type) {
 	case plog.Logs:
-		return logsMarshaler.MarshalLogs(v)
+		b, err = logsMarshaler.MarshalLogs(v)
 	case pmetric.Metrics:
-		return metricsMarshaler.MarshalMetrics(v)
+		b, err = metricsMarshaler.MarshalMetrics(v)
 	case ptrace.Traces:
-		return tracesMarshaler.MarshalTraces(v)
+		b, err = tracesMarshaler.MarshalTraces(v)
 	default:
-		return nil, fmt.Errorf("unsupported telemetry type")
+		err = errors.New("unsupported telemetry type")
 	}
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
 }
 
 func (p *exemplarProcessor) sendBatchAsync(cid string, telemetryType signalnames.Name, processorId string, batch []*Exemplar) {

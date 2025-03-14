@@ -22,9 +22,6 @@ import (
 var (
 	// Type is the component type for the CardinalHQ Kubernetes Metrics Connector
 	Type = component.MustNewType("chqk8smetrics")
-
-	// ScopeName is the scope name for metrics we generate
-	ScopeName = "github.com/cardinalhq/cardinalhq-otel-collector/connector/chqk8smetricsconnector"
 )
 
 const (

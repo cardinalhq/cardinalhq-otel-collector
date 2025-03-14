@@ -53,5 +53,6 @@ func createLogsToMetrics(_ context.Context, set connector.Settings, cc component
 		metricsConsumer: nextConsumer,
 		logger:          set.Logger,
 		emitterDone:     make(chan struct{}),
+		converters:      buildConverters(),
 	}, nil
 }

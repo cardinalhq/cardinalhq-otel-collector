@@ -18,6 +18,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/cardinalhq/oteltools/signalbuilder"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/plog"
@@ -31,6 +32,8 @@ type md struct {
 	logger          *zap.Logger
 	component.StartFunc
 	component.ShutdownFunc
+
+	converters map[objectSelector]converterFunc
 
 	emitterDone chan struct{}
 }
@@ -62,6 +65,26 @@ func (c *md) emitEvents(now time.Time) {
 }
 
 func (c *md) ConsumeLogs(_ context.Context, ld plog.Logs) error {
+	builder := signalbuilder.NewMetricsBuilder()
+
+	for i := range ld.ResourceLogs().Len() {
+		rl := ld.ResourceLogs().At(i)
+		for j := range rl.ScopeLogs().Len() {
+			sl := rl.ScopeLogs().At(j)
+			for k := range sl.LogRecords().Len() {
+				lr := sl.LogRecords().At(k)
+				c.processObject(builder, rl.Resource().Attributes(), lr.Attributes(), lr.Body())
+			}
+		}
+	}
+
+	out := builder.Build()
+	if out.DataPointCount() == 0 {
+		return nil
+	}
+	return c.metricsConsumer.ConsumeMetrics(context.Background(), out)
+}
+
+func build(rm *signalbuilder.MetricResourceBuilder, lr plog.LogRecord) {
 	// TODO implement log to metrics conversion
-	return nil
 }

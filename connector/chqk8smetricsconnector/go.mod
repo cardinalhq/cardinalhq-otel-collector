@@ -5,6 +5,7 @@ go 1.24
 toolchain go1.24.1
 
 require (
+	github.com/cardinalhq/oteltools v0.17.4
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/collector/component v1.27.0
 	go.opentelemetry.io/collector/config/confighttp v0.121.0
@@ -16,6 +17,7 @@ require (
 )
 
 require (
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect

@@ -39,7 +39,6 @@ type EventsConfig struct {
 	Interval                time.Duration `mapstructure:"interval"`
 }
 
-// Validate validates the configuration.
 func (c *Config) Validate() error {
 	var errs error
 

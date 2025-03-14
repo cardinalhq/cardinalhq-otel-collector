@@ -84,7 +84,3 @@ func (c *md) ConsumeLogs(_ context.Context, ld plog.Logs) error {
 	}
 	return c.metricsConsumer.ConsumeMetrics(context.Background(), out)
 }
-
-func build(rm *signalbuilder.MetricResourceBuilder, lr plog.LogRecord) {
-	// TODO implement log to metrics conversion
-}

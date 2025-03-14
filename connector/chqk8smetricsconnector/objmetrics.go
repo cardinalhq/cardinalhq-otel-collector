@@ -19,12 +19,12 @@ import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 )
 
-const (
-	scopeBase      = "github.com/cardinalhq/cardinalhq-otel-collector/connector/chqk8smetricsconnector"
-	scopePod       = scopeBase + "/pod"
-	scopeConfigMap = scopeBase + "/configmap"
-	scopeSecret    = scopeBase + "/secret"
-)
+// const (
+// 	scopeBase      = "github.com/cardinalhq/cardinalhq-otel-collector/connector/chqk8smetricsconnector"
+// 	scopePod       = scopeBase + "/pod"
+// 	scopeConfigMap = scopeBase + "/configmap"
+// 	scopeSecret    = scopeBase + "/secret"
+// )
 
 type converterFunc func(builder *signalbuilder.MetricsBuilder, rlattr pcommon.Map, lattr pcommon.Map, body pcommon.Map) error
 

@@ -21,16 +21,16 @@ import (
 )
 
 func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Traces) error {
-	for i := 0; i < td.ResourceSpans().Len(); i++ {
+	for i := range td.ResourceSpans().Len() {
 		rs := td.ResourceSpans().At(i)
 		resourceAttributes := rs.Resource().Attributes()
 		cid := OrgIdFromResource(resourceAttributes)
 		cache := e.GetEntityCache(cid)
 		globalEntityMap := cache.ProvisionResourceAttributes(resourceAttributes)
 
-		for j := 0; j < rs.ScopeSpans().Len(); j++ {
+		for j := range rs.ScopeSpans().Len() {
 			iss := rs.ScopeSpans().At(j)
-			for k := 0; k < iss.Spans().Len(); k++ {
+			for k := range iss.Spans().Len() {
 				sr := iss.Spans().At(k)
 				cache.ProvisionRecordAttributes(globalEntityMap, sr.Attributes())
 			}

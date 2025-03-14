@@ -24,16 +24,16 @@ import (
 func (e *entityGraphExporter) ConsumeLogs(ctx context.Context, ld plog.Logs) error {
 	failingPods := make([]*graph.K8SPodObject, 0)
 
-	for i := 0; i < ld.ResourceLogs().Len(); i++ {
+	for i := range ld.ResourceLogs().Len() {
 		rl := ld.ResourceLogs().At(i)
 		resourceAttributes := rl.Resource().Attributes()
 		cid := OrgIdFromResource(resourceAttributes)
 		cache := e.GetEntityCache(cid)
 		globalEntityMap := cache.ProvisionResourceAttributes(resourceAttributes)
 
-		for j := 0; j < rl.ScopeLogs().Len(); j++ {
+		for j := range rl.ScopeLogs().Len() {
 			sl := rl.ScopeLogs().At(j)
-			for k := 0; k < sl.LogRecords().Len(); k++ {
+			for k := range sl.LogRecords().Len() {
 				lr := sl.LogRecords().At(k)
 				podObject := graph.ExtractPodObject(lr)
 				if podObject != nil {

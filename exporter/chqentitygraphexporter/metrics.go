@@ -21,7 +21,7 @@ import (
 )
 
 func (e *entityGraphExporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
-	for i := 0; i < md.ResourceMetrics().Len(); i++ {
+	for i := range md.ResourceMetrics().Len() {
 		rm := md.ResourceMetrics().At(i)
 		rattr := rm.Resource().Attributes()
 		cid := OrgIdFromResource(rattr)
@@ -29,34 +29,34 @@ func (e *entityGraphExporter) ConsumeMetrics(ctx context.Context, md pmetric.Met
 
 		globalEntityMap := cache.ProvisionResourceAttributes(rattr)
 
-		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
+		for j := range rm.ScopeMetrics().Len() {
 			ilm := rm.ScopeMetrics().At(j)
-			for k := 0; k < ilm.Metrics().Len(); k++ {
+			for k := range ilm.Metrics().Len() {
 				m := ilm.Metrics().At(k)
 
 				switch m.Type() {
 				case pmetric.MetricTypeGauge:
-					for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
+					for l := range m.Gauge().DataPoints().Len() {
 						dp := m.Gauge().DataPoints().At(l)
 						cache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
 					}
 				case pmetric.MetricTypeSum:
-					for l := 0; l < m.Sum().DataPoints().Len(); l++ {
+					for l := range m.Sum().DataPoints().Len() {
 						dp := m.Sum().DataPoints().At(l)
 						cache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
 					}
 				case pmetric.MetricTypeHistogram:
-					for l := 0; l < m.Histogram().DataPoints().Len(); l++ {
+					for l := range m.Histogram().DataPoints().Len() {
 						dp := m.Histogram().DataPoints().At(l)
 						cache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
 					}
 				case pmetric.MetricTypeSummary:
-					for l := 0; l < m.Summary().DataPoints().Len(); l++ {
+					for l := range m.Summary().DataPoints().Len() {
 						dp := m.Summary().DataPoints().At(l)
 						cache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
 					}
 				case pmetric.MetricTypeExponentialHistogram:
-					for l := 0; l < m.ExponentialHistogram().DataPoints().Len(); l++ {
+					for l := range m.ExponentialHistogram().DataPoints().Len() {
 						dp := m.ExponentialHistogram().DataPoints().At(l)
 						cache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
 					}

@@ -24,8 +24,8 @@ func (e *entityGraphExporter) ConsumeMetrics(ctx context.Context, md pmetric.Met
 	for i := range md.ResourceMetrics().Len() {
 		rm := md.ResourceMetrics().At(i)
 		rattr := rm.Resource().Attributes()
-		cid := OrgIdFromResource(rattr)
-		cache := e.GetEntityCache(cid)
+		cid := orgIdFromResource(rattr)
+		cache := e.getEntityCache(cid)
 
 		globalEntityMap := cache.ProvisionResourceAttributes(rattr)
 

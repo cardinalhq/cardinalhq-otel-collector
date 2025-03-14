@@ -146,7 +146,7 @@ func (e *entityGraphExporter) publishResourceEntitiesForCID(ctx context.Context,
 	}
 }
 
-func URLFor(endpoint string, ttype string, cid string) string {
+func urlFor(endpoint string, ttype string, cid string) string {
 	u, _ := url.Parse(endpoint)
 	u.Path = "/api/v1/entityRelationships"
 	q := u.Query()
@@ -157,7 +157,7 @@ func URLFor(endpoint string, ttype string, cid string) string {
 }
 
 func (e *entityGraphExporter) postEntityRelationships(ctx context.Context, ttype string, cid string, payload []byte) error {
-	endpoint := URLFor(e.config.Endpoint, ttype, cid)
+	endpoint := urlFor(e.config.Endpoint, ttype, cid)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/x-protobuf")
@@ -226,7 +226,7 @@ func (e *entityGraphExporter) postBackOffEvents(ctx context.Context, events []*g
 	return nil
 }
 
-func OrgIdFromResource(resource pcommon.Map) string {
+func orgIdFromResource(resource pcommon.Map) string {
 	orgID, found := resource.Get(translate.CardinalFieldCustomerID)
 	if !found {
 		return "default"
@@ -234,7 +234,7 @@ func OrgIdFromResource(resource pcommon.Map) string {
 	return orgID.AsString()
 }
 
-func (e *entityGraphExporter) GetEntityCache(cid string) *graph.ResourceEntityCache {
+func (e *entityGraphExporter) getEntityCache(cid string) *graph.ResourceEntityCache {
 	e.cacheLock.Lock()
 	defer e.cacheLock.Unlock()
 	cache, found := e.entityCaches[cid]

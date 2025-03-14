@@ -24,8 +24,8 @@ func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Trace
 	for i := range td.ResourceSpans().Len() {
 		rs := td.ResourceSpans().At(i)
 		resourceAttributes := rs.Resource().Attributes()
-		cid := OrgIdFromResource(resourceAttributes)
-		cache := e.GetEntityCache(cid)
+		cid := orgIdFromResource(resourceAttributes)
+		cache := e.getEntityCache(cid)
 		globalEntityMap := cache.ProvisionResourceAttributes(resourceAttributes)
 
 		for j := range rs.ScopeSpans().Len() {

@@ -50,7 +50,7 @@ func TestURLFor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%s_%s_%s", tt.endpoint, tt.ttype, tt.cid), func(t *testing.T) {
-			result := URLFor(tt.endpoint, tt.ttype, tt.cid)
+			result := urlFor(tt.endpoint, tt.ttype, tt.cid)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

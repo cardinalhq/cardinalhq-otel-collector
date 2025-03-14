@@ -16,6 +16,7 @@ package chqentitygraphexporter
 
 import (
 	"context"
+
 	"github.com/cardinalhq/oteltools/pkg/graph"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.uber.org/zap"
@@ -27,8 +28,8 @@ func (e *entityGraphExporter) ConsumeLogs(ctx context.Context, ld plog.Logs) err
 	for i := range ld.ResourceLogs().Len() {
 		rl := ld.ResourceLogs().At(i)
 		resourceAttributes := rl.Resource().Attributes()
-		cid := OrgIdFromResource(resourceAttributes)
-		cache := e.GetEntityCache(cid)
+		cid := orgIdFromResource(resourceAttributes)
+		cache := e.getEntityCache(cid)
 		globalEntityMap := cache.ProvisionResourceAttributes(resourceAttributes)
 
 		for j := range rl.ScopeLogs().Len() {

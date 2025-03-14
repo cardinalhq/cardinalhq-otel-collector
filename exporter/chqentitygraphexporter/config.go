@@ -35,10 +35,10 @@ type ReportingConfig struct {
 type ContextID = string
 
 func (c *Config) Validate() error {
-	return nil
+	return c.Reporting.validate()
 }
 
-func (c *ReportingConfig) Validate() error {
+func (c *ReportingConfig) validate() error {
 	var errs error
 	if c.Interval == 0 {
 		c.Interval = defaultReportingInterval

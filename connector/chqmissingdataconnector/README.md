@@ -11,7 +11,7 @@ some chosen value.
 
 ```yaml
 connectors:
-  chqmissingdataconnector:
+  chqmissingdata:
     maximum_age: 24h
     interval: 1m
     name_prefix: "missingdata"

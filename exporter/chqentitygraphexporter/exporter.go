@@ -100,9 +100,11 @@ func (e *entityGraphExporter) Start(ctx context.Context, host component.Host) er
 	e.httpClient = httpClient
 
 	go func() {
+		e.logger.Info("Starting entity graph exporter publish task")
 		for {
 			select {
 			case <-ctx.Done():
+				e.logger.Info("Stopping entity graph exporter publish task")
 				return
 			case <-time.Tick(e.config.Reporting.Interval):
 				e.publishResourceEntities(ctx)
@@ -111,10 +113,6 @@ func (e *entityGraphExporter) Start(ctx context.Context, host component.Host) er
 	}()
 
 	return nil
-}
-
-func (e *entityGraphExporter) Shutdown(ctx context.Context) error {
-	return nil // TODO shut down the goproc started in Start()
 }
 
 func (e *entityGraphExporter) publishResourceEntities(ctx context.Context) {

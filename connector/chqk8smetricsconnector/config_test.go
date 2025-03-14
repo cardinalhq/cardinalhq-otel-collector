@@ -31,11 +31,8 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "valid",
 			config: &Config{
-				Metrics: MetricsConfig{
-					Interval: 60 * time.Second,
-				},
 				Events: EventsConfig{
-					Interval: 60 * time.Second,
+					Interval: defaultEventsReportingInterval,
 					ClientConfig: confighttp.ClientConfig{
 						Endpoint: "http://localhost:8080",
 					},
@@ -44,36 +41,28 @@ func TestConfig_Validate(t *testing.T) {
 			errExpected: nil,
 		},
 		{
-			name: "invalid metrics reporting interval",
+			name: "invalid events reporting interval",
 			config: &Config{
-				Metrics: MetricsConfig{
-					Interval: 500 * time.Millisecond,
-				},
 				Events: EventsConfig{
-					Interval: 60 * time.Second,
+					Interval: 500 * time.Millisecond,
 					ClientConfig: confighttp.ClientConfig{
 						Endpoint: "http://localhost:8080",
 					},
 				},
 			},
-			errExpected: errInvalidMetricsReportingInterval,
+			errExpected: errInvalidEventsReportingInterval,
 		},
 		{
-			name: "invalid events reporting interval",
-			config: func() *Config {
-				return &Config{
-					Metrics: MetricsConfig{
-						Interval: 60 * time.Second,
+			name: "invalid endpoint",
+			config: &Config{
+				Events: EventsConfig{
+					Interval: defaultEventsReportingInterval,
+					ClientConfig: confighttp.ClientConfig{
+						Endpoint: "",
 					},
-					Events: EventsConfig{
-						Interval: 500 * time.Millisecond,
-						ClientConfig: confighttp.ClientConfig{
-							Endpoint: "http://localhost:8080",
-						},
-					},
-				}
-			}(),
-			errExpected: errInvalidEventsReportingInterval,
+				},
+			},
+			errExpected: errInvalidEndpoint,
 		},
 	}
 

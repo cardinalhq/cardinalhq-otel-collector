@@ -52,22 +52,10 @@ func (c *md) emitter() {
 		select {
 		case <-c.emitterDone:
 			return
-		case <-time.Tick(c.config.Metrics.Interval):
-			c.emitMetrics(time.Now())
 		case <-time.Tick(c.config.Events.Interval):
 			c.emitEvents(time.Now())
 		}
 	}
-}
-
-func (c *md) emitMetrics(now time.Time) {
-	// md := c.buildMetrics(emitList)
-	// if md.DataPointCount() == 0 {
-	// 	return
-	// }
-	// if err := c.metricsConsumer.ConsumeMetrics(context.Background(), md); err != nil {
-	// 	c.logger.Error("failed to emit metrics", zap.Error(err))
-	// }
 }
 
 func (c *md) emitEvents(now time.Time) {

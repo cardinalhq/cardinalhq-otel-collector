@@ -39,9 +39,6 @@ func createDefaultConfig() component.Config {
 
 func getDefaultConfig() *Config {
 	return &Config{
-		Metrics: MetricsConfig{
-			Interval: defaultMetricsReportingInterval,
-		},
 		Events: EventsConfig{
 			Interval: defaultEventsReportingInterval,
 		},

@@ -23,22 +23,15 @@ import (
 )
 
 var (
-	defaultMetricsReportingInterval = 60 * time.Second
-	defaultEventsReportingInterval  = 5 * time.Minute
+	defaultEventsReportingInterval = 5 * time.Minute
 
-	errInvalidMetricsReportingInterval = fmt.Errorf("interval must be greater than or equal to 10s")
-	errInvalidEventsReportingInterval  = fmt.Errorf("interval must be greater than or equal to 1m")
-	errInvalidEndpoint                 = fmt.Errorf("endpoint must be specified")
+	errInvalidEventsReportingInterval = fmt.Errorf("events.interval must be greater than or equal to 1m")
+	errInvalidEndpoint                = fmt.Errorf("events.endpoint must be specified")
 )
 
 // Config defines configuration for the CardinalHQ Kubernetes Metrics Connector.
 type Config struct {
-	Metrics MetricsConfig `mapstructure:"metrics"`
-	Events  EventsConfig  `mapstructure:"events"`
-}
-
-type MetricsConfig struct {
-	Interval time.Duration `mapstructure:"interval"`
+	Events EventsConfig `mapstructure:"events"`
 }
 
 type EventsConfig struct {
@@ -50,18 +43,7 @@ type EventsConfig struct {
 func (c *Config) Validate() error {
 	var errs error
 
-	errs = multierr.Append(errs, c.Metrics.validate())
 	errs = multierr.Append(errs, c.Events.validate())
-
-	return errs
-}
-
-func (c *MetricsConfig) validate() error {
-	var errs error
-
-	if c.Interval < 10*time.Second {
-		errs = multierr.Append(errs, errInvalidMetricsReportingInterval)
-	}
 
 	return errs
 }

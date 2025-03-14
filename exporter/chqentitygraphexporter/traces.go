@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/cardinalhq/oteltools/pkg/graph"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
@@ -34,11 +35,12 @@ func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Trace
 			for k := range iss.Spans().Len() {
 				sr := iss.Spans().At(k)
 
-				// Add span kind to the attributes map so it can be used during relationship extraction
-				spanKind := sr.Kind().String()
-				sr.Attributes().PutStr(graph.SpanKindString, spanKind)
+				// Add Span Kind to the attributes map so it can be used during relationship extraction
+				spanAttributes := pcommon.Map{}
+				sr.Attributes().CopyTo(spanAttributes)
+				spanAttributes.PutStr(graph.SpanKindString, sr.Kind().String())
 
-				cache.ProvisionRecordAttributes(globalEntityMap, sr.Attributes())
+				cache.ProvisionRecordAttributes(globalEntityMap, spanAttributes)
 			}
 		}
 	}

@@ -17,6 +17,7 @@ package chqentitygraphexporter
 import (
 	"context"
 
+	"github.com/cardinalhq/oteltools/pkg/graph"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
@@ -32,6 +33,11 @@ func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Trace
 			iss := rs.ScopeSpans().At(j)
 			for k := range iss.Spans().Len() {
 				sr := iss.Spans().At(k)
+
+				// Add span kind to the attributes map so it can be used during relationship extraction
+				spanKind := sr.Kind().String()
+				sr.Attributes().PutStr(graph.SpanKindString, spanKind)
+
 				cache.ProvisionRecordAttributes(globalEntityMap, sr.Attributes())
 			}
 		}

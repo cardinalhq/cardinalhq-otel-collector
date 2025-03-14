@@ -1,0 +1,17 @@
+receivers:
+  nop:
+
+connectors:
+  chqk8smetrics:
+
+exporters:
+  nop:
+
+service:
+  pipelines:
+    metrics/1:
+      receivers: [nop]
+      exporters: [chqk8smetrics]
+    metrics/2:
+      receivers: [chqk8smetrics]
+      exporters: [nop]

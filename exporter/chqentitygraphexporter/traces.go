@@ -36,7 +36,7 @@ func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Trace
 				sr := iss.Spans().At(k)
 
 				// Add Span Kind to the attributes map so it can be used during relationship extraction
-				spanAttributes := pcommon.Map{}
+				spanAttributes := pcommon.NewMap()
 				sr.Attributes().CopyTo(spanAttributes)
 				spanAttributes.PutStr(graph.SpanKindString, sr.Kind().String())
 

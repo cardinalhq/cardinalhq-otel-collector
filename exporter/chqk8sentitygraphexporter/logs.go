@@ -17,45 +17,19 @@ package chqk8sentitygraphexporter
 import (
 	"context"
 
-	"github.com/cardinalhq/oteltools/pkg/graph"
 	"go.opentelemetry.io/collector/pdata/plog"
-	"go.uber.org/zap"
 )
 
 func (e *exp) ConsumeLogs(ctx context.Context, ld plog.Logs) error {
-	failingPods := make([]*graph.K8SPodObject, 0)
-
 	for i := range ld.ResourceLogs().Len() {
 		rl := ld.ResourceLogs().At(i)
-		resourceAttributes := rl.Resource().Attributes()
-		cid := orgIdFromResource(resourceAttributes)
-		cache := e.getEntityCache(cid)
-		globalEntityMap := cache.ProvisionResourceAttributes(resourceAttributes)
-
 		for j := range rl.ScopeLogs().Len() {
-			sl := rl.ScopeLogs().At(j)
-			for k := range sl.LogRecords().Len() {
-				lr := sl.LogRecords().At(k)
+			sr := rl.ScopeLogs().At(j)
+			for k := range sr.LogRecords().Len() {
+				lr := sr.LogRecords().At(k)
 				e.objecthandler.Feed(rl.Resource().Attributes(), lr.Attributes(), lr.Body())
-				podObject := graph.ExtractPodObject(lr)
-				if podObject != nil {
-					if podObject.IsImagePullBackOff || podObject.IsCrashLoopBackOff || podObject.IsOOMKilled {
-						failingPods = append(failingPods, podObject)
-					}
-				}
-				cache.ProvisionRecordAttributes(globalEntityMap, lr.Attributes())
 			}
 		}
-	}
-
-	// Tell external-api about backing off pods, so it can process them as events.
-	if len(failingPods) > 0 {
-		go func() {
-			err := e.postBackOffEvents(context.Background(), failingPods)
-			if err != nil {
-				e.logger.Error("Failed to send backoff event", zap.Error(err))
-			}
-		}()
 	}
 	return nil
 }

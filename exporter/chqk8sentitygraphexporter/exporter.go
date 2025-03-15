@@ -15,18 +15,11 @@
 package chqk8sentitygraphexporter
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler"
 	"github.com/cardinalhq/oteltools/pkg/graph"
@@ -82,59 +75,20 @@ func (e *exp) Start(ctx context.Context, host component.Host) error {
 	}
 	e.httpClient = httpClient
 
-	e.gee = objecthandler.NewGraphObjectEmitter(e.logger, e.httpClient, e.config.Reporting.Interval)
-	e.gee.Start(ctx)
+	gee, err := objecthandler.NewGraphObjectEmitter(e.logger, e.httpClient, e.config.Reporting.Interval, e.config.Endpoint)
+	if err != nil {
+		return err
+	}
+	e.gee = gee
 
-	e.goe = objecthandler.NewGraphEventEmitter(e.logger, e.httpClient, e.config.Reporting.Interval)
-	e.goe.Start(ctx)
+	e.goe = objecthandler.NewGraphEventEmitter(e.logger, e.httpClient, e.config.Reporting.Interval, e.config.Endpoint)
 
 	e.objecthandler = objecthandler.NewObjectHandler(e.logger, e.gee, e.goe)
 
-	go func() {
-		e.logger.Info("Starting entity graph exporter publish task")
-		for {
-			select {
-			case <-ctx.Done():
-				e.logger.Info("Stopping entity graph exporter publish task")
-				return
-			case <-time.Tick(e.config.Reporting.Interval):
-				e.publishResourceEntities(ctx)
-			}
-		}
-	}()
+	e.gee.Start(ctx)
+	e.goe.Start(ctx)
 
 	return nil
-}
-
-func (e *exp) publishResourceEntities(ctx context.Context) {
-	e.cacheLock.Lock()
-	cids := make([]string, 0, len(e.entityCaches))
-	for cid := range e.entityCaches {
-		cids = append(cids, cid)
-	}
-	e.cacheLock.Unlock()
-
-	for _, cid := range cids {
-		e.publishResourceEntitiesForCID(ctx, cid)
-	}
-}
-
-func (e *exp) publishResourceEntitiesForCID(ctx context.Context, cid string) {
-	e.cacheLock.Lock()
-	cache, found := e.entityCaches[cid]
-	if !found {
-		e.cacheLock.Unlock()
-		return
-	}
-	protoEntities := cache.GetAllEntities()
-	e.cacheLock.Unlock()
-	if len(protoEntities) == 0 {
-		return
-	}
-
-	if err := e.postEntityRelationships(ctx, cid, protoEntities); err != nil {
-		e.logger.Error("Failed to send entity relationships", zap.Error(err))
-	}
 }
 
 func urlFor(endpoint string, cid string) string {
@@ -146,91 +100,10 @@ func urlFor(endpoint string, cid string) string {
 	return u.String()
 }
 
-func (e *exp) postEntityRelationships(ctx context.Context, cid string, payload []byte) error {
-	endpoint := urlFor(e.config.Endpoint, cid)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
-	req.Header.Set("Content-Type", "application/x-protobuf")
-
-	if err != nil {
-		return err
-	}
-	slog.Info("Sending entity relationships", slog.String("endpoint", endpoint), slog.Int("payloadSize", len(payload)))
-
-	resp, err := e.httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
-			e.logger.Error("Failed to close response body", zap.Error(closeErr))
-		}
-	}()
-
-	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		e.logger.Error("Failed to send resource entities",
-			zap.String("endpoint", endpoint),
-			zap.Int("status", resp.StatusCode),
-			zap.String("body", string(body)),
-		)
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	return nil
-}
-
-func (e *exp) postBackOffEvents(ctx context.Context, events []*graph.K8SPodObject) error {
-	endpoint := e.config.Endpoint + "/api/v1/backOffEvents"
-	b, err := json.Marshal(events)
-	e.logger.Info("Sending backoff event", zap.String("endpoint", endpoint), zap.String("events", string(b)))
-	if err != nil {
-		return fmt.Errorf("failed to marshal kube events: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(b))
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := e.httpClient.Do(req)
-	if err != nil {
-		if errors.Is(ctx.Err(), context.Canceled) {
-			e.logger.Warn("Request canceled", zap.Error(ctx.Err()))
-			return nil
-		}
-		return fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		e.logger.Error("Failed to send kube events",
-			zap.Int("status", resp.StatusCode),
-			zap.String("body", string(body)))
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	return nil
-}
-
 func orgIdFromResource(resource pcommon.Map) string {
 	orgID, found := resource.Get(translate.CardinalFieldCustomerID)
 	if !found {
 		return "default"
 	}
 	return orgID.AsString()
-}
-
-func (e *exp) getEntityCache(cid string) *graph.ResourceEntityCache {
-	e.cacheLock.Lock()
-	defer e.cacheLock.Unlock()
-	cache, found := e.entityCaches[cid]
-	if !found {
-		cache = graph.NewResourceEntityCache()
-		e.entityCaches[cid] = cache
-	}
-	return cache
 }

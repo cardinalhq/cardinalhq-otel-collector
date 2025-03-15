@@ -186,6 +186,8 @@ exporters:
     path: ./exporter/chqservicegraphexporter
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.121.0
     path: ./exporter/chqentitygraphexporter
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter v0.121.0
+    path: ./exporter/chqk8sentitygraphexporter
 
 extensions:
   - gomod: go.opentelemetry.io/collector/extension/zpagesextension v0.121.0

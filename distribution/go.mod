@@ -10,6 +10,7 @@ require (
 	github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector v0.121.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.121.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.121.0
+	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter v0.121.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v0.121.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.121.0
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.121.0
@@ -454,7 +455,7 @@ require (
 	github.com/briandowns/spinner v1.23.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 // indirect
-	github.com/cardinalhq/oteltools v0.17.6 // indirect
+	github.com/cardinalhq/oteltools v0.18.0 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
@@ -934,8 +935,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gopkg.in/zorkian/go-datadog-api.v2 v2.30.0 // indirect
 	howett.net/plist v1.0.1 // indirect
-	k8s.io/api v0.32.2 // indirect
-	k8s.io/apimachinery v0.32.2 // indirect
+	k8s.io/api v0.32.3 // indirect
+	k8s.io/apimachinery v0.32.3 // indirect
 	k8s.io/client-go v0.32.2 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20241105132330-32ad38e42d3f // indirect
@@ -967,6 +968,8 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexpor
 replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.121.0 => ../exporter/chqservicegraphexporter
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.121.0 => ../exporter/chqentitygraphexporter
+
+replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter v0.121.0 => ../exporter/chqk8sentitygraphexporter
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.121.0 => ../processor/aggregationprocessor
 

@@ -17,9 +17,12 @@ package objecthandler
 import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.uber.org/zap"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	convertv1 "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/v1"
 )
 
-type HandlerFunc func(rlattr pcommon.Map, lattr pcommon.Map, body pcommon.Map) error
+type HandlerFunc func(rlattr pcommon.Map, lattr pcommon.Map, us unstructured.Unstructured) error
 
 type objectSelector struct {
 	APIVersion string
@@ -53,7 +56,7 @@ func NewObjectHandler(logger *zap.Logger, objectEmitter GraphObjectEmitter, even
 }
 
 func (h *handlerImpl) installHandlers() {
-	h.handlers[objectSelector{"v1", "pod"}] = h.handleV1Pod
+	h.handlers[objectSelector{"v1", "Pod"}] = h.handleV1Pod
 }
 
 func (h *handlerImpl) Feed(rlattr pcommon.Map, lattr pcommon.Map, bodyValue pcommon.Value) {
@@ -61,24 +64,32 @@ func (h *handlerImpl) Feed(rlattr pcommon.Map, lattr pcommon.Map, bodyValue pcom
 		return
 	}
 	body := bodyValue.Map()
-	APIVersion, ok := body.Get("apiVersion")
-	if !ok {
-		return
-	}
-	Kind, ok := body.Get("kind")
-	if !ok {
-		return
-	}
 
-	selector := objectSelector{APIVersion: APIVersion.AsString(), Kind: Kind.AsString()}
-	if handler, ok := h.handlers[selector]; ok {
-		if err := handler(rlattr, lattr, body); err != nil {
-			return
-		}
+	us := unstructured.Unstructured{
+		Object: body.AsRaw(),
+	}
+	APIVersion := us.GetAPIVersion()
+	Kind := us.GetKind()
+
+	selector := objectSelector{APIVersion: APIVersion, Kind: Kind}
+	handler, ok := h.handlers[selector]
+	if !ok {
+		h.logger.Info("No handler found for object", zap.String("APIVersion", APIVersion), zap.String("Kind", Kind))
+		return
+	}
+	if err := handler(rlattr, lattr, us); err != nil {
+		h.logger.Error("Error handling object", zap.Error(err))
+		return
 	}
 }
 
-func (h *handlerImpl) handleV1Pod(rlattr pcommon.Map, lattr pcommon.Map, body pcommon.Map) error {
-	// TODO: Implement this
+func (h *handlerImpl) handleV1Pod(rlattr pcommon.Map, lattr pcommon.Map, us unstructured.Unstructured) error {
+	result, err := convertv1.ConvertPod(us)
+	if err != nil {
+		return err
+	}
+
+	h.logger.Info("Pod", zap.Any("result", result))
+
 	return nil
 }

@@ -75,6 +75,7 @@ import (
 	chqdatadogexporter "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter"
 	chqservicegraphexporter "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter"
 	chqentitygraphexporter "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter"
+	chqk8sentitygraphexporter "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter"
 	zpagesextension "go.opentelemetry.io/collector/extension/zpagesextension"
 	ackextension "github.com/open-telemetry/opentelemetry-collector-contrib/extension/ackextension"
 	asapauthextension "github.com/open-telemetry/opentelemetry-collector-contrib/extension/asapauthextension"
@@ -578,6 +579,7 @@ func components() (otelcol.Factories, error) {
 		chqdatadogexporter.NewFactory(),
 		chqservicegraphexporter.NewFactory(),
 		chqentitygraphexporter.NewFactory(),
+		chqk8sentitygraphexporter.NewFactory(),
 	)
 	if err != nil {
 		return otelcol.Factories{}, err
@@ -634,6 +636,7 @@ func components() (otelcol.Factories, error) {
 	factories.ExporterModules[chqdatadogexporter.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.121.0"
 	factories.ExporterModules[chqservicegraphexporter.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.121.0"
 	factories.ExporterModules[chqentitygraphexporter.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.121.0"
+	factories.ExporterModules[chqk8sentitygraphexporter.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter v0.121.0"
 
 	factories.Processors, err = otelcol.MakeFactoryMap[processor.Factory](
 		batchprocessor.NewFactory(),

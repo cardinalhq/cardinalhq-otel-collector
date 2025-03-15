@@ -21,21 +21,33 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 )
 
 type GraphObjectEmitter interface {
 	Start(ctx context.Context)
 	Stop(ctx context.Context)
-	Emit(ctx context.Context, object GraphObject)
+	Emit(ctx context.Context, object *GraphObject)
 }
 
 type graphEmitter struct {
-	logger         *zap.Logger
-	httpClient     *http.Client
-	reportInterval time.Duration
-	wg             sync.WaitGroup
+	logger     *zap.Logger
+	httpClient *http.Client
+	interval   time.Duration
+	baseurl    string
 
-	donechan chan struct{}
+	submitChan chan *GraphObject
+	doneChan   chan struct{}
+	wg         sync.WaitGroup
+	objects    []*GraphObject
+
+	decoder runtime.Decoder
 }
 
 var _ GraphObjectEmitter = (*graphEmitter)(nil)
@@ -45,13 +57,50 @@ type GraphObject struct {
 	Kind       string `json:"kind"`
 }
 
-func NewGraphObjectEmitter(logger *zap.Logger, httpClient *http.Client, interval time.Duration) GraphObjectEmitter {
-	return &graphEmitter{
-		logger:         logger,
-		httpClient:     httpClient,
-		reportInterval: interval,
-		donechan:       make(chan struct{}),
+func NewGraphObjectEmitter(logger *zap.Logger, httpClient *http.Client, interval time.Duration, baseurl string) (GraphObjectEmitter, error) {
+	ret := &graphEmitter{
+		logger:     logger,
+		httpClient: httpClient,
+		interval:   interval,
+		baseurl:    baseurl,
+		doneChan:   make(chan struct{}),
+		submitChan: make(chan *GraphObject),
 	}
+
+	if err := setupScheme(ret); err != nil {
+		return nil, err
+	}
+
+	return ret, nil
+}
+
+func setupScheme(e *graphEmitter) error {
+	scheme := runtime.NewScheme()
+
+	if err := corev1.AddToScheme(scheme); err != nil {
+		return err
+	}
+
+	if err := appsv1.AddToScheme(scheme); err != nil {
+		return err
+	}
+
+	if err := batchv1.AddToScheme(scheme); err != nil {
+		return err
+	}
+
+	if err := networkingv1.AddToScheme(scheme); err != nil {
+		return err
+	}
+
+	if err := rbacv1.AddToScheme(scheme); err != nil {
+		return err
+	}
+
+	codecs := serializer.NewCodecFactory(scheme)
+	e.decoder = codecs.UniversalDeserializer()
+
+	return nil
 }
 
 func (e *graphEmitter) Start(ctx context.Context) {
@@ -60,19 +109,36 @@ func (e *graphEmitter) Start(ctx context.Context) {
 		defer e.wg.Done()
 		for {
 			select {
-			case <-e.donechan:
+			case <-e.doneChan:
 				return
-			case <-time.Tick(e.reportInterval):
-				// do something
+			case object := <-e.submitChan:
+				e.objects = append(e.objects, object)
+			case <-time.Tick(e.interval):
+				err := e.sendObjects(ctx, nil)
+				if err != nil {
+					e.logger.Error("Failed to send objects", zap.Error(err))
+				}
 			}
 		}
 	}()
 }
 
 func (e *graphEmitter) Stop(ctx context.Context) {
-	close(e.donechan)
+	close(e.doneChan)
 	e.wg.Wait()
+
+	if len(e.objects) > 0 {
+		err := e.sendObjects(ctx, nil)
+		if err != nil {
+			e.logger.Error("Failed to send objects", zap.Error(err))
+		}
+	}
 }
 
-func (e *graphEmitter) Emit(ctx context.Context, object GraphObject) {
+func (e *graphEmitter) Emit(ctx context.Context, object *GraphObject) {
+	e.submitChan <- object
+}
+
+func (e *graphEmitter) sendObjects(_ context.Context, _ []*GraphObject) error {
+	return nil
 }

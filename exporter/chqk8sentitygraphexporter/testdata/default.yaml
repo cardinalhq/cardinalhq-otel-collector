@@ -1,0 +1,20 @@
+receivers:
+  nop:
+
+exporters:
+  chqk8sentitygraph:
+
+service:
+  pipelines:
+    traces:
+      receivers: [nop]
+      exporters: [chqk8sentitygraph]
+    metrics:
+      receivers: [nop]
+      exporters: [chqk8sentitygraph]
+    logs:
+      receivers: [nop]
+      exporters: [chqk8sentitygraph]
+
+extensions:
+  nop:

@@ -24,33 +24,19 @@ import (
 func TestURLFor(t *testing.T) {
 	tests := []struct {
 		endpoint string
-		ttype    string
 		cid      string
 		expected string
 	}{
 		{
-			endpoint: "http://example.com",
-			ttype:    "logs",
-			cid:      "12345",
-			expected: "http://example.com/api/v1/entityRelationships?organizationID=12345&telemetryType=logs",
-		},
-		{
-			endpoint: "https://example.com",
-			ttype:    "metrics",
-			cid:      "67890",
-			expected: "https://example.com/api/v1/entityRelationships?organizationID=67890&telemetryType=metrics",
-		},
-		{
 			endpoint: "http://example.com:8080",
-			ttype:    "traces",
 			cid:      "C815EA44-F68E-47DA-B090-957947C0523C",
-			expected: "http://example.com:8080/api/v1/entityRelationships?organizationID=c815ea44-f68e-47da-b090-957947c0523c&telemetryType=traces",
+			expected: "http://example.com:8080/api/v1/entityRelationships?organizationID=c815ea44-f68e-47da-b090-957947c0523c",
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(fmt.Sprintf("%s_%s_%s", tt.endpoint, tt.ttype, tt.cid), func(t *testing.T) {
-			result := urlFor(tt.endpoint, tt.ttype, tt.cid)
+		t.Run(fmt.Sprintf("%s_%s", tt.endpoint, tt.cid), func(t *testing.T) {
+			result := urlFor(tt.endpoint, tt.cid)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

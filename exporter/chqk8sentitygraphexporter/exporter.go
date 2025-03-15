@@ -34,7 +34,6 @@ import (
 
 	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/collector/pdata/pcommon"
-	"go.opentelemetry.io/collector/pdata/plog"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
@@ -42,23 +41,12 @@ import (
 	"go.uber.org/zap"
 )
 
-func newMarshaller() otelJsonMarshaller {
-	return otelJsonMarshaller{
-		logsMarshaler: &plog.JSONMarshaler{},
-	}
-}
-
-type otelJsonMarshaller struct {
-	logsMarshaler plog.Marshaler
-}
-
 type exp struct {
 	config     *Config
 	httpClient *http.Client
 	logger     *zap.Logger
 
 	id                 component.ID
-	ttype              string
 	httpClientSettings confighttp.ClientConfig
 	telemetrySettings  component.TelemetrySettings
 
@@ -66,8 +54,8 @@ type exp struct {
 	entityCaches map[string]*graph.ResourceEntityCache
 
 	objecthandler objecthandler.ObjectHandler
-
-	jsonMarshaller otelJsonMarshaller
+	gee           objecthandler.GraphObjectEmitter
+	goe           objecthandler.GraphEventEmitter
 }
 
 func newEntityGraphExporter(config *Config, set exporter.Settings) (*exp, error) {
@@ -76,7 +64,6 @@ func newEntityGraphExporter(config *Config, set exporter.Settings) (*exp, error)
 		config:             config,
 		httpClientSettings: config.ClientConfig,
 		telemetrySettings:  set.TelemetrySettings,
-		jsonMarshaller:     newMarshaller(),
 		entityCaches:       make(map[string]*graph.ResourceEntityCache),
 		logger:             set.Logger,
 	}
@@ -95,9 +82,13 @@ func (e *exp) Start(ctx context.Context, host component.Host) error {
 	}
 	e.httpClient = httpClient
 
-	gee := objecthandler.NewGraphObjectEmitter(e.logger, e.httpClient)
-	goe := objecthandler.NewGraphEventEmitter(e.logger, e.httpClient)
-	e.objecthandler = objecthandler.NewObjectHandler(e.logger, gee, goe)
+	e.gee = objecthandler.NewGraphObjectEmitter(e.logger, e.httpClient, e.config.Reporting.Interval)
+	e.gee.Start(ctx)
+
+	e.goe = objecthandler.NewGraphEventEmitter(e.logger, e.httpClient, e.config.Reporting.Interval)
+	e.goe.Start(ctx)
+
+	e.objecthandler = objecthandler.NewObjectHandler(e.logger, e.gee, e.goe)
 
 	go func() {
 		e.logger.Info("Starting entity graph exporter publish task")
@@ -141,23 +132,22 @@ func (e *exp) publishResourceEntitiesForCID(ctx context.Context, cid string) {
 		return
 	}
 
-	if err := e.postEntityRelationships(ctx, e.ttype, cid, protoEntities); err != nil {
+	if err := e.postEntityRelationships(ctx, cid, protoEntities); err != nil {
 		e.logger.Error("Failed to send entity relationships", zap.Error(err))
 	}
 }
 
-func urlFor(endpoint string, ttype string, cid string) string {
+func urlFor(endpoint string, cid string) string {
 	u, _ := url.Parse(endpoint)
 	u.Path = "/api/v1/entityRelationships"
 	q := u.Query()
-	q.Add("telemetryType", ttype)
 	q.Add("organizationID", strings.ToLower(cid))
 	u.RawQuery = q.Encode()
 	return u.String()
 }
 
-func (e *exp) postEntityRelationships(ctx context.Context, ttype string, cid string, payload []byte) error {
-	endpoint := urlFor(e.config.Endpoint, ttype, cid)
+func (e *exp) postEntityRelationships(ctx context.Context, cid string, payload []byte) error {
+	endpoint := urlFor(e.config.Endpoint, cid)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/x-protobuf")

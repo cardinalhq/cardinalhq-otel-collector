@@ -15,24 +15,64 @@
 package objecthandler
 
 import (
+	"context"
 	"net/http"
+	"sync"
+	"time"
 
 	"go.uber.org/zap"
 )
 
 type GraphObjectEmitter interface {
+	Start(ctx context.Context)
+	Stop(ctx context.Context)
+	Emit(ctx context.Context, object GraphObject)
 }
 
 type graphEmitter struct {
-	logger     *zap.Logger
-	httpClient *http.Client
+	logger         *zap.Logger
+	httpClient     *http.Client
+	reportInterval time.Duration
+	wg             sync.WaitGroup
+
+	donechan chan struct{}
 }
 
 var _ GraphObjectEmitter = (*graphEmitter)(nil)
 
-func NewGraphObjectEmitter(logger *zap.Logger, httpClient *http.Client) GraphObjectEmitter {
+type GraphObject struct {
+	APIVersion string `json:"apiVersion"`
+	Kind       string `json:"kind"`
+}
+
+func NewGraphObjectEmitter(logger *zap.Logger, httpClient *http.Client, interval time.Duration) GraphObjectEmitter {
 	return &graphEmitter{
-		logger:     logger,
-		httpClient: httpClient,
+		logger:         logger,
+		httpClient:     httpClient,
+		reportInterval: interval,
+		donechan:       make(chan struct{}),
 	}
+}
+
+func (e *graphEmitter) Start(ctx context.Context) {
+	e.wg.Add(1)
+	go func() {
+		defer e.wg.Done()
+		for {
+			select {
+			case <-e.donechan:
+				return
+			case <-time.Tick(e.reportInterval):
+				// do something
+			}
+		}
+	}()
+}
+
+func (e *graphEmitter) Stop(ctx context.Context) {
+	close(e.donechan)
+	e.wg.Wait()
+}
+
+func (e *graphEmitter) Emit(ctx context.Context, object GraphObject) {
 }

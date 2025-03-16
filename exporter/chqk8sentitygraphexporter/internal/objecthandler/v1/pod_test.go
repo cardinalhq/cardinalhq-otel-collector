@@ -447,10 +447,11 @@ func TestContainerSecretNamesFromVolumes(t *testing.T) {
 		},
 	}
 
+	conf := converterconfig.New()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			seen := mapset.NewSet[string]()
-			containerSecretNamesFromVolumes(seen, tt.podVolumes, tt.container)
+			containerSecretNamesFromVolumes(conf, seen, tt.podVolumes, tt.container)
 			assert.ElementsMatch(t, tt.expected, seen.ToSlice())
 		})
 	}
@@ -595,10 +596,11 @@ func TestContainerConfigMapNamesFromVolumes(t *testing.T) {
 		},
 	}
 
+	conf := converterconfig.New()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			seen := mapset.NewSet[string]()
-			containerConfigMapNamesFromVolumes(seen, tt.podVolumes, tt.container)
+			containerConfigMapNamesFromVolumes(conf, seen, tt.podVolumes, tt.container)
 			assert.ElementsMatch(t, tt.expected, seen.ToSlice())
 		})
 	}
@@ -945,10 +947,11 @@ func TestSetupContainers(t *testing.T) {
 		},
 	}
 
+	conf := &converterconfig.Config{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			podSummary := &PodSummary{}
-			setupContainers(tt.pod, podSummary)
+			setupContainers(conf, tt.pod, podSummary)
 			assert.Equal(t, tt.expected, podSummary.Containers)
 		})
 	}

@@ -36,7 +36,7 @@ func ConvertConfigMap(config *converterconfig.Config, us unstructured.Unstructur
 		return nil, errors.New("unstructured object is not a ConfigMap")
 	}
 
-	if ignoreConfigMapName(config, us.GetName()) {
+	if isFilteredConfigMapName(config, us.GetName()) {
 		return nil, nil
 	}
 
@@ -52,15 +52,6 @@ func ConvertConfigMap(config *converterconfig.Config, us unstructured.Unstructur
 	}
 
 	return cms, nil
-}
-
-func ignoreConfigMapName(config *converterconfig.Config, name string) bool {
-	for _, matcher := range config.IgnoredConfigMapNames {
-		if matcher.Match(name) {
-			return true
-		}
-	}
-	return false
 }
 
 func calculateConfigMapDataHashes(hashitems []string, cm corev1.ConfigMap) map[string]string {

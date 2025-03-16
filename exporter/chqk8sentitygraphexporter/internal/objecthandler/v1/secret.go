@@ -35,6 +35,10 @@ func ConvertSecret(config *converterconfig.Config, us unstructured.Unstructured)
 		return nil, errors.New("unstructured object is not a Secret")
 	}
 
+	if isFilteredSecretName(config, us.GetName()) {
+		return nil, nil
+	}
+
 	var secret corev1.Secret
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(us.Object, &secret)
 	if err != nil {

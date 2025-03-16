@@ -79,7 +79,7 @@ func ConvertPod(config *converterconfig.Config, us unstructured.Unstructured) (b
 		podSummary.StartedAt = &t
 	}
 
-	setupContainers(pod, podSummary)
+	setupContainers(config, pod, podSummary)
 	updateContainersFromStatuses(pod, podSummary)
 
 	podSummary.HostIPs = hostIPs(pod)
@@ -88,7 +88,7 @@ func ConvertPod(config *converterconfig.Config, us unstructured.Unstructured) (b
 	return podSummary, nil
 }
 
-func setupContainers(pod corev1.Pod, podSummary *PodSummary) {
+func setupContainers(conf *converterconfig.Config, pod corev1.Pod, podSummary *PodSummary) {
 	for _, container := range pod.Spec.Containers {
 		podSummary.Containers = append(podSummary.Containers, PodContainerSummary{
 			Name: container.Name,
@@ -96,8 +96,8 @@ func setupContainers(pod corev1.Pod, podSummary *PodSummary) {
 				Image: container.Image,
 			},
 			Resources:      convertPodResources(container.Resources),
-			ConfigMapNames: containerConfigMapNames(pod, container),
-			SecretNames:    containerSecretNames(pod, container),
+			ConfigMapNames: containerConfigMapNames(conf, pod, container),
+			SecretNames:    containerSecretNames(conf, pod, container),
 		})
 	}
 	slices.SortFunc(podSummary.Containers, func(a, b PodContainerSummary) int {
@@ -107,10 +107,10 @@ func setupContainers(pod corev1.Pod, podSummary *PodSummary) {
 
 // containerConfigMapNames returns the list of ConfigMap names used by the container,
 // either in an env var or in a volume mount.
-func containerConfigMapNames(pod corev1.Pod, container corev1.Container) []string {
+func containerConfigMapNames(conf *converterconfig.Config, pod corev1.Pod, container corev1.Container) []string {
 	seen := mapset.NewSet[string]()
 	containerConfigMapNamesFromEnv(seen, container)
-	containerConfigMapNamesFromVolumes(seen, pod.Spec.Volumes, container)
+	containerConfigMapNamesFromVolumes(conf, seen, pod.Spec.Volumes, container)
 	if seen.Cardinality() == 0 {
 		return nil
 	}
@@ -135,12 +135,11 @@ func containerConfigMapNamesFromEnv(seen mapset.Set[string], container corev1.Co
 
 // containerConfigMapNamesFromVolumes returns the list of ConfigMap names used by the container,
 // filtering out common system configmaps like "kube-root-ca.crt".
-func containerConfigMapNamesFromVolumes(seen mapset.Set[string], podVolumes []corev1.Volume, container corev1.Container) {
+func containerConfigMapNamesFromVolumes(conf *converterconfig.Config, seen mapset.Set[string], podVolumes []corev1.Volume, container corev1.Container) {
 	for _, vm := range container.VolumeMounts {
 		for _, vol := range podVolumes {
 			if vol.Name == vm.Name && vol.ConfigMap != nil {
-				// Filter out common "junk" configmaps (e.g., the cluster CA bundle).
-				if vol.ConfigMap.Name == "kube-root-ca.crt" {
+				if isFilteredConfigMapName(conf, vol.ConfigMap.Name) {
 					continue
 				}
 				seen.Add(vol.ConfigMap.Name)
@@ -151,10 +150,10 @@ func containerConfigMapNamesFromVolumes(seen mapset.Set[string], podVolumes []co
 
 // containerSecretNames returns the list of Secret names used by the container,
 // either in an env var or in a volume mount.
-func containerSecretNames(pod corev1.Pod, container corev1.Container) []string {
+func containerSecretNames(conf *converterconfig.Config, pod corev1.Pod, container corev1.Container) []string {
 	seen := mapset.NewSet[string]()
 	containerSecretNamesFromEnv(seen, container)
-	containerSecretNamesFromVolumes(seen, pod.Spec.Volumes, container)
+	containerSecretNamesFromVolumes(conf, seen, pod.Spec.Volumes, container)
 	if seen.Cardinality() == 0 {
 		return nil
 	}
@@ -179,11 +178,11 @@ func containerSecretNamesFromEnv(seen mapset.Set[string], container corev1.Conta
 
 // containerSecretNamesFromVolumes adds the list of Secret names used by the container,
 // to the given set, filtering out common system secrets.
-func containerSecretNamesFromVolumes(seen mapset.Set[string], podVolumes []corev1.Volume, container corev1.Container) {
+func containerSecretNamesFromVolumes(conf *converterconfig.Config, seen mapset.Set[string], podVolumes []corev1.Volume, container corev1.Container) {
 	for _, vm := range container.VolumeMounts {
 		for _, vol := range podVolumes {
 			if vol.Name == vm.Name && vol.Secret != nil {
-				if strings.HasPrefix(vol.Secret.SecretName, "default-token-") {
+				if isFilteredSecretName(conf, vol.Secret.SecretName) {
 					continue
 				}
 				seen.Add(vol.Secret.SecretName)

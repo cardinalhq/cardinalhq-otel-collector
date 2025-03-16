@@ -115,7 +115,6 @@ func (e *graphEmitter) Start(ctx context.Context) {
 					lastSeen:       time.Now(),
 				}
 			case <-ticker.C:
-				e.logger.Debug("Sending objects")
 				err := e.sendObjects(ctx)
 				if err != nil {
 					e.logger.Error("Failed to send objects", zap.Error(err))

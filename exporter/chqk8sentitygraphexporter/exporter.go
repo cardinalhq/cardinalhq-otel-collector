@@ -20,9 +20,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"sync"
 
-	"github.com/cardinalhq/oteltools/pkg/graph"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
@@ -42,12 +40,10 @@ type exp struct {
 	httpClientSettings confighttp.ClientConfig
 	telemetrySettings  component.TelemetrySettings
 
-	cacheLock    sync.Mutex
-	entityCaches map[string]*graph.ResourceEntityCache
-
-	objecthandler objecthandler.ObjectHandler
-	gee           objecthandler.GraphObjectEmitter
-	goe           objecthandler.GraphEventEmitter
+	objecthandler  objecthandler.ObjectHandler
+	gee            objecthandler.GraphObjectEmitter
+	goe            objecthandler.GraphEventEmitter
+	k8sClusterName string
 }
 
 func newEntityGraphExporter(config *Config, set exporter.Settings) (*exp, error) {
@@ -56,8 +52,8 @@ func newEntityGraphExporter(config *Config, set exporter.Settings) (*exp, error)
 		config:             config,
 		httpClientSettings: config.ClientConfig,
 		telemetrySettings:  set.TelemetrySettings,
-		entityCaches:       make(map[string]*graph.ResourceEntityCache),
 		logger:             set.Logger,
+		k8sClusterName:     os.Getenv("K8S_CLUSTER_NAME"),
 	}
 
 	return e, nil
@@ -82,7 +78,7 @@ func (e *exp) Start(ctx context.Context, host component.Host) error {
 
 	e.goe = objecthandler.NewGraphEventEmitter(e.logger, e.httpClient, e.config.Reporting.Interval, e.config.Endpoint)
 
-	cconf := converterconfig.New().WithHashItems(os.Getenv("K8S_CLUSTER_NAME"))
+	cconf := converterconfig.New().WithHashItems(e.k8sClusterName)
 	e.objecthandler = objecthandler.NewObjectHandler(cconf)
 
 	e.gee.Start(ctx)
@@ -99,9 +95,11 @@ func (e *exp) Shutdown(ctx context.Context) error {
 
 func urlFor(endpoint string, cid string) string {
 	u, _ := url.Parse(endpoint)
-	u.Path = "/api/v1/entityRelationships"
+	u.Path = "/api/v1/entityObjects"
 	q := u.Query()
-	q.Add("organizationID", strings.ToLower(cid))
+	if cid != "" {
+		q.Add("organizationID", strings.ToLower(cid))
+	}
 	u.RawQuery = q.Encode()
 	return u.String()
 }

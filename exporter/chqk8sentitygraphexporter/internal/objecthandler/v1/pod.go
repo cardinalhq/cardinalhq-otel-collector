@@ -30,31 +30,31 @@ import (
 )
 
 type PodSummary struct {
-	baseobj.BaseObject `json:",inline"`
-	Containers         []PodContainerSummary `json:"containers"`
-	HostIPs            []string              `json:"host_ips,omitempty"`
-	PodIPs             []string              `json:"pod_ips,omitempty"`
-	Phase              string                `json:"phase"`
-	StartedAt          time.Time             `json:"started_at,omitempty"`
-	PhaseMessage       string                `json:"pending_reason,omitempty"`
-	ServiceAccountName string                `json:"service_name,omitempty"`
+	baseobj.BaseObject `json:",inline" yaml:",inline" mapstructure:",squash"`
+	Containers         []PodContainerSummary `json:"containers" yaml:"containers"`
+	HostIPs            []string              `json:"host_ips,omitempty" yaml:"host_ips,omitempty"`
+	PodIPs             []string              `json:"pod_ips,omitempty" yaml:"pod_ips,omitempty"`
+	Phase              string                `json:"phase" yaml:"phase"`
+	StartedAt          *time.Time            `json:"started_at,omitempty" yaml:"started_at,omitempty"`
+	PhaseMessage       string                `json:"pending_reason,omitempty" yaml:"pending_reason,omitempty"`
+	ServiceAccountName string                `json:"service_name,omitempty" yaml:"service_name,omitempty"`
 }
 
 type PodContainerSummary struct {
-	Name               string            `json:"name"`
-	Image              ImageSummary      `json:"image"`
-	Ready              bool              `json:"ready,omitempty"`
-	Resources          map[string]string `json:"requests,omitempty"`
-	ConfigMapNames     []string          `json:"config_map_names,omitempty"`
-	SecretNames        []string          `json:"secret_names,omitempty"`
-	IsImagePullBackOff bool              `json:"is_image_pull_back_off,omitempty"`
-	IsCrashLoopBackOff bool              `json:"is_crash_loop_back_off,omitempty"`
-	WasOOMKilled       bool              `json:"was_oom_killed,omitempty"`
+	Name               string            `json:"name" yaml:"name"`
+	Image              ImageSummary      `json:"image" yaml:"image"`
+	Ready              bool              `json:"ready,omitempty" yaml:"ready,omitempty"`
+	Resources          map[string]string `json:"requests,omitempty" yaml:"requests,omitempty"`
+	ConfigMapNames     []string          `json:"config_map_names,omitempty" yaml:"config_map_names,omitempty"`
+	SecretNames        []string          `json:"secret_names,omitempty" yaml:"secret_names,omitempty"`
+	IsImagePullBackOff bool              `json:"is_image_pull_back_off,omitempty" yaml:"is_image_pull_back_off,omitempty"`
+	IsCrashLoopBackOff bool              `json:"is_crash_loop_back_off,omitempty" yaml:"is_crash_loop_back_off,omitempty"`
+	WasOOMKilled       bool              `json:"was_oom_killed,omitempty" yaml:"was_oom_killed,omitempty"`
 }
 
 type ImageSummary struct {
-	Image   string `json:"name,omitempty"`
-	ImageID string `json:"image_id,omitempty"`
+	Image   string `json:"name,omitempty" yaml:"name,omitempty"`
+	ImageID string `json:"image_id,omitempty" yaml:"image_id,omitempty"`
 }
 
 func ConvertPod(config *converterconfig.Config, us unstructured.Unstructured) (baseobj.K8SObject, error) {
@@ -75,7 +75,8 @@ func ConvertPod(config *converterconfig.Config, us unstructured.Unstructured) (b
 	}
 
 	if pod.Status.StartTime != nil {
-		podSummary.StartedAt = pod.Status.StartTime.Time.UTC()
+		t := pod.Status.StartTime.Time.UTC()
+		podSummary.StartedAt = &t
 	}
 
 	setupContainers(pod, podSummary)

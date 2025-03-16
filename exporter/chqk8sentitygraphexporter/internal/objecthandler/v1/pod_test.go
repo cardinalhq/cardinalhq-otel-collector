@@ -751,7 +751,7 @@ func TestConvertPod(t *testing.T) {
 				Phase:              "Running",
 				PhaseMessage:       "Pod is running",
 				ServiceAccountName: "test-service-account",
-				StartedAt:          time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC),
+				StartedAt:          func() *time.Time { t := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC); return &t }(),
 				Containers: []PodContainerSummary{
 					{
 						Name:  "test-container",

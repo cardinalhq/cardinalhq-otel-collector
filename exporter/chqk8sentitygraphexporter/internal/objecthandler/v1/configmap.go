@@ -27,8 +27,8 @@ import (
 )
 
 type ConfigMapSummary struct {
-	baseobj.BaseObject `json:",inline"`
-	DataHashes         map[string]string `json:"data_hashes"`
+	baseobj.BaseObject `json:",inline" yaml:",inline" mapstructure:",squash"`
+	Hashes             map[string]string `json:"hashes,omitempty" yaml:"hashes,omitempty"`
 }
 
 func ConvertConfigMap(config *converterconfig.Config, us unstructured.Unstructured) (baseobj.K8SObject, error) {
@@ -48,7 +48,7 @@ func ConvertConfigMap(config *converterconfig.Config, us unstructured.Unstructur
 
 	cms := &ConfigMapSummary{
 		BaseObject: baseobj.BaseFromUnstructured(config, us),
-		DataHashes: calculateConfigMapDataHashes(config.HashItems, cm),
+		Hashes:     calculateConfigMapDataHashes(config.HashItems, cm),
 	}
 
 	return cms, nil

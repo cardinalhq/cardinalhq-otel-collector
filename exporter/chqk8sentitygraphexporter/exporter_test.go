@@ -30,7 +30,11 @@ func TestURLFor(t *testing.T) {
 		{
 			endpoint: "http://example.com:8080",
 			cid:      "C815EA44-F68E-47DA-B090-957947C0523C",
-			expected: "http://example.com:8080/api/v1/entityRelationships?organizationID=c815ea44-f68e-47da-b090-957947c0523c",
+			expected: "http://example.com:8080/api/v1/entityObjects?organizationID=c815ea44-f68e-47da-b090-957947c0523c",
+		},
+		{
+			endpoint: "http://example.com:8080/",
+			expected: "http://example.com:8080/api/v1/entityObjects",
 		},
 	}
 

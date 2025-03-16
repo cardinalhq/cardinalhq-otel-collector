@@ -26,17 +26,22 @@ type K8SObject interface {
 // BaseObject is a struct that contains the common fields for all k8s objects
 // that are used in the entity graph.
 type BaseObject struct {
-	APIVersion    string            `json:"api_version"`
-	Kind          string            `json:"kind"`
-	Name          string            `json:"name"`
-	UID           string            `json:"uid,omitempty"`
-	Namespace     string            `json:"namespace,omitempty"`
-	Labels        map[string]string `json:"labels,omitempty"`
-	Annotatations map[string]string `json:"annotations,omitempty"`
-	OwnerRef      []OwnerRef        `json:"owner_ref,omitempty"`
+	ID            string            `json:"id" yaml:"id"`
+	APIVersion    string            `json:"api_version" yaml:"api_version"`
+	Kind          string            `json:"kind" yaml:"kind"`
+	Name          string            `json:"name" yaml:"name"`
+	UID           string            `json:"uid" yaml:"uid"`
+	Namespace     string            `json:"namespace,omitempty" yaml:"namespace,omitempty"`
+	Labels        map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+	Annotatations map[string]string `json:"annotations,omitempty" yaml:"annotations,omitempty"`
+	OwnerRef      []OwnerRef        `json:"owner_ref,omitempty" yaml:"owner_ref,omitempty"`
 }
 
 func (b BaseObject) Identifier() string {
+	return b.ID
+}
+
+func (b BaseObject) identifier() string {
 	if b.Namespace == "" {
 		return b.APIVersion + "/" + b.Kind + "/" + b.Name + "/" + b.UID
 	}
@@ -47,10 +52,10 @@ func (b BaseObject) Identifier() string {
 // This is used to determine the parent-child relationship between k8s objects.
 // The Controller field is used to determine if the owner is a controller of the object.
 type OwnerRef struct {
-	APIVersion string `json:"api_version,omitempty"`
-	Kind       string `json:"kind,omitempty"`
-	Name       string `json:"name,omitempty"`
-	Controller bool   `json:"controller,omitempty"`
+	APIVersion string `json:"api_version" yaml:"api_version"`
+	Kind       string `json:"kind" yaml:"kind"`
+	Name       string `json:"name" yaml:"name"`
+	Controller bool   `json:"controller,omitempty" yaml:"controller,omitempty"`
 }
 
 // BaseFromUnstructured is a function that converts an unstructured object to a BaseObject.
@@ -63,8 +68,15 @@ func BaseFromUnstructured(config *converterconfig.Config, us unstructured.Unstru
 		Name:          us.GetName(),
 		Labels:        us.GetLabels(),
 		Annotatations: filteredAnnotations(config, us.GetAnnotations()),
+		OwnerRef:      ownerrefsFromUnstructured(us),
 	}
+	b.ID = b.identifier()
 
+	return b
+}
+
+func ownerrefsFromUnstructured(us unstructured.Unstructured) []OwnerRef {
+	var ownerRefs []OwnerRef
 	for _, ownerRef := range us.GetOwnerReferences() {
 		o := OwnerRef{
 			APIVersion: ownerRef.APIVersion,
@@ -74,10 +86,9 @@ func BaseFromUnstructured(config *converterconfig.Config, us unstructured.Unstru
 		if ownerRef.Controller != nil {
 			o.Controller = *ownerRef.Controller
 		}
-		b.OwnerRef = append(b.OwnerRef, o)
+		ownerRefs = append(ownerRefs, o)
 	}
-
-	return b
+	return ownerRefs
 }
 
 func filteredAnnotations(config *converterconfig.Config, annotations map[string]string) map[string]string {

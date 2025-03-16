@@ -101,7 +101,7 @@ func TestConvertConfigMap(t *testing.T) {
 				},
 			},
 			expected: &ConfigMapSummary{
-				DataHashes: map[string]string{
+				Hashes: map[string]string{
 					"key1": "eYd97hG7rARdMGKc5IjCbjUNE0w0EXANHAVqy4ZVHv",
 					"key2": "iibpTb4YLxEyH2wOFRryq98jNDsf4qmV1pTajSij4ru",
 					"key3": "fgcyqHgr1wK5nogXKC9B4Vlkx9qN8VpiqaV0sRpvsyL",
@@ -129,7 +129,7 @@ func TestConvertConfigMap(t *testing.T) {
 				},
 			},
 			expected: &ConfigMapSummary{
-				DataHashes: map[string]string{
+				Hashes: map[string]string{
 					"key1": "hsOrHqIlgamTqKUbnUjdYOSSP7HE8nz8qvKCbiMzeof",
 					"key2": "TWDQYhFAkA33uunaT868Yju65OJgYjdNffmjA296BmW",
 					"key3": "8xqytWmoQjY8LOodULFPszmHk3vlpWdsYqK0I1LVK12",
@@ -181,7 +181,7 @@ func TestConvertConfigMap(t *testing.T) {
 				},
 			},
 			expected: &ConfigMapSummary{
-				DataHashes: nil,
+				Hashes: nil,
 			},
 			expectError: false,
 		},

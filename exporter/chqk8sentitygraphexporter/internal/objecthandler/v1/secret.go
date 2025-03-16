@@ -26,8 +26,8 @@ import (
 )
 
 type SecretSummary struct {
-	baseobj.BaseObject `json:",inline"`
-	DataHashes         map[string]string `json:"data_hashes"`
+	baseobj.BaseObject `json:",inline" yaml:",inline" mapstructure:",squash"`
+	Hashes             map[string]string `json:"hashes,omitempty" yaml:"hashes,omitempty"`
 }
 
 func ConvertSecret(config *converterconfig.Config, us unstructured.Unstructured) (baseobj.K8SObject, error) {
@@ -43,7 +43,7 @@ func ConvertSecret(config *converterconfig.Config, us unstructured.Unstructured)
 
 	ss := &SecretSummary{
 		BaseObject: baseobj.BaseFromUnstructured(config, us),
-		DataHashes: calculateSecretDataHashes(secret),
+		Hashes:     calculateSecretDataHashes(secret),
 	}
 
 	return ss, nil

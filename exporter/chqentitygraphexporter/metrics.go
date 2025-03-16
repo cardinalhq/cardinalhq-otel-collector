@@ -60,6 +60,8 @@ func (e *entityGraphExporter) ConsumeMetrics(ctx context.Context, md pmetric.Met
 						dp := m.ExponentialHistogram().DataPoints().At(l)
 						cache.ProvisionRecordAttributes(globalEntityMap, dp.Attributes())
 					}
+				case pmetric.MetricTypeEmpty:
+					// Do nothing
 				}
 			}
 		}

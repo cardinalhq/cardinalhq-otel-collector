@@ -22,7 +22,7 @@ import (
 func gobEncode(v any) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
-	gob.Register([]interface{}{})
+	gob.Register([]any{})
 	err := enc.Encode(v)
 	if err != nil {
 		return nil, err

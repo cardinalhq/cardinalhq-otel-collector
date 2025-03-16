@@ -293,7 +293,7 @@ func (e *s3Exporter) saveAndUploadParquet(ids string, interval int64) error {
 		if e.config == nil || e.config.S3Uploader.CustomerKey == "" {
 			if !ensureCustomerID(tableRows, customerID, logger) {
 				logger.Error("Customer ID mismatch", zap.String("expectedCustomerID", customerID))
-				return false, fmt.Errorf("customer ID mismatch")
+				return false, errors.New("customer ID mismatch")
 			}
 		}
 		logger.Debug("Writing rows", zap.Int("count", len(tableRows)))

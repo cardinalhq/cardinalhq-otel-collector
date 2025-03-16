@@ -22,7 +22,7 @@ import (
 func calculateHashValue(header []byte, fieldname string, value []byte) string {
 	hash := sha256.New()
 	// We are not checking the error here because sha256 never returns an error.
-	_, _ = hash.Write([]byte(header))
+	_, _ = hash.Write(header)
 	_, _ = hash.Write([]byte(fieldname))
 	_, _ = hash.Write(value)
 	hashBytes := hash.Sum(nil)

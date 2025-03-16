@@ -44,7 +44,7 @@ func TestConfig_WithIgnoredAnnotations(t *testing.T) {
 	matcher := NewPrefixMatcher("example.com/")
 	cfg = cfg.WithIgnoredAnnotations(matcher)
 	assert.Len(t, cfg.IgnoredAnnotations, offset+1)
-	m, ok := cfg.IgnoredAnnotations[offset].(*PrefixMatcher)
+	m, ok := cfg.IgnoredAnnotations[offset].(*prefixMatcher)
 	require.True(t, ok)
 	assert.Equal(t, "example.com/", m.prefix)
 }
@@ -55,7 +55,7 @@ func TestConfig_WithIgnoredSecretNames(t *testing.T) {
 	matcher := NewPrefixMatcher("secret-prefix-")
 	cfg = cfg.WithIgnoredSecretNames(matcher)
 	assert.Len(t, cfg.IgnoredSecretNames, offset+1)
-	m, ok := cfg.IgnoredSecretNames[offset].(*PrefixMatcher)
+	m, ok := cfg.IgnoredSecretNames[offset].(*prefixMatcher)
 	require.True(t, ok)
 	assert.Equal(t, "secret-prefix-", m.prefix)
 }
@@ -66,7 +66,7 @@ func TestConfig_WithIgnoredConfigMapNames(t *testing.T) {
 	matcher := NewPrefixMatcher("configmap-prefix-")
 	cfg = cfg.WithIgnoredConfigMapNames(matcher)
 	assert.Len(t, cfg.IgnoredConfigMapNames, offset+1)
-	m, ok := cfg.IgnoredConfigMapNames[offset].(*PrefixMatcher)
+	m, ok := cfg.IgnoredConfigMapNames[offset].(*prefixMatcher)
 	require.True(t, ok)
 	assert.Equal(t, "configmap-prefix-", m.prefix)
 }

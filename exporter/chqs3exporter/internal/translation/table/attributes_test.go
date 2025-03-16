@@ -22,7 +22,7 @@ import (
 )
 
 func TestAddAttributes(t *testing.T) {
-	m := make(map[string]interface{})
+	m := make(map[string]any)
 	attrs := pcommon.NewMap()
 	attrs.PutStr("_cardinalhq.attribute1", "value1")
 	attrs.PutBool("_cardinalhq.attribute2", true)

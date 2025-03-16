@@ -66,9 +66,10 @@ func (l *TableTranslator) toddmetric(metric pmetric.Metric, baseattrs map[string
 		return l.toddExponentialHistogram(metric, baseattrs)
 	case pmetric.MetricTypeSummary:
 		return nil
-	default:
+	case pmetric.MetricTypeEmpty:
 		return nil
 	}
+	return nil
 }
 
 func (l *TableTranslator) toddGauge(metric pmetric.Metric, baseattrs map[string]any) []map[string]any {
@@ -89,6 +90,8 @@ func (l *TableTranslator) toddGauge(metric pmetric.Metric, baseattrs map[string]
 			ret[translate.CardinalFieldValue] = val
 		case pmetric.NumberDataPointValueTypeInt:
 			ret[translate.CardinalFieldValue] = float64(dp.IntValue())
+		case pmetric.NumberDataPointValueTypeEmpty:
+			continue
 		default:
 			continue
 		}
@@ -128,6 +131,8 @@ func (l *TableTranslator) toddSum(metric pmetric.Metric, baseattrs map[string]an
 			ret[translate.CardinalFieldValue] = val
 		case pmetric.NumberDataPointValueTypeInt:
 			ret[translate.CardinalFieldValue] = float64(dp.IntValue())
+		case pmetric.NumberDataPointValueTypeEmpty:
+			continue
 		default:
 			continue
 		}

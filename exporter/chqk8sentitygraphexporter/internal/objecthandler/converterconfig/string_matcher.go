@@ -16,42 +16,44 @@ package converterconfig
 
 import "strings"
 
+// StringMatcher is an interface for matching strings.
+// s is the string to run the match against.
 type StringMatcher interface {
-	Match(string) bool
+	Match(s string) bool
 }
 
-type LiteralMatcher struct {
+type literalMatcher struct {
 	s string
 }
 
-func NewLiteralMatcher(s string) *LiteralMatcher {
-	return &LiteralMatcher{s: s}
+func NewLiteralMatcher(s string) StringMatcher {
+	return &literalMatcher{s: s}
 }
 
-func (m *LiteralMatcher) Match(s string) bool {
+func (m *literalMatcher) Match(s string) bool {
 	return m.s == s
 }
 
-type PrefixMatcher struct {
+type prefixMatcher struct {
 	prefix string
 }
 
-func NewPrefixMatcher(prefix string) *PrefixMatcher {
-	return &PrefixMatcher{prefix: prefix}
+func NewPrefixMatcher(prefix string) StringMatcher {
+	return &prefixMatcher{prefix: prefix}
 }
 
-func (m *PrefixMatcher) Match(s string) bool {
+func (m *prefixMatcher) Match(s string) bool {
 	return strings.HasPrefix(s, m.prefix)
 }
 
-type SuffixMatcher struct {
+type suffixMatcher struct {
 	suffix string
 }
 
-func NewSuffixMatcher(suffix string) *SuffixMatcher {
-	return &SuffixMatcher{suffix: suffix}
+func NewSuffixMatcher(suffix string) StringMatcher {
+	return &suffixMatcher{suffix: suffix}
 }
 
-func (m *SuffixMatcher) Match(s string) bool {
+func (m *suffixMatcher) Match(s string) bool {
 	return strings.HasSuffix(s, m.suffix)
 }

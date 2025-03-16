@@ -35,19 +35,19 @@ type BaseObject struct {
 	ResourceVersion string            `json:"resource_version" yaml:"resource_version"`
 	Namespace       string            `json:"namespace,omitempty" yaml:"namespace,omitempty"`
 	Labels          map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
-	Annotatations   map[string]string `json:"annotations,omitempty" yaml:"annotations,omitempty"`
+	Annotations     map[string]string `json:"annotations,omitempty" yaml:"annotations,omitempty"`
 	OwnerRef        []OwnerRef        `json:"owner_ref,omitempty" yaml:"owner_ref,omitempty"`
 }
 
-func (b BaseObject) Identifier() string {
+func (b *BaseObject) Identifier() string {
 	return b.ID
 }
 
-func (b BaseObject) GetResourceVersion() string {
+func (b *BaseObject) GetResourceVersion() string {
 	return b.ResourceVersion
 }
 
-func (b BaseObject) identifier() string {
+func (b *BaseObject) computeIdentifier() string {
 	if b.Namespace == "" {
 		return b.APIVersion + "/" + b.Kind + "/" + b.Name + "/" + b.UID
 	}
@@ -74,10 +74,10 @@ func BaseFromUnstructured(config *converterconfig.Config, us unstructured.Unstru
 		Namespace:       us.GetNamespace(),
 		Name:            us.GetName(),
 		Labels:          us.GetLabels(),
-		Annotatations:   filteredAnnotations(config, us.GetAnnotations()),
+		Annotations:     filteredAnnotations(config, us.GetAnnotations()),
 		OwnerRef:        ownerrefsFromUnstructured(us),
 	}
-	b.ID = b.identifier()
+	b.ID = b.computeIdentifier()
 
 	return b
 }

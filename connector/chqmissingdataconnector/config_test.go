@@ -15,7 +15,7 @@
 package chqmissingdataconnector
 
 import (
-	"fmt"
+	"errors"
 	"testing"
 	"time"
 
@@ -52,7 +52,7 @@ func TestConfig_Validate(t *testing.T) {
 					MetricNameAttribute: "test_metric_attribute",
 				}
 			}(),
-			errExpected: fmt.Errorf("maximum_age must be greater than 1 minute"),
+			errExpected: errMaximumAgeTooSmall,
 		},
 		{
 			name: "invalid interval",
@@ -64,7 +64,7 @@ func TestConfig_Validate(t *testing.T) {
 					MetricNameAttribute: "test_metric_attribute",
 				}
 			}(),
-			errExpected: fmt.Errorf("interval must be greater than 1 second"),
+			errExpected: errIntervalTooSmall,
 		},
 		{
 			name: "empty metric name",
@@ -76,7 +76,7 @@ func TestConfig_Validate(t *testing.T) {
 					MetricNameAttribute: "test_metric_attribute",
 				}
 			}(),
-			errExpected: fmt.Errorf("metric_name must not be empty"),
+			errExpected: errMetricNameEmpty,
 		},
 		{
 			name: "empty metric name attribute",
@@ -88,7 +88,7 @@ func TestConfig_Validate(t *testing.T) {
 					MetricNameAttribute: "",
 				}
 			}(),
-			errExpected: fmt.Errorf("metric_name_attribute must not be empty"),
+			errExpected: errMetricNameAttributeEmpty,
 		},
 		{
 			name: "configuration extension set with metrics",
@@ -102,7 +102,7 @@ func TestConfig_Validate(t *testing.T) {
 					Metrics:                []MetricConfig{{Name: "metric1"}},
 				}
 			}(),
-			errExpected: fmt.Errorf("metrics must be empty when configuration_extension is set"),
+			errExpected: errMetricsNotEmptyWithExtension,
 		},
 		{
 			name: "invalid metrics",
@@ -115,7 +115,7 @@ func TestConfig_Validate(t *testing.T) {
 					Metrics:             []MetricConfig{{Name: ""}},
 				}
 			}(),
-			errExpected: fmt.Errorf("metric name must not be empty: 0"),
+			errExpected: errors.New("metric name must not be empty: 0"),
 		},
 	}
 

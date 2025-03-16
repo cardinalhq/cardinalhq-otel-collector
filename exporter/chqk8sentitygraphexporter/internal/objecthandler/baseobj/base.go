@@ -46,7 +46,7 @@ func BaseFromUnstructured(us unstructured.Unstructured) BaseObject {
 		Namespace:     us.GetNamespace(),
 		Name:          us.GetName(),
 		Labels:        us.GetLabels(),
-		Annotatations: us.GetAnnotations(),
+		Annotatations: filteredAnnotations(us.GetAnnotations()),
 	}
 
 	for _, ownerRef := range us.GetOwnerReferences() {
@@ -62,4 +62,23 @@ func BaseFromUnstructured(us unstructured.Unstructured) BaseObject {
 	}
 
 	return b
+}
+
+func isFilteredAnnotation(annotation string) bool {
+	switch annotation {
+	case "kubectl.kubernetes.io/last-applied-configuration":
+		return true
+	default:
+		return false
+	}
+}
+
+func filteredAnnotations(annotations map[string]string) map[string]string {
+	filtered := make(map[string]string)
+	for k, v := range annotations {
+		if !isFilteredAnnotation(k) {
+			filtered[k] = v
+		}
+	}
+	return filtered
 }

@@ -17,30 +17,35 @@ package v1
 import (
 	"testing"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
-	"github.com/cespare/xxhash/v2"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
 )
 
 func TestCalculateConfigMapDataHashes(t *testing.T) {
 	tests := []struct {
 		name      string
 		configMap corev1.ConfigMap
-		expected  map[string]uint64
+		expected  map[string]string
 	}{
 		{
 			name: "ConfigMap with data",
 			configMap: corev1.ConfigMap{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "ConfigMap",
+				},
 				Data: map[string]string{
 					"key1": "value1",
 					"key2": "value2",
 				},
 			},
-			expected: map[string]uint64{
-				"key1": xxhash.Sum64String("value1"),
-				"key2": xxhash.Sum64String("value2"),
+			expected: map[string]string{
+				"key1": "ya6Q0N5tqMXXKm7CjIvjg0F2ZFeFychM5soeXkLwV0h",
+				"key2": "s3bbmDQ5FFNDQgti7PNtiMvbTo6gfOYKGWvyr9tnFAa",
 			},
 		},
 		{
@@ -75,7 +80,7 @@ func TestConvertConfigMap(t *testing.T) {
 		expectError  bool
 	}{
 		{
-			name: "Valid ConfigMap",
+			name: "Valid ConfigMap with data and binaryData",
 			unstructured: unstructured.Unstructured{
 				Object: map[string]any{
 					"apiVersion": "v1",
@@ -88,12 +93,44 @@ func TestConvertConfigMap(t *testing.T) {
 						"key1": "value1",
 						"key2": "value2",
 					},
+					"binaryData": map[string][]byte{
+						"key3": []byte("value3"),
+					},
 				},
 			},
 			expected: &ConfigMapSummary{
-				DataHashes: map[string]uint64{
-					"key1": xxhash.Sum64String("value1"),
-					"key2": xxhash.Sum64String("value2"),
+				DataHashes: map[string]string{
+					"key1": "eYd97hG7rARdMGKc5IjCbjUNE0w0EXANHAVqy4ZVHv",
+					"key2": "iibpTb4YLxEyH2wOFRryq98jNDsf4qmV1pTajSij4ru",
+					"key3": "fgcyqHgr1wK5nogXKC9B4Vlkx9qN8VpiqaV0sRpvsyL",
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "Valid ConfigMap with a different name but same data",
+			unstructured: unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "v1",
+					"kind":       "ConfigMap",
+					"metadata": map[string]any{
+						"name":      "test-configmap-2",
+						"namespace": "default",
+					},
+					"data": map[string]any{
+						"key1": "value1",
+						"key2": "value2",
+					},
+					"binaryData": map[string][]byte{
+						"key3": []byte("value3"),
+					},
+				},
+			},
+			expected: &ConfigMapSummary{
+				DataHashes: map[string]string{
+					"key1": "hsOrHqIlgamTqKUbnUjdYOSSP7HE8nz8qvKCbiMzeof",
+					"key2": "TWDQYhFAkA33uunaT868Yju65OJgYjdNffmjA296BmW",
+					"key3": "8xqytWmoQjY8LOodULFPszmHk3vlpWdsYqK0I1LVK12",
 				},
 			},
 			expectError: false,

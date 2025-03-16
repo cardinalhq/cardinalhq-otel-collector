@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"go.opentelemetry.io/collector/pdata/plog"
+	"go.uber.org/zap"
 )
 
 func (e *exp) ConsumeLogs(ctx context.Context, ld plog.Logs) error {
@@ -27,7 +28,14 @@ func (e *exp) ConsumeLogs(ctx context.Context, ld plog.Logs) error {
 			sr := rl.ScopeLogs().At(j)
 			for k := range sr.LogRecords().Len() {
 				lr := sr.LogRecords().At(k)
-				e.objecthandler.Feed(rl.Resource().Attributes(), lr.Attributes(), lr.Body())
+				ret, err := e.objecthandler.Feed(rl.Resource().Attributes(), lr.Attributes(), lr.Body())
+				if err != nil {
+					e.logger.Error("failed to feed log record", zap.Error(err))
+					continue
+				}
+				if ret != nil {
+					e.logger.Info("fed log record", zap.Any("result", ret))
+				}
 			}
 		}
 	}

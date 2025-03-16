@@ -16,80 +16,77 @@ package objecthandler
 
 import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
-	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	convertv1 "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/v1"
 )
 
-type HandlerFunc func(rlattr pcommon.Map, lattr pcommon.Map, us unstructured.Unstructured) error
+type ConverterFunc func(us unstructured.Unstructured) (any, error)
 
 type objectSelector struct {
 	APIVersion string
 	Kind       string
 }
 
-type Handlers map[objectSelector]HandlerFunc
+type Converters map[objectSelector]ConverterFunc
 
 type ObjectHandler interface {
-	Feed(rlattr pcommon.Map, lattr pcommon.Map, bodyValue pcommon.Value)
+	Feed(rlattr pcommon.Map, lattr pcommon.Map, bodyValue pcommon.Value) (*PackagedObject, error)
 }
 
-type handlerImpl struct {
-	handlers      Handlers
-	logger        *zap.Logger
-	objectEmitter GraphObjectEmitter
-	eventEmitter  GraphEventEmitter
+type converterImpl struct {
+	converters Converters
 }
 
-var _ ObjectHandler = (*handlerImpl)(nil)
+var _ ObjectHandler = (*converterImpl)(nil)
 
-func NewObjectHandler(logger *zap.Logger, objectEmitter GraphObjectEmitter, eventEmitter GraphEventEmitter) ObjectHandler {
-	ret := &handlerImpl{
-		handlers:      Handlers{},
-		logger:        logger,
-		objectEmitter: objectEmitter,
-		eventEmitter:  eventEmitter,
+func NewObjectHandler() ObjectHandler {
+	ret := &converterImpl{
+		converters: Converters{},
 	}
-	ret.installHandlers()
+	ret.installConverters()
 	return ret
 }
 
-func (h *handlerImpl) installHandlers() {
-	h.handlers[objectSelector{"v1", "Pod"}] = h.handleV1Pod
+func (h *converterImpl) installConverters() {
+	h.converters[objectSelector{"v1", "Pod"}] = convertv1.ConvertPod
+	h.converters[objectSelector{"v1", "ConfigMap"}] = convertv1.ConvertConfigMap
+	h.converters[objectSelector{"v1", "Secret"}] = convertv1.ConvertSecret
 }
 
-func (h *handlerImpl) Feed(rlattr pcommon.Map, lattr pcommon.Map, bodyValue pcommon.Value) {
+// Feed takes a set of attributes and an object and converts the object to a PackagedObject.
+// If the object is not recognized, no error will be returned but the PackagedObject will be nil.
+// Errors will only be returned if the object was of a type we know about, but for
+// some reason the content is invalid.
+func (h *converterImpl) Feed(rlattr pcommon.Map, lattr pcommon.Map, bodyValue pcommon.Value) (*PackagedObject, error) {
+	// The k8sobjectsreceiver will always populate the log body as a map.
 	if bodyValue.Type() != pcommon.ValueTypeMap {
-		return
+		return nil, nil
 	}
-	body := bodyValue.Map()
 
-	us := unstructured.Unstructured{
-		Object: body.AsRaw(),
-	}
+	// Pull out the APIVersion and Kind from the object and look for our converter.
+	us := unstructured.Unstructured{Object: bodyValue.Map().AsRaw()}
 	APIVersion := us.GetAPIVersion()
 	Kind := us.GetKind()
-
 	selector := objectSelector{APIVersion: APIVersion, Kind: Kind}
-	handler, ok := h.handlers[selector]
+	converter, ok := h.converters[selector]
 	if !ok {
-		h.logger.Info("No handler found for object", zap.String("APIVersion", APIVersion), zap.String("Kind", Kind))
-		return
+		return nil, nil
 	}
-	if err := handler(rlattr, lattr, us); err != nil {
-		h.logger.Error("Error handling object", zap.Error(err))
-		return
-	}
-}
 
-func (h *handlerImpl) handleV1Pod(rlattr pcommon.Map, lattr pcommon.Map, us unstructured.Unstructured) error {
-	result, err := convertv1.ConvertPod(us)
+	// Convert the object and package it up.
+	converted, err := converter(us)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	if converted == nil {
+		return nil, nil
+	}
+	result := &PackagedObject{
+		ResouceAttributes: rlattr.AsRaw(),
+		RecordAttributes:  lattr.AsRaw(),
+		Object:            converted,
 	}
 
-	h.logger.Info("Pod", zap.Any("result", result))
-
-	return nil
+	return result, nil
 }

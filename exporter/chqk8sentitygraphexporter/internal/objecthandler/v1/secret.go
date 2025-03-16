@@ -24,49 +24,34 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
 )
 
-type ConfigMapSummary struct {
+type SecretSummary struct {
 	baseobj.BaseObject `json:",inline"`
 	DataHashes         map[string]string `json:"data_hashes"`
 }
 
-func ConvertConfigMap(us unstructured.Unstructured) (any, error) {
-	if us.GetKind() != "ConfigMap" || us.GetAPIVersion() != "v1" {
-		return nil, errors.New("unstructured object is not a ConfigMap")
+func ConvertSecret(us unstructured.Unstructured) (any, error) {
+	if us.GetKind() != "Secret" || us.GetAPIVersion() != "v1" {
+		return nil, errors.New("unstructured object is not a Secret")
 	}
 
-	if !interestingConfigMap(us) {
-		return nil, nil
-	}
-
-	var cm corev1.ConfigMap
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(us.Object, &cm)
+	var secret corev1.Secret
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(us.Object, &secret)
 	if err != nil {
 		return nil, err
 	}
 
-	cms := &ConfigMapSummary{
+	ss := &SecretSummary{
 		BaseObject: baseobj.BaseFromUnstructured(us),
-		DataHashes: calculateConfigMapDataHashes(cm),
+		DataHashes: calculateSecretDataHashes(secret),
 	}
 
-	return cms, nil
+	return ss, nil
 }
 
-func interestingConfigMap(us unstructured.Unstructured) bool {
-	name := us.GetName()
-	if name == "kube-root-ca.crt" || name == "extension-apiserver-authentication" {
-		return false
-	}
-	return true
-}
-
-func calculateConfigMapDataHashes(cm corev1.ConfigMap) map[string]string {
+func calculateSecretDataHashes(secret corev1.Secret) map[string]string {
 	dataHashes := make(map[string]string)
-	header := []byte(cm.APIVersion + cm.Kind + cm.Name + cm.Namespace + string(cm.UID))
-	for k, v := range cm.Data {
-		dataHashes[k] = calculateHashValue(header, k, []byte(v))
-	}
-	for k, v := range cm.BinaryData {
+	header := []byte(secret.APIVersion + secret.Kind + secret.Name + secret.Namespace + string(secret.UID))
+	for k, v := range secret.Data {
 		dataHashes[k] = calculateHashValue(header, k, v)
 	}
 	if len(dataHashes) == 0 {

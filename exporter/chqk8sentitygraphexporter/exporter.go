@@ -83,7 +83,7 @@ func (e *exp) Start(ctx context.Context, host component.Host) error {
 
 	e.goe = objecthandler.NewGraphEventEmitter(e.logger, e.httpClient, e.config.Reporting.Interval, e.config.Endpoint)
 
-	e.objecthandler = objecthandler.NewObjectHandler(e.logger, e.gee, e.goe)
+	e.objecthandler = objecthandler.NewObjectHandler()
 
 	e.gee.Start(ctx)
 	e.goe.Start(ctx)

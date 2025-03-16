@@ -57,7 +57,7 @@ type ImageSummary struct {
 	ImageID string `json:"image_id,omitempty"`
 }
 
-func ConvertPod(config *converterconfig.Config, us unstructured.Unstructured) (any, error) {
+func ConvertPod(config *converterconfig.Config, us unstructured.Unstructured) (baseobj.K8SObject, error) {
 	if us.GetKind() != "Pod" || us.GetAPIVersion() != "v1" {
 		return nil, errors.New("Not a v1 Pod")
 	}

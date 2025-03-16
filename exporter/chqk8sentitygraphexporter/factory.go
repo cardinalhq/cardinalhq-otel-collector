@@ -54,5 +54,6 @@ func createLogsProcessor(ctx context.Context, set exporter.Settings, cfg compone
 		ctx, set, cfg,
 		e.ConsumeLogs,
 		exporterhelper.WithStart(e.Start),
+		exporterhelper.WithShutdown(e.Shutdown),
 		exporterhelper.WithCapabilities(e.Capabilities()))
 }

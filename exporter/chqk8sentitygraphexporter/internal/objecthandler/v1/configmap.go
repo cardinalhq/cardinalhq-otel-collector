@@ -31,7 +31,7 @@ type ConfigMapSummary struct {
 	DataHashes         map[string]string `json:"data_hashes"`
 }
 
-func ConvertConfigMap(config *converterconfig.Config, us unstructured.Unstructured) (any, error) {
+func ConvertConfigMap(config *converterconfig.Config, us unstructured.Unstructured) (baseobj.K8SObject, error) {
 	if us.GetKind() != "ConfigMap" || us.GetAPIVersion() != "v1" {
 		return nil, errors.New("unstructured object is not a ConfigMap")
 	}

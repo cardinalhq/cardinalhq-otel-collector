@@ -18,11 +18,12 @@ import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
 	convertv1 "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/v1"
 )
 
-type ConverterFunc func(config *converterconfig.Config, us unstructured.Unstructured) (any, error)
+type ConverterFunc func(config *converterconfig.Config, us unstructured.Unstructured) (baseobj.K8SObject, error)
 
 type objectSelector struct {
 	APIVersion string

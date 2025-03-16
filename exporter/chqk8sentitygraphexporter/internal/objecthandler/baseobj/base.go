@@ -19,16 +19,28 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
+type K8SObject interface {
+	Identifier() string
+}
+
 // BaseObject is a struct that contains the common fields for all k8s objects
 // that are used in the entity graph.
 type BaseObject struct {
 	APIVersion    string            `json:"api_version"`
 	Kind          string            `json:"kind"`
 	Name          string            `json:"name"`
+	UID           string            `json:"uid,omitempty"`
 	Namespace     string            `json:"namespace,omitempty"`
 	Labels        map[string]string `json:"labels,omitempty"`
 	Annotatations map[string]string `json:"annotations,omitempty"`
 	OwnerRef      []OwnerRef        `json:"owner_ref,omitempty"`
+}
+
+func (b BaseObject) Identifier() string {
+	if b.Namespace == "" {
+		return b.APIVersion + "/" + b.Kind + "/" + b.Name + "/" + b.UID
+	}
+	return b.APIVersion + "/" + b.Kind + "/" + b.Namespace + "/" + b.Name + "/" + b.UID
 }
 
 // OwnerRef is a struct that contains the owner reference fields for a k8s object.
@@ -46,6 +58,7 @@ func BaseFromUnstructured(config *converterconfig.Config, us unstructured.Unstru
 	b := BaseObject{
 		APIVersion:    us.GetAPIVersion(),
 		Kind:          us.GetKind(),
+		UID:           string(us.GetUID()),
 		Namespace:     us.GetNamespace(),
 		Name:          us.GetName(),
 		Labels:        us.GetLabels(),
@@ -67,15 +80,6 @@ func BaseFromUnstructured(config *converterconfig.Config, us unstructured.Unstru
 	return b
 }
 
-func isFilteredAnnotation(config *converterconfig.Config, annotation string) bool {
-	for _, matcher := range config.IgnoredAnnotations {
-		if matcher.Match(annotation) {
-			return true
-		}
-	}
-	return false
-}
-
 func filteredAnnotations(config *converterconfig.Config, annotations map[string]string) map[string]string {
 	filtered := make(map[string]string)
 	for k, v := range annotations {
@@ -84,4 +88,13 @@ func filteredAnnotations(config *converterconfig.Config, annotations map[string]
 		}
 	}
 	return filtered
+}
+
+func isFilteredAnnotation(config *converterconfig.Config, annotation string) bool {
+	for _, matcher := range config.IgnoredAnnotations {
+		if matcher.Match(annotation) {
+			return true
+		}
+	}
+	return false
 }

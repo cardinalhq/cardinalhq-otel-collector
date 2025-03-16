@@ -34,7 +34,7 @@ func (e *exp) ConsumeLogs(ctx context.Context, ld plog.Logs) error {
 					continue
 				}
 				if ret != nil {
-					e.logger.Info("fed log record", zap.Any("result", ret))
+					e.logger.Info("fed log record", zap.String("identifier", ret.Object.Identifier()), zap.Any("result", ret))
 				}
 			}
 		}

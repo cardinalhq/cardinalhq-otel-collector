@@ -22,18 +22,15 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler"
-	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
 	"github.com/cardinalhq/oteltools/pkg/graph"
-	"github.com/cardinalhq/oteltools/pkg/translate"
-
-	"go.opentelemetry.io/collector/exporter"
-	"go.opentelemetry.io/collector/pdata/pcommon"
-
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
+	"go.opentelemetry.io/collector/exporter"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler"
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
 )
 
 type exp struct {
@@ -94,6 +91,12 @@ func (e *exp) Start(ctx context.Context, host component.Host) error {
 	return nil
 }
 
+func (e *exp) Shutdown(ctx context.Context) error {
+	e.gee.Stop(ctx)
+	e.goe.Stop(ctx)
+	return nil
+}
+
 func urlFor(endpoint string, cid string) string {
 	u, _ := url.Parse(endpoint)
 	u.Path = "/api/v1/entityRelationships"
@@ -101,12 +104,4 @@ func urlFor(endpoint string, cid string) string {
 	q.Add("organizationID", strings.ToLower(cid))
 	u.RawQuery = q.Encode()
 	return u.String()
-}
-
-func orgIdFromResource(resource pcommon.Map) string {
-	orgID, found := resource.Get(translate.CardinalFieldCustomerID)
-	if !found {
-		return "default"
-	}
-	return orgID.AsString()
 }

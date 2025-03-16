@@ -30,7 +30,7 @@ type SecretSummary struct {
 	DataHashes         map[string]string `json:"data_hashes"`
 }
 
-func ConvertSecret(config *converterconfig.Config, us unstructured.Unstructured) (any, error) {
+func ConvertSecret(config *converterconfig.Config, us unstructured.Unstructured) (baseobj.K8SObject, error) {
 	if us.GetKind() != "Secret" || us.GetAPIVersion() != "v1" {
 		return nil, errors.New("unstructured object is not a Secret")
 	}

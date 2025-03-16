@@ -14,8 +14,10 @@
 
 package objecthandler
 
+import "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
+
 type PackagedObject struct {
-	ResouceAttributes map[string]any `json:"resource_attributes,omitempty"`
-	RecordAttributes  map[string]any `json:"record_attributes,omitempty"`
-	Object            any            `json:"object,omitempty"`
+	ResouceAttributes map[string]any    `json:"resource_attributes,omitempty"`
+	RecordAttributes  map[string]any    `json:"record_attributes,omitempty"`
+	Object            baseobj.K8SObject `json:"object,omitempty"`
 }

@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
 )
 
 func TestCalculateConfigMapDataHashes(t *testing.T) {
@@ -64,9 +65,10 @@ func TestCalculateConfigMapDataHashes(t *testing.T) {
 		},
 	}
 
+	conf := &converterconfig.Config{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := calculateConfigMapDataHashes(tt.configMap)
+			result := calculateConfigMapDataHashes(conf.HashItems, tt.configMap)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -186,15 +188,69 @@ func TestConvertConfigMap(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		conf := &converterconfig.Config{}
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ConvertConfigMap(tt.unstructured)
+			result, err := ConvertConfigMap(conf, tt.unstructured)
 			if tt.expectError {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				tt.expected.BaseObject = baseobj.BaseFromUnstructured(tt.unstructured)
+				tt.expected.BaseObject = baseobj.BaseFromUnstructured(conf, tt.unstructured)
 				assert.Equal(t, tt.expected, result)
 			}
+		})
+	}
+}
+
+func TestIgnoreConfigMapName(t *testing.T) {
+	tests := []struct {
+		name       string
+		config     *converterconfig.Config
+		configName string
+		expected   bool
+	}{
+		{
+			name: "Name matches one of the ignored names",
+			config: &converterconfig.Config{
+				IgnoredConfigMapNames: []converterconfig.StringMatcher{
+					converterconfig.NewLiteralMatcher("ignored-configmap"),
+				},
+			},
+			configName: "ignored-configmap",
+			expected:   true,
+		},
+		{
+			name: "Name does not match any ignored names",
+			config: &converterconfig.Config{
+				IgnoredConfigMapNames: []converterconfig.StringMatcher{
+					converterconfig.NewLiteralMatcher("ignored-configmap"),
+				},
+			},
+			configName: "non-ignored-configmap",
+			expected:   false,
+		},
+		{
+			name: "No ignored names configured",
+			config: &converterconfig.Config{
+				IgnoredConfigMapNames: []converterconfig.StringMatcher{},
+			},
+			configName: "any-configmap",
+			expected:   false,
+		},
+		{
+			name: "Nil ignored names configured",
+			config: &converterconfig.Config{
+				IgnoredConfigMapNames: nil,
+			},
+			configName: "any-configmap",
+			expected:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ignoreConfigMapName(tt.config, tt.configName)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }

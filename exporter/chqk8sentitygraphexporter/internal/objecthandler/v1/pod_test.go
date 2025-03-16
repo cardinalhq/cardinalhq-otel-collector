@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
 	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -808,14 +809,16 @@ func TestConvertPod(t *testing.T) {
 		},
 	}
 
+	cconf := &converterconfig.Config{}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ConvertPod(tt.input)
+			result, err := ConvertPod(cconf, tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				tt.expected.BaseObject = baseobj.BaseFromUnstructured(tt.input)
+				tt.expected.BaseObject = baseobj.BaseFromUnstructured(cconf, tt.input)
 				assert.Equal(t, tt.expected, result)
 			}
 		})

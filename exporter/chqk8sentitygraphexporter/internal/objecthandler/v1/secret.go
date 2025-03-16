@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
 )
 
 type SecretSummary struct {
@@ -29,7 +30,7 @@ type SecretSummary struct {
 	DataHashes         map[string]string `json:"data_hashes"`
 }
 
-func ConvertSecret(us unstructured.Unstructured) (any, error) {
+func ConvertSecret(config *converterconfig.Config, us unstructured.Unstructured) (any, error) {
 	if us.GetKind() != "Secret" || us.GetAPIVersion() != "v1" {
 		return nil, errors.New("unstructured object is not a Secret")
 	}
@@ -41,7 +42,7 @@ func ConvertSecret(us unstructured.Unstructured) (any, error) {
 	}
 
 	ss := &SecretSummary{
-		BaseObject: baseobj.BaseFromUnstructured(us),
+		BaseObject: baseobj.BaseFromUnstructured(config, us),
 		DataHashes: calculateSecretDataHashes(secret),
 	}
 

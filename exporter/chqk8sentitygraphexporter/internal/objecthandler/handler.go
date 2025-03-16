@@ -18,10 +18,11 @@ import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
 	convertv1 "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/v1"
 )
 
-type ConverterFunc func(us unstructured.Unstructured) (any, error)
+type ConverterFunc func(config *converterconfig.Config, us unstructured.Unstructured) (any, error)
 
 type objectSelector struct {
 	APIVersion string
@@ -35,13 +36,15 @@ type ObjectHandler interface {
 }
 
 type converterImpl struct {
+	config     *converterconfig.Config
 	converters Converters
 }
 
 var _ ObjectHandler = (*converterImpl)(nil)
 
-func NewObjectHandler() ObjectHandler {
+func NewObjectHandler(config *converterconfig.Config) ObjectHandler {
 	ret := &converterImpl{
+		config:     config,
 		converters: Converters{},
 	}
 	ret.installConverters()
@@ -75,7 +78,7 @@ func (h *converterImpl) Feed(rlattr pcommon.Map, lattr pcommon.Map, bodyValue pc
 	}
 
 	// Convert the object and package it up.
-	converted, err := converter(us)
+	converted, err := converter(h.config, us)
 	if err != nil {
 		return nil, err
 	}

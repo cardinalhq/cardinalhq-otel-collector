@@ -14,7 +14,10 @@
 
 package baseobj
 
-import "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+import (
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+)
 
 // BaseObject is a struct that contains the common fields for all k8s objects
 // that are used in the entity graph.
@@ -39,14 +42,14 @@ type OwnerRef struct {
 }
 
 // BaseFromUnstructured is a function that converts an unstructured object to a BaseObject.
-func BaseFromUnstructured(us unstructured.Unstructured) BaseObject {
+func BaseFromUnstructured(config *converterconfig.Config, us unstructured.Unstructured) BaseObject {
 	b := BaseObject{
 		APIVersion:    us.GetAPIVersion(),
 		Kind:          us.GetKind(),
 		Namespace:     us.GetNamespace(),
 		Name:          us.GetName(),
 		Labels:        us.GetLabels(),
-		Annotatations: filteredAnnotations(us.GetAnnotations()),
+		Annotatations: filteredAnnotations(config, us.GetAnnotations()),
 	}
 
 	for _, ownerRef := range us.GetOwnerReferences() {
@@ -64,19 +67,19 @@ func BaseFromUnstructured(us unstructured.Unstructured) BaseObject {
 	return b
 }
 
-func isFilteredAnnotation(annotation string) bool {
-	switch annotation {
-	case "kubectl.kubernetes.io/last-applied-configuration":
-		return true
-	default:
-		return false
+func isFilteredAnnotation(config *converterconfig.Config, annotation string) bool {
+	for _, matcher := range config.IgnoredAnnotations {
+		if matcher.Match(annotation) {
+			return true
+		}
 	}
+	return false
 }
 
-func filteredAnnotations(annotations map[string]string) map[string]string {
+func filteredAnnotations(config *converterconfig.Config, annotations map[string]string) map[string]string {
 	filtered := make(map[string]string)
 	for k, v := range annotations {
-		if !isFilteredAnnotation(k) {
+		if !isFilteredAnnotation(config, k) {
 			filtered[k] = v
 		}
 	}

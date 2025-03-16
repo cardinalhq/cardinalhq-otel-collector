@@ -21,9 +21,10 @@ import (
 
 func calculateHashValue(header []byte, fieldname string, value []byte) string {
 	hash := sha256.New()
-	hash.Write([]byte(header))
-	hash.Write([]byte(fieldname))
-	hash.Write(value)
+	// We are not checking the error here because sha256 never returns an error.
+	_, _ = hash.Write([]byte(header))
+	_, _ = hash.Write([]byte(fieldname))
+	_, _ = hash.Write(value)
 	hashBytes := hash.Sum(nil)
 	hashInt := new(big.Int).SetBytes(hashBytes[:])
 	return hashInt.Text(10 + 26 + 26) // base = 10 digits + 26 lowercase + 26 uppercase

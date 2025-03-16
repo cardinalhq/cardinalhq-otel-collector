@@ -15,6 +15,7 @@
 package v1
 
 import (
+	"bytes"
 	"errors"
 
 	corev1 "k8s.io/api/core/v1"
@@ -22,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
 )
 
 type ConfigMapSummary struct {
@@ -29,12 +31,12 @@ type ConfigMapSummary struct {
 	DataHashes         map[string]string `json:"data_hashes"`
 }
 
-func ConvertConfigMap(us unstructured.Unstructured) (any, error) {
+func ConvertConfigMap(config *converterconfig.Config, us unstructured.Unstructured) (any, error) {
 	if us.GetKind() != "ConfigMap" || us.GetAPIVersion() != "v1" {
 		return nil, errors.New("unstructured object is not a ConfigMap")
 	}
 
-	if !interestingConfigMap(us) {
+	if ignoreConfigMapName(config, us.GetName()) {
 		return nil, nil
 	}
 
@@ -45,24 +47,30 @@ func ConvertConfigMap(us unstructured.Unstructured) (any, error) {
 	}
 
 	cms := &ConfigMapSummary{
-		BaseObject: baseobj.BaseFromUnstructured(us),
-		DataHashes: calculateConfigMapDataHashes(cm),
+		BaseObject: baseobj.BaseFromUnstructured(config, us),
+		DataHashes: calculateConfigMapDataHashes(config.HashItems, cm),
 	}
 
 	return cms, nil
 }
 
-func interestingConfigMap(us unstructured.Unstructured) bool {
-	name := us.GetName()
-	if name == "kube-root-ca.crt" || name == "extension-apiserver-authentication" {
-		return false
+func ignoreConfigMapName(config *converterconfig.Config, name string) bool {
+	for _, matcher := range config.IgnoredConfigMapNames {
+		if matcher.Match(name) {
+			return true
+		}
 	}
-	return true
+	return false
 }
 
-func calculateConfigMapDataHashes(cm corev1.ConfigMap) map[string]string {
+func calculateConfigMapDataHashes(hashitems []string, cm corev1.ConfigMap) map[string]string {
 	dataHashes := make(map[string]string)
-	header := []byte(cm.APIVersion + cm.Kind + cm.Name + cm.Namespace + string(cm.UID))
+	buf := bytes.Buffer{}
+	for _, item := range hashitems {
+		buf.WriteString(item)
+	}
+	buf.WriteString(cm.APIVersion + cm.Kind + cm.Name + cm.Namespace + string(cm.UID))
+	header := buf.Bytes()
 	for k, v := range cm.Data {
 		dataHashes[k] = calculateHashValue(header, k, []byte(v))
 	}

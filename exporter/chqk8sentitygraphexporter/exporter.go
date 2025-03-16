@@ -18,10 +18,12 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler"
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
 	"github.com/cardinalhq/oteltools/pkg/graph"
 	"github.com/cardinalhq/oteltools/pkg/translate"
 
@@ -83,7 +85,8 @@ func (e *exp) Start(ctx context.Context, host component.Host) error {
 
 	e.goe = objecthandler.NewGraphEventEmitter(e.logger, e.httpClient, e.config.Reporting.Interval, e.config.Endpoint)
 
-	e.objecthandler = objecthandler.NewObjectHandler()
+	cconf := converterconfig.New().WithHashItems(os.Getenv("K8S_CLUSTER_NAME"))
+	e.objecthandler = objecthandler.NewObjectHandler(cconf)
 
 	e.gee.Start(ctx)
 	e.goe.Start(ctx)

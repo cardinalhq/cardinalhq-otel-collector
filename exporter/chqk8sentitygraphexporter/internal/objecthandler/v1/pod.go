@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
 )
 
 type PodSummary struct {
@@ -56,7 +57,7 @@ type ImageSummary struct {
 	ImageID string `json:"image_id,omitempty"`
 }
 
-func ConvertPod(us unstructured.Unstructured) (any, error) {
+func ConvertPod(config *converterconfig.Config, us unstructured.Unstructured) (any, error) {
 	if us.GetKind() != "Pod" || us.GetAPIVersion() != "v1" {
 		return nil, errors.New("Not a v1 Pod")
 	}
@@ -67,7 +68,7 @@ func ConvertPod(us unstructured.Unstructured) (any, error) {
 	}
 
 	podSummary := &PodSummary{
-		BaseObject:         baseobj.BaseFromUnstructured(us),
+		BaseObject:         baseobj.BaseFromUnstructured(config, us),
 		Phase:              string(pod.Status.Phase),
 		PhaseMessage:       pod.Status.Message,
 		ServiceAccountName: pod.Spec.ServiceAccountName,

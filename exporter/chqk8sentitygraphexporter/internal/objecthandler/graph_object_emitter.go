@@ -29,7 +29,7 @@ import (
 type GraphObjectEmitter interface {
 	Start(ctx context.Context)
 	Stop(ctx context.Context)
-	Upsert(ctx context.Context, object *PackagedObject)
+	Upsert(ctx context.Context, object *PackagedObject) error
 }
 
 type graphEmitter struct {
@@ -126,8 +126,16 @@ func (e *graphEmitter) Stop(ctx context.Context) {
 	}
 }
 
-func (e *graphEmitter) Upsert(ctx context.Context, object *PackagedObject) {
-	e.submitChan <- object
+// Upsert adds or updates an object in the emitter queue.
+// If the context is cancelled, the function returns immediately, and the
+// object is not added to the queue.
+func (e *graphEmitter) Upsert(ctx context.Context, object *PackagedObject) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case e.submitChan <- object:
+		return nil
+	}
 }
 
 func (e *graphEmitter) selectToSend() []*WrappedObject {

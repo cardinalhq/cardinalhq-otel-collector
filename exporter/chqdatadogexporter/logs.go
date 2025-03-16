@@ -111,7 +111,7 @@ func (e *datadogExporter) send(ctx context.Context, ddlogs []DDLog) error {
 		return err
 	}
 
-	target := fmt.Sprintf("%s/api/v2/logs", e.endpoint)
+	target := e.endpoint + "/api/v2/logs"
 	req, err := http.NewRequestWithContext(ctx, "POST", target, bytes.NewReader(b))
 	if err != nil {
 		return err

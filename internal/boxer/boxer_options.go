@@ -17,7 +17,7 @@ package boxer
 import "time"
 
 type BoxerOptions interface {
-	apply(*Boxer)
+	apply(box *Boxer)
 }
 
 type boxerOptionFunc func(*Boxer)

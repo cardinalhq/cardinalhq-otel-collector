@@ -16,6 +16,7 @@ package pitbullprocessor
 
 import (
 	"context"
+
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
@@ -127,6 +128,8 @@ func (p *pitbull) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pmetric
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
 						return found
 					})
+				case pmetric.MetricTypeEmpty:
+					return true
 				}
 
 				return false

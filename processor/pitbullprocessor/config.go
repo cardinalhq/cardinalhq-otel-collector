@@ -111,22 +111,22 @@ func (cfg *LogsConfig) Validate() error {
 }
 
 func (tc *TracesConfig) Validate() error {
-	var errors error
+	var errs error
 	if tc.EstimatorWindowSize == 0 {
 		tc.EstimatorWindowSize = 30
 	}
 	if tc.EstimatorWindowSize < 10 {
-		err := fmt.Errorf("estimator_window_size must be greater than or equal to 10")
-		errors = multierr.Append(errors, err)
+		err := errors.New("estimator_window_size must be greater than or equal to 10")
+		errs = multierr.Append(errs, err)
 	}
 
 	if tc.EstimatorInterval == 0 {
 		tc.EstimatorInterval = 10_000
 	}
 	if tc.EstimatorInterval < 1000 {
-		err := fmt.Errorf("estimator_interval must be greater than or equal to 1000")
-		errors = multierr.Append(errors, err)
+		err := errors.New("estimator_interval must be greater than or equal to 1000")
+		errs = multierr.Append(errs, err)
 	}
 
-	return errors
+	return errs
 }

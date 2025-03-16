@@ -26,15 +26,16 @@ type K8SObject interface {
 // BaseObject is a struct that contains the common fields for all k8s objects
 // that are used in the entity graph.
 type BaseObject struct {
-	ID            string            `json:"id" yaml:"id"`
-	APIVersion    string            `json:"api_version" yaml:"api_version"`
-	Kind          string            `json:"kind" yaml:"kind"`
-	Name          string            `json:"name" yaml:"name"`
-	UID           string            `json:"uid" yaml:"uid"`
-	Namespace     string            `json:"namespace,omitempty" yaml:"namespace,omitempty"`
-	Labels        map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
-	Annotatations map[string]string `json:"annotations,omitempty" yaml:"annotations,omitempty"`
-	OwnerRef      []OwnerRef        `json:"owner_ref,omitempty" yaml:"owner_ref,omitempty"`
+	ID              string            `json:"id" yaml:"id"`
+	APIVersion      string            `json:"api_version" yaml:"api_version"`
+	Kind            string            `json:"kind" yaml:"kind"`
+	Name            string            `json:"name" yaml:"name"`
+	UID             string            `json:"uid" yaml:"uid"`
+	ResourceVersion string            `json:"resource_version" yaml:"resource_version"`
+	Namespace       string            `json:"namespace,omitempty" yaml:"namespace,omitempty"`
+	Labels          map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+	Annotatations   map[string]string `json:"annotations,omitempty" yaml:"annotations,omitempty"`
+	OwnerRef        []OwnerRef        `json:"owner_ref,omitempty" yaml:"owner_ref,omitempty"`
 }
 
 func (b BaseObject) Identifier() string {
@@ -61,14 +62,15 @@ type OwnerRef struct {
 // BaseFromUnstructured is a function that converts an unstructured object to a BaseObject.
 func BaseFromUnstructured(config *converterconfig.Config, us unstructured.Unstructured) BaseObject {
 	b := BaseObject{
-		APIVersion:    us.GetAPIVersion(),
-		Kind:          us.GetKind(),
-		UID:           string(us.GetUID()),
-		Namespace:     us.GetNamespace(),
-		Name:          us.GetName(),
-		Labels:        us.GetLabels(),
-		Annotatations: filteredAnnotations(config, us.GetAnnotations()),
-		OwnerRef:      ownerrefsFromUnstructured(us),
+		APIVersion:      us.GetAPIVersion(),
+		Kind:            us.GetKind(),
+		UID:             string(us.GetUID()),
+		ResourceVersion: us.GetResourceVersion(),
+		Namespace:       us.GetNamespace(),
+		Name:            us.GetName(),
+		Labels:          us.GetLabels(),
+		Annotatations:   filteredAnnotations(config, us.GetAnnotations()),
+		OwnerRef:        ownerrefsFromUnstructured(us),
 	}
 	b.ID = b.identifier()
 

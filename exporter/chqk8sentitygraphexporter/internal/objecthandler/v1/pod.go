@@ -37,7 +37,7 @@ type PodSummary struct {
 	Phase              string                `json:"phase" yaml:"phase"`
 	StartedAt          *time.Time            `json:"started_at,omitempty" yaml:"started_at,omitempty"`
 	PhaseMessage       string                `json:"pending_reason,omitempty" yaml:"pending_reason,omitempty"`
-	ServiceAccountName string                `json:"service_name,omitempty" yaml:"service_name,omitempty"`
+	ServiceAccountName string                `json:"service_account_name,omitempty" yaml:"service_account_name,omitempty"`
 }
 
 type PodContainerSummary struct {

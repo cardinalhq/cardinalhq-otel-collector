@@ -81,14 +81,22 @@ func NewGraphObjectEmitter(logger *zap.Logger, httpClient *http.Client, interval
 		expiry:     3 * interval,
 	}
 
+	logger.Debug("Created new graph object emitter",
+		zap.String("baseurl", ret.baseurl),
+		zap.Duration("interval", ret.interval),
+		zap.Duration("expiry", ret.expiry))
+
 	return ret, nil
 }
 
 func (e *graphEmitter) Start(ctx context.Context) {
+	e.logger.Debug("Starting graph object emitter", zap.String("baseurl", e.baseurl), zap.Duration("interval", e.interval))
 	e.wg.Add(1)
 	ctx = context.WithoutCancel(ctx)
 	go func() {
 		defer e.wg.Done()
+		ticker := time.NewTicker(e.interval)
+		defer ticker.Stop()
 		for {
 			select {
 			case <-e.doneChan:
@@ -106,7 +114,8 @@ func (e *graphEmitter) Start(ctx context.Context) {
 					PackagedObject: *object,
 					lastSeen:       time.Now(),
 				}
-			case <-time.Tick(e.interval):
+			case <-ticker.C:
+				e.logger.Debug("Sending objects")
 				err := e.sendObjects(ctx)
 				if err != nil {
 					e.logger.Error("Failed to send objects", zap.Error(err))
@@ -159,6 +168,7 @@ func (e *graphEmitter) sendObjects(ctx context.Context) error {
 	}
 
 	toSend := e.selectToSend()
+	e.logger.Debug("Sending objects", zap.Int("count", len(toSend)))
 	if len(toSend) == 0 {
 		return nil
 	}
@@ -183,7 +193,7 @@ func (e *graphEmitter) sendObjects(ctx context.Context) error {
 		return fmt.Errorf("unexpected status code %d", resp.StatusCode)
 	}
 
-	e.logger.Info("Sending objects", zap.Int("count", len(toSend)))
+	e.logger.Debug("Sending objects", zap.Int("count", len(toSend)))
 
 	return nil
 }

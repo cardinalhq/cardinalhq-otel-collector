@@ -67,7 +67,13 @@ func (e *exp) Start(ctx context.Context, host component.Host) error {
 	}
 	e.httpClient = httpClient
 
-	gee, err := objecthandler.NewGraphObjectEmitter(e.logger, e.httpClient, e.config.Reporting.Interval, e.config.Endpoint)
+	glogger, err := zap.NewDevelopment()
+	if err != nil {
+		glogger = e.logger
+	} else {
+		glogger = glogger.Named("graph-object-emitter")
+	}
+	gee, err := objecthandler.NewGraphObjectEmitter(glogger, e.httpClient, e.config.Reporting.Interval, e.config.Endpoint)
 	if err != nil {
 		return err
 	}

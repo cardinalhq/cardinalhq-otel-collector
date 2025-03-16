@@ -53,20 +53,20 @@ type WrappedObject struct {
 	lastSeen time.Time
 }
 
-func (w *WrappedObject) needsSend() bool {
-	return w.lastSeen.After(w.lastSent)
+func (w *WrappedObject) needsSend(now time.Time, maxage time.Duration) bool {
+	return now.Sub(w.lastSent) > maxage
 }
 
-func (w *WrappedObject) markSent() {
-	w.lastSent = time.Now()
+func (w *WrappedObject) markSent(now time.Time) {
+	w.lastSent = now
 }
 
-func (w *WrappedObject) markSeen() {
-	w.lastSeen = time.Now()
+func (w *WrappedObject) markSeen(now time.Time) {
+	w.lastSeen = now
 }
 
-func (w *WrappedObject) expired(maxage time.Duration) bool {
-	return time.Since(w.lastSeen) > maxage
+func (w *WrappedObject) expired(now time.Time, maxage time.Duration) bool {
+	return now.Sub(w.lastSeen) > maxage
 }
 
 func NewGraphObjectEmitter(logger *zap.Logger, httpClient *http.Client, interval time.Duration, baseurl string) (GraphObjectEmitter, error) {
@@ -107,7 +107,7 @@ func (e *graphEmitter) Start(ctx context.Context) {
 				}
 				id := object.Object.Identifier()
 				if old, found := e.objects[id]; found && old.Object.GetResourceVersion() == object.Object.GetResourceVersion() {
-					old.markSeen()
+					old.markSeen(time.Now())
 					continue
 				}
 				e.objects[id] = &WrappedObject{
@@ -149,14 +149,15 @@ func (e *graphEmitter) Upsert(ctx context.Context, object *PackagedObject) error
 
 func (e *graphEmitter) selectToSend() []*WrappedObject {
 	toSend := make([]*WrappedObject, 0, len(e.objects))
+	now := time.Now()
 	for k, obj := range e.objects {
-		if obj.expired(e.expiry) {
+		if obj.expired(now, e.expiry) {
 			delete(e.objects, k)
 			continue
 		}
-		if obj.needsSend() {
+		if obj.needsSend(now, e.expiry) {
 			toSend = append(toSend, obj)
-			obj.markSent() // mark as sent even if we fail to send
+			obj.markSent(now) // mark as sent even if we fail to send
 		}
 	}
 	return toSend
@@ -168,7 +169,6 @@ func (e *graphEmitter) sendObjects(ctx context.Context) error {
 	}
 
 	toSend := e.selectToSend()
-	e.logger.Debug("Sending objects", zap.Int("count", len(toSend)))
 	if len(toSend) == 0 {
 		return nil
 	}
@@ -177,6 +177,8 @@ func (e *graphEmitter) sendObjects(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	e.logger.Debug("Sending objects", zap.Int("count", len(toSend)), zap.Int("size", len(b)))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, e.baseurl, bytes.NewReader(b))
 	if err != nil {

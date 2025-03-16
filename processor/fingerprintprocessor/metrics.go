@@ -19,6 +19,7 @@ import (
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
+	"go.uber.org/zap"
 
 	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/translate"
@@ -27,41 +28,45 @@ import (
 func (p *fingerprintProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
 	environment := authenv.GetEnvironment(ctx, p.idSource)
 
-	for i := 0; i < md.ResourceMetrics().Len(); i++ {
+	for i := range md.ResourceMetrics().Len() {
 		rm := md.ResourceMetrics().At(i)
 		rattr := rm.Resource().Attributes()
-		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
+		for j := range rm.ScopeMetrics().Len() {
 			ilm := rm.ScopeMetrics().At(j)
 			sattr := ilm.Scope().Attributes()
-			for k := 0; k < ilm.Metrics().Len(); k++ {
+			for k := range ilm.Metrics().Len() {
 				m := ilm.Metrics().At(k)
 				extra := map[string]string{"name": m.Name()}
 				switch m.Type() {
 				case pmetric.MetricTypeGauge:
-					for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
+					for l := range m.Gauge().DataPoints().Len() {
 						dp := m.Gauge().DataPoints().At(l)
 						p.processDatapoint(extra, environment, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeSum:
-					for l := 0; l < m.Sum().DataPoints().Len(); l++ {
+					for l := range m.Sum().DataPoints().Len() {
 						dp := m.Sum().DataPoints().At(l)
 						p.processDatapoint(extra, environment, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeHistogram:
-					for l := 0; l < m.Histogram().DataPoints().Len(); l++ {
+					for l := range m.Histogram().DataPoints().Len() {
 						dp := m.Histogram().DataPoints().At(l)
 						p.processDatapoint(extra, environment, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeSummary:
-					for l := 0; l < m.Summary().DataPoints().Len(); l++ {
+					for l := range m.Summary().DataPoints().Len() {
 						dp := m.Summary().DataPoints().At(l)
 						p.processDatapoint(extra, environment, rattr, sattr, dp.Attributes())
 					}
 				case pmetric.MetricTypeExponentialHistogram:
-					for l := 0; l < m.ExponentialHistogram().DataPoints().Len(); l++ {
+					for l := range m.ExponentialHistogram().DataPoints().Len() {
 						dp := m.ExponentialHistogram().DataPoints().At(l)
 						p.processDatapoint(extra, environment, rattr, sattr, dp.Attributes())
 					}
+				case pmetric.MetricTypeEmpty:
+					// Do nothing
+				default:
+					p.logger.Warn("Unknown metric type", zap.String("type", m.Type().String()))
 				}
 			}
 		}

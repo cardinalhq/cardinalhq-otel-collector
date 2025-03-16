@@ -31,7 +31,7 @@ type LRUCache struct {
 
 type Entry struct {
 	key       int64
-	value     interface{}
+	value     any
 	timestamp time.Time
 }
 
@@ -92,7 +92,7 @@ func (l *LRUCache) Contains(key int64) bool {
 	return time.Since(entry.timestamp) <= l.expiry
 }
 
-func (l *LRUCache) Get(key int64) (interface{}, bool) {
+func (l *LRUCache) Get(key int64) (any, bool) {
 	l.mutex.RLock()
 	elem, found := l.cache[key]
 	l.mutex.RUnlock()
@@ -114,7 +114,7 @@ func (l *LRUCache) Get(key int64) (interface{}, bool) {
 }
 
 // Put adds a value to the cache or updates it if it already exists.
-func (l *LRUCache) Put(key int64, value interface{}) {
+func (l *LRUCache) Put(key int64, value any) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 

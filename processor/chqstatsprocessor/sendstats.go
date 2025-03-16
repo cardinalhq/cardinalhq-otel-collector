@@ -81,12 +81,7 @@ func (p *statsProcessor) postLogStats(ctx context.Context, wrapper *chqpb.EventS
 	if err != nil {
 		return err
 	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			p.logger.Error("Failed to close response body", zap.Error(err))
-		}
-	}(resp.Body)
+	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {

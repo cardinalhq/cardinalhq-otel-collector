@@ -116,7 +116,6 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) pmetric.Metrics {
 	}
 
 	return builder.Build()
-
 }
 
 func (p *extractor) extractLogValue(ctx context.Context, tc ottllog.TransformContext, e *ottl.LogExtractor) (float64, error) {

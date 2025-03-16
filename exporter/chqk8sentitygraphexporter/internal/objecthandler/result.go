@@ -14,7 +14,9 @@
 
 package objecthandler
 
-import "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
+import (
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
+)
 
 type PackagedObject struct {
 	ResouceAttributes map[string]any    `json:"resource_attributes,omitempty"`

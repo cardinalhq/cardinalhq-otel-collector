@@ -17,9 +17,7 @@ package chqk8sentitygraphexporter
 import (
 	"context"
 	"net/http"
-	"net/url"
 	"os"
-	"strings"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
@@ -42,7 +40,6 @@ type exp struct {
 
 	objecthandler  objecthandler.ObjectHandler
 	gee            objecthandler.GraphObjectEmitter
-	goe            objecthandler.GraphEventEmitter
 	k8sClusterName string
 }
 
@@ -75,31 +72,15 @@ func (e *exp) Start(ctx context.Context, host component.Host) error {
 		return err
 	}
 	e.gee = gee
-
-	e.goe = objecthandler.NewGraphEventEmitter(e.logger, e.httpClient, e.config.Reporting.Interval, e.config.Endpoint)
+	e.gee.Start(ctx)
 
 	cconf := converterconfig.New().WithHashItems(e.k8sClusterName)
 	e.objecthandler = objecthandler.NewObjectHandler(cconf)
-
-	e.gee.Start(ctx)
-	e.goe.Start(ctx)
 
 	return nil
 }
 
 func (e *exp) Shutdown(ctx context.Context) error {
 	e.gee.Stop(ctx)
-	e.goe.Stop(ctx)
 	return nil
-}
-
-func urlFor(endpoint string, cid string) string {
-	u, _ := url.Parse(endpoint)
-	u.Path = "/api/v1/entityObjects"
-	q := u.Query()
-	if cid != "" {
-		q.Add("organizationID", strings.ToLower(cid))
-	}
-	u.RawQuery = q.Encode()
-	return u.String()
 }

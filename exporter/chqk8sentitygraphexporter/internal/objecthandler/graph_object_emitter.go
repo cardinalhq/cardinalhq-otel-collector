@@ -15,25 +15,21 @@
 package objecthandler
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
 
 	"go.uber.org/zap"
-	appsv1 "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
 )
 
 type GraphObjectEmitter interface {
 	Start(ctx context.Context)
 	Stop(ctx context.Context)
-	Emit(ctx context.Context, object *GraphObject)
+	Upsert(ctx context.Context, object *PackagedObject)
 }
 
 type graphEmitter struct {
@@ -42,19 +38,35 @@ type graphEmitter struct {
 	interval   time.Duration
 	baseurl    string
 
-	submitChan chan *GraphObject
+	submitChan chan *PackagedObject
 	doneChan   chan struct{}
 	wg         sync.WaitGroup
-	objects    []*GraphObject
-
-	decoder runtime.Decoder
+	objects    map[string]*WrappedObject
+	expiry     time.Duration
 }
 
 var _ GraphObjectEmitter = (*graphEmitter)(nil)
 
-type GraphObject struct {
-	APIVersion string `json:"apiVersion"`
-	Kind       string `json:"kind"`
+type WrappedObject struct {
+	PackagedObject
+	lastSent time.Time
+	lastSeen time.Time
+}
+
+func (w *WrappedObject) needsSend() bool {
+	return w.lastSeen.After(w.lastSent)
+}
+
+func (w *WrappedObject) markSent() {
+	w.lastSent = time.Now()
+}
+
+func (w *WrappedObject) markSeen() {
+	w.lastSeen = time.Now()
+}
+
+func (w *WrappedObject) expired(maxage time.Duration) bool {
+	return time.Since(w.lastSeen) > maxage
 }
 
 func NewGraphObjectEmitter(logger *zap.Logger, httpClient *http.Client, interval time.Duration, baseurl string) (GraphObjectEmitter, error) {
@@ -62,49 +74,19 @@ func NewGraphObjectEmitter(logger *zap.Logger, httpClient *http.Client, interval
 		logger:     logger,
 		httpClient: httpClient,
 		interval:   interval,
-		baseurl:    baseurl,
+		baseurl:    baseurl + "/api/v1/servicegraph/objects",
 		doneChan:   make(chan struct{}),
-		submitChan: make(chan *GraphObject),
-	}
-
-	if err := setupScheme(ret); err != nil {
-		return nil, err
+		submitChan: make(chan *PackagedObject, 1000),
+		objects:    make(map[string]*WrappedObject),
+		expiry:     3 * interval,
 	}
 
 	return ret, nil
 }
 
-func setupScheme(e *graphEmitter) error {
-	scheme := runtime.NewScheme()
-
-	if err := corev1.AddToScheme(scheme); err != nil {
-		return err
-	}
-
-	if err := appsv1.AddToScheme(scheme); err != nil {
-		return err
-	}
-
-	if err := batchv1.AddToScheme(scheme); err != nil {
-		return err
-	}
-
-	if err := networkingv1.AddToScheme(scheme); err != nil {
-		return err
-	}
-
-	if err := rbacv1.AddToScheme(scheme); err != nil {
-		return err
-	}
-
-	codecs := serializer.NewCodecFactory(scheme)
-	e.decoder = codecs.UniversalDeserializer()
-
-	return nil
-}
-
 func (e *graphEmitter) Start(ctx context.Context) {
 	e.wg.Add(1)
+	ctx = context.WithoutCancel(ctx)
 	go func() {
 		defer e.wg.Done()
 		for {
@@ -112,9 +94,20 @@ func (e *graphEmitter) Start(ctx context.Context) {
 			case <-e.doneChan:
 				return
 			case object := <-e.submitChan:
-				e.objects = append(e.objects, object)
+				if object == nil || object.Object == nil {
+					continue
+				}
+				id := object.Object.Identifier()
+				if old, found := e.objects[id]; found && old.Object.GetResourceVersion() == object.Object.GetResourceVersion() {
+					old.markSeen()
+					continue
+				}
+				e.objects[id] = &WrappedObject{
+					PackagedObject: *object,
+					lastSeen:       time.Now(),
+				}
 			case <-time.Tick(e.interval):
-				err := e.sendObjects(ctx, nil)
+				err := e.sendObjects(ctx)
 				if err != nil {
 					e.logger.Error("Failed to send objects", zap.Error(err))
 				}
@@ -127,18 +120,62 @@ func (e *graphEmitter) Stop(ctx context.Context) {
 	close(e.doneChan)
 	e.wg.Wait()
 
-	if len(e.objects) > 0 {
-		err := e.sendObjects(ctx, nil)
-		if err != nil {
-			e.logger.Error("Failed to send objects", zap.Error(err))
-		}
+	err := e.sendObjects(ctx)
+	if err != nil {
+		e.logger.Error("Failed to send objects", zap.Error(err))
 	}
 }
 
-func (e *graphEmitter) Emit(ctx context.Context, object *GraphObject) {
+func (e *graphEmitter) Upsert(ctx context.Context, object *PackagedObject) {
 	e.submitChan <- object
 }
 
-func (e *graphEmitter) sendObjects(_ context.Context, _ []*GraphObject) error {
+func (e *graphEmitter) selectToSend() []*WrappedObject {
+	toSend := make([]*WrappedObject, 0, len(e.objects))
+	for k, obj := range e.objects {
+		if obj.expired(e.expiry) {
+			delete(e.objects, k)
+			continue
+		}
+		if obj.needsSend() {
+			toSend = append(toSend, obj)
+			obj.markSent() // mark as sent even if we fail to send
+		}
+	}
+	return toSend
+}
+
+func (e *graphEmitter) sendObjects(ctx context.Context) error {
+	if len(e.objects) == 0 {
+		return nil
+	}
+
+	toSend := e.selectToSend()
+	if len(toSend) == 0 {
+		return nil
+	}
+
+	b, err := json.Marshal(toSend)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, e.baseurl, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	resp, err := e.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("unexpected status code %d", resp.StatusCode)
+	}
+
+	e.logger.Info("Sending objects", zap.Int("count", len(toSend)))
+
 	return nil
 }

@@ -21,6 +21,7 @@ import (
 
 type K8SObject interface {
 	Identifier() string
+	GetResourceVersion() string
 }
 
 // BaseObject is a struct that contains the common fields for all k8s objects
@@ -40,6 +41,10 @@ type BaseObject struct {
 
 func (b BaseObject) Identifier() string {
 	return b.ID
+}
+
+func (b BaseObject) GetResourceVersion() string {
+	return b.ResourceVersion
 }
 
 func (b BaseObject) identifier() string {

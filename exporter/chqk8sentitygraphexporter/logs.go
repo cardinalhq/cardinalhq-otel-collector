@@ -37,6 +37,7 @@ func (e *exp) ConsumeLogs(ctx context.Context, ld plog.Logs) error {
 				}
 				if ret != nil {
 					id := "kubernetes/" + e.k8sClusterName + "/" + ret.Object.Identifier()
+					e.gee.Upsert(ctx, ret)
 					debugLog(id, ret)
 				}
 			}

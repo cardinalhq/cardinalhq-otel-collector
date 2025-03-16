@@ -17,6 +17,7 @@ package aggregationprocessor
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -27,7 +28,7 @@ import (
 )
 
 func (p *aggregationProcessor) emit(now time.Time) {
-	if now.Sub(p.lastEmitCheck) < time.Duration(p.aggregationInterval)*time.Second {
+	if now.Sub(p.lastEmitCheck) < p.aggregationInterval*time.Second {
 		return
 	}
 	p.lastEmitCheck = now
@@ -60,7 +61,7 @@ func (p *aggregationProcessor) emitSetI(set *ottl.AggregationSet[int64]) {
 			dp = m.Gauge().DataPoints().AppendEmpty()
 		}
 		tstime := time.UnixMilli(set.StartTime)
-		ts := pcommon.Timestamp(pcommon.NewTimestampFromTime(tstime))
+		ts := pcommon.NewTimestampFromTime(tstime)
 		dp.SetTimestamp(ts)
 		dp.SetStartTimestamp(ts)
 		dp.SetIntValue(agg.Value()[0])
@@ -97,7 +98,7 @@ func (p *aggregationProcessor) emitSetF(set *ottl.AggregationSet[float64]) {
 			dp = m.Gauge().DataPoints().AppendEmpty()
 		}
 		tstime := time.UnixMilli(set.StartTime)
-		ts := pcommon.Timestamp(pcommon.NewTimestampFromTime(tstime))
+		ts := pcommon.NewTimestampFromTime(tstime)
 		dp.SetTimestamp(ts)
 		dp.SetStartTimestamp(ts)
 		dp.SetDoubleValue(agg.Value()[0])
@@ -194,6 +195,14 @@ func (p *aggregationProcessor) aggregate(rms pmetric.ResourceMetrics, ils pmetri
 		return p.aggregateGaugeDatapoint(rms, ils, metric, dp)
 	case pmetric.MetricTypeSum:
 		return p.aggregateSumDatapoint(rms, ils, metric, dp)
+	case pmetric.MetricTypeEmpty:
+		return false
+	case pmetric.MetricTypeHistogram:
+		return false
+	case pmetric.MetricTypeSummary:
+		return false
+	case pmetric.MetricTypeExponentialHistogram:
+		return false
 	default:
 		return false
 	}
@@ -221,7 +230,7 @@ func (p *aggregationProcessor) aggregateSumDatapoint(rms pmetric.ResourceMetrics
 		"metric.name":                   metric.Name(),
 		"metric.description":            metric.Description(),
 		"metric.aggregationtemporality": metric.Sum().AggregationTemporality().String(),
-		"metric.ismonotonic":            fmt.Sprintf("%t", metric.Sum().IsMonotonic()),
+		"metric.ismonotonic":            strconv.FormatBool(metric.Sum().IsMonotonic()),
 		"metric.unit":                   metric.Unit(),
 	}
 	return p.aggregateDatapoint(ottl.AggregationTypeSum, rms, ils, metric, dp, metadata)
@@ -255,7 +264,6 @@ func (p *aggregationProcessor) aggregateDatapoint(
 			return false
 		}
 		return matched
-
 	case pmetric.NumberDataPointValueTypeDouble:
 		v := dp.DoubleValue()
 		matched, err := p.aggregatorF.MatchAndAdd(
@@ -274,6 +282,8 @@ func (p *aggregationProcessor) aggregateDatapoint(
 			return false
 		}
 		return matched
+	case pmetric.NumberDataPointValueTypeEmpty:
+		return false
 	default:
 		return false
 	}

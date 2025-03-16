@@ -96,6 +96,10 @@ func (p *aggregationProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Me
 						}
 						return false
 					})
+				case pmetric.MetricTypeEmpty:
+					return false
+				default:
+					return false
 				}
 
 				return false

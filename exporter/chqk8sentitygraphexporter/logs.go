@@ -16,11 +16,9 @@ package chqk8sentitygraphexporter
 
 import (
 	"context"
-	"fmt"
 
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.uber.org/zap"
-	"gopkg.in/yaml.v3"
 )
 
 func (e *exp) ConsumeLogs(ctx context.Context, ld plog.Logs) error {
@@ -36,17 +34,10 @@ func (e *exp) ConsumeLogs(ctx context.Context, ld plog.Logs) error {
 					continue
 				}
 				if ret != nil {
-					id := "kubernetes/" + e.k8sClusterName + "/" + ret.Object.Identifier()
 					e.gee.Upsert(ctx, ret)
-					debugLog(id, ret)
 				}
 			}
 		}
 	}
 	return nil
-}
-
-func debugLog(id string, o any) {
-	b, _ := yaml.Marshal(o)
-	fmt.Printf("DEBUG: %s: %s\n", id, string(b))
 }

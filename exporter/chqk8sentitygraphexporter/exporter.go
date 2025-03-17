@@ -80,7 +80,7 @@ func (e *exp) Start(ctx context.Context, host component.Host) error {
 	e.gee = gee
 	e.gee.Start(ctx)
 
-	cconf := converterconfig.New().WithHashItems(e.k8sClusterName)
+	cconf := converterconfig.New(e.k8sClusterName).WithHashItems(e.k8sClusterName)
 	e.objecthandler = objecthandler.NewObjectHandler(cconf)
 
 	return nil

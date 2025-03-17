@@ -22,7 +22,7 @@ import (
 )
 
 func TestConfig_New(t *testing.T) {
-	cfg := New()
+	cfg := New("foo")
 	require.NotNil(t, cfg)
 	assert.Empty(t, cfg.HashItems)
 	assert.ElementsMatch(t, defaultIgnoredAnnotations, cfg.IgnoredAnnotations)
@@ -31,7 +31,7 @@ func TestConfig_New(t *testing.T) {
 }
 
 func TestConfig_WithHashItems(t *testing.T) {
-	cfg := New()
+	cfg := New("foo")
 	cfg = cfg.WithHashItems("item1", "item2")
 	assert.ElementsMatch(t, []string{"item1", "item2"}, cfg.HashItems)
 	cfg = cfg.WithHashItems("item3")
@@ -40,7 +40,7 @@ func TestConfig_WithHashItems(t *testing.T) {
 
 func TestConfig_WithIgnoredAnnotations(t *testing.T) {
 	offset := len(defaultIgnoredAnnotations)
-	cfg := New()
+	cfg := New("foo")
 	matcher := NewPrefixMatcher("example.com/")
 	cfg = cfg.WithIgnoredAnnotations(matcher)
 	assert.Len(t, cfg.IgnoredAnnotations, offset+1)
@@ -51,7 +51,7 @@ func TestConfig_WithIgnoredAnnotations(t *testing.T) {
 
 func TestConfig_WithIgnoredSecretNames(t *testing.T) {
 	offset := len(defaultIgnoredSecretNames)
-	cfg := New()
+	cfg := New("foo")
 	matcher := NewPrefixMatcher("secret-prefix-")
 	cfg = cfg.WithIgnoredSecretNames(matcher)
 	assert.Len(t, cfg.IgnoredSecretNames, offset+1)
@@ -62,7 +62,7 @@ func TestConfig_WithIgnoredSecretNames(t *testing.T) {
 
 func TestConfig_WithIgnoredConfigMapNames(t *testing.T) {
 	offset := len(defaultIgnoredConfigMapNames)
-	cfg := New()
+	cfg := New("foo")
 	matcher := NewPrefixMatcher("configmap-prefix-")
 	cfg = cfg.WithIgnoredConfigMapNames(matcher)
 	assert.Len(t, cfg.IgnoredConfigMapNames, offset+1)

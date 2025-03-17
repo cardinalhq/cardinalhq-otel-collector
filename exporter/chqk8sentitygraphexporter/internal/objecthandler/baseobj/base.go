@@ -24,11 +24,11 @@ type K8SObject interface {
 	GetBaseObject() *graphpb.BaseObject
 }
 
-func computeIdentifier(b *graphpb.BaseObject) string {
+func computeIdentifier(conf *converterconfig.Config, b *graphpb.BaseObject) string {
 	if b.Namespace == "" {
-		return b.ApiVersion + "/" + b.Kind + "/" + b.Name
+		return "kubernetes/" + conf.IDPrefix + "/" + b.ApiVersion + "/" + b.Kind + "/" + b.Name
 	}
-	return b.ApiVersion + "/" + b.Kind + "/" + b.Namespace + "/" + b.Name
+	return "kubernetes/" + conf.IDPrefix + "/" + b.ApiVersion + "/" + b.Kind + "/" + b.Namespace + "/" + b.Name
 }
 
 // OwnerRef is a struct that contains the owner reference fields for a k8s object.
@@ -54,7 +54,7 @@ func BaseFromUnstructured(config *converterconfig.Config, us unstructured.Unstru
 		Annotations:     filteredAnnotations(config, us.GetAnnotations()),
 		OwnerRef:        ownerrefsFromUnstructured(us),
 	}
-	pbb.Id = computeIdentifier(pbb)
+	pbb.Id = computeIdentifier(config, pbb)
 
 	return pbb
 }

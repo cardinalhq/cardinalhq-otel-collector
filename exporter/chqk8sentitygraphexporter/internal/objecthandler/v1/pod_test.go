@@ -449,7 +449,7 @@ func TestContainerSecretNamesFromVolumes(t *testing.T) {
 		},
 	}
 
-	conf := converterconfig.New()
+	conf := converterconfig.New("foo")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			seen := mapset.NewSet[string]()
@@ -598,7 +598,7 @@ func TestContainerConfigMapNamesFromVolumes(t *testing.T) {
 		},
 	}
 
-	conf := converterconfig.New()
+	conf := converterconfig.New("foo")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			seen := mapset.NewSet[string]()

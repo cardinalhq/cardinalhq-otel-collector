@@ -23,6 +23,7 @@ type Config struct {
 	IgnoredAnnotations    []StringMatcher
 	IgnoredSecretNames    []StringMatcher
 	IgnoredConfigMapNames []StringMatcher
+	IDPrefix              string
 }
 
 var (
@@ -51,12 +52,13 @@ var (
 // By default, secret names with the prefix "default-token-" are ignored.
 //
 // By default, configmap names with the literal value "kube-root-ca.crt" are ignored.
-func New() *Config {
+func New(clustername string) *Config {
 	c := &Config{
 		HashItems:             []string{},
 		IgnoredAnnotations:    defaultIgnoredAnnotations,
 		IgnoredSecretNames:    defaultIgnoredSecretNames,
 		IgnoredConfigMapNames: defaultIgnoredConfigMapNames,
+		IDPrefix:              clustername,
 	}
 	return c
 }

@@ -110,11 +110,10 @@ bin/cardinalhq-otel-collector: cardinalhq-otel-collector.yaml distribution/main.
 
 #
 # Multi-architecture image builds
-# requires goreleaser to be installed.
 #
 .PHONY: images
 images: buildfiles
-	GITHUB_TOKEN=dummytoken go run github.com/goreleaser/goreleaser/v2@latest
+	go tool goreleaser
 
 #
 # Test targets

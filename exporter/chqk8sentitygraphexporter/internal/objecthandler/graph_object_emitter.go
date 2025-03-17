@@ -195,7 +195,5 @@ func (e *graphEmitter) sendObjects(ctx context.Context) error {
 		return fmt.Errorf("unexpected status code %d", resp.StatusCode)
 	}
 
-	e.logger.Debug("Sending objects", zap.Int("count", len(toSend)))
-
 	return nil
 }

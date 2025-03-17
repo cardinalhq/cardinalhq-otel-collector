@@ -18,9 +18,10 @@ import (
 	"errors"
 	"slices"
 	"strings"
-	"time"
 
+	"github.com/cardinalhq/oteltools/pkg/graph/graphpb"
 	mapset "github.com/deckarep/golang-set/v2"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,34 +29,6 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
 )
-
-type PodSummary struct {
-	baseobj.BaseObject `json:",inline" yaml:",inline" mapstructure:",squash"`
-	Containers         []PodContainerSummary `json:"containers" yaml:"containers"`
-	HostIPs            []string              `json:"host_ips,omitempty" yaml:"host_ips,omitempty"`
-	PodIPs             []string              `json:"pod_ips,omitempty" yaml:"pod_ips,omitempty"`
-	Phase              string                `json:"phase" yaml:"phase"`
-	StartedAt          *time.Time            `json:"started_at,omitempty" yaml:"started_at,omitempty"`
-	PhaseMessage       string                `json:"pending_reason,omitempty" yaml:"pending_reason,omitempty"`
-	ServiceAccountName string                `json:"service_account_name,omitempty" yaml:"service_account_name,omitempty"`
-}
-
-type PodContainerSummary struct {
-	Name               string            `json:"name" yaml:"name"`
-	Image              ImageSummary      `json:"image" yaml:"image"`
-	Ready              bool              `json:"ready,omitempty" yaml:"ready,omitempty"`
-	Resources          map[string]string `json:"requests,omitempty" yaml:"requests,omitempty"`
-	ConfigMapNames     []string          `json:"config_map_names,omitempty" yaml:"config_map_names,omitempty"`
-	SecretNames        []string          `json:"secret_names,omitempty" yaml:"secret_names,omitempty"`
-	IsImagePullBackOff bool              `json:"is_image_pull_back_off,omitempty" yaml:"is_image_pull_back_off,omitempty"`
-	IsCrashLoopBackOff bool              `json:"is_crash_loop_back_off,omitempty" yaml:"is_crash_loop_back_off,omitempty"`
-	WasOOMKilled       bool              `json:"was_oom_killed,omitempty" yaml:"was_oom_killed,omitempty"`
-}
-
-type ImageSummary struct {
-	Image   string `json:"name,omitempty" yaml:"name,omitempty"`
-	ImageID string `json:"image_id,omitempty" yaml:"image_id,omitempty"`
-}
 
 func ConvertPod(config *converterconfig.Config, us unstructured.Unstructured) (baseobj.K8SObject, error) {
 	if us.GetKind() != "Pod" || us.GetAPIVersion() != "v1" {
@@ -67,7 +40,7 @@ func ConvertPod(config *converterconfig.Config, us unstructured.Unstructured) (b
 		return nil, err
 	}
 
-	podSummary := &PodSummary{
+	podSummary := &graphpb.PodSummary{
 		BaseObject:         baseobj.BaseFromUnstructured(config, us),
 		Phase:              string(pod.Status.Phase),
 		PhaseMessage:       pod.Status.Message,
@@ -76,23 +49,23 @@ func ConvertPod(config *converterconfig.Config, us unstructured.Unstructured) (b
 
 	if pod.Status.StartTime != nil {
 		t := pod.Status.StartTime.Time.UTC()
-		podSummary.StartedAt = &t
+		podSummary.StartedAt = timestamppb.New(t)
 	}
 
 	setupContainers(config, pod, podSummary)
 	updateContainersFromStatuses(pod, podSummary)
 
-	podSummary.HostIPs = hostIPs(pod)
-	podSummary.PodIPs = podIPs(pod)
+	podSummary.HostIps = hostIPs(pod)
+	podSummary.PodIps = podIPs(pod)
 
 	return podSummary, nil
 }
 
-func setupContainers(conf *converterconfig.Config, pod corev1.Pod, podSummary *PodSummary) {
+func setupContainers(conf *converterconfig.Config, pod corev1.Pod, podSummary *graphpb.PodSummary) {
 	for _, container := range pod.Spec.Containers {
-		podSummary.Containers = append(podSummary.Containers, PodContainerSummary{
+		podSummary.Containers = append(podSummary.Containers, &graphpb.PodContainerSummary{
 			Name: container.Name,
-			Image: ImageSummary{
+			Image: &graphpb.ImageSummary{
 				Image: container.Image,
 			},
 			Resources:      convertPodResources(container.Resources),
@@ -100,7 +73,7 @@ func setupContainers(conf *converterconfig.Config, pod corev1.Pod, podSummary *P
 			SecretNames:    containerSecretNames(conf, pod, container),
 		})
 	}
-	slices.SortFunc(podSummary.Containers, func(a, b PodContainerSummary) int {
+	slices.SortFunc(podSummary.Containers, func(a, b *graphpb.PodContainerSummary) int {
 		return strings.Compare(a.Name, b.Name)
 	})
 }
@@ -209,20 +182,20 @@ func convertPodResources(resources corev1.ResourceRequirements) map[string]strin
 	return requests
 }
 
-func updateContainersFromStatuses(pod corev1.Pod, podSummary *PodSummary) {
+func updateContainersFromStatuses(pod corev1.Pod, podSummary *graphpb.PodSummary) {
 	for _, status := range pod.Status.ContainerStatuses {
 		for i, container := range podSummary.Containers {
 			if container.Name == status.Name {
-				updateContainerFromStatus(&podSummary.Containers[i], status)
+				updateContainerFromStatus(podSummary.Containers[i], status)
 				break
 			}
 		}
 	}
 }
 
-func updateContainerFromStatus(containerSummary *PodContainerSummary, status corev1.ContainerStatus) {
+func updateContainerFromStatus(containerSummary *graphpb.PodContainerSummary, status corev1.ContainerStatus) {
 	// The actual image and imageID may be different that in the container spec.
-	containerSummary.Image.ImageID = status.ImageID
+	containerSummary.Image.ImageId = status.ImageID
 	if containerSummary.Image.Image != status.Image && status.Image != "" {
 		containerSummary.Image.Image = status.Image
 	}
@@ -237,7 +210,7 @@ func updateContainerFromStatus(containerSummary *PodContainerSummary, status cor
 	}
 	if status.LastTerminationState.Terminated != nil {
 		if status.LastTerminationState.Terminated.Reason == "OOMKilled" {
-			containerSummary.WasOOMKilled = true
+			containerSummary.WasOomKilled = true
 		}
 	}
 }

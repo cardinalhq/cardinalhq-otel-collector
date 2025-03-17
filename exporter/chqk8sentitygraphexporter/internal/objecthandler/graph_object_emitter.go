@@ -17,19 +17,20 @@ package objecthandler
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
 	"time"
 
+	"github.com/cardinalhq/oteltools/pkg/graph/graphpb"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
 )
 
 type GraphObjectEmitter interface {
 	Start(ctx context.Context)
 	Stop(ctx context.Context)
-	Upsert(ctx context.Context, object *PackagedObject) error
+	Upsert(ctx context.Context, object *graphpb.PackagedObject) error
 }
 
 type graphEmitter struct {
@@ -38,7 +39,7 @@ type graphEmitter struct {
 	interval   time.Duration
 	baseurl    string
 
-	submitChan chan *PackagedObject
+	submitChan chan *graphpb.PackagedObject
 	doneChan   chan struct{}
 	wg         sync.WaitGroup
 	objects    map[string]*WrappedObject
@@ -48,7 +49,7 @@ type graphEmitter struct {
 var _ GraphObjectEmitter = (*graphEmitter)(nil)
 
 type WrappedObject struct {
-	*PackagedObject
+	obj      *graphpb.PackagedObject
 	lastSent time.Time
 	lastSeen time.Time
 }
@@ -76,7 +77,7 @@ func NewGraphObjectEmitter(logger *zap.Logger, httpClient *http.Client, interval
 		interval:   interval,
 		baseurl:    baseurl + "/api/v1/servicegraph/objects",
 		doneChan:   make(chan struct{}),
-		submitChan: make(chan *PackagedObject, 1000),
+		submitChan: make(chan *graphpb.PackagedObject, 1000),
 		objects:    make(map[string]*WrappedObject),
 		expiry:     3 * interval,
 	}
@@ -106,16 +107,20 @@ func (e *graphEmitter) Start(ctx context.Context) {
 				if object == nil || object.Object == nil {
 					continue
 				}
-				id := object.Object.GetID()
+				bo := object.GetBaseObject()
+				if bo == nil {
+					continue
+				}
+				id := bo.GetId()
 				if old, found := e.objects[id]; found &&
-					old.Object.GetResourceVersion() == object.Object.GetResourceVersion() &&
-					old.Object.GetUID() == object.Object.GetUID() {
+					old.obj.GetBaseObject().GetResourceVersion() == bo.GetResourceVersion() &&
+					old.obj.GetBaseObject().GetUid() == bo.GetUid() {
 					old.markSeen(time.Now())
 					continue
 				}
 				e.objects[id] = &WrappedObject{
-					PackagedObject: object,
-					lastSeen:       time.Now(),
+					obj:      object,
+					lastSeen: time.Now(),
 				}
 			case <-ticker.C:
 				err := e.sendObjects(ctx)
@@ -140,7 +145,7 @@ func (e *graphEmitter) Stop(ctx context.Context) {
 // Upsert adds or updates an object in the emitter queue.
 // If the context is cancelled, the function returns immediately, and the
 // object is not added to the queue.
-func (e *graphEmitter) Upsert(ctx context.Context, object *PackagedObject) error {
+func (e *graphEmitter) Upsert(ctx context.Context, object *graphpb.PackagedObject) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -149,8 +154,8 @@ func (e *graphEmitter) Upsert(ctx context.Context, object *PackagedObject) error
 	}
 }
 
-func (e *graphEmitter) selectToSend() []*WrappedObject {
-	toSend := make([]*WrappedObject, 0, len(e.objects))
+func (e *graphEmitter) selectToSend() []*graphpb.PackagedObject {
+	toSend := make([]*graphpb.PackagedObject, 0, len(e.objects))
 	now := time.Now()
 	for k, obj := range e.objects {
 		if obj.expired(now, e.expiry) {
@@ -158,7 +163,7 @@ func (e *graphEmitter) selectToSend() []*WrappedObject {
 			continue
 		}
 		if obj.needsSend(now, e.expiry) {
-			toSend = append(toSend, obj)
+			toSend = append(toSend, obj.obj)
 			obj.markSent(now) // mark as sent even if we fail to send
 		}
 	}
@@ -174,8 +179,11 @@ func (e *graphEmitter) sendObjects(ctx context.Context) error {
 	if len(toSend) == 0 {
 		return nil
 	}
+	list := &graphpb.PackagedObjectList{
+		Items: toSend,
+	}
 
-	b, err := json.Marshal(toSend)
+	b, err := proto.Marshal(list)
 	if err != nil {
 		return err
 	}
@@ -186,6 +194,7 @@ func (e *graphEmitter) sendObjects(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	req.Header.Set("Content-Type", "application/x-protobuf")
 
 	resp, err := e.httpClient.Do(req)
 	if err != nil {

@@ -24,6 +24,7 @@ import (
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
+	"github.com/cardinalhq/oteltools/pkg/graph/graphpb"
 )
 
 func TestCalculateConfigMapDataHashes(t *testing.T) {
@@ -78,7 +79,7 @@ func TestConvertConfigMap(t *testing.T) {
 	tests := []struct {
 		name         string
 		unstructured unstructured.Unstructured
-		expected     *ConfigMapSummary
+		expected     *graphpb.ConfigMapSummary
 		expectError  bool
 	}{
 		{
@@ -100,7 +101,7 @@ func TestConvertConfigMap(t *testing.T) {
 					},
 				},
 			},
-			expected: &ConfigMapSummary{
+			expected: &graphpb.ConfigMapSummary{
 				Hashes: map[string]string{
 					"key1": "eYd97hG7rARdMGKc5IjCbjUNE0w0EXANHAVqy4ZVHv",
 					"key2": "iibpTb4YLxEyH2wOFRryq98jNDsf4qmV1pTajSij4ru",
@@ -128,7 +129,7 @@ func TestConvertConfigMap(t *testing.T) {
 					},
 				},
 			},
-			expected: &ConfigMapSummary{
+			expected: &graphpb.ConfigMapSummary{
 				Hashes: map[string]string{
 					"key1": "hsOrHqIlgamTqKUbnUjdYOSSP7HE8nz8qvKCbiMzeof",
 					"key2": "TWDQYhFAkA33uunaT868Yju65OJgYjdNffmjA296BmW",
@@ -180,7 +181,7 @@ func TestConvertConfigMap(t *testing.T) {
 					"data": map[string]any{},
 				},
 			},
-			expected: &ConfigMapSummary{
+			expected: &graphpb.ConfigMapSummary{
 				Hashes: nil,
 			},
 			expectError: false,

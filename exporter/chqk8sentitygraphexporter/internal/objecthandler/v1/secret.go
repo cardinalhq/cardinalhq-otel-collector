@@ -23,13 +23,8 @@ import (
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
+	"github.com/cardinalhq/oteltools/pkg/graph/graphpb"
 )
-
-type SecretSummary struct {
-	baseobj.BaseObject `json:",inline" yaml:",inline" mapstructure:",squash"`
-	Type               string            `json:"type,omitempty" yaml:"type,omitempty"`
-	Hashes             map[string]string `json:"hashes,omitempty" yaml:"hashes,omitempty"`
-}
 
 func ConvertSecret(config *converterconfig.Config, us unstructured.Unstructured) (baseobj.K8SObject, error) {
 	if us.GetKind() != "Secret" || us.GetAPIVersion() != "v1" {
@@ -46,7 +41,7 @@ func ConvertSecret(config *converterconfig.Config, us unstructured.Unstructured)
 		return nil, err
 	}
 
-	ss := &SecretSummary{
+	ss := &graphpb.SecretSummary{
 		BaseObject: baseobj.BaseFromUnstructured(config, us),
 		Type:       string(secret.Type),
 		Hashes:     calculateSecretDataHashes(secret),

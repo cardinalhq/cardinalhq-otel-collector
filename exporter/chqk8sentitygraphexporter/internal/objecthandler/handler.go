@@ -15,12 +15,15 @@
 package objecthandler
 
 import (
+	"fmt"
+
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
 	convertv1 "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/v1"
+	"github.com/cardinalhq/oteltools/pkg/graph/graphpb"
 )
 
 type ConverterFunc func(config *converterconfig.Config, us unstructured.Unstructured) (baseobj.K8SObject, error)
@@ -33,7 +36,7 @@ type objectSelector struct {
 type Converters map[objectSelector]ConverterFunc
 
 type ObjectHandler interface {
-	Feed(rlattr pcommon.Map, lattr pcommon.Map, bodyValue pcommon.Value) (*PackagedObject, error)
+	Feed(rlattr pcommon.Map, lattr pcommon.Map, bodyValue pcommon.Value) (*graphpb.PackagedObject, error)
 }
 
 type converterImpl struct {
@@ -62,7 +65,7 @@ func (h *converterImpl) installConverters() {
 // If the object is not recognized, no error will be returned but the PackagedObject will be nil.
 // Errors will only be returned if the object was of a type we know about, but for
 // some reason the content is invalid.
-func (h *converterImpl) Feed(rlattr pcommon.Map, lattr pcommon.Map, bodyValue pcommon.Value) (*PackagedObject, error) {
+func (h *converterImpl) Feed(rlattr pcommon.Map, lattr pcommon.Map, bodyValue pcommon.Value) (*graphpb.PackagedObject, error) {
 	// The k8sobjectsreceiver will always populate the log body as a map.
 	if bodyValue.Type() != pcommon.ValueTypeMap {
 		return nil, nil
@@ -86,10 +89,34 @@ func (h *converterImpl) Feed(rlattr pcommon.Map, lattr pcommon.Map, bodyValue pc
 	if converted == nil {
 		return nil, nil
 	}
-	result := &PackagedObject{
-		ResouceAttributes: rlattr.AsRaw(),
-		RecordAttributes:  lattr.AsRaw(),
-		Object:            converted,
+
+	rla := map[string]string{}
+	rlattr.Range(func(k string, v pcommon.Value) bool {
+		rla[k] = v.AsString()
+		return true
+	})
+
+	la := map[string]string{}
+	lattr.Range(func(k string, v pcommon.Value) bool {
+		la[k] = v.AsString()
+		return true
+	})
+
+	result := &graphpb.PackagedObject{
+		ResourceAttributes: rla,
+		RecordAttributes:   la,
+	}
+
+	switch s := converted.(type) {
+	case *graphpb.PodSummary:
+		result.Object = &graphpb.PackagedObject_PodSummary{PodSummary: s}
+	case *graphpb.SecretSummary:
+		result.Object = &graphpb.PackagedObject_SecretSummary{SecretSummary: s}
+	case *graphpb.ConfigMapSummary:
+		result.Object = &graphpb.PackagedObject_ConfigMapSummary{ConfigMapSummary: s}
+		// TODO: Add additional cases as new summary types are defined.
+	default:
+		return nil, fmt.Errorf("unknown summary type: %T", s)
 	}
 
 	return result, nil

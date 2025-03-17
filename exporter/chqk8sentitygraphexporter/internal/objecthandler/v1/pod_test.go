@@ -20,8 +20,10 @@ import (
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
+	"github.com/cardinalhq/oteltools/pkg/graph/graphpb"
 	mapset "github.com/deckarep/golang-set/v2"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -710,7 +712,7 @@ func TestConvertPod(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    unstructured.Unstructured
-		expected *PodSummary
+		expected *graphpb.PodSummary
 		wantErr  bool
 	}{
 		{
@@ -745,23 +747,26 @@ func TestConvertPod(t *testing.T) {
 					},
 				},
 			},
-			expected: &PodSummary{
-				BaseObject: baseobj.BaseObject{
+			expected: &graphpb.PodSummary{
+				BaseObject: &graphpb.BaseObject{
 					Name:      "test-pod",
 					Namespace: "default",
 				},
 				Phase:              "Running",
 				PhaseMessage:       "Pod is running",
 				ServiceAccountName: "test-service-account",
-				StartedAt:          func() *time.Time { t := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC); return &t }(),
-				Containers: []PodContainerSummary{
+				StartedAt: func() *timestamppb.Timestamp {
+					t := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+					return timestamppb.New(t)
+				}(),
+				Containers: []*graphpb.PodContainerSummary{
 					{
 						Name:  "test-container",
-						Image: ImageSummary{Image: "test-image"},
+						Image: &graphpb.ImageSummary{Image: "test-image"},
 					},
 				},
-				HostIPs: []string{"192.168.1.1"},
-				PodIPs:  []string{"10.0.0.1"},
+				HostIps: []string{"192.168.1.1"},
+				PodIps:  []string{"10.0.0.1"},
 			},
 			wantErr: false,
 		},
@@ -788,12 +793,12 @@ func TestConvertPod(t *testing.T) {
 					},
 				},
 			},
-			expected: &PodSummary{
+			expected: &graphpb.PodSummary{
 				Phase: "Pending",
-				Containers: []PodContainerSummary{
+				Containers: []*graphpb.PodContainerSummary{
 					{
 						Name:  "test-container",
-						Image: ImageSummary{Image: "test-image"},
+						Image: &graphpb.ImageSummary{Image: "test-image"},
 					},
 				},
 			},
@@ -831,7 +836,7 @@ func TestSetupContainers(t *testing.T) {
 	tests := []struct {
 		name     string
 		pod      corev1.Pod
-		expected []PodContainerSummary
+		expected []*graphpb.PodContainerSummary
 	}{
 		{
 			name: "Single container with resources, config maps, and secrets",
@@ -894,10 +899,10 @@ func TestSetupContainers(t *testing.T) {
 					},
 				},
 			},
-			expected: []PodContainerSummary{
+			expected: []*graphpb.PodContainerSummary{
 				{
 					Name:  "test-container",
-					Image: ImageSummary{Image: "test-image"},
+					Image: &graphpb.ImageSummary{Image: "test-image"},
 					Resources: map[string]string{
 						"requests.cpu":    "500m",
 						"requests.memory": "128Mi",
@@ -925,14 +930,14 @@ func TestSetupContainers(t *testing.T) {
 					},
 				},
 			},
-			expected: []PodContainerSummary{
+			expected: []*graphpb.PodContainerSummary{
 				{
 					Name:  "a-container",
-					Image: ImageSummary{Image: "a-image"},
+					Image: &graphpb.ImageSummary{Image: "a-image"},
 				},
 				{
 					Name:  "b-container",
-					Image: ImageSummary{Image: "b-image"},
+					Image: &graphpb.ImageSummary{Image: "b-image"},
 				},
 			},
 		},
@@ -950,7 +955,7 @@ func TestSetupContainers(t *testing.T) {
 	conf := &converterconfig.Config{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			podSummary := &PodSummary{}
+			podSummary := &graphpb.PodSummary{}
 			setupContainers(conf, tt.pod, podSummary)
 			assert.Equal(t, tt.expected, podSummary.Containers)
 		})

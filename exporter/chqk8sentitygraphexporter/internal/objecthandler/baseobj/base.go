@@ -16,47 +16,19 @@ package baseobj
 
 import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
+	"github.com/cardinalhq/oteltools/pkg/graph/graphpb"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 type K8SObject interface {
-	GetID() string
-	GetResourceVersion() string
-	GetUID() string
+	GetBaseObject() *graphpb.BaseObject
 }
 
-// BaseObject is a struct that contains the common fields for all k8s objects
-// that are used in the entity graph.
-type BaseObject struct {
-	ID              string            `json:"id" yaml:"id"`
-	APIVersion      string            `json:"api_version" yaml:"api_version"`
-	Kind            string            `json:"kind" yaml:"kind"`
-	Name            string            `json:"name" yaml:"name"`
-	UID             string            `json:"uid" yaml:"uid"`
-	ResourceVersion string            `json:"resource_version" yaml:"resource_version"`
-	Namespace       string            `json:"namespace,omitempty" yaml:"namespace,omitempty"`
-	Labels          map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
-	Annotations     map[string]string `json:"annotations,omitempty" yaml:"annotations,omitempty"`
-	OwnerRef        []OwnerRef        `json:"owner_ref,omitempty" yaml:"owner_ref,omitempty"`
-}
-
-func (b *BaseObject) GetID() string {
-	return b.ID
-}
-
-func (b *BaseObject) GetResourceVersion() string {
-	return b.ResourceVersion
-}
-
-func (b *BaseObject) GetUID() string {
-	return b.UID
-}
-
-func (b *BaseObject) computeIdentifier() string {
+func computeIdentifier(b *graphpb.BaseObject) string {
 	if b.Namespace == "" {
-		return b.APIVersion + "/" + b.Kind + "/" + b.Name
+		return b.ApiVersion + "/" + b.Kind + "/" + b.Name
 	}
-	return b.APIVersion + "/" + b.Kind + "/" + b.Namespace + "/" + b.Name
+	return b.ApiVersion + "/" + b.Kind + "/" + b.Namespace + "/" + b.Name
 }
 
 // OwnerRef is a struct that contains the owner reference fields for a k8s object.
@@ -70,11 +42,11 @@ type OwnerRef struct {
 }
 
 // BaseFromUnstructured is a function that converts an unstructured object to a BaseObject.
-func BaseFromUnstructured(config *converterconfig.Config, us unstructured.Unstructured) BaseObject {
-	b := BaseObject{
-		APIVersion:      us.GetAPIVersion(),
+func BaseFromUnstructured(config *converterconfig.Config, us unstructured.Unstructured) *graphpb.BaseObject {
+	pbb := &graphpb.BaseObject{
+		ApiVersion:      us.GetAPIVersion(),
 		Kind:            us.GetKind(),
-		UID:             string(us.GetUID()),
+		Uid:             string(us.GetUID()),
 		ResourceVersion: us.GetResourceVersion(),
 		Namespace:       us.GetNamespace(),
 		Name:            us.GetName(),
@@ -82,16 +54,16 @@ func BaseFromUnstructured(config *converterconfig.Config, us unstructured.Unstru
 		Annotations:     filteredAnnotations(config, us.GetAnnotations()),
 		OwnerRef:        ownerrefsFromUnstructured(us),
 	}
-	b.ID = b.computeIdentifier()
+	pbb.Id = computeIdentifier(pbb)
 
-	return b
+	return pbb
 }
 
-func ownerrefsFromUnstructured(us unstructured.Unstructured) []OwnerRef {
-	var ownerRefs []OwnerRef
+func ownerrefsFromUnstructured(us unstructured.Unstructured) []*graphpb.OwnerRef {
+	var ownerRefs []*graphpb.OwnerRef
 	for _, ownerRef := range us.GetOwnerReferences() {
-		o := OwnerRef{
-			APIVersion: ownerRef.APIVersion,
+		o := &graphpb.OwnerRef{
+			ApiVersion: ownerRef.APIVersion,
 			Kind:       ownerRef.Kind,
 			Name:       ownerRef.Name,
 		}

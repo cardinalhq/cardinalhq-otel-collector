@@ -24,12 +24,8 @@ import (
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
+	"github.com/cardinalhq/oteltools/pkg/graph/graphpb"
 )
-
-type ConfigMapSummary struct {
-	baseobj.BaseObject `json:",inline" yaml:",inline" mapstructure:",squash"`
-	Hashes             map[string]string `json:"hashes,omitempty" yaml:"hashes,omitempty"`
-}
 
 func ConvertConfigMap(config *converterconfig.Config, us unstructured.Unstructured) (baseobj.K8SObject, error) {
 	if us.GetKind() != "ConfigMap" || us.GetAPIVersion() != "v1" {
@@ -46,7 +42,7 @@ func ConvertConfigMap(config *converterconfig.Config, us unstructured.Unstructur
 		return nil, err
 	}
 
-	cms := &ConfigMapSummary{
+	cms := &graphpb.ConfigMapSummary{
 		BaseObject: baseobj.BaseFromUnstructured(config, us),
 		Hashes:     calculateConfigMapDataHashes(config.HashItems, cm),
 	}

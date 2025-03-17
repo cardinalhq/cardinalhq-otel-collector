@@ -991,3 +991,5 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/processor/chqexemplarpro
 replace github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
 
 replace github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver => github.com/cardinalhq/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver v0.0.0-20250203175806-8e7cb1880070
+
+replace github.com/expr-lang/expr v1.16.9 => github.com/expr-lang/expr v1.17.0

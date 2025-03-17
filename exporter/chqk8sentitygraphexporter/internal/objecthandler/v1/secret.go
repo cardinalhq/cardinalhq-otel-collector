@@ -27,6 +27,7 @@ import (
 
 type SecretSummary struct {
 	baseobj.BaseObject `json:",inline" yaml:",inline" mapstructure:",squash"`
+	Type               string            `json:"type,omitempty" yaml:"type,omitempty"`
 	Hashes             map[string]string `json:"hashes,omitempty" yaml:"hashes,omitempty"`
 }
 
@@ -47,6 +48,7 @@ func ConvertSecret(config *converterconfig.Config, us unstructured.Unstructured)
 
 	ss := &SecretSummary{
 		BaseObject: baseobj.BaseFromUnstructured(config, us),
+		Type:       string(secret.Type),
 		Hashes:     calculateSecretDataHashes(secret),
 	}
 

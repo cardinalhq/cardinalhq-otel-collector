@@ -34,7 +34,9 @@ func (e *exp) ConsumeLogs(ctx context.Context, ld plog.Logs) error {
 					continue
 				}
 				if ret != nil {
-					e.gee.Upsert(ctx, ret)
+					if err := e.gee.Upsert(ctx, ret); err != nil {
+						e.logger.Warn("failed to upsert object", zap.Error(err))
+					}
 				}
 			}
 		}

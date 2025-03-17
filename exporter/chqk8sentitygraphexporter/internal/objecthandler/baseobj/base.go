@@ -20,8 +20,9 @@ import (
 )
 
 type K8SObject interface {
-	Identifier() string
+	GetID() string
 	GetResourceVersion() string
+	GetUID() string
 }
 
 // BaseObject is a struct that contains the common fields for all k8s objects
@@ -39,7 +40,7 @@ type BaseObject struct {
 	OwnerRef        []OwnerRef        `json:"owner_ref,omitempty" yaml:"owner_ref,omitempty"`
 }
 
-func (b *BaseObject) Identifier() string {
+func (b *BaseObject) GetID() string {
 	return b.ID
 }
 
@@ -47,11 +48,15 @@ func (b *BaseObject) GetResourceVersion() string {
 	return b.ResourceVersion
 }
 
+func (b *BaseObject) GetUID() string {
+	return b.UID
+}
+
 func (b *BaseObject) computeIdentifier() string {
 	if b.Namespace == "" {
-		return b.APIVersion + "/" + b.Kind + "/" + b.Name + "/" + b.UID
+		return b.APIVersion + "/" + b.Kind + "/" + b.Name
 	}
-	return b.APIVersion + "/" + b.Kind + "/" + b.Namespace + "/" + b.Name + "/" + b.UID
+	return b.APIVersion + "/" + b.Kind + "/" + b.Namespace + "/" + b.Name
 }
 
 // OwnerRef is a struct that contains the owner reference fields for a k8s object.

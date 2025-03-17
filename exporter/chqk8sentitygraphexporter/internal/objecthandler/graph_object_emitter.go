@@ -106,8 +106,10 @@ func (e *graphEmitter) Start(ctx context.Context) {
 				if object == nil || object.Object == nil {
 					continue
 				}
-				id := object.Object.Identifier()
-				if old, found := e.objects[id]; found && old.Object.GetResourceVersion() == object.Object.GetResourceVersion() {
+				id := object.Object.GetID()
+				if old, found := e.objects[id]; found &&
+					old.Object.GetResourceVersion() == object.Object.GetResourceVersion() &&
+					old.Object.GetUID() == object.Object.GetUID() {
 					old.markSeen(time.Now())
 					continue
 				}

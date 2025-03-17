@@ -105,10 +105,12 @@ func (e *graphEmitter) Start(ctx context.Context) {
 				return
 			case object := <-e.submitChan:
 				if object == nil || object.Object == nil {
+					e.logger.Debug("Received nil object")
 					continue
 				}
 				bo := object.GetBaseObject()
 				if bo == nil {
+					e.logger.Debug("Received object with nil base object")
 					continue
 				}
 				id := bo.GetId()
@@ -116,12 +118,14 @@ func (e *graphEmitter) Start(ctx context.Context) {
 					old.obj.GetBaseObject().GetResourceVersion() == bo.GetResourceVersion() &&
 					old.obj.GetBaseObject().GetUid() == bo.GetUid() {
 					old.markSeen(time.Now())
+					e.logger.Debug("Received object with same resource version and UID", zap.String("id", id))
 					continue
 				}
 				e.objects[id] = &WrappedObject{
 					obj:      object,
 					lastSeen: time.Now(),
 				}
+				e.logger.Debug("Upsert object", zap.String("id", id))
 			case <-ticker.C:
 				err := e.sendObjects(ctx)
 				if err != nil {

@@ -48,7 +48,7 @@ type graphEmitter struct {
 var _ GraphObjectEmitter = (*graphEmitter)(nil)
 
 type WrappedObject struct {
-	PackagedObject
+	*PackagedObject
 	lastSent time.Time
 	lastSeen time.Time
 }
@@ -97,6 +97,7 @@ func (e *graphEmitter) Start(ctx context.Context) {
 		defer e.wg.Done()
 		ticker := time.NewTicker(e.interval)
 		defer ticker.Stop()
+
 		for {
 			select {
 			case <-e.doneChan:
@@ -111,13 +112,13 @@ func (e *graphEmitter) Start(ctx context.Context) {
 					continue
 				}
 				e.objects[id] = &WrappedObject{
-					PackagedObject: *object,
+					PackagedObject: object,
 					lastSeen:       time.Now(),
 				}
 			case <-ticker.C:
 				err := e.sendObjects(ctx)
 				if err != nil {
-					e.logger.Error("Failed to send objects", zap.Error(err))
+					e.logger.Info("Failed to send objects", zap.Any("error", err))
 				}
 			}
 		}

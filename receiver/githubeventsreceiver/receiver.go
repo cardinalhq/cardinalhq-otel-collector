@@ -102,7 +102,6 @@ func (g *githubEventsReceiver) Start(ctx context.Context, host component.Host) e
 		if err := g.server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			componentstatus.ReportStatus(host, componentstatus.NewFatalErrorEvent(err))
 		}
-
 	}()
 
 	return nil

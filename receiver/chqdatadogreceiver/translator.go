@@ -184,7 +184,6 @@ func translateDataDogKeyToOtel(k string) string {
 	default:
 		return k
 	}
-
 }
 
 func handlePayload(req *http.Request) (tp []*pb.TracerPayload, err error) {

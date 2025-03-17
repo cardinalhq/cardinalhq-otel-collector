@@ -102,6 +102,10 @@ func toMetricExemplar(rm pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, mm pm
 			ccd := newExponentialHistogram.DataPoints().AppendEmpty()
 			dp.CopyTo(ccd)
 		}
+	case pmetric.MetricTypeEmpty:
+		// do nothing
+	default:
+		// do nothing
 	}
 	return exemplarRecord
 }

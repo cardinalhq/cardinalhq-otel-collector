@@ -32,6 +32,8 @@ ALLGOFILES = $(shell find ${MODULE_SOURCE_PATHS} -name '*.go')
 
 all_deps := $(shell find . -name '*.yaml') Dockerfile Makefile distribution/main.go ${SUMFILES} $(ALLGOFILES)
 
+CURRENT_DIR := $(shell pwd)
+
 #
 # Default target.
 #
@@ -57,30 +59,40 @@ fmt:
 #
 # Run pre-commit checks
 #
+.PHONY: check
 check: test license-check lint
 
-license-check:
-	license-eye header check
+.PHONY: license-check
+license-check: tidy-dot
+	go tool license-eye header check
 
+.PHONY: lint
 lint:
 	for i in $(MODULE_SOURCE_PATHS); do \
-		(echo ============ linting $$i ... ; cd $$i && golangci-lint run) || exit 1; \
+	  (echo ============ linting $$i ... ; cd $$i && golangci-lint run --config ${CURRENT_DIR}/.golangci.yaml) || exit 1; \
 	done
 
+.PHONY: update-deps
 update-deps:
-	for i in $(MODULE_SOURCE_PATHS); do \
+	for i in . $(MODULE_SOURCE_PATHS); do \
 		(echo ============ updating $$i ... ; cd $$i && go get -u ./... && go mod tidy) || exit 1; \
 	done
 
+.PHONY: update-oteltools
 update-oteltools:
 	for i in $(MODULE_SOURCE_PATHS); do \
 		(echo ============ updating $$i ... ; cd $$i && go get -u github.com/cardinalhq/oteltools && go mod tidy) || exit 1; \
 	done
 
+.PHONY: tidy
 tidy:
-	for i in $(MODULE_SOURCE_PATHS); do \
+	for i in . $(MODULE_SOURCE_PATHS); do \
 		(echo ============ go tidy in $$i ... ; cd $$i && go mod tidy) || exit 1; \
 	done
+
+.PHONY: tidy-dot
+tidy-dot:
+	go mod tidy
 
 .PHONY: buildfiles
 buildfiles: ${SUMFILES} distribution/main.go

@@ -96,11 +96,11 @@ func (ddr *datadogReceiver) processMetricsV2(ctx context.Context, apikey string,
 }
 
 func (ddr *datadogReceiver) recordAgeForMetrics(ctx context.Context, m *pmetric.Metrics, now time.Time, apiversion string) {
-	for i := 0; i < m.ResourceMetrics().Len(); i++ {
+	for i := range m.ResourceMetrics().Len() {
 		rm := m.ResourceMetrics().At(i)
-		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
+		for j := range rm.ScopeMetrics().Len() {
 			imm := rm.ScopeMetrics().At(j)
-			for k := 0; k < imm.Metrics().Len(); k++ {
+			for k := range imm.Metrics().Len() {
 				m := imm.Metrics().At(k)
 				var ts time.Time
 				switch m.Type() {
@@ -114,6 +114,11 @@ func (ddr *datadogReceiver) recordAgeForMetrics(ctx context.Context, m *pmetric.
 					ts = m.Summary().DataPoints().At(0).Timestamp().AsTime()
 				case pmetric.MetricTypeExponentialHistogram:
 					ts = m.ExponentialHistogram().DataPoints().At(0).Timestamp().AsTime()
+				case pmetric.MetricTypeEmpty:
+					continue
+				default:
+					ddr.metricLogger.Warn("unknown metric type", zap.String("type", m.Type().String()))
+					continue
 				}
 				age := now.Sub(ts)
 				incomingClientID, incomingCollectorID := getClientIDs(ctx)

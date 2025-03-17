@@ -38,7 +38,7 @@ func (p *statsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics)
 
 	ee := authenv.GetEnvironment(ctx, p.idSource)
 
-	for i := 0; i < md.ResourceMetrics().Len(); i++ {
+	for i := range md.ResourceMetrics().Len() {
 		rm := md.ResourceMetrics().At(i)
 		serviceName := getServiceName(rm.Resource().Attributes())
 		rattr := rm.Resource().Attributes()
@@ -46,10 +46,10 @@ func (p *statsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics)
 		collectorId := CollectorIdFromResource(rattr)
 		tenant := p.getTenant(cid)
 
-		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
+		for j := range rm.ScopeMetrics().Len() {
 			ilm := rm.ScopeMetrics().At(j)
 			sattr := ilm.Scope().Attributes()
-			for k := 0; k < ilm.Metrics().Len(); k++ {
+			for k := range ilm.Metrics().Len() {
 				m := ilm.Metrics().At(k)
 				metricName := m.Name()
 
@@ -64,30 +64,34 @@ func (p *statsProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics)
 				extra := map[string]string{"name": m.Name()}
 				switch m.Type() {
 				case pmetric.MetricTypeGauge:
-					for l := 0; l < m.Gauge().DataPoints().Len(); l++ {
+					for l := range m.Gauge().DataPoints().Len() {
 						dp := m.Gauge().DataPoints().At(l)
 						p.processDatapoint(tenant, cid, collectorId, metricName, pmetric.MetricTypeGauge.String(), serviceName, extra, rattr, sattr, dp.Attributes(), ee)
 					}
 				case pmetric.MetricTypeSum:
-					for l := 0; l < m.Sum().DataPoints().Len(); l++ {
+					for l := range m.Sum().DataPoints().Len() {
 						dp := m.Sum().DataPoints().At(l)
 						p.processDatapoint(tenant, cid, collectorId, metricName, pmetric.MetricTypeSum.String(), serviceName, extra, rattr, sattr, dp.Attributes(), ee)
 					}
 				case pmetric.MetricTypeHistogram:
-					for l := 0; l < m.Histogram().DataPoints().Len(); l++ {
+					for l := range m.Histogram().DataPoints().Len() {
 						dp := m.Histogram().DataPoints().At(l)
 						p.processDatapoint(tenant, cid, collectorId, metricName, pmetric.MetricTypeHistogram.String(), serviceName, extra, rattr, sattr, dp.Attributes(), ee)
 					}
 				case pmetric.MetricTypeSummary:
-					for l := 0; l < m.Summary().DataPoints().Len(); l++ {
+					for l := range m.Summary().DataPoints().Len() {
 						dp := m.Summary().DataPoints().At(l)
 						p.processDatapoint(tenant, cid, collectorId, metricName, pmetric.MetricTypeSummary.String(), serviceName, extra, rattr, sattr, dp.Attributes(), ee)
 					}
 				case pmetric.MetricTypeExponentialHistogram:
-					for l := 0; l < m.ExponentialHistogram().DataPoints().Len(); l++ {
+					for l := range m.ExponentialHistogram().DataPoints().Len() {
 						dp := m.ExponentialHistogram().DataPoints().At(l)
 						p.processDatapoint(tenant, cid, collectorId, metricName, pmetric.MetricTypeExponentialHistogram.String(), serviceName, extra, rattr, sattr, dp.Attributes(), ee)
 					}
+				case pmetric.MetricTypeEmpty:
+					// Do nothing
+				default:
+					p.logger.Error("Unknown metric type", zap.String("type", m.Type().String()))
 				}
 			}
 		}
@@ -224,6 +228,10 @@ func toExemplar(rm pmetric.ResourceMetrics, sm pmetric.ScopeMetrics, mm pmetric.
 			ccd := newExponentialHistogram.DataPoints().AppendEmpty()
 			dp.CopyTo(ccd)
 		}
+	case pmetric.MetricTypeEmpty:
+		// Do nothing
+	default:
+		// Do nothing
 	}
 	return exemplarLm
 }

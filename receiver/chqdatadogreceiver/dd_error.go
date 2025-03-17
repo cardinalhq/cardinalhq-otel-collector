@@ -16,8 +16,9 @@ package datadogreceiver
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"net/http"
+	"strconv"
 )
 
 type DDErrorWrapper struct {
@@ -32,13 +33,13 @@ type DDError struct {
 
 func writeError(w http.ResponseWriter, code int, err error) {
 	if err == nil {
-		err = fmt.Errorf("%s", http.StatusText(code))
+		err = errors.New(http.StatusText(code))
 	}
 	e := DDErrorWrapper{
 		Errors: []DDError{
 			{
 				Detail: err.Error(),
-				Status: fmt.Sprintf("%d", code),
+				Status: strconv.Itoa(code),
 				Title:  http.StatusText(code),
 			},
 		},

@@ -80,7 +80,7 @@ func (b *Boxer) tooOld(ts time.Time) bool {
 
 func (b *Boxer) intervalTooOld(now time.Time, interval int64) bool {
 	currentInterval := b.IntervalForTime(now.Add(-b.grace))
-	return interval < currentInterval-int64(b.intervalCount)
+	return interval < currentInterval-b.intervalCount
 }
 
 func (b *Boxer) ForEach(interval int64, scope string, fn BoxerForEachFunc) error {

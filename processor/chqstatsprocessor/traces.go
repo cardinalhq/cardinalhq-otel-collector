@@ -61,7 +61,7 @@ func (p *statsProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) (p
 	return td, nil
 }
 
-func toSize(attributes map[string]interface{}) int64 {
+func toSize(attributes map[string]any) int64 {
 	var size int64 = 0
 	for key, value := range attributes {
 		size += int64(len(key) + len(fmt.Sprintf("%v", value)))

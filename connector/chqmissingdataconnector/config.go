@@ -15,6 +15,7 @@
 package chqmissingdataconnector
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -33,6 +34,14 @@ var (
 	}
 	defaultMetricName          = "missingdata.age"
 	defaultMetricNameAttribute = "missingdata.metric.name"
+
+	errMaximumAgeTooSmall           = errors.New("maximum_age must be greater than 1 minute")
+	errIntervalTooSmall             = errors.New("interval must be greater than 1 second")
+	errMetricNameEmpty              = errors.New("metric_name must not be empty")
+	errMetricNameAttributeEmpty     = errors.New("metric_name_attribute must not be empty")
+	errMetricsNotEmptyWithExtension = errors.New("metrics must be empty when configuration_extension is set")
+	errMetricNameDuplicate          = "duplicate metric name: %s"
+	errMetricNameEmptyInList        = "metric name must not be empty: %d"
 )
 
 // Config defines configuration for the CardinalHQ Missing Data Connector.
@@ -58,16 +67,16 @@ func (c *Config) Validate() error {
 	var errs error
 
 	if c.MaximumAge <= 1*time.Minute {
-		errs = multierr.Append(errs, fmt.Errorf("maximum_age must be greater than 1 minute"))
+		errs = multierr.Append(errs, errMaximumAgeTooSmall)
 	}
 	if c.Interval <= 1*time.Second {
-		errs = multierr.Append(errs, fmt.Errorf("interval must be greater than 1 second"))
+		errs = multierr.Append(errs, errIntervalTooSmall)
 	}
 	if c.MetricName == "" {
-		errs = multierr.Append(errs, fmt.Errorf("metric_name must not be empty"))
+		errs = multierr.Append(errs, errMetricNameEmpty)
 	}
 	if c.MetricNameAttribute == "" {
-		errs = multierr.Append(errs, fmt.Errorf("metric_name_attribute must not be empty"))
+		errs = multierr.Append(errs, errMetricNameAttributeEmpty)
 	}
 
 	if c.ConfigurationExtension == nil {
@@ -76,7 +85,7 @@ func (c *Config) Validate() error {
 		}
 	} else {
 		if len(c.Metrics) > 0 {
-			errs = multierr.Append(errs, fmt.Errorf("metrics must be empty when configuration_extension is set"))
+			errs = multierr.Append(errs, errMetricsNotEmptyWithExtension)
 		}
 		c.ResourceAttributesToCopy = append(c.ResourceAttributesToCopy, translate.CardinalFieldCustomerID)
 	}
@@ -90,11 +99,11 @@ func (c *Config) validateMetrics() error {
 	foundNames := make(map[string]struct{}, len(c.Metrics))
 	for i, metric := range c.Metrics {
 		if metric.Name == "" {
-			errs = multierr.Append(errs, fmt.Errorf("metric name must not be empty: %d", i))
+			errs = multierr.Append(errs, fmt.Errorf(errMetricNameEmptyInList, i))
 			continue
 		}
 		if _, found := foundNames[metric.Name]; found {
-			errs = multierr.Append(errs, fmt.Errorf("duplicate metric name: %s", metric.Name))
+			errs = multierr.Append(errs, fmt.Errorf(errMetricNameDuplicate, metric.Name))
 		}
 	}
 

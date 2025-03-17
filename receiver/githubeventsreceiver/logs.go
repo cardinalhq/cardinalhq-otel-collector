@@ -27,7 +27,7 @@ const (
 	eventTypeWorkflowJob = "github.event.workflow.job"
 )
 
-func createLogs(eventType interface{}, payload []byte) plog.Logs {
+func createLogs(eventType any, payload []byte) plog.Logs {
 	switch event := eventType.(type) {
 	case *github.WorkflowJobEvent:
 		return createLogsWorkflowJobEvent(event, payload)

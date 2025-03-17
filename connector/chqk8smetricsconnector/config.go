@@ -15,7 +15,7 @@
 package chqk8smetricsconnector
 
 import (
-	"fmt"
+	"errors"
 	"time"
 
 	"go.opentelemetry.io/collector/config/confighttp"
@@ -25,8 +25,8 @@ import (
 var (
 	defaultEventsReportingInterval = 5 * time.Minute
 
-	errInvalidEventsReportingInterval = fmt.Errorf("events.interval must be greater than or equal to 1m")
-	errInvalidEndpoint                = fmt.Errorf("events.endpoint must be specified")
+	errInvalidEventsReportingInterval = errors.New("events.interval must be greater than or equal to 1m")
+	errInvalidEndpoint                = errors.New("events.endpoint must be specified")
 )
 
 // Config defines configuration for the CardinalHQ Kubernetes Metrics Connector.

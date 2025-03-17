@@ -34,7 +34,7 @@ func TestGobEncoding(t *testing.T) {
 		"k_bool":            true,
 		"k_int_slice":       []int{1, 2, 3},
 		"k_string_slice":    []string{"a", "b", "c"},
-		"k_interface_slice": []interface{}{},
+		"k_interface_slice": []any{},
 	}
 
 	b, err := gobEncode(tags)
@@ -53,5 +53,5 @@ func TestGobEncoding(t *testing.T) {
 	assert.Equal(t, true, decoded["k_bool"])
 	assert.Equal(t, []int{1, 2, 3}, decoded["k_int_slice"])
 	assert.Equal(t, []string{"a", "b", "c"}, decoded["k_string_slice"])
-	assert.Equal(t, []interface{}(nil), decoded["k_interface_slice"])
+	assert.Equal(t, []any(nil), decoded["k_interface_slice"])
 }

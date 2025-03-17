@@ -80,6 +80,10 @@ func (p *exemplarProcessor) getTenant(organizationID string) *Tenant {
 				p.config.Reporting.Traces.Expiry,
 				p.config.Reporting.Traces.Interval,
 				sendExemplars[ptrace.Traces](p, organizationID, p.id.Name()))
+		case signalnames.Profiles:
+			// Do nothing
+		default:
+			// Do nothing
 		}
 		return tenant, nil
 	})
@@ -127,7 +131,6 @@ func getFromResource(attr pcommon.Map, key string) string {
 		return "unknown"
 	}
 	return clusterVal.AsString()
-
 }
 
 func computeExemplarKey(rl pcommon.Resource, extraKeys []string) ([]string, int64) {

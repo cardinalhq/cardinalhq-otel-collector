@@ -5,9 +5,9 @@ package datadogreceiver // import "github.com/open-telemetry/opentelemetry-colle
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"testing"
 
 	pb "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
@@ -71,7 +71,6 @@ func getTraces(t *testing.T) (traces pb.Traces) {
 		t.Fatal(err)
 	}
 	return traces
-
 }
 
 func TestTracePayloadV05Unmarshalling(t *testing.T) {
@@ -170,12 +169,13 @@ func TestTracePayloadApiV02Unmarshalling(t *testing.T) {
 func agentPayloadFromTraces(traces *pb.Traces) (agentPayload pb.AgentPayload) {
 	numberOfTraces := 2
 	var tracerPayloads []*pb.TracerPayload
-	for i := 0; i < numberOfTraces; i++ {
+	for i := range numberOfTraces {
+		si := strconv.Itoa(i)
 		payload := &pb.TracerPayload{
-			LanguageName:    fmt.Sprintf("%d", i),
-			LanguageVersion: fmt.Sprintf("%d", i),
+			LanguageName:    si,
+			LanguageVersion: si,
 			Chunks:          traceChunksFromTraces(*traces),
-			TracerVersion:   fmt.Sprintf("%d", i),
+			TracerVersion:   si,
 		}
 		tracerPayloads = append(tracerPayloads, payload)
 	}

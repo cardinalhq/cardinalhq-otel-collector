@@ -273,6 +273,7 @@ func (c *md) ConsumeMetrics(_ context.Context, md pmetric.Metrics) error {
 						dphash := hashAttributes(dpattrs)
 						uniqueDatapoints[dphash] = dpattrs
 					}
+				case pmetric.MetricTypeEmpty:
 				}
 
 				for _, dpattr := range uniqueDatapoints {

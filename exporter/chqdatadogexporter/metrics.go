@@ -60,6 +60,7 @@ func (e *datadogExporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics
 					//
 				case pmetric.MetricTypeSummary:
 					//
+				case pmetric.MetricTypeEmpty:
 				}
 			}
 		}
@@ -80,6 +81,8 @@ func valueAsFloat64(dp pmetric.NumberDataPoint) float64 {
 		return dp.DoubleValue()
 	case pmetric.NumberDataPointValueTypeInt:
 		return float64(dp.IntValue())
+	case pmetric.NumberDataPointValueTypeEmpty:
+		return 0
 	}
 	return 0
 }

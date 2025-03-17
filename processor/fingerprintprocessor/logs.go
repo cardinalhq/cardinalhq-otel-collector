@@ -36,23 +36,20 @@ func getServiceName(r pcommon.Map) string {
 }
 
 func (p *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error) {
-
-	for i := 0; i < ld.ResourceLogs().Len(); i++ {
+	for i := range ld.ResourceLogs().Len() {
 		rl := ld.ResourceLogs().At(i)
 		cid := OrgIdFromResource(rl.Resource().Attributes())
 		tenant := p.getTenant(cid)
-		for j := 0; j < rl.ScopeLogs().Len(); j++ {
+		for j := range rl.ScopeLogs().Len() {
 			sl := rl.ScopeLogs().At(j)
-			for k := 0; k < sl.LogRecords().Len(); k++ {
+			for k := range sl.LogRecords().Len() {
 				lr := sl.LogRecords().At(k)
 				fingerprint, levelfromFingerprinter, err := p.addTokenFields(tenant, lr)
 				if err != nil {
 					p.logger.Debug("Error fingerprinting log", zap.Error(err))
 					continue
 				}
-
 				lr.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)
-
 				if lr.SeverityText() == "" || lr.SeverityText() == plog.SeverityNumberUnspecified.String() || lr.SeverityNumber() == plog.SeverityNumberUnspecified {
 					lr.SetSeverityText(strings.ToUpper(levelfromFingerprinter))
 				}

@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -203,6 +204,10 @@ func (chq *chqServerAuth) callValidateAPI(ctx context.Context, apiKey, collector
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		_, _ = io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, errDenied

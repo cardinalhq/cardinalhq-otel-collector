@@ -38,9 +38,9 @@ func NewFactory() processor.Factory {
 }
 
 const (
-	defaultStatisticsInterval = 15 * time.Minute
-	defaultExpiry             = defaultStatisticsInterval * 2
-	defaultLRUCacheSize       = 1000
+	defaultReportingInterval = 15 * time.Minute
+	defaultExpiry            = defaultReportingInterval * 2
+	defaultLRUCacheSize      = 1000
 )
 
 func createDefaultConfig() component.Config {
@@ -48,19 +48,19 @@ func createDefaultConfig() component.Config {
 		Reporting: ReportingConfig{
 			Metrics: EnabledOption{
 				Enabled:   true,
-				Interval:  defaultStatisticsInterval,
+				Interval:  defaultReportingInterval,
 				Expiry:    defaultExpiry,
 				CacheSize: defaultLRUCacheSize,
 			},
 			Logs: EnabledOption{
 				Enabled:   true,
-				Interval:  defaultStatisticsInterval,
+				Interval:  defaultReportingInterval,
 				Expiry:    defaultExpiry,
 				CacheSize: defaultLRUCacheSize,
 			},
 			Traces: EnabledOption{
 				Enabled:   true,
-				Interval:  defaultStatisticsInterval,
+				Interval:  defaultReportingInterval,
 				Expiry:    defaultExpiry,
 				CacheSize: defaultLRUCacheSize,
 			},

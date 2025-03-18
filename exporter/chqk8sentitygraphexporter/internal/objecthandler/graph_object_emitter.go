@@ -50,16 +50,7 @@ var _ GraphObjectEmitter = (*graphEmitter)(nil)
 
 type WrappedObject struct {
 	obj      *graphpb.PackagedObject
-	lastSent time.Time
 	lastSeen time.Time
-}
-
-func (w *WrappedObject) needsSend(now time.Time, maxage time.Duration) bool {
-	return now.Sub(w.lastSent) > maxage
-}
-
-func (w *WrappedObject) markSent(now time.Time) {
-	w.lastSent = now
 }
 
 func (w *WrappedObject) markSeen(now time.Time) {
@@ -79,7 +70,7 @@ func NewGraphObjectEmitter(logger *zap.Logger, httpClient *http.Client, interval
 		doneChan:   make(chan struct{}),
 		submitChan: make(chan *graphpb.PackagedObject, 1000),
 		objects:    make(map[string]*WrappedObject),
-		expiry:     3 * interval,
+		expiry:     2 * interval,
 	}
 
 	logger.Debug("Created new graph object emitter",
@@ -164,10 +155,7 @@ func (e *graphEmitter) selectToSend() []*graphpb.PackagedObject {
 			delete(e.objects, k)
 			continue
 		}
-		if obj.needsSend(now, e.expiry) {
-			toSend = append(toSend, obj.obj)
-			obj.markSent(now) // mark as sent even if we fail to send
-		}
+		toSend = append(toSend, obj.obj)
 	}
 	return toSend
 }

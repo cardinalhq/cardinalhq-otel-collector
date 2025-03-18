@@ -60,6 +60,7 @@ type Tenant struct {
 
 func (p *exemplarProcessor) getTenant(organizationID string) *Tenant {
 	tenant, _ := p.tenants.LoadOrStore(organizationID, func() (*Tenant, error) {
+		p.logger.Info("Creating new tenant", zap.String("organization_id", organizationID))
 		tenant := &Tenant{}
 		switch p.ttype {
 		case signalnames.Logs:

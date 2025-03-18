@@ -127,6 +127,8 @@ func (p *exemplarProcessor) sendBatchAsync(cid string, telemetryType signalnames
 func (p *exemplarProcessor) postBatch(ctx context.Context, telemetryType signalnames.Name, report *ExemplarPublishReport) error {
 	endpoint := fmt.Sprintf("%s/api/v1/exemplars/%s", p.config.Endpoint, telemetryType)
 
+	p.logger.Info("Sending exemplars", zap.String("endpoint", endpoint), zap.String("organization_id", report.OrganizationID), zap.Int("exemplar_count", len(report.Exemplars)))
+
 	marshalled, err := json.Marshal(report)
 	if err != nil {
 		return fmt.Errorf("failed to marshal batch: %w", err)

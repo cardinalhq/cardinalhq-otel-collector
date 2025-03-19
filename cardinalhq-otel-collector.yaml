@@ -226,6 +226,8 @@ extensions:
     path: ./extension/chqconfigextension
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.121.0
     path: ./extension/chqtagcacheextension
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention v0.121.0
+    path: ./extension/chqsyntheticsextention
 
 processors:
   - gomod: go.opentelemetry.io/collector/processor/batchprocessor v0.121.0

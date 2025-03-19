@@ -17,6 +17,7 @@ package aggregationprocessor
 import (
 	"context"
 	"fmt"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 	"strconv"
 	"time"
 
@@ -218,7 +219,18 @@ func (p *aggregationProcessor) aggregateGaugeDatapoint(rms pmetric.ResourceMetri
 		"metric.description":        metric.Description(),
 		"metric.unit":               metric.Unit(),
 	}
-	return p.aggregateDatapoint(ottl.AggregationTypeAvg, rms, ils, metric, dp, metadata)
+
+	aggregationTypeStr, aggregationTypeFound := dp.Attributes().Get(translate.CardinalFieldAggregationType)
+	var aggregationType = ottl.AggregationTypeAvg
+
+	if aggregationTypeFound {
+		parsed, err := ottl.ParseAggregationType(aggregationTypeStr.Str())
+		if err == nil {
+			aggregationType = parsed
+		}
+	}
+
+	return p.aggregateDatapoint(aggregationType, rms, ils, metric, dp, metadata)
 }
 
 func (p *aggregationProcessor) aggregateSumDatapoint(rms pmetric.ResourceMetrics, ils pmetric.ScopeMetrics, metric pmetric.Metric, dp pmetric.NumberDataPoint) bool {

@@ -177,6 +177,8 @@ func (c *md) buildMetrics(emitList []*stamp) pmetric.Metrics {
 			continue
 		}
 		dp, _, _ := m.Datapoint(stamp.DatapointAttributes, nowTimestamp)
+		dp.Attributes().PutBool(translate.CardinalFieldAggregate, true)
+		dp.Attributes().PutStr(translate.CardinalFieldAggregationType, ottl.AggregationTypeMin.String())
 		dp.SetDoubleValue(now.Sub(stamp.LastSeen).Seconds())
 	}
 
@@ -292,8 +294,6 @@ func (c *md) ConsumeMetrics(_ context.Context, md pmetric.Metrics) error {
 
 func (c *md) addMetricNameAttribute(attrs pcommon.Map, metricName string) {
 	attrs.PutStr(c.config.MetricNameAttribute, metricName)
-	attrs.PutBool(translate.CardinalFieldAggregate, true)
-	attrs.PutStr(translate.CardinalFieldAggregationType, ottl.AggregationTypeMin.String())
 }
 
 func filteredAttributes(attrs pcommon.Map, keys []string) pcommon.Map {

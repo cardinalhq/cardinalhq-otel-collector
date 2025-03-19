@@ -7,11 +7,9 @@ import (
 )
 
 var (
-	Type = component.MustNewType("chqdatadog")
+	Type = component.MustNewType("chqsynthetics")
 )
 
 const (
 	TracesStability = component.StabilityLevelAlpha
-	LogsStability   = component.StabilityLevelAlpha
-	MetricsStability = component.StabilityLevelAlpha
 )

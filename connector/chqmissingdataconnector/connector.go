@@ -215,6 +215,12 @@ func (c *md) ConsumeMetrics(_ context.Context, md pmetric.Metrics) error {
 
 			for k := range scopeMetrics.Metrics().Len() {
 				metric := scopeMetrics.Metrics().At(k)
+
+				// don't missing data on missing data
+				if metric.Name() != c.config.MetricName {
+					continue
+				}
+
 				dpAttrsToSelect, found := tenant.metricAttributes[metric.Name()]
 				if !found {
 					continue

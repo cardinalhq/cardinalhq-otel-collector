@@ -36,15 +36,15 @@ func ConvertConfigMap(config *converterconfig.Config, us unstructured.Unstructur
 		return nil, nil
 	}
 
-	var cm corev1.ConfigMap
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(us.Object, &cm)
+	var k8sobj corev1.ConfigMap
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(us.Object, &k8sobj)
 	if err != nil {
 		return nil, err
 	}
 
 	cms := &graphpb.ConfigMapSummary{
-		BaseObject: baseobj.BaseFromUnstructured(config, us),
-		Hashes:     calculateConfigMapDataHashes(config.HashItems, cm),
+		BaseObject: baseobj.Make(config, &us, us.GetAPIVersion(), us.GetKind()),
+		Hashes:     calculateConfigMapDataHashes(config.HashItems, k8sobj),
 	}
 
 	return cms, nil

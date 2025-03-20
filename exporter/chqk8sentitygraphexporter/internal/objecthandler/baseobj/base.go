@@ -15,9 +15,12 @@
 package baseobj
 
 import (
-	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
 	"github.com/cardinalhq/oteltools/pkg/graph/graphpb"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
 )
 
 type K8SObject interface {
@@ -41,11 +44,21 @@ type OwnerRef struct {
 	Controller bool   `json:"controller,omitempty" yaml:"controller,omitempty"`
 }
 
-// BaseFromUnstructured is a function that converts an unstructured object to a BaseObject.
-func BaseFromUnstructured(config *converterconfig.Config, us unstructured.Unstructured) *graphpb.BaseObject {
+type MetadataGetter interface {
+	GetUID() types.UID
+	GetResourceVersion() string
+	GetNamespace() string
+	GetName() string
+	GetLabels() map[string]string
+	GetAnnotations() map[string]string
+	GetOwnerReferences() []metav1.OwnerReference
+}
+
+// Make is a function that converts an unstructured object to a BaseObject.
+func Make(config *converterconfig.Config, us MetadataGetter, apiVersion string, kind string) *graphpb.BaseObject {
 	pbb := &graphpb.BaseObject{
-		ApiVersion:      us.GetAPIVersion(),
-		Kind:            us.GetKind(),
+		ApiVersion:      apiVersion,
+		Kind:            kind,
 		Uid:             string(us.GetUID()),
 		ResourceVersion: us.GetResourceVersion(),
 		Namespace:       us.GetNamespace(),
@@ -59,16 +72,14 @@ func BaseFromUnstructured(config *converterconfig.Config, us unstructured.Unstru
 	return pbb
 }
 
-func ownerrefsFromUnstructured(us unstructured.Unstructured) []*graphpb.OwnerRef {
+func ownerrefsFromUnstructured(us MetadataGetter) []*graphpb.OwnerRef {
 	var ownerRefs []*graphpb.OwnerRef
 	for _, ownerRef := range us.GetOwnerReferences() {
 		o := &graphpb.OwnerRef{
 			ApiVersion: ownerRef.APIVersion,
 			Kind:       ownerRef.Kind,
 			Name:       ownerRef.Name,
-		}
-		if ownerRef.Controller != nil {
-			o.Controller = *ownerRef.Controller
+			Controller: ptr.Deref(ownerRef.Controller, false),
 		}
 		ownerRefs = append(ownerRefs, o)
 	}

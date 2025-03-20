@@ -21,40 +21,38 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
 	v1pod "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/v1"
 )
 
-func ConvertStatefulSet(config *converterconfig.Config, us unstructured.Unstructured) (baseobj.K8SObject, error) {
-	if us.GetKind() != "StatefulSet" || us.GetAPIVersion() != "apps/v1" {
-		return nil, errors.New("Not a apps/v1 StatefulSet")
+func ConvertDaemonSet(config *converterconfig.Config, us unstructured.Unstructured) (baseobj.K8SObject, error) {
+	if us.GetKind() != "DaemonSet" || us.GetAPIVersion() != "apps/v1" {
+		return nil, errors.New("Not a apps/v1 DaemonSet")
 	}
-	var k8sobj appsv1.StatefulSet
+	var k8sobj appsv1.DaemonSet
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(us.Object, &k8sobj)
 	if err != nil {
 		return nil, err
 	}
 
-	podSummary := &graphpb.AppsStatefulSetSummary{
+	podSummary := &graphpb.AppsDaemonSetSummary{
 		BaseObject: baseobj.Make(config, &us, us.GetAPIVersion(), us.GetKind()),
-		Spec: &graphpb.AppsStatefulSetSpec{
-			Replicas:    ptr.Deref(k8sobj.Spec.Replicas, 0),
-			ServiceName: k8sobj.Spec.ServiceName,
-			Template: &graphpb.AppsStatefulSetTemplate{
+		Spec: &graphpb.AppsDaemonSetSpec{
+			Template: &graphpb.AppsDaemonSetTemplate{
 				Metadata: baseobj.Make(config, &k8sobj.Spec.Template.ObjectMeta, "v1", "Pod"),
 				PodSpec:  v1pod.GetPodSpec(config, k8sobj.Spec.Template.Spec),
 			},
 		},
-		Status: &graphpb.AppStatefulSetStatus{
-			Replicas:        k8sobj.Status.Replicas,
-			ReadyReplicas:   k8sobj.Status.ReadyReplicas,
-			CurrentReplicas: k8sobj.Status.CurrentReplicas,
-			UpdatedReplicas: k8sobj.Status.UpdatedReplicas,
-			CurrentRevision: k8sobj.Status.CurrentRevision,
-			UpdateRevision:  k8sobj.Status.UpdateRevision,
+		Status: &graphpb.AppDaemonSetStatus{
+			CurrentNumberScheduled: k8sobj.Status.CurrentNumberScheduled,
+			DesiredNumberScheduled: k8sobj.Status.DesiredNumberScheduled,
+			NumberAvailable:        k8sobj.Status.NumberAvailable,
+			NumberMisscheduled:     k8sobj.Status.NumberMisscheduled,
+			NumberReady:            k8sobj.Status.NumberReady,
+			NumberUnavailable:      k8sobj.Status.NumberUnavailable,
+			UpdatedNumberScheduled: k8sobj.Status.UpdatedNumberScheduled,
 		},
 	}
 	return podSummary, nil

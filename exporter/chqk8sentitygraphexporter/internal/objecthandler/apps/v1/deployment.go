@@ -47,6 +47,13 @@ func ConvertDeployment(config *converterconfig.Config, us unstructured.Unstructu
 				PodSpec:  v1pod.GetPodSpec(config, k8sobj.Spec.Template.Spec),
 			},
 		},
+		Status: &graphpb.AppDeploymentStatus{
+			Replicas:            k8sobj.Status.Replicas,
+			ReadyReplicas:       k8sobj.Status.ReadyReplicas,
+			AvailableReplicas:   k8sobj.Status.AvailableReplicas,
+			UnavailableReplicas: k8sobj.Status.UnavailableReplicas,
+			UpdatedReplicas:     k8sobj.Status.UpdatedReplicas,
+		},
 	}
 	return podSummary, nil
 }

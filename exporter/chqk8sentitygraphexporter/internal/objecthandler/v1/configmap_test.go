@@ -196,7 +196,7 @@ func TestConvertConfigMap(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				tt.expected.BaseObject = baseobj.BaseFromUnstructured(conf, tt.unstructured)
+				tt.expected.BaseObject = baseobj.Make(conf, &tt.unstructured, tt.unstructured.GetAPIVersion(), tt.unstructured.GetKind())
 				assert.Equal(t, tt.expected, result)
 			}
 		})

@@ -17,47 +17,36 @@ package v1
 import (
 	"errors"
 
-	corev1 "k8s.io/api/core/v1"
+	"github.com/cardinalhq/oteltools/pkg/graph/graphpb"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
-	"github.com/cardinalhq/oteltools/pkg/graph/graphpb"
+	v1pod "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/v1"
 )
 
-func ConvertSecret(config *converterconfig.Config, us unstructured.Unstructured) (baseobj.K8SObject, error) {
-	if us.GetKind() != "Secret" || us.GetAPIVersion() != "v1" {
-		return nil, errors.New("unstructured object is not a Secret")
+func ConvertDeployment(config *converterconfig.Config, us unstructured.Unstructured) (baseobj.K8SObject, error) {
+	if us.GetKind() != "Deployment" || us.GetAPIVersion() != "apps/v1" {
+		return nil, errors.New("Not a apps/v1 Deployment")
 	}
-
-	if isFilteredSecretName(config, us.GetName()) {
-		return nil, nil
-	}
-
-	var secret corev1.Secret
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(us.Object, &secret)
+	var deployment appsv1.Deployment
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(us.Object, &deployment)
 	if err != nil {
 		return nil, err
 	}
 
-	ss := &graphpb.SecretSummary{
+	podSummary := &graphpb.AppsDeploymentSummary{
 		BaseObject: baseobj.Make(config, &us, us.GetAPIVersion(), us.GetKind()),
-		Type:       string(secret.Type),
-		Hashes:     calculateSecretDataHashes(secret),
+		Spec: &graphpb.AppsDeploymentSpec{
+			Replicas: ptr.Deref(deployment.Spec.Replicas, 0),
+			Template: &graphpb.AppsDeploymentTemplate{
+				Metadata: baseobj.Make(config, &deployment.Spec.Template.ObjectMeta, "v1", "Pod"),
+				PodSpec:  v1pod.GetPodSpec(config, deployment.Spec.Template.Spec),
+			},
+		},
 	}
-
-	return ss, nil
-}
-
-func calculateSecretDataHashes(secret corev1.Secret) map[string]string {
-	dataHashes := make(map[string]string)
-	header := []byte(secret.APIVersion + secret.Kind + secret.Name + secret.Namespace + string(secret.UID))
-	for k, v := range secret.Data {
-		dataHashes[k] = calculateHashValue(header, k, v)
-	}
-	if len(dataHashes) == 0 {
-		return nil
-	}
-	return dataHashes
+	return podSummary, nil
 }

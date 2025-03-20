@@ -43,7 +43,7 @@ func ConvertConfigMap(config *converterconfig.Config, us unstructured.Unstructur
 	}
 
 	cms := &graphpb.ConfigMapSummary{
-		BaseObject: baseobj.BaseFromUnstructured(config, us),
+		BaseObject: baseobj.Make(config, &us, us.GetAPIVersion(), us.GetKind()),
 		Hashes:     calculateConfigMapDataHashes(config.HashItems, cm),
 	}
 

@@ -32,26 +32,26 @@ func ConvertPod(config *converterconfig.Config, us unstructured.Unstructured) (b
 	if us.GetKind() != "Pod" || us.GetAPIVersion() != "v1" {
 		return nil, errors.New("Not a v1 Pod")
 	}
-	var pod corev1.Pod
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(us.Object, &pod)
+	var k8sobj corev1.Pod
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(us.Object, &k8sobj)
 	if err != nil {
 		return nil, err
 	}
 
 	podSummary := &graphpb.PodSummary{
 		BaseObject: baseobj.Make(config, &us, us.GetAPIVersion(), us.GetKind()),
-		Spec:       GetPodSpec(config, pod.Spec),
+		Spec:       GetPodSpec(config, k8sobj.Spec),
 		Status: &graphpb.PodStatus{
-			Phase:           string(pod.Status.Phase),
-			PhaseMessage:    pod.Status.Message,
-			ContainerStatus: containerStatuses(pod.Status),
-			HostIps:         hostIPs(pod),
-			PodIps:          podIPs(pod),
+			Phase:           string(k8sobj.Status.Phase),
+			PhaseMessage:    k8sobj.Status.Message,
+			ContainerStatus: containerStatuses(k8sobj.Status),
+			HostIps:         hostIPs(k8sobj),
+			PodIps:          podIPs(k8sobj),
 		},
 	}
 
-	if pod.Status.StartTime != nil {
-		t := pod.Status.StartTime.Time.UTC()
+	if k8sobj.Status.StartTime != nil {
+		t := k8sobj.Status.StartTime.Time.UTC()
 		podSummary.Status.StartedAt = timestamppb.New(t)
 	}
 

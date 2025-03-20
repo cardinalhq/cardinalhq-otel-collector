@@ -35,16 +35,16 @@ func ConvertSecret(config *converterconfig.Config, us unstructured.Unstructured)
 		return nil, nil
 	}
 
-	var secret corev1.Secret
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(us.Object, &secret)
+	var k8sobj corev1.Secret
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(us.Object, &k8sobj)
 	if err != nil {
 		return nil, err
 	}
 
 	ss := &graphpb.SecretSummary{
 		BaseObject: baseobj.Make(config, &us, us.GetAPIVersion(), us.GetKind()),
-		Type:       string(secret.Type),
-		Hashes:     calculateSecretDataHashes(secret),
+		Type:       string(k8sobj.Type),
+		Hashes:     calculateSecretDataHashes(k8sobj),
 	}
 
 	return ss, nil

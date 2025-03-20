@@ -32,8 +32,8 @@ func ConvertDeployment(config *converterconfig.Config, us unstructured.Unstructu
 	if us.GetKind() != "Deployment" || us.GetAPIVersion() != "apps/v1" {
 		return nil, errors.New("Not a apps/v1 Deployment")
 	}
-	var deployment appsv1.Deployment
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(us.Object, &deployment)
+	var k8sobj appsv1.Deployment
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(us.Object, &k8sobj)
 	if err != nil {
 		return nil, err
 	}
@@ -41,10 +41,10 @@ func ConvertDeployment(config *converterconfig.Config, us unstructured.Unstructu
 	podSummary := &graphpb.AppsDeploymentSummary{
 		BaseObject: baseobj.Make(config, &us, us.GetAPIVersion(), us.GetKind()),
 		Spec: &graphpb.AppsDeploymentSpec{
-			Replicas: ptr.Deref(deployment.Spec.Replicas, 0),
+			Replicas: ptr.Deref(k8sobj.Spec.Replicas, 0),
 			Template: &graphpb.AppsDeploymentTemplate{
-				Metadata: baseobj.Make(config, &deployment.Spec.Template.ObjectMeta, "v1", "Pod"),
-				PodSpec:  v1pod.GetPodSpec(config, deployment.Spec.Template.Spec),
+				Metadata: baseobj.Make(config, &k8sobj.Spec.Template.ObjectMeta, "v1", "Pod"),
+				PodSpec:  v1pod.GetPodSpec(config, k8sobj.Spec.Template.Spec),
 			},
 		},
 	}

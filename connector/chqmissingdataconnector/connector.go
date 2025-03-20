@@ -218,7 +218,7 @@ func (c *md) ConsumeMetrics(_ context.Context, md pmetric.Metrics) error {
 				metric := scopeMetrics.Metrics().At(k)
 
 				// don't missing data on missing data
-				if metric.Name() != c.config.MetricName {
+				if metric.Name() == c.config.MetricName {
 					continue
 				}
 

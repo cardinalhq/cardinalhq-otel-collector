@@ -59,6 +59,7 @@ func NewObjectHandler(config *converterconfig.Config) ObjectHandler {
 func (h *converterImpl) installConverters() {
 	h.converters[objectSelector{"apps/v1", "DaemonSet"}] = convertappsv1.ConvertDaemonSet
 	h.converters[objectSelector{"apps/v1", "Deployment"}] = convertappsv1.ConvertDeployment
+	h.converters[objectSelector{"apps/v1", "ReplicaSet"}] = convertappsv1.ConvertReplicaSet
 	h.converters[objectSelector{"apps/v1", "StatefulSet"}] = convertappsv1.ConvertStatefulSet
 	h.converters[objectSelector{"v1", "ConfigMap"}] = convertv1.ConvertConfigMap
 	h.converters[objectSelector{"v1", "Pod"}] = convertv1.ConvertPod

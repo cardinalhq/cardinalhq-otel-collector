@@ -107,22 +107,10 @@ func (h *converterImpl) Feed(rlattr pcommon.Map, lattr pcommon.Map, bodyValue pc
 		return true
 	})
 
-	result := &graphpb.PackagedObject{
-		ResourceAttributes: rla,
-		RecordAttributes:   la,
+	po := graphpb.NewPackagedObject(converted, rla, la)
+	if po == nil {
+		return nil, fmt.Errorf("unknown summary type: %T %s/%s", converted, APIVersion, Kind)
 	}
 
-	switch s := converted.(type) {
-	case *graphpb.PodSummary:
-		result.Object = &graphpb.PackagedObject_PodSummary{PodSummary: s}
-	case *graphpb.SecretSummary:
-		result.Object = &graphpb.PackagedObject_SecretSummary{SecretSummary: s}
-	case *graphpb.ConfigMapSummary:
-		result.Object = &graphpb.PackagedObject_ConfigMapSummary{ConfigMapSummary: s}
-		// TODO: Add additional cases as new summary types are defined.
-	default:
-		return nil, fmt.Errorf("unknown summary type: %T", s)
-	}
-
-	return result, nil
+	return po, nil
 }

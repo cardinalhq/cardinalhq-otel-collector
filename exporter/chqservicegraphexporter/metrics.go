@@ -57,13 +57,15 @@ func (e *serviceGraphExporter) ConsumeMetrics(ctx context.Context, md pmetric.Me
 							serverService, serverFound := attributes.Get(server)
 							cType, connectionTypeFound := attributes.Get(connectionType)
 							if clientFound && serverFound && connectionTypeFound {
-								edge := Edge{
-									Client:         clientService.AsString(),
-									Server:         serverService.AsString(),
-									ConnectionType: cType.AsString(),
+								if cType.AsString() != "messaging_system" && cType.AsString() != "database" {
+									edge := Edge{
+										Client:         clientService.AsString(),
+										Server:         serverService.AsString(),
+										ConnectionType: cType.AsString(),
+									}
+									edgeCache.Add(edge)
+									cachesTouched[orgID] = edgeCache
 								}
-								edgeCache.Add(edge)
-								cachesTouched[orgID] = edgeCache
 							}
 						}
 					}

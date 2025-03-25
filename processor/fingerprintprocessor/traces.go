@@ -24,6 +24,8 @@ import (
 
 	"github.com/cardinalhq/oteltools/pkg/ottl/functions"
 	"github.com/cardinalhq/oteltools/pkg/translate"
+
+	semconv "go.opentelemetry.io/otel/semconv/v1.27.0"
 )
 
 func (p *fingerprintProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
@@ -55,6 +57,21 @@ func calculateSpanFingerprint(sr ptrace.Span) int64 {
 	sanitizedName := functions.ScrubWord(sr.Name())
 	fingerprintAttributes = append(fingerprintAttributes, sanitizedName)
 	fingerprintAttributes = append(fingerprintAttributes, sr.Kind().String())
+
+	fingerprintAttributes = append(fingerprintAttributes, sr.Status().Message())
+	exceptionType, exceptionTypeFound := sr.Attributes().Get(string(semconv.ExceptionTypeKey))
+	if exceptionTypeFound {
+		fingerprintAttributes = append(fingerprintAttributes, exceptionType.AsString())
+	}
+	exceptionMsg, exceptionMsgFound := sr.Attributes().Get(string(semconv.ExceptionMessageKey))
+	if exceptionMsgFound {
+		fingerprintAttributes = append(fingerprintAttributes, exceptionMsg.AsString())
+	}
+	exceptionStacktrace, exceptionStacktraceFound := sr.Attributes().Get(string(semconv.ExceptionStacktraceKey))
+	if exceptionStacktraceFound {
+		fingerprintAttributes = append(fingerprintAttributes, exceptionStacktrace.AsString())
+	}
+
 	return int64(xxhash.Sum64String(strings.Join(fingerprintAttributes, "##")))
 }
 

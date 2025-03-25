@@ -58,7 +58,7 @@ func calculateSpanFingerprint(sr ptrace.Span) int64 {
 	fingerprintAttributes = append(fingerprintAttributes, sanitizedName)
 	fingerprintAttributes = append(fingerprintAttributes, sr.Kind().String())
 
-	fingerprintAttributes = append(fingerprintAttributes, sr.Status().Message())
+	fingerprintAttributes = append(fingerprintAttributes, sr.Status().Code().String())
 	exceptionType, exceptionTypeFound := sr.Attributes().Get(string(semconv.ExceptionTypeKey))
 	if exceptionTypeFound {
 		fingerprintAttributes = append(fingerprintAttributes, exceptionType.AsString())

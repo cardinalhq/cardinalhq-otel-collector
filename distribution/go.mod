@@ -15,6 +15,7 @@ require (
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.121.0
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.121.0
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.121.0
+	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention v0.121.0
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.121.0
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.121.0
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/chqexemplarprocessor v0.121.0
@@ -455,7 +456,7 @@ require (
 	github.com/briandowns/spinner v1.23.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 // indirect
-	github.com/cardinalhq/oteltools v0.22.7 // indirect
+	github.com/cardinalhq/oteltools v0.22.8 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
@@ -957,6 +958,8 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextensi
 replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.121.0 => ../extension/chqconfigextension
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.121.0 => ../extension/chqtagcacheextension
+
+replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention v0.121.0 => ../extension/chqsyntheticsextention
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver v0.121.0 => ../receiver/chqdatadogreceiver
 

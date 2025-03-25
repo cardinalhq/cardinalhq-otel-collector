@@ -108,6 +108,7 @@ import (
 	chqauthextension "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension"
 	chqconfigextension "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
 	chqtagcacheextension "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension"
+	chqsyntheticsextention "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention"
 	batchprocessor "go.opentelemetry.io/collector/processor/batchprocessor"
 	memorylimiterprocessor "go.opentelemetry.io/collector/processor/memorylimiterprocessor"
 	attributesprocessor "github.com/open-telemetry/opentelemetry-collector-contrib/processor/attributesprocessor"
@@ -280,6 +281,7 @@ func components() (otelcol.Factories, error) {
 		chqauthextension.NewFactory(),
 		chqconfigextension.NewFactory(),
 		chqtagcacheextension.NewFactory(),
+		chqsyntheticsextention.NewFactory(),
 	)
 	if err != nil {
 		return otelcol.Factories{}, err
@@ -317,6 +319,7 @@ func components() (otelcol.Factories, error) {
 	factories.ExtensionModules[chqauthextension.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.121.0"
 	factories.ExtensionModules[chqconfigextension.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.121.0"
 	factories.ExtensionModules[chqtagcacheextension.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.121.0"
+	factories.ExtensionModules[chqsyntheticsextention.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention v0.121.0"
 
 	factories.Receivers, err = otelcol.MakeFactoryMap[receiver.Factory](
 		nopreceiver.NewFactory(),

@@ -57,19 +57,21 @@ func calculateSpanFingerprint(sr ptrace.Span) int64 {
 	sanitizedName := functions.ScrubWord(sr.Name())
 	fingerprintAttributes = append(fingerprintAttributes, sanitizedName)
 	fingerprintAttributes = append(fingerprintAttributes, sr.Kind().String())
-
 	fingerprintAttributes = append(fingerprintAttributes, sr.Status().Code().String())
-	exceptionType, exceptionTypeFound := sr.Attributes().Get(string(semconv.ExceptionTypeKey))
-	if exceptionTypeFound {
-		fingerprintAttributes = append(fingerprintAttributes, exceptionType.AsString())
-	}
-	exceptionMsg, exceptionMsgFound := sr.Attributes().Get(string(semconv.ExceptionMessageKey))
-	if exceptionMsgFound {
-		fingerprintAttributes = append(fingerprintAttributes, exceptionMsg.AsString())
-	}
-	exceptionStacktrace, exceptionStacktraceFound := sr.Attributes().Get(string(semconv.ExceptionStacktraceKey))
-	if exceptionStacktraceFound {
-		fingerprintAttributes = append(fingerprintAttributes, exceptionStacktrace.AsString())
+
+	for i := 0; i < sr.Events().Len(); i++ {
+		event := sr.Events().At(i)
+		if event.Name() == semconv.ExceptionEventName {
+			if exType, found := event.Attributes().Get(string(semconv.ExceptionTypeKey)); found {
+				fingerprintAttributes = append(fingerprintAttributes, exType.AsString())
+			}
+			if exMsg, found := event.Attributes().Get(string(semconv.ExceptionMessageKey)); found {
+				fingerprintAttributes = append(fingerprintAttributes, exMsg.AsString())
+			}
+			if exStack, found := event.Attributes().Get(string(semconv.ExceptionStacktraceKey)); found {
+				fingerprintAttributes = append(fingerprintAttributes, exStack.AsString())
+			}
+		}
 	}
 
 	return int64(xxhash.Sum64String(strings.Join(fingerprintAttributes, "##")))

@@ -32,7 +32,7 @@ var (
 )
 
 func (cfg *Config) Validate() error {
-	if cfg.ConfigurationExtension != nil {
+	if cfg.ConfigurationExtension == nil {
 		return errConfigExtensionRequired
 	}
 	return nil

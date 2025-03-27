@@ -66,7 +66,7 @@ func NewGraphObjectEmitter(logger *zap.Logger, httpClient *http.Client, interval
 		logger:     logger,
 		httpClient: httpClient,
 		interval:   interval,
-		baseurl:    baseurl + "/api/v1/servicegraph/objects",
+		baseurl:    baseurl + "/api/v1/entityRelationships",
 		doneChan:   make(chan struct{}),
 		submitChan: make(chan *graphpb.PackagedObject, 1000),
 		objects:    make(map[string]*WrappedObject),

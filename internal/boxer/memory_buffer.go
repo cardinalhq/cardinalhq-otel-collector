@@ -91,10 +91,10 @@ func (b *MemoryBuffer) ForEach(interval int64, scope string, fn ForEachFunc) err
 	}
 
 	if _, ok := b.records[interval]; !ok {
-		return NoSuchIntervalError
+		return ErrNoSuchInterval
 	}
 	if _, ok := b.records[interval][scope]; !ok {
-		return NoSuchScopeError
+		return ErrNoSuchScope
 	}
 	item := b.records[interval][scope]
 	return iterate(bytes.NewReader(item.buffer.Bytes()), item.expected, fn)

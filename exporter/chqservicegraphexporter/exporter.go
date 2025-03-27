@@ -54,7 +54,7 @@ func newServiceGraphExporter(config *Config, params exporter.Settings) *serviceG
 		logger:             params.Logger,
 	}
 
-	p := params.TelemetrySettings.MeterProvider.Meter("otelcol/chqservicegraph")
+	p := params.MeterProvider.Meter("otelcol/chqservicegraph")
 
 	received, err := p.Int64Counter("exported_edges",
 		metric.WithDescription("The number of edges exported"))

@@ -34,7 +34,7 @@ type TimeFunc func() time.Time
 type BoxerForEachFunc func(index, expected int, value []byte) (bool, error)
 
 var (
-	MaintainNotNeeded = errors.New("maintain not needed")
+	ErrMaintainNotNeeded = errors.New("maintain not needed")
 )
 
 func NewBoxer(options ...BoxerOptions) (*Boxer, error) {

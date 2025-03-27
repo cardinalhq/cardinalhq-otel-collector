@@ -23,8 +23,10 @@ import (
 )
 
 var (
-	NoSuchIntervalError = errors.New("no such interval")
-	NoSuchScopeError    = errors.New("no such scope")
+	ErrNoSuchInterval = errors.New("no such interval")
+	ErrNoSuchScope    = errors.New("no such scope")
+	ErrShutdown       = errors.New("buffer is shut down")
+	ErrWrite          = errors.New("error writing to buffer")
 )
 
 type BufferRecord struct {
@@ -44,11 +46,6 @@ type Buffer interface {
 	CloseInterval(interval int64) error
 	Shutdown() error
 }
-
-var (
-	ErrShutdown = errors.New("buffer is shut down")
-	WriteError  = errors.New("error writing to buffer")
-)
 
 func encodeToFile(f io.Writer, data *BufferRecord) error {
 	buff := bytes.Buffer{}

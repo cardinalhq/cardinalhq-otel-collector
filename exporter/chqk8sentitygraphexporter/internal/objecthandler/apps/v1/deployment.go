@@ -30,7 +30,7 @@ import (
 
 func ConvertDeployment(config *converterconfig.Config, us unstructured.Unstructured) (baseobj.K8SObject, error) {
 	if us.GetKind() != "Deployment" || us.GetAPIVersion() != "apps/v1" {
-		return nil, errors.New("Not a apps/v1 Deployment")
+		return nil, errors.New("not a apps/v1 Deployment")
 	}
 	var k8sobj appsv1.Deployment
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(us.Object, &k8sobj)

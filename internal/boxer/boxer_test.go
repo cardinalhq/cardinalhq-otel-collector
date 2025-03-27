@@ -209,7 +209,7 @@ func TestBox_ForEach(t *testing.T) {
 			1000,
 			"scope1",
 			[]string{},
-			NoSuchIntervalError,
+			ErrNoSuchInterval,
 		},
 		{
 			"one item different tbox",
@@ -223,7 +223,7 @@ func TestBox_ForEach(t *testing.T) {
 			1000,
 			"scope1",
 			[]string{},
-			NoSuchIntervalError,
+			ErrNoSuchInterval,
 		},
 		{
 			"one item, this tbox",

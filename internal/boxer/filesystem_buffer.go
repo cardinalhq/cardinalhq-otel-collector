@@ -117,12 +117,12 @@ func (b *FilesystemBuffer) ForEach(interval int64, scope string, fn ForEachFunc)
 
 	i, ok := b.openFiles[interval]
 	if !ok {
-		return NoSuchIntervalError
+		return ErrNoSuchInterval
 	}
 
 	item, ok := i[scope]
 	if !ok {
-		return NoSuchScopeError
+		return ErrNoSuchScope
 	}
 
 	_, err := item.file.Seek(0, io.SeekStart)

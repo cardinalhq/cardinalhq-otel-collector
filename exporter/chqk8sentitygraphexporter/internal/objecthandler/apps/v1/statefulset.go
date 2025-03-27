@@ -30,7 +30,7 @@ import (
 
 func ConvertStatefulSet(config *converterconfig.Config, us unstructured.Unstructured) (baseobj.K8SObject, error) {
 	if us.GetKind() != "StatefulSet" || us.GetAPIVersion() != "apps/v1" {
-		return nil, errors.New("Not a apps/v1 StatefulSet")
+		return nil, errors.New("not a apps/v1 StatefulSet")
 	}
 	var k8sobj appsv1.StatefulSet
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(us.Object, &k8sobj)

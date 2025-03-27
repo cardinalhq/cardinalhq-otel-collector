@@ -24,6 +24,9 @@ import (
 func (e *exp) ConsumeLogs(ctx context.Context, ld plog.Logs) error {
 	for i := range ld.ResourceLogs().Len() {
 		rl := ld.ResourceLogs().At(i)
+		rattr := rl.Resource().Attributes()
+		cid := orgIdFromResource(rattr)
+		cache := e.getEntityCache(cid)
 		for j := range rl.ScopeLogs().Len() {
 			sr := rl.ScopeLogs().At(j)
 			for k := range sr.LogRecords().Len() {
@@ -34,9 +37,7 @@ func (e *exp) ConsumeLogs(ctx context.Context, ld plog.Logs) error {
 					continue
 				}
 				if ret != nil {
-					if err := e.gee.Upsert(ctx, ret); err != nil {
-						e.logger.Warn("failed to upsert object", zap.Error(err))
-					}
+					cache.ProvisionPackagedObject(ret)
 				}
 			}
 		}

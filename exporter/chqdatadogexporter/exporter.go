@@ -55,7 +55,7 @@ func newDatadogExporter(config *Config, params exporter.Settings, ttype string) 
 		attribute.String("exporter.telemetry_type", ttype),
 	)
 
-	p := params.TelemetrySettings.MeterProvider.Meter("otelcol/chqdatadog")
+	p := e.telemetrySettings.MeterProvider.Meter("otelcol/chqdatadog")
 
 	received, err := p.Int64Counter("chqdatadog.exporter."+ttype+".received",
 		metric.WithDescription("The number of log messages received."))

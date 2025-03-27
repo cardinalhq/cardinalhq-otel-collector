@@ -30,7 +30,7 @@ import (
 
 func ConvertReplicaSet(config *converterconfig.Config, us unstructured.Unstructured) (baseobj.K8SObject, error) {
 	if us.GetKind() != "ReplicaSet" || us.GetAPIVersion() != "apps/v1" {
-		return nil, errors.New("Not a apps/v1 ReplicaSet")
+		return nil, errors.New("not a apps/v1 ReplicaSet")
 	}
 	var k8sobj appsv1.ReplicaSet
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(us.Object, &k8sobj)

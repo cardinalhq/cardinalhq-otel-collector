@@ -262,7 +262,7 @@ func TestMemoryBuffer_ForEach(t *testing.T) {
 		results = append(results, record)
 		return true, nil
 	})
-	assert.ErrorIs(t, err, NoSuchScopeError)
+	assert.ErrorIs(t, err, ErrNoSuchScope)
 	assert.Empty(t, results)
 
 	results = nil
@@ -270,6 +270,6 @@ func TestMemoryBuffer_ForEach(t *testing.T) {
 		results = append(results, record)
 		return true, nil
 	})
-	assert.ErrorIs(t, err, NoSuchIntervalError)
+	assert.ErrorIs(t, err, ErrNoSuchInterval)
 	assert.Empty(t, results)
 }

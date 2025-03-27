@@ -169,5 +169,5 @@ func quantileToName(baseName string, quantile float64) string {
 
 func quantileToNameSuffix(baseName string, quantile float64) string {
 	quantileStr := strconv.FormatFloat(quantile*100, 'f', -1, 64)
-	return baseName + ".quantile." + strings.Replace(quantileStr, ".", "_", -1)
+	return baseName + ".quantile." + strings.ReplaceAll(quantileStr, ".", "_")
 }

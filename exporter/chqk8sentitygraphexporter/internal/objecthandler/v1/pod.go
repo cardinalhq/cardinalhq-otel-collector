@@ -30,7 +30,7 @@ import (
 
 func ConvertPod(config *converterconfig.Config, us unstructured.Unstructured) (baseobj.K8SObject, error) {
 	if us.GetKind() != "Pod" || us.GetAPIVersion() != "v1" {
-		return nil, errors.New("Not a v1 Pod")
+		return nil, errors.New("not a v1 Pod")
 	}
 	var k8sobj corev1.Pod
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(us.Object, &k8sobj)
@@ -51,7 +51,7 @@ func ConvertPod(config *converterconfig.Config, us unstructured.Unstructured) (b
 	}
 
 	if k8sobj.Status.StartTime != nil {
-		t := k8sobj.Status.StartTime.Time.UTC()
+		t := k8sobj.Status.StartTime.UTC()
 		podSummary.Status.StartedAt = timestamppb.New(t)
 	}
 

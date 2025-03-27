@@ -29,7 +29,7 @@ import (
 
 func ConvertDaemonSet(config *converterconfig.Config, us unstructured.Unstructured) (baseobj.K8SObject, error) {
 	if us.GetKind() != "DaemonSet" || us.GetAPIVersion() != "apps/v1" {
-		return nil, errors.New("Not a apps/v1 DaemonSet")
+		return nil, errors.New("not a apps/v1 DaemonSet")
 	}
 	var k8sobj appsv1.DaemonSet
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(us.Object, &k8sobj)

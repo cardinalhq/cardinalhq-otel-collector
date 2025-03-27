@@ -46,7 +46,7 @@ func TestLoadConfig(t *testing.T) {
 	assert.NotNil(t, e.Reporting)
 	expected := createDefaultConfig()
 	actualConf := expected.(*Config)
-	actualConf.ClientConfig.Endpoint = "http://example.com"
+	actualConf.Endpoint = "http://example.com"
 	assert.Equal(t, actualConf, e)
 }
 

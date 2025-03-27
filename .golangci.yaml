@@ -1,28 +1,38 @@
+version: "2"
 linters:
   enable:
     - bodyclose
     - exhaustive
-    #- exhaustruct
-    #- goconst
-    - gofmt
     - inamedparam
-    #- musttag
     - nosprintfhostport
     - perfsprint
     - sloglint
     - unconvert
-    #- unparam
-    #- wastedassign
     - whitespace
-    - gosimple
-
-linters-settings:
-  gofmt:
-    # Apply the rewrite rules to the source before reformatting.
-    # https://pkg.go.dev/cmd/gofmt
-    # Default: []
-    rewrite-rules:
-      - pattern: 'interface{}'
-        replacement: 'any'
-      - pattern: 'a[b:len(a)]'
-        replacement: 'a[b:]'
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+  settings:
+    gofmt:
+      rewrite-rules:
+        - pattern: interface{}
+          replacement: any
+        - pattern: a[b:len(a)]
+          replacement: a[b:]
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

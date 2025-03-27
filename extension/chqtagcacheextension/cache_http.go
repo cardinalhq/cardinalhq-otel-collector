@@ -40,7 +40,7 @@ func (chq *CHQTagcacheExtension) tagFetcher(key string) (any, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New("Failed to fetch tags, error code: " + resp.Status)
+		return nil, errors.New("failed to fetch tags, error code: " + resp.Status)
 	}
 
 	var tags TagsMessage
@@ -54,7 +54,7 @@ func (chq *CHQTagcacheExtension) tagFetcher(key string) (any, error) {
 func (chq *CHQTagcacheExtension) tagPutter(key string, value any) error {
 	tags, ok := value.([]Tag)
 	if !ok {
-		return errors.New("Failed to put tags, invalid type")
+		return errors.New("failed to put tags, invalid type")
 	}
 
 	wrapper := TagsMessage{
@@ -73,7 +73,7 @@ func (chq *CHQTagcacheExtension) tagPutter(key string, value any) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusAccepted {
-		return errors.New("Failed to put tags, error code: " + resp.Status)
+		return errors.New("failed to put tags, error code: " + resp.Status)
 	}
 
 	return nil

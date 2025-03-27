@@ -31,10 +31,10 @@ const (
 	requestsMetric  = "traces_service_graph_request_total"
 	errorsMetric    = "traces_service_graph_request_failed_total"
 	client          = "client"
-	clientCluster   = "client__cardinalhq.k8s.cluster"
-	clientNamespace = "client__cardinalhq.k8s.namespace"
-	serverCluster   = "server__cardinalhq.k8s.cluster"
-	serverNamespace = "server__cardinalhq.k8s.namespace"
+	clientCluster   = "client__cardinalhq.k8s.cluster.name"
+	clientNamespace = "client__cardinalhq.k8s.namespace.name"
+	serverCluster   = "server__cardinalhq.k8s.cluster.name"
+	serverNamespace = "server__cardinalhq.k8s.namespace.name"
 	server          = "server"
 	connectionType  = "connection_type"
 )
@@ -64,12 +64,6 @@ func (e *serviceGraphExporter) ConsumeMetrics(ctx context.Context, md pmetric.Me
 							clientNamespace, clientNamespaceFound := attributes.Get(clientNamespace)
 							serverCluster, serverClusterFound := attributes.Get(serverCluster)
 							serverNamespace, serverNamespaceFound := attributes.Get(serverNamespace)
-
-							e.logger.Info("Found edge", zap.String("client", clientService.AsString()), zap.String("server", serverService.AsString()), zap.String("connection_type", cType.AsString()),
-								zap.String("client_cluster", clientCluster.AsString()),
-								zap.String("client_namespace", clientNamespace.AsString()),
-								zap.String("server_cluster", serverCluster.AsString()),
-								zap.String("server_namespace", serverNamespace.AsString()))
 
 							shouldConnect := !connectionTypeFound || cType.AsString() != "messaging_system" && cType.AsString() != "database"
 							if clientFound && serverFound && shouldConnect && clientClusterFound && clientNamespaceFound && serverClusterFound && serverNamespaceFound {

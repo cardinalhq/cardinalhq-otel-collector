@@ -30,7 +30,6 @@ func NewFactory() exporter.Factory {
 		metadata.Type,
 		createDefaultConfig,
 		exporter.WithTraces(createSpansProcessor, metadata.TracesStability),
-		exporter.WithLogs(createLogsProcessor, metadata.LogsStability),
 		exporter.WithMetrics(createMetricsProcessor, metadata.MetricsStability),
 	)
 }
@@ -45,18 +44,6 @@ func createDefaultConfig() component.Config {
 			Interval: defaultReportingInterval,
 		},
 	}
-}
-
-func createLogsProcessor(ctx context.Context, set exporter.Settings, cfg component.Config) (exporter.Logs, error) {
-	e, err := newEntityGraphExporter(cfg.(*Config), "logs", set)
-	if err != nil {
-		return nil, err
-	}
-	return exporterhelper.NewLogs(
-		ctx, set, cfg,
-		e.ConsumeLogs,
-		exporterhelper.WithStart(e.Start),
-		exporterhelper.WithCapabilities(e.Capabilities()))
 }
 
 func createMetricsProcessor(ctx context.Context, set exporter.Settings, cfg component.Config) (exporter.Metrics, error) {

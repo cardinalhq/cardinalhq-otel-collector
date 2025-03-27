@@ -28,11 +28,15 @@ import (
 )
 
 const (
-	requestsMetric = "traces_service_graph_request_total"
-	errorsMetric   = "traces_service_graph_request_failed_total"
-	client         = "client"
-	server         = "server"
-	connectionType = "connection_type"
+	requestsMetric  = "traces_service_graph_request_total"
+	errorsMetric    = "traces_service_graph_request_failed_total"
+	client          = "client"
+	clientCluster   = "client__cardinalhq.k8s.cluster"
+	clientNamespace = "client__cardinalhq.k8s.namespace"
+	serverCluster   = "server__cardinalhq.k8s.cluster"
+	serverNamespace = "server__cardinalhq.k8s.namespace"
+	server          = "server"
+	connectionType  = "connection_type"
 )
 
 func (e *serviceGraphExporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
@@ -56,17 +60,21 @@ func (e *serviceGraphExporter) ConsumeMetrics(ctx context.Context, md pmetric.Me
 							clientService, clientFound := attributes.Get(client)
 							serverService, serverFound := attributes.Get(server)
 							cType, connectionTypeFound := attributes.Get(connectionType)
-							cluster, clusterFound := attributes.Get("_cardinalhq.k8s.cluster")
-							namespace, namespaceFound := attributes.Get("_cardinalhq.k8s.namespace")
+							clientCluster, clientClusterFound := attributes.Get(clientCluster)
+							clientNamespace, clientNamespaceFound := attributes.Get(clientNamespace)
+							serverCluster, serverClusterFound := attributes.Get(serverCluster)
+							serverNamespace, serverNamespaceFound := attributes.Get(serverNamespace)
 
 							shouldConnect := !connectionTypeFound || cType.AsString() != "messaging_system" && cType.AsString() != "database"
-							if clientFound && serverFound && shouldConnect && clusterFound && namespaceFound {
+							if clientFound && serverFound && shouldConnect && clientClusterFound && clientNamespaceFound && serverClusterFound && serverNamespaceFound {
 								edge := Edge{
-									ClusterName:    cluster.AsString(),
-									Namespace:      namespace.AsString(),
-									Client:         clientService.AsString(),
-									Server:         serverService.AsString(),
-									ConnectionType: cType.AsString(),
+									ClientClusterName: clientCluster.AsString(),
+									ClientNamespace:   clientNamespace.AsString(),
+									ServerClusterName: serverCluster.AsString(),
+									ServerNamespace:   serverNamespace.AsString(),
+									Client:            clientService.AsString(),
+									Server:            serverService.AsString(),
+									ConnectionType:    cType.AsString(),
 								}
 								edgeCache.Add(edge)
 								cachesTouched[orgID] = edgeCache

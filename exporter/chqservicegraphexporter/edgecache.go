@@ -21,9 +21,13 @@ import (
 
 // Edge represents an edge in the system
 type Edge struct {
-	Client         string `json:"client"`
-	Server         string `json:"server"`
-	ConnectionType string `json:"connection_type"`
+	ClientClusterName string `json:"client_cluster_name"`
+	ClientNamespace   string `json:"client_namespace_name"`
+	ServerClusterName string `json:"server_cluster_name"`
+	ServerNamespace   string `json:"server_namespace_name"`
+	Client            string `json:"client"`
+	Server            string `json:"server"`
+	ConnectionType    string `json:"connection_type"`
 }
 
 // EdgeCache holds edges and provides Add and Flush methods

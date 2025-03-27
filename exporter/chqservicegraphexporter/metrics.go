@@ -65,6 +65,12 @@ func (e *serviceGraphExporter) ConsumeMetrics(ctx context.Context, md pmetric.Me
 							serverCluster, serverClusterFound := attributes.Get(serverCluster)
 							serverNamespace, serverNamespaceFound := attributes.Get(serverNamespace)
 
+							e.logger.Info("Found edge", zap.String("client", clientService.AsString()), zap.String("server", serverService.AsString()), zap.String("connection_type", cType.AsString()),
+								zap.String("client_cluster", clientCluster.AsString()),
+								zap.String("client_namespace", clientNamespace.AsString()),
+								zap.String("server_cluster", serverCluster.AsString()),
+								zap.String("server_namespace", serverNamespace.AsString()))
+
 							shouldConnect := !connectionTypeFound || cType.AsString() != "messaging_system" && cType.AsString() != "database"
 							if clientFound && serverFound && shouldConnect && clientClusterFound && clientNamespaceFound && serverClusterFound && serverNamespaceFound {
 								edge := Edge{

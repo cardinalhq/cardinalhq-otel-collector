@@ -21,6 +21,8 @@ import (
 
 // Edge represents an edge in the system
 type Edge struct {
+	ClusterName    string `json:"cluster_name"`
+	Namespace      string `json:"namespace"`
 	Client         string `json:"client"`
 	Server         string `json:"server"`
 	ConnectionType string `json:"connection_type"`

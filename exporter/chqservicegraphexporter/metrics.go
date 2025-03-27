@@ -56,9 +56,14 @@ func (e *serviceGraphExporter) ConsumeMetrics(ctx context.Context, md pmetric.Me
 							clientService, clientFound := attributes.Get(client)
 							serverService, serverFound := attributes.Get(server)
 							cType, connectionTypeFound := attributes.Get(connectionType)
+							cluster, clusterFound := attributes.Get("_cardinalhq.k8s.cluster")
+							namespace, namespaceFound := attributes.Get("_cardinalhq.k8s.namespace")
+
 							shouldConnect := !connectionTypeFound || cType.AsString() != "messaging_system" && cType.AsString() != "database"
-							if clientFound && serverFound && shouldConnect {
+							if clientFound && serverFound && shouldConnect && clusterFound && namespaceFound {
 								edge := Edge{
+									ClusterName:    cluster.AsString(),
+									Namespace:      namespace.AsString(),
 									Client:         clientService.AsString(),
 									Server:         serverService.AsString(),
 									ConnectionType: cType.AsString(),

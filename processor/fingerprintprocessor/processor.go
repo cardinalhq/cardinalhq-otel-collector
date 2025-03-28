@@ -19,6 +19,7 @@ import (
 	"encoding/binary"
 	"hash/fnv"
 	"slices"
+	"strconv"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
@@ -159,11 +160,19 @@ func calculateMapHash(m ottl.ControlPlaneConfig) int64 {
 
 		buff := make([]byte, 8)
 		for _, v := range fpm {
-			binary.LittleEndian.PutUint64(buff, uint64(v.Primary))
+			primary, err := strconv.ParseInt(v.Primary, 10, 64)
+			if err != nil {
+				continue
+			}
+			binary.LittleEndian.PutUint64(buff, uint64(primary))
 			hasher.Write(buff)
 			slices.Sort(v.Aliases)
 			for _, vv := range v.Aliases {
-				binary.LittleEndian.PutUint64(buff, uint64(vv))
+				alias, err := strconv.ParseInt(vv, 10, 64)
+				if err != nil {
+					continue
+				}
+				binary.LittleEndian.PutUint64(buff, uint64(alias))
 				hasher.Write(buff)
 			}
 		}
@@ -184,7 +193,15 @@ func makeFingerprintMapForConfig(m []ottl.FingerprintMapping) map[int64]int64 {
 	ret := map[int64]int64{}
 	for _, v := range m {
 		for _, vv := range v.Aliases {
-			ret[vv] = v.Primary
+			primary, err := strconv.ParseInt(v.Primary, 10, 64)
+			if err != nil {
+				continue
+			}
+			alias, err := strconv.ParseInt(vv, 10, 64)
+			if err != nil {
+				continue
+			}
+			ret[alias] = primary
 		}
 	}
 	return ret

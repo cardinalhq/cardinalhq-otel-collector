@@ -8,7 +8,7 @@ require (
 	github.com/DataDog/sketches-go v1.4.7
 	github.com/aws/aws-sdk-go v1.55.6
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
-	github.com/cardinalhq/oteltools v0.23.15
+	github.com/cardinalhq/oteltools v0.23.16
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/parquet-go/parquet-go v0.25.0
 	github.com/rs/xid v1.6.0

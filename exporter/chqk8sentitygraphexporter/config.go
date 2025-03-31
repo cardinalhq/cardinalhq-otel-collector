@@ -36,6 +36,14 @@ type ReportingConfig struct {
 type ContextID = string
 
 func (c *Config) Validate() error {
+	if err := c.ClientConfig.Validate(); err != nil {
+		return err
+	}
+
+	if c.ClientConfig.Timeout == 0 {
+		c.ClientConfig.Timeout = 15 * time.Second
+	}
+
 	return c.Reporting.validate()
 }
 

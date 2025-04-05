@@ -69,12 +69,8 @@ func attributesToSortedString(attrs pcommon.Map) string {
 	return strings.Join(items, ", ")
 }
 
-func truncated(t time.Time) time.Time {
-	return t.Truncate(10 * time.Second)
-}
-
 func (s *stamp) touch(t time.Time) {
-	s.LastSeen = truncated(t)
+	s.LastSeen = t
 }
 
 func (s *stamp) isExpired(t time.Time, ttl time.Duration) bool {

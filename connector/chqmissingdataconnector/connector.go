@@ -17,7 +17,6 @@ package chqmissingdataconnector
 import (
 	"context"
 	"errors"
-	"math"
 	"time"
 
 	"go.opentelemetry.io/collector/component"
@@ -180,7 +179,7 @@ func (c *md) buildMetrics(emitList []*stamp) pmetric.Metrics {
 		dp, _, _ := m.Datapoint(stamp.DatapointAttributes, nowTimestamp)
 		dp.Attributes().PutBool(translate.CardinalFieldAggregate, true)
 		dp.Attributes().PutStr(translate.CardinalFieldAggregationType, ottl.AggregationTypeMin.String())
-		dp.SetDoubleValue(math.Max(10.0, truncated(now).Sub(stamp.LastSeen).Seconds()))
+		dp.SetDoubleValue(now.Sub(stamp.LastSeen).Seconds())
 	}
 
 	return builder.Build()

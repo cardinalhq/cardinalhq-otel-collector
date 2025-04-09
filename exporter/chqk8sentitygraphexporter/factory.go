@@ -16,11 +16,10 @@ package chqk8sentitygraphexporter
 
 import (
 	"context"
-	"time"
-
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/collector/exporter/exporterhelper"
+	"time"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/metadata"
 )
@@ -34,7 +33,7 @@ func NewFactory() exporter.Factory {
 }
 
 const (
-	defaultReportingInterval = 5 * time.Minute
+	defaultReportingInterval = 30 * time.Second
 )
 
 func createDefaultConfig() component.Config {

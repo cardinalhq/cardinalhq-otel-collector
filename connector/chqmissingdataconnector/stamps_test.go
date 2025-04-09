@@ -163,7 +163,7 @@ func TestTouch(t *testing.T) {
 	newTime := initialTime.Add(1 * time.Hour)
 	stamp.touch(newTime)
 
-	assert.Equal(t, newTime, stamp.LastSeen)
+	assert.Equal(t, truncated(newTime), stamp.LastSeen)
 }
 
 func TestIsExpired(t *testing.T) {

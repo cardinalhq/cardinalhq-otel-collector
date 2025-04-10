@@ -40,8 +40,8 @@ func (c *Config) Validate() error {
 		return err
 	}
 
-	if c.ClientConfig.Timeout == 0 {
-		c.ClientConfig.Timeout = 15 * time.Second
+	if c.Timeout == 0 {
+		c.Timeout = defaultTimeout
 	}
 
 	return c.Reporting.validate()
@@ -50,8 +50,8 @@ func (c *Config) Validate() error {
 func (c *ReportingConfig) validate() error {
 	var errs error
 
-	if c.Interval < 1*time.Minute {
-		errs = multierr.Append(errs, errors.New("interval must be greater than or equal to 10m"))
+	if c.Interval < 30*time.Second {
+		errs = multierr.Append(errs, errors.New("interval must be greater than or equal to 30 seconds"))
 	}
 
 	return errs

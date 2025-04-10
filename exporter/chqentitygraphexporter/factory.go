@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"go.opentelemetry.io/collector/component"
+	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/collector/exporter/exporterhelper"
 
@@ -36,10 +37,14 @@ func NewFactory() exporter.Factory {
 
 const (
 	defaultReportingInterval = 5 * time.Minute
+	defaultTimeout           = 15 * time.Second
 )
 
 func createDefaultConfig() component.Config {
 	return &Config{
+		ClientConfig: confighttp.ClientConfig{
+			Timeout: defaultTimeout,
+		},
 		Reporting: ReportingConfig{
 			Interval: defaultReportingInterval,
 		},

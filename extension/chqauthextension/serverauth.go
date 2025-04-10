@@ -37,6 +37,9 @@ import (
 )
 
 type chqServerAuth struct {
+	component.StartFunc
+	component.ShutdownFunc
+
 	config            *Config
 	logger            *zap.Logger
 	telemetrySettings component.TelemetrySettings
@@ -49,6 +52,11 @@ type chqServerAuth struct {
 	authCacheLookups   metric.Int64Counter
 	authCacheAdds      metric.Int64Counter
 }
+
+var (
+	_ extension.Extension  = (*chqServerAuth)(nil)
+	_ extensionauth.Server = (*chqServerAuth)(nil)
+)
 
 var (
 	errNoAuthHeader = errors.New("no authentication header found")
@@ -71,7 +79,7 @@ func (chq *chqServerAuth) setupServerTelemetry(params extension.Settings) error 
 	return nil
 }
 
-func newServerAuthExtension(cfg *Config, params extension.Settings) (extensionauth.Server, error) {
+func newServerAuthExtension(cfg *Config, params extension.Settings) (*chqServerAuth, error) {
 	chq := chqServerAuth{
 		config:             cfg,
 		httpClientSettings: cfg.ServerAuth.ClientConfig,
@@ -82,13 +90,10 @@ func newServerAuthExtension(cfg *Config, params extension.Settings) (extensionau
 	if err := chq.setupServerTelemetry(params); err != nil {
 		return nil, err
 	}
-	return extensionauth.NewServer(
-		extensionauth.WithServerStart(chq.serverStart),
-		extensionauth.WithServerAuthenticate(chq.serverAuthenticate),
-	)
+	return &chq, nil
 }
 
-func (chq *chqServerAuth) serverStart(_ context.Context, _ component.Host) error {
+func (chq *chqServerAuth) Start(_ context.Context, _ component.Host) error {
 	httpClient, err := chq.httpClientSettings.ToClient(context.Background(), nil, chq.telemetrySettings)
 	if err != nil {
 		return err
@@ -97,7 +102,7 @@ func (chq *chqServerAuth) serverStart(_ context.Context, _ component.Host) error
 	return nil
 }
 
-func (chq *chqServerAuth) serverAuthenticate(ctx context.Context, headers map[string][]string) (context.Context, error) {
+func (chq *chqServerAuth) Authenticate(ctx context.Context, headers map[string][]string) (context.Context, error) {
 	auth := getAuthHeader(headers)
 	if auth == "" {
 		return ctx, errNoAuthHeader

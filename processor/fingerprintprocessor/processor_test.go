@@ -31,8 +31,8 @@ func TestMakeFingerprintMapForConfig(t *testing.T) {
 			name: "single mapping",
 			input: []ottl.FingerprintMapping{
 				{
-					Primary: 1,
-					Aliases: []int64{2, 3},
+					Primary: "1",
+					Aliases: []string{"2", "3"},
 				},
 			},
 			expected: map[int64]int64{
@@ -44,12 +44,12 @@ func TestMakeFingerprintMapForConfig(t *testing.T) {
 			name: "multiple mappings",
 			input: []ottl.FingerprintMapping{
 				{
-					Primary: 1,
-					Aliases: []int64{2, 3},
+					Primary: "1",
+					Aliases: []string{"2", "3"},
 				},
 				{
-					Primary: 4,
-					Aliases: []int64{5, 6},
+					Primary: "4",
+					Aliases: []string{"5", "6"},
 				},
 			},
 			expected: map[int64]int64{
@@ -68,8 +68,8 @@ func TestMakeFingerprintMapForConfig(t *testing.T) {
 			name: "no aliases",
 			input: []ottl.FingerprintMapping{
 				{
-					Primary: 1,
-					Aliases: []int64{},
+					Primary: "1",
+					Aliases: []string{},
 				},
 			},
 			expected: map[int64]int64{},
@@ -83,7 +83,7 @@ func TestMakeFingerprintMapForConfig(t *testing.T) {
 			name: "nil aliases",
 			input: []ottl.FingerprintMapping{
 				{
-					Primary: 1,
+					Primary: "1",
 					Aliases: nil,
 				},
 			},

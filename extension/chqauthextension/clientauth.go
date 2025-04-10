@@ -19,27 +19,34 @@ import (
 	"net/http"
 	"strings"
 
+	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/extension"
 	"go.opentelemetry.io/collector/extension/extensionauth"
 	creds "google.golang.org/grpc/credentials"
 )
 
 type chqClientAuth struct {
+	component.StartFunc
+	component.ShutdownFunc
+
 	config   *ClientAuth
 	insecure bool
 	env      map[string]string
 }
 
-func newClientAuthExtension(cfg *Config, _ extension.Settings) (extensionauth.Client, error) {
+var (
+	_ extension.Extension      = (*chqClientAuth)(nil)
+	_ extensionauth.HTTPClient = (*chqClientAuth)(nil)
+	_ extensionauth.GRPCClient = (*chqClientAuth)(nil)
+)
+
+func newClientAuthExtension(cfg *Config, _ extension.Settings) (*chqClientAuth, error) {
 	chq := chqClientAuth{
 		config:   cfg.ClientAuth,
 		insecure: cfg.ClientAuth.Insecure,
 		env:      cfg.ClientAuth.Environment,
 	}
-	return extensionauth.NewClient(
-		extensionauth.WithClientRoundTripper(chq.roundTripper),
-		extensionauth.WithClientPerRPCCredentials(chq.perRPCCredentials),
-	)
+	return &chq, nil
 }
 
 type chqRoundTripper struct {
@@ -49,7 +56,7 @@ type chqRoundTripper struct {
 	env         map[string]string
 }
 
-func (chq *chqClientAuth) roundTripper(base http.RoundTripper) (http.RoundTripper, error) {
+func (chq *chqClientAuth) RoundTripper(base http.RoundTripper) (http.RoundTripper, error) {
 	if chq.config.APIKey == "" {
 		return base, nil
 	}
@@ -76,7 +83,7 @@ type chqPerRPCAuth struct {
 	insecure bool
 }
 
-func (chq *chqClientAuth) perRPCCredentials() (creds.PerRPCCredentials, error) {
+func (chq *chqClientAuth) PerRPCCredentials() (creds.PerRPCCredentials, error) {
 	metadata := map[string]string{
 		apiKeyHeader: chq.config.APIKey,
 	}

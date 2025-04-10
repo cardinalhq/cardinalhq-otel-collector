@@ -25,12 +25,12 @@ import (
 
 type Config struct {
 	exporterhelper.TimeoutConfig `mapstructure:",squash"`
-	QueueConfig                  exporterhelper.QueueConfig `mapstructure:"sending_queue"`
-	RetryConfig                  configretry.BackOffConfig  `mapstructure:"retry_on_failure"`
-	APIKey                       configopaque.String        `mapstructure:"api_key"`
-	Metrics                      MetricsConfig              `mapstructure:"metrics"`
-	Logs                         LogsConfig                 `mapstructure:"logs"`
-	Traces                       TracesConfig               `mapstructure:"traces"`
+	QueueConfig                  exporterhelper.QueueBatchConfig `mapstructure:"sending_queue"`
+	RetryConfig                  configretry.BackOffConfig       `mapstructure:"retry_on_failure"`
+	APIKey                       configopaque.String             `mapstructure:"api_key"`
+	Metrics                      MetricsConfig                   `mapstructure:"metrics"`
+	Logs                         LogsConfig                      `mapstructure:"logs"`
+	Traces                       TracesConfig                    `mapstructure:"traces"`
 }
 
 var errAPIKeyMissing = errors.New("api_key must be specified")

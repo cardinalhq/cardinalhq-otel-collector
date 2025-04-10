@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/component"
+	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/otelcol/otelcoltest"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter/internal/metadata"
@@ -63,6 +64,9 @@ func TestConfig(t *testing.T) {
 	assert.NoError(t, e.Validate())
 	assert.NotNil(t, e.Reporting)
 	expected := &Config{
+		ClientConfig: confighttp.ClientConfig{
+			Timeout: defaultTimeout,
+		},
 		Reporting: ReportingConfig{
 			Interval: 600 * time.Second,
 		},

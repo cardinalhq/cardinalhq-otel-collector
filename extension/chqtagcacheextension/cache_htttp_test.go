@@ -75,7 +75,7 @@ func TestCHQTagcacheExtension_FetchTags(t *testing.T) {
 				},
 			},
 			expectedTags:  nil,
-			expectedError: "Failed to fetch tags, error code: 404",
+			expectedError: "failed to fetch tags, error code: 404",
 		},
 		{
 			name: "invalid JSON",
@@ -158,7 +158,7 @@ func TestCHQTagcacheExtension_PutTags(t *testing.T) {
 				},
 			},
 			tags:          []Tag{},
-			expectedError: "Failed to put tags, error code: 404",
+			expectedError: "failed to put tags, error code: 404",
 		},
 		{
 			name:          "error",

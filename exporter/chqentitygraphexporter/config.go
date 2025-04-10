@@ -39,8 +39,8 @@ func (c *Config) Validate() error {
 		return err
 	}
 
-	if c.ClientConfig.Timeout == 0 {
-		c.ClientConfig.Timeout = 15 * time.Second
+	if c.Timeout == 0 {
+		c.Timeout = defaultTimeout
 	}
 
 	return c.Reporting.validate()

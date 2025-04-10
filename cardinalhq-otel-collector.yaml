@@ -302,7 +302,3 @@ providers:
 # note: these are releative to the build directory, which is "./distribution"
 replaces:
   - github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
-  - github.com/expr-lang/expr v1.16.9 => github.com/expr-lang/expr v1.17.0
-  - github.com/redis/go-redis/v9 v9.7.1 => github.com/redis/go-redis/v9 v9.7.3
-  - github.com/golang-jwt/jwt/v5 v5.2.1 => github.com/golang-jwt/jwt/v5 v5.2.2
-  - github.com/golang-jwt/jwt/v4 v4.5.1 => github.com/golang-jwt/jwt/v4 v4.5.2

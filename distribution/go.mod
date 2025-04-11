@@ -1040,3 +1040,7 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetrics
 replace github.com/cardinalhq/cardinalhq-otel-collector/processor/chqexemplarprocessor v0.123.0 => ../processor/chqexemplarprocessor
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
+
+replace go.opentelemetry.io/collector/config/confighttp => github.com/cardinalhq/opentelemetry-collector/config/confighttp v0.0.0-20250411063834-81cb6fe46201
+
+replace go.opentelemetry.io/collector/config/configcompression => github.com/cardinalhq/opentelemetry-collector/config/configcompression v0.0.0-20250411063834-81cb6fe46201

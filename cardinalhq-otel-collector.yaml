@@ -302,3 +302,5 @@ providers:
 # note: these are releative to the build directory, which is "./distribution"
 replaces:
   - github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
+  - go.opentelemetry.io/collector/config/confighttp => github.com/cardinalhq/opentelemetry-collector/config/confighttp v0.0.0-20250411063834-81cb6fe46201
+  - go.opentelemetry.io/collector/config/configcompression => github.com/cardinalhq/opentelemetry-collector/config/configcompression v0.0.0-20250411063834-81cb6fe46201

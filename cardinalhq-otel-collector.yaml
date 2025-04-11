@@ -219,7 +219,7 @@ extensions:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/dbstorage v0.123.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/redisstorageextension v0.123.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/extension/sumologicextension v0.123.0
-  # CardinalHQ exporters
+  # CardinalHQ extensions
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.123.0
     path: ./extension/chqauthextension
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.123.0
@@ -304,3 +304,4 @@ replaces:
   - github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
   - go.opentelemetry.io/collector/config/confighttp => github.com/cardinalhq/opentelemetry-collector/config/confighttp v0.0.0-20250411063834-81cb6fe46201
   - go.opentelemetry.io/collector/config/configcompression => github.com/cardinalhq/opentelemetry-collector/config/configcompression v0.0.0-20250411063834-81cb6fe46201
+  - github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver => github.com/cardinalhq/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver v0.0.0-20250411074412-a5b66f04c848

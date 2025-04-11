@@ -1,0 +1,379 @@
+{
+  "resourceSpans": [
+    {
+      "resource": {
+        "attributes": [
+          {
+            "key": "host.arch",
+            "value": {
+              "stringValue": "amd64"
+            }
+          },
+          {
+            "key": "host.name",
+            "value": {
+              "stringValue": "query-worker-ddbdd989b-zr9r8"
+            }
+          },
+          {
+            "key": "k8s.container.name",
+            "value": {
+              "stringValue": "query-worker"
+            }
+          },
+          {
+            "key": "k8s.deployment.name",
+            "value": {
+              "stringValue": "query-worker"
+            }
+          },
+          {
+            "key": "k8s.namespace.name",
+            "value": {
+              "stringValue": "cardinalhq"
+            }
+          },
+          {
+            "key": "k8s.node.name",
+            "value": {
+              "stringValue": "ip-10-181-7-198.us-east-2.compute.internal"
+            }
+          },
+          {
+            "key": "k8s.pod.name",
+            "value": {
+              "stringValue": "query-worker-ddbdd989b-zr9r8"
+            }
+          },
+          {
+            "key": "k8s.replicaset.name",
+            "value": {
+              "stringValue": "query-worker-ddbdd989b"
+            }
+          },
+          {
+            "key": "os.description",
+            "value": {
+              "stringValue": "Linux 6.1.131-143.221.amzn2023.x86_64"
+            }
+          },
+          {
+            "key": "os.type",
+            "value": {
+              "stringValue": "linux"
+            }
+          },
+          {
+            "key": "process.command_args",
+            "value": {
+              "arrayValue": {
+                "values": [
+                  {
+                    "stringValue": "/usr/java/openjdk-17/bin/java"
+                  },
+                  {
+                    "stringValue": "-XX:+ExitOnOutOfMemoryError"
+                  },
+                  {
+                    "stringValue": "-XX:+UnlockDiagnosticVMOptions"
+                  },
+                  {
+                    "stringValue": "-XX:+DebugNonSafepoints"
+                  },
+                  {
+                    "stringValue": "-XX:+FlightRecorder"
+                  },
+                  {
+                    "stringValue": "-XX:StartFlightRecording=delay=300s,duration=1m,name=Default,filename=recording.jfr,settings=default"
+                  },
+                  {
+                    "stringValue": "-Xlog:jfr=info"
+                  },
+                  {
+                    "stringValue": "-Dcom.sun.management.jmxremote"
+                  },
+                  {
+                    "stringValue": "-Dcom.sun.management.jmxremote.authenticate=false"
+                  },
+                  {
+                    "stringValue": "-Dcom.sun.management.jmxremote.ssl=false"
+                  },
+                  {
+                    "stringValue": "-Dcom.sun.management.jmxremote.port=9875"
+                  },
+                  {
+                    "stringValue": "-Dcom.sun.management.jmxremote.rmi.port=9875"
+                  },
+                  {
+                    "stringValue": "-Djava.rmi.server.hostname=localhost"
+                  },
+                  {
+                    "stringValue": "-Dnetworkaddress.cache.ttl=120"
+                  },
+                  {
+                    "stringValue": "org.springframework.boot.loader.JarLauncher"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "key": "process.executable.path",
+            "value": {
+              "stringValue": "/usr/java/openjdk-17/bin/java"
+            }
+          },
+          {
+            "key": "process.pid",
+            "value": {
+              "intValue": "1"
+            }
+          },
+          {
+            "key": "process.runtime.description",
+            "value": {
+              "stringValue": "Oracle Corporation OpenJDK 64-Bit Server VM 17.0.2+8-86"
+            }
+          },
+          {
+            "key": "process.runtime.name",
+            "value": {
+              "stringValue": "OpenJDK Runtime Environment"
+            }
+          },
+          {
+            "key": "process.runtime.version",
+            "value": {
+              "stringValue": "17.0.2+8-86"
+            }
+          },
+          {
+            "key": "service.instance.id",
+            "value": {
+              "stringValue": "cardinalhq.query-worker-ddbdd989b-zr9r8.query-worker"
+            }
+          },
+          {
+            "key": "service.name",
+            "value": {
+              "stringValue": "query-worker"
+            }
+          },
+          {
+            "key": "service.version",
+            "value": {
+              "stringValue": "latest-dev"
+            }
+          },
+          {
+            "key": "telemetry.distro.name",
+            "value": {
+              "stringValue": "opentelemetry-java-instrumentation"
+            }
+          },
+          {
+            "key": "telemetry.distro.version",
+            "value": {
+              "stringValue": "2.13.3"
+            }
+          },
+          {
+            "key": "telemetry.sdk.language",
+            "value": {
+              "stringValue": "java"
+            }
+          },
+          {
+            "key": "telemetry.sdk.name",
+            "value": {
+              "stringValue": "opentelemetry"
+            }
+          },
+          {
+            "key": "telemetry.sdk.version",
+            "value": {
+              "stringValue": "1.47.0"
+            }
+          },
+          {
+            "key": "k8s.pod.ip",
+            "value": {
+              "stringValue": "10.181.11.216"
+            }
+          },
+          {
+            "key": "app",
+            "value": {
+              "stringValue": "query-worker"
+            }
+          },
+          {
+            "key": "pod-template-hash",
+            "value": {
+              "stringValue": "ddbdd989b"
+            }
+          },
+          {
+            "key": "container.image.name",
+            "value": {
+              "stringValue": "033263751764.dkr.ecr.us-east-2.amazonaws.com/cardinalhq/query-worker"
+            }
+          },
+          {
+            "key": "container.image.tag",
+            "value": {
+              "stringValue": "latest-dev"
+            }
+          },
+          {
+            "key": "container.id",
+            "value": {
+              "stringValue": "d5563f9e21727a3271b6726db7815a6f9987e7dcb75d649d9deba159c124dc20"
+            }
+          },
+          {
+            "key": "k8s.cluster.name",
+            "value": {
+              "stringValue": "aws-test-us-east-2-regional"
+            }
+          }
+        ]
+      },
+      "scopeSpans": [
+        {
+          "scope": {
+            "name": "io.opentelemetry.jdbc",
+            "version": "2.13.3-alpha"
+          },
+          "spans": [
+            {
+              "kind": 3,
+              "name": "SELECT",
+              "flags": 257,
+              "events": [
+                {
+                  "name": "exception",
+                  "attributes": [
+                    {
+                      "key": "exception.type",
+                      "value": {
+                        "stringValue": "java.sql.SQLException"
+                      }
+                    },
+                    {
+                      "key": "exception.message",
+                      "value": {
+                        "stringValue": "java.sql.SQLException: HTTP Error: Unable to connect to URL \"https://s3.us-east-2.amazonaws.com/chq-ccstats-us-east-2-e863c807/db/65928f26-224b-4acb-8e57-9ee628164694/chq-ccstats/20250410/metrics/00/tbl_68915354401084.parquet\": 404 (Not Found)."
+                      }
+                    },
+                    {
+                      "key": "exception.stacktrace",
+                      "value": {
+                        "stringValue": "java.sql.SQLException: java.sql.SQLException: HTTP Error: Unable to connect to URL \"https://s3.us-east-2.amazonaws.com/chq-ccstats-us-east-2-e863c807/db/65928f26-224b-4acb-8e57-9ee628164694/chq-ccstats/20250410/metrics/00/tbl_68915354401084.parquet\": 404 (Not Found).\n\tat org.duckdb.DuckDBPreparedStatement.prepare(DuckDBPreparedStatement.java:121)\n\tat org.duckdb.DuckDBPreparedStatement.executeQuery(DuckDBPreparedStatement.java:207)\n\tat com.cardinal.utils.Commons$.toGlobResultSet(Commons.scala:420)\n\tat com.cardinal.utils.Commons$.$anonfun$evaluatePushDownRequest$2(Commons.scala:581)\n\tat akka.stream.impl.fusing.Map$$anon$1.onPush(Ops.scala:54)\n\tat akka.stream.impl.fusing.GraphInterpreter.processPush(GraphInterpreter.scala:542)\n\tat akka.stream.impl.fusing.GraphInterpreter.processEvent(GraphInterpreter.scala:528)\n\tat akka.stream.impl.fusing.GraphInterpreter.execute(GraphInterpreter.scala:390)\n\tat akka.stream.impl.fusing.GraphInterpreterShell.runBatch(ActorGraphInterpreter.scala:650)\n\tat akka.stream.impl.fusing.GraphInterpreterShell.init(ActorGraphInterpreter.scala:620)\n\tat akka.stream.impl.fusing.ActorGraphInterpreter.tryInit(ActorGraphInterpreter.scala:727)\n\tat akka.stream.impl.fusing.ActorGraphInterpreter.finishShellRegistration(ActorGraphInterpreter.scala:770)\n\tat akka.stream.impl.fusing.ActorGraphInterpreter.akka$stream$impl$fusing$ActorGraphInterpreter$$shortCircuitBatch(ActorGraphInterpreter.scala:788)\n\tat akka.stream.impl.fusing.ActorGraphInterpreter$$anonfun$receive$1.applyOrElse(ActorGraphInterpreter.scala:819)\n\tat akka.actor.Actor.aroundReceive(Actor.scala:537)\n\tat akka.actor.Actor.aroundReceive$(Actor.scala:535)\n\tat akka.stream.impl.fusing.ActorGraphInterpreter.aroundReceive(ActorGraphInterpreter.scala:716)\n\tat akka.actor.ActorCell.receiveMessage(ActorCell.scala:579)\n\tat akka.actor.ActorCell.invoke(ActorCell.scala:547)\n\tat akka.dispatch.Mailbox.processMailbox(Mailbox.scala:270)\n\tat akka.dispatch.Mailbox.run(Mailbox.scala:231)\n\tat akka.dispatch.Mailbox.exec(Mailbox.scala:243)\n\tat java.base/java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:373)\n\tat java.base/java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1182)\n\tat java.base/java.util.concurrent.ForkJoinPool.scan(ForkJoinPool.java:1655)\n\tat java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1622)\n\tat java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:165)\nCaused by: java.sql.SQLException: HTTP Error: Unable to connect to URL \"https://s3.us-east-2.amazonaws.com/chq-ccstats-us-east-2-e863c807/db/65928f26-224b-4acb-8e57-9ee628164694/chq-ccstats/20250410/metrics/00/tbl_68919124401084.parquet\": 404 (Not Found).\n\tat org.duckdb.DuckDBNative.duckdb_jdbc_prepare(Native Method)\n\tat org.duckdb.DuckDBPreparedStatement.prepare(DuckDBPreparedStatement.java:115)\n\t... 26 more\n"
+                      }
+                    }
+                  ],
+                  "timeUnixNano": "1744331553415058794"
+                }
+              ],
+              "spanId": "8d4dbdc30d578733",
+              "status": {
+                "code": 2
+              },
+              "traceId": "f0a8aaef8e59a6cd06486b83dadd2283",
+              "attributes": [
+                {
+                  "key": "db.connection_string",
+                  "value": {
+                    "stringValue": "duckdb:"
+                  }
+                },
+                {
+                  "key": "db.statement",
+                  "value": {
+                    "stringValue": "DESCRIBE SELECT * FROM read_parquet([?], union_by_name=True)"
+                  }
+                },
+                {
+                  "key": "thread.id",
+                  "value": {
+                    "intValue": "99"
+                  }
+                },
+                {
+                  "key": "db.system",
+                  "value": {
+                    "stringValue": "other_sql"
+                  }
+                },
+                {
+                  "key": "db.operation",
+                  "value": {
+                    "stringValue": "SELECT"
+                  }
+                },
+                {
+                  "key": "thread.name",
+                  "value": {
+                    "stringValue": "atlas-akka.actor.default-dispatcher-41"
+                  }
+                },
+                {
+                  "key": "_cardinalhq.fingerprint",
+                  "value": {
+                    "intValue": "-1053453579636508613"
+                  }
+                },
+                {
+                  "key": "_cardinalhq.span_duration",
+                  "value": {
+                    "doubleValue": 38
+                  }
+                },
+                {
+                  "key": "_cardinalhq.isSlow",
+                  "value": {
+                    "boolValue": true
+                  }
+                },
+                {
+                  "key": "db.system.name",
+                  "value": {
+                    "stringValue": "other_sql"
+                  }
+                },
+                {
+                  "key": "db.operation.name",
+                  "value": {
+                    "stringValue": "SELECT"
+                  }
+                },
+                {
+                  "key": "db.query.text",
+                  "value": {
+                    "stringValue": "DESCRIBE SELECT * FROM read_parquet([?], union_by_name=True)"
+                  }
+                },
+                {
+                  "key": "db.query.summary",
+                  "value": {
+                    "stringValue": "DESCRIBE SELECT * FROM read_parquet( union_by_name=True)"
+                  }
+                },
+                {
+                  "key": "has_error",
+                  "value": {
+                    "boolValue": true
+                  }
+                }
+              ],
+              "parentSpanId": "",
+              "endTimeUnixNano": "1744331553415081277",
+              "startTimeUnixNano": "1744331553376157256"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -49,7 +49,8 @@ type fingerprintProcessor struct {
 	logMappingsHash int64
 
 	// for logs
-	logFingerprinter fingerprinter.Fingerprinter
+	logFingerprinter   fingerprinter.Fingerprinter
+	traceFingerprinter fingerprinter.Fingerprinter
 
 	tenants syncmap.SyncMap[string, *tenantState]
 
@@ -78,6 +79,8 @@ func newProcessor(config *Config, ttype string, set processor.Settings) (*finger
 	switch ttype {
 	case "logs":
 		p.logFingerprinter = fingerprinter.NewFingerprinter(fingerprinter.WithMaxTokens(30))
+	case "traces":
+		p.traceFingerprinter = fingerprinter.NewFingerprinter(fingerprinter.WithMaxTokens(30))
 	}
 
 	idsource, err := authenv.ParseEnvironmentSource(config.IDSource)

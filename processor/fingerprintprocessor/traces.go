@@ -16,6 +16,7 @@ package fingerprintprocessor
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
@@ -37,7 +38,7 @@ func (p *fingerprintProcessor) ConsumeTraces(ctx context.Context, td ptrace.Trac
 			iss := rs.ScopeSpans().At(j)
 			for k := 0; k < iss.Spans().Len(); k++ {
 				sr := iss.Spans().At(k)
-				spanFingerprint := calculateSpanFingerprint(sr)
+				spanFingerprint := p.calculateSpanFingerprint(sr)
 				sr.Attributes().PutInt(translate.CardinalFieldFingerprint, spanFingerprint)
 
 				spanDuration := float64(sr.EndTimestamp().AsTime().Sub(sr.StartTimestamp().AsTime()).Abs().Milliseconds())
@@ -52,7 +53,7 @@ func (p *fingerprintProcessor) ConsumeTraces(ctx context.Context, td ptrace.Trac
 	return td, nil
 }
 
-func calculateSpanFingerprint(sr ptrace.Span) int64 {
+func (p *fingerprintProcessor) calculateSpanFingerprint(sr ptrace.Span) int64 {
 	var fingerprintAttributes []string
 	sanitizedName := functions.ScrubWord(sr.Name())
 	fingerprintAttributes = append(fingerprintAttributes, sanitizedName)
@@ -66,10 +67,17 @@ func calculateSpanFingerprint(sr ptrace.Span) int64 {
 				fingerprintAttributes = append(fingerprintAttributes, exType.AsString())
 			}
 			if exMsg, found := event.Attributes().Get(string(semconv.ExceptionMessageKey)); found {
-				fingerprintAttributes = append(fingerprintAttributes, exMsg.AsString())
+				fingerprint, _, _, _, err := p.traceFingerprinter.Fingerprint(exMsg.AsString())
+				if err == nil {
+					fingerprintAttributes = append(fingerprintAttributes, strconv.FormatInt(fingerprint, 10))
+				}
+
 			}
 			if exStack, found := event.Attributes().Get(string(semconv.ExceptionStacktraceKey)); found {
-				fingerprintAttributes = append(fingerprintAttributes, exStack.AsString())
+				fingerprint, _, _, _, err := p.traceFingerprinter.Fingerprint(exStack.AsString())
+				if err == nil {
+					fingerprintAttributes = append(fingerprintAttributes, strconv.FormatInt(fingerprint, 10))
+				}
 			}
 		}
 	}

@@ -111,7 +111,7 @@ func (p *statsProcessor) getTenant(organizationID string) *Tenant {
 		tenant = &Tenant{}
 		switch p.ttype {
 		case "logs":
-			tenant.logstats = chqpb.NewEventStatsCache(1000, 16, 5*time.Minute, p.sendLogStats(organizationID), chqpb.InitializeEventStats, realClock)
+			tenant.logstats = chqpb.NewEventStatsCache(1000, 16, 30*time.Second, p.sendLogStats(organizationID), chqpb.InitializeEventStats, realClock)
 			tenant.logstats.Start()
 			tenant.logExemplars = NewLRUCache(1000, 5*time.Minute)
 		case "metrics":
@@ -119,7 +119,7 @@ func (p *statsProcessor) getTenant(organizationID string) *Tenant {
 			tenant.metricstats.Start()
 			tenant.metricExemplars = NewLRUCache(1000, 5*time.Minute)
 		case "traces":
-			tenant.spanStats = chqpb.NewEventStatsCache(1000, 16, 5*time.Minute, p.sendSpanStats(organizationID), chqpb.InitializeEventStats, realClock)
+			tenant.spanStats = chqpb.NewEventStatsCache(1000, 16, 30*time.Second, p.sendSpanStats(organizationID), chqpb.InitializeEventStats, realClock)
 			tenant.spanStats.Start()
 			tenant.traceExemplars = NewLRUCache(1000, 5*time.Minute)
 		}

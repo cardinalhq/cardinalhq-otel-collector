@@ -41,12 +41,35 @@ func GetContainerSpecs(conf *converterconfig.Config, podSpec corev1.PodSpec) []*
 			Resources:      convertPodResources(container.Resources),
 			ConfigMapNames: containerConfigMapNames(conf, podSpec, container),
 			SecretNames:    containerSecretNames(conf, podSpec, container),
+			Ports:          containerPorts(container),
 		})
 	}
 	slices.SortFunc(specs, func(a, b *graphpb.PodContainerSpec) int {
 		return strings.Compare(a.Name, b.Name)
 	})
 	return specs
+}
+
+// containerPorts returns the list of ports used by the container.
+func containerPorts(container corev1.Container) []*graphpb.ContainerPortSpec {
+	if len(container.Ports) == 0 {
+		return nil
+	}
+	ports := []*graphpb.ContainerPortSpec{}
+	for _, port := range container.Ports {
+		if port.ContainerPort == 0 {
+			continue
+		}
+		ports = append(ports, &graphpb.ContainerPortSpec{
+			Name:          port.Name,
+			ContainerPort: int32(port.ContainerPort),
+			Protocol:      string(port.Protocol),
+		})
+	}
+	slices.SortFunc(ports, func(a, b *graphpb.ContainerPortSpec) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	return ports
 }
 
 // containerConfigMapNames returns the list of ConfigMap names used by the container,

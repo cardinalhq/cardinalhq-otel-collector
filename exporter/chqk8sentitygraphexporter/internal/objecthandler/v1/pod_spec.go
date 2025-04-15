@@ -62,7 +62,7 @@ func containerPorts(container corev1.Container) []*graphpb.ContainerPortSpec {
 		}
 		ports = append(ports, &graphpb.ContainerPortSpec{
 			Name:          port.Name,
-			ContainerPort: int32(port.ContainerPort),
+			ContainerPort: port.ContainerPort,
 			Protocol:      string(port.Protocol),
 		})
 	}

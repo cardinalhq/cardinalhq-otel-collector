@@ -71,7 +71,6 @@ func (p *fingerprintProcessor) calculateSpanFingerprint(sr ptrace.Span) int64 {
 				if err == nil {
 					fingerprintAttributes = append(fingerprintAttributes, strconv.FormatInt(fingerprint, 10))
 				}
-
 			}
 			if exStack, found := event.Attributes().Get(string(semconv.ExceptionStacktraceKey)); found {
 				fingerprint, _, _, _, err := p.traceFingerprinter.Fingerprint(exStack.AsString())

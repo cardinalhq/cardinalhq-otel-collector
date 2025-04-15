@@ -736,3 +736,125 @@ func TestSetupContainers(t *testing.T) {
 		})
 	}
 }
+
+func TestContainerPorts(t *testing.T) {
+	tests := []struct {
+		name      string
+		container corev1.Container
+		expected  []*graphpb.ContainerPortSpec
+	}{
+		{
+			name: "No ports",
+			container: corev1.Container{
+				Ports: []corev1.ContainerPort{},
+			},
+			expected: nil,
+		},
+		{
+			name: "Single port",
+			container: corev1.Container{
+				Ports: []corev1.ContainerPort{
+					{
+						Name:          "http",
+						ContainerPort: 80,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				},
+			},
+			expected: []*graphpb.ContainerPortSpec{
+				{
+					Name:          "http",
+					ContainerPort: 80,
+					Protocol:      "TCP",
+				},
+			},
+		},
+		{
+			name: "Multiple ports sorted by name",
+			container: corev1.Container{
+				Ports: []corev1.ContainerPort{
+					{
+						Name:          "z-port",
+						ContainerPort: 8080,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          "a-port",
+						ContainerPort: 9090,
+						Protocol:      corev1.ProtocolUDP,
+					},
+				},
+			},
+			expected: []*graphpb.ContainerPortSpec{
+				{
+					Name:          "a-port",
+					ContainerPort: 9090,
+					Protocol:      "UDP",
+				},
+				{
+					Name:          "z-port",
+					ContainerPort: 8080,
+					Protocol:      "TCP",
+				},
+			},
+		},
+		{
+			name: "Ports with zero container port are ignored",
+			container: corev1.Container{
+				Ports: []corev1.ContainerPort{
+					{
+						Name:          "valid-port",
+						ContainerPort: 8080,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          "zero-port",
+						ContainerPort: 0,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				},
+			},
+			expected: []*graphpb.ContainerPortSpec{
+				{
+					Name:          "valid-port",
+					ContainerPort: 8080,
+					Protocol:      "TCP",
+				},
+			},
+		},
+		{
+			name: "Ports without names are sorted by default order",
+			container: corev1.Container{
+				Ports: []corev1.ContainerPort{
+					{
+						ContainerPort: 8080,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						ContainerPort: 9090,
+						Protocol:      corev1.ProtocolUDP,
+					},
+				},
+			},
+			expected: []*graphpb.ContainerPortSpec{
+				{
+					Name:          "",
+					ContainerPort: 8080,
+					Protocol:      "TCP",
+				},
+				{
+					Name:          "",
+					ContainerPort: 9090,
+					Protocol:      "UDP",
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := containerPorts(tt.container)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

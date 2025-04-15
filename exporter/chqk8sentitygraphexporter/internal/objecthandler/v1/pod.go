@@ -73,7 +73,8 @@ func containerStatus(status corev1.ContainerStatus) *graphpb.PodContainerStatus 
 			Image:   status.Image,
 			ImageId: status.ImageID,
 		},
-		Ready: status.Ready,
+		Ready:        status.Ready,
+		RestartCount: status.RestartCount,
 	}
 
 	if status.State.Waiting != nil {

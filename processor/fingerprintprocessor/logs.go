@@ -50,7 +50,9 @@ func (p *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plo
 					continue
 				}
 				lr.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)
-				if lr.SeverityText() == "" || lr.SeverityText() == plog.SeverityNumberUnspecified.String() || lr.SeverityNumber() == plog.SeverityNumberUnspecified {
+				if lr.SeverityNumber() != plog.SeverityNumberUnspecified {
+					lr.SetSeverityText(SeverityNumberToText(lr.SeverityNumber()))
+				} else if lr.SeverityText() == "" || lr.SeverityText() == plog.SeverityNumberUnspecified.String() {
 					lr.SetSeverityText(strings.ToUpper(levelfromFingerprinter))
 				}
 				lr.Attributes().PutStr(translate.CardinalFieldLevel, lr.SeverityText())
@@ -59,6 +61,25 @@ func (p *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plo
 	}
 
 	return ld, nil
+}
+
+func SeverityNumberToText(severityNumber plog.SeverityNumber) string {
+	switch {
+	case severityNumber >= 1 && severityNumber <= 4:
+		return "TRACE"
+	case severityNumber >= 5 && severityNumber <= 8:
+		return "DEBUG"
+	case severityNumber >= 9 && severityNumber <= 12:
+		return "INFO"
+	case severityNumber >= 13 && severityNumber <= 16:
+		return "WARN"
+	case severityNumber >= 17 && severityNumber <= 20:
+		return "ERROR"
+	case severityNumber >= 21 && severityNumber <= 24:
+		return "FATAL"
+	default:
+		return "UNSPECIFIED"
+	}
 }
 
 func (p *fingerprintProcessor) addTokenFields(tenant *tenantState, lr plog.LogRecord) (int64, string, error) {

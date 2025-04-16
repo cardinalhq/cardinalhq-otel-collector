@@ -54,26 +54,20 @@ type fingerprintProcessor struct {
 
 	tenants syncmap.SyncMap[string, *tenantState]
 
-	estimatorWindowSize int
-	estimatorInterval   int64
-
 	idSource authenv.EnvironmentSource
 }
 
 type tenantState struct {
-	mapstore   *MapStore
-	estimators syncmap.SyncMap[uint64, *SlidingEstimatorStat]
+	mapstore *MapStore
 }
 
 func newProcessor(config *Config, ttype string, set processor.Settings) (*fingerprintProcessor, error) {
 	p := &fingerprintProcessor{
-		id:                  set.ID,
-		ttype:               ttype,
-		config:              config,
-		telemetrySettings:   set.TelemetrySettings,
-		logger:              set.Logger,
-		estimatorWindowSize: config.TracesConfig.EstimatorWindowSize,
-		estimatorInterval:   config.TracesConfig.EstimatorInterval,
+		id:                set.ID,
+		ttype:             ttype,
+		config:            config,
+		telemetrySettings: set.TelemetrySettings,
+		logger:            set.Logger,
 	}
 
 	switch ttype {

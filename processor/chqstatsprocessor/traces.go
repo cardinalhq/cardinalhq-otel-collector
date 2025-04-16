@@ -27,7 +27,6 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
-	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 func (p *statsProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
@@ -46,12 +45,8 @@ func (p *statsProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) (p
 			iss := rs.ScopeSpans().At(j)
 			for k := 0; k < iss.Spans().Len(); k++ {
 				sr := iss.Spans().At(k)
-				isSlow := false
-				if isslowValue, found := sr.Attributes().Get(translate.CardinalFieldSpanIsSlow); found {
-					isSlow = isslowValue.Bool()
-				}
 				fingerprint := getFingerprint(sr.Attributes())
-				if err := p.recordSpan(now, ee, serviceName, fingerprint, isSlow, sr, iss, rs); err != nil {
+				if err := p.recordSpan(now, ee, serviceName, fingerprint, sr, iss, rs); err != nil {
 					p.logger.Error("Failed to record span", zap.Error(err))
 				}
 			}
@@ -74,7 +69,6 @@ func (p *statsProcessor) recordSpan(
 	environment authenv.Environment,
 	serviceName string,
 	fingerprint int64,
-	isSlow bool,
 	span ptrace.Span,
 	iss ptrace.ScopeSpans,
 	rs ptrace.ResourceSpans,
@@ -99,10 +93,8 @@ func (p *statsProcessor) recordSpan(
 
 		spanKindAttribute := toAttribute("span", "kind", pcommon.NewValueStr(span.Kind().String()), false)
 		statusCodeAttribute := toAttribute("span", "status_code", pcommon.NewValueStr(span.Status().Code().String()), false)
-		isSlowAttribute := toAttribute("span", "isSlow", pcommon.NewValueBool(isSlow), true)
 
 		enrichmentAttributes = append(enrichmentAttributes, statusCodeAttribute)
-		enrichmentAttributes = append(enrichmentAttributes, isSlowAttribute)
 		enrichmentAttributes = append(enrichmentAttributes, spanKindAttribute)
 
 		err := tenant.spanStats.Record(serviceName, fingerprint, p.pbPhase, p.id.Name(), environment.CollectorID(), environment.CustomerID(), enrichmentAttributes, 1, spanSize)

@@ -12,7 +12,7 @@
           {
             "key": "host.name",
             "value": {
-              "stringValue": "query-worker-ddbdd989b-zr9r8"
+              "stringValue": "query-worker-ddbdd989b-w4xfc"
             }
           },
           {
@@ -36,13 +36,13 @@
           {
             "key": "k8s.node.name",
             "value": {
-              "stringValue": "ip-10-181-7-198.us-east-2.compute.internal"
+              "stringValue": "ip-10-181-1-122.us-east-2.compute.internal"
             }
           },
           {
             "key": "k8s.pod.name",
             "value": {
-              "stringValue": "query-worker-ddbdd989b-zr9r8"
+              "stringValue": "query-worker-ddbdd989b-w4xfc"
             }
           },
           {
@@ -150,7 +150,7 @@
           {
             "key": "service.instance.id",
             "value": {
-              "stringValue": "cardinalhq.query-worker-ddbdd989b-zr9r8.query-worker"
+              "stringValue": "cardinalhq.query-worker-ddbdd989b-w4xfc.query-worker"
             }
           },
           {
@@ -198,7 +198,7 @@
           {
             "key": "k8s.pod.ip",
             "value": {
-              "stringValue": "10.181.11.216"
+              "stringValue": "10.181.8.112"
             }
           },
           {
@@ -228,7 +228,7 @@
           {
             "key": "container.id",
             "value": {
-              "stringValue": "d5563f9e21727a3271b6726db7815a6f9987e7dcb75d649d9deba159c124dc20"
+              "stringValue": "cf6e9c29cd65f4e775300be1aec9d82266dda26283552248fd7fe65b9448a96f"
             }
           },
           {
@@ -242,13 +242,13 @@
       "scopeSpans": [
         {
           "scope": {
-            "name": "io.opentelemetry.jdbc",
+            "name": "io.opentelemetry.aws-sdk-1.11",
             "version": "2.13.3-alpha"
           },
           "spans": [
             {
               "kind": 3,
-              "name": "SELECT",
+              "name": "S3.GetObject",
               "flags": 257,
               "events": [
                 {
@@ -257,77 +257,95 @@
                     {
                       "key": "exception.type",
                       "value": {
-                        "stringValue": "java.sql.SQLException"
+                        "stringValue": "com.amazonaws.services.s3.model.AmazonS3Exception"
                       }
                     },
                     {
                       "key": "exception.message",
                       "value": {
-                        "stringValue": "java.sql.SQLException: HTTP Error: Unable to connect to URL \"https://s3.us-east-2.amazonaws.com/chq-ccstats-us-east-2-e863c807/db/65928f26-224b-4acb-8e57-9ee628164694/chq-ccstats/20250410/metrics/00/tbl_68915354401084.parquet\": 404 (Not Found)."
+                        "stringValue": "The specified key does not exist. (Service: Amazon S3; Status Code: 404; Error Code: NoSuchKey; Request ID: 35RM8V8QXF53KQG4; S3 Extended Request ID: HDPgTMmPswV376FyTJyJwwHWrqWNxbTBWZJ8PB4P2GKoFuz7kMeuWImFJ0d45aivnfgPmdx4kqEGgv0uEGvGVWQB0JUeGMDq9rok1+l/IUA=; Proxy: null)"
                       }
                     },
                     {
                       "key": "exception.stacktrace",
                       "value": {
-                        "stringValue": "java.sql.SQLException: java.sql.SQLException: HTTP Error: Unable to connect to URL \"https://s3.us-east-2.amazonaws.com/chq-ccstats-us-east-2-e863c807/db/65928f26-224b-4acb-8e57-9ee628164694/chq-ccstats/20250410/metrics/00/tbl_68915354401084.parquet\": 404 (Not Found).\n\tat org.duckdb.DuckDBPreparedStatement.prepare(DuckDBPreparedStatement.java:121)\n\tat org.duckdb.DuckDBPreparedStatement.executeQuery(DuckDBPreparedStatement.java:207)\n\tat com.cardinal.utils.Commons$.toGlobResultSet(Commons.scala:420)\n\tat com.cardinal.utils.Commons$.$anonfun$evaluatePushDownRequest$2(Commons.scala:581)\n\tat akka.stream.impl.fusing.Map$$anon$1.onPush(Ops.scala:54)\n\tat akka.stream.impl.fusing.GraphInterpreter.processPush(GraphInterpreter.scala:542)\n\tat akka.stream.impl.fusing.GraphInterpreter.processEvent(GraphInterpreter.scala:528)\n\tat akka.stream.impl.fusing.GraphInterpreter.execute(GraphInterpreter.scala:390)\n\tat akka.stream.impl.fusing.GraphInterpreterShell.runBatch(ActorGraphInterpreter.scala:650)\n\tat akka.stream.impl.fusing.GraphInterpreterShell.init(ActorGraphInterpreter.scala:620)\n\tat akka.stream.impl.fusing.ActorGraphInterpreter.tryInit(ActorGraphInterpreter.scala:727)\n\tat akka.stream.impl.fusing.ActorGraphInterpreter.finishShellRegistration(ActorGraphInterpreter.scala:770)\n\tat akka.stream.impl.fusing.ActorGraphInterpreter.akka$stream$impl$fusing$ActorGraphInterpreter$$shortCircuitBatch(ActorGraphInterpreter.scala:788)\n\tat akka.stream.impl.fusing.ActorGraphInterpreter$$anonfun$receive$1.applyOrElse(ActorGraphInterpreter.scala:819)\n\tat akka.actor.Actor.aroundReceive(Actor.scala:537)\n\tat akka.actor.Actor.aroundReceive$(Actor.scala:535)\n\tat akka.stream.impl.fusing.ActorGraphInterpreter.aroundReceive(ActorGraphInterpreter.scala:716)\n\tat akka.actor.ActorCell.receiveMessage(ActorCell.scala:579)\n\tat akka.actor.ActorCell.invoke(ActorCell.scala:547)\n\tat akka.dispatch.Mailbox.processMailbox(Mailbox.scala:270)\n\tat akka.dispatch.Mailbox.run(Mailbox.scala:231)\n\tat akka.dispatch.Mailbox.exec(Mailbox.scala:243)\n\tat java.base/java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:373)\n\tat java.base/java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1182)\n\tat java.base/java.util.concurrent.ForkJoinPool.scan(ForkJoinPool.java:1655)\n\tat java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1622)\n\tat java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:165)\nCaused by: java.sql.SQLException: HTTP Error: Unable to connect to URL \"https://s3.us-east-2.amazonaws.com/chq-ccstats-us-east-2-e863c807/db/65928f26-224b-4acb-8e57-9ee628164694/chq-ccstats/20250410/metrics/00/tbl_68919124401084.parquet\": 404 (Not Found).\n\tat org.duckdb.DuckDBNative.duckdb_jdbc_prepare(Native Method)\n\tat org.duckdb.DuckDBPreparedStatement.prepare(DuckDBPreparedStatement.java:115)\n\t... 26 more\n"
+                        "stringValue": "com.amazonaws.services.s3.model.AmazonS3Exception: The specified key does not exist. (Service: Amazon S3; Status Code: 404; Error Code: NoSuchKey; Request ID: 35RM8V8QXF53KQG4; S3 Extended Request ID: HDPgTMmPswV376FyTJyJwwHWrqWNxbTBWZJ8PB4P2GKoFuz7kMeuWImFJ0d45aivnfgPmdx4kqEGgv0uEGvGVWQB0JUeGMDq9rok1+l/IUA=; Proxy: null), S3 Extended Request ID: HDPgTMmPswV376FyTJyJwwHWrqWNxbTBWZJ8PB4P2GKoFuz7kMeuWImFJ0d45aivnfgPmdx4kqEGgv0uEGvGVWQB0JUeGMDq9rok1+l/IUA=\n\tat com.amazonaws.http.AmazonHttpClient$RequestExecutor.handleErrorResponse(AmazonHttpClient.java:1880)\n\tat com.amazonaws.http.AmazonHttpClient$RequestExecutor.handleServiceErrorResponse(AmazonHttpClient.java:1418)\n\tat com.amazonaws.http.AmazonHttpClient$RequestExecutor.executeOneRequest(AmazonHttpClient.java:1387)\n\tat com.amazonaws.http.AmazonHttpClient$RequestExecutor.executeHelper(AmazonHttpClient.java:1157)\n\tat com.amazonaws.http.AmazonHttpClient$RequestExecutor.doExecute(AmazonHttpClient.java:814)\n\tat com.amazonaws.http.AmazonHttpClient$RequestExecutor.executeWithTimer(AmazonHttpClient.java:781)\n\tat com.amazonaws.http.AmazonHttpClient$RequestExecutor.execute(AmazonHttpClient.java:755)\n\tat com.amazonaws.http.AmazonHttpClient$RequestExecutor.access$500(AmazonHttpClient.java:715)\n\tat com.amazonaws.http.AmazonHttpClient$RequestExecutionBuilderImpl.execute(AmazonHttpClient.java:697)\n\tat com.amazonaws.http.AmazonHttpClient.execute(AmazonHttpClient.java:561)\n\tat com.amazonaws.http.AmazonHttpClient.execute(AmazonHttpClient.java:541)\n\tat com.amazonaws.services.s3.AmazonS3Client.invoke(AmazonS3Client.java:5558)\n\tat com.amazonaws.services.s3.AmazonS3Client.invoke(AmazonS3Client.java:5505)\n\tat com.amazonaws.services.s3.AmazonS3Client.getObject(AmazonS3Client.java:1555)\n\tat com.amazonaws.services.s3.AmazonS3Client$3.getS3ObjectStream(AmazonS3Client.java:1653)\n\tat com.amazonaws.services.s3.internal.ServiceUtils.retryableDownloadS3ObjectToFile(ServiceUtils.java:400)\n\tat com.amazonaws.services.s3.AmazonS3Client.getObject(AmazonS3Client.java:1649)\n\tat com.cardinal.objectstorage.S3Store._downloadObject(S3Store.scala:46)\n\tat com.cardinal.objectstorage.BaseObjectStore.downloadObject(BaseObjectStore.scala:37)\n\tat com.cardinal.queryworker.WorkerApi.$anonfun$downloadQueue$2(WorkerApi.scala:57)\n\tat com.cardinal.queryworker.WorkerApi.$anonfun$downloadQueue$2$adapted(WorkerApi.scala:56)\n\tat akka.stream.impl.fusing.Map$$anon$1.onPush(Ops.scala:54)\n\tat akka.stream.impl.fusing.GraphInterpreter.processPush(GraphInterpreter.scala:542)\n\tat akka.stream.impl.fusing.GraphInterpreter.processEvent(GraphInterpreter.scala:496)\n\tat akka.stream.impl.fusing.GraphInterpreter.execute(GraphInterpreter.scala:390)\n\tat akka.stream.impl.fusing.GraphInterpreterShell.runBatch(ActorGraphInterpreter.scala:650)\n\tat akka.stream.impl.fusing.GraphInterpreterShell$AsyncInput.execute(ActorGraphInterpreter.scala:521)\n\tat akka.stream.impl.fusing.GraphInterpreterShell.processEvent(ActorGraphInterpreter.scala:625)\n\tat akka.stream.impl.fusing.ActorGraphInterpreter.akka$stream$impl$fusing$ActorGraphInterpreter$$processEvent(ActorGraphInterpreter.scala:800)\n\tat akka.stream.impl.fusing.ActorGraphInterpreter$$anonfun$receive$1.applyOrElse(ActorGraphInterpreter.scala:818)\n\tat akka.actor.Actor.aroundReceive(Actor.scala:537)\n\tat akka.actor.Actor.aroundReceive$(Actor.scala:535)\n\tat akka.stream.impl.fusing.ActorGraphInterpreter.aroundReceive(ActorGraphInterpreter.scala:716)\n\tat akka.actor.ActorCell.receiveMessage(ActorCell.scala:579)\n\tat akka.actor.ActorCell.invoke(ActorCell.scala:547)\n\tat akka.dispatch.Mailbox.processMailbox(Mailbox.scala:270)\n\tat akka.dispatch.Mailbox.run(Mailbox.scala:231)\n\tat akka.dispatch.Mailbox.exec(Mailbox.scala:243)\n\tat java.base/java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:373)\n\tat java.base/java.util.concurrent.ForkJoinPool$WorkQueue.topLevelExec(ForkJoinPool.java:1182)\n\tat java.base/java.util.concurrent.ForkJoinPool.scan(ForkJoinPool.java:1655)\n\tat java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1622)\n\tat java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:165)\n"
                       }
                     }
                   ],
-                  "timeUnixNano": "1744331553415058794"
+                  "timeUnixNano": "1744761942562657823"
                 }
               ],
-              "spanId": "8d4dbdc30d578733",
+              "spanId": "bee08138cd273d58",
               "status": {
                 "code": 2
               },
-              "traceId": "f0a8aaef8e59a6cd06486b83dadd2283",
+              "traceId": "91c096085c44321b9927522b2acc2b45",
               "attributes": [
                 {
-                  "key": "db.connection_string",
+                  "key": "server.address",
                   "value": {
-                    "stringValue": "duckdb:"
+                    "stringValue": "s3.us-east-2.amazonaws.com"
                   }
                 },
                 {
-                  "key": "db.statement",
+                  "key": "error.type",
                   "value": {
-                    "stringValue": "DESCRIBE SELECT * FROM read_parquet([?], union_by_name=True)"
+                    "stringValue": "com.amazonaws.services.s3.model.AmazonS3Exception"
+                  }
+                },
+                {
+                  "key": "http.request.method",
+                  "value": {
+                    "stringValue": "GET"
+                  }
+                },
+                {
+                  "key": "rpc.service",
+                  "value": {
+                    "stringValue": "Amazon S3"
                   }
                 },
                 {
                   "key": "thread.id",
                   "value": {
-                    "intValue": "99"
+                    "intValue": "67"
                   }
                 },
                 {
-                  "key": "db.system",
+                  "key": "rpc.method",
                   "value": {
-                    "stringValue": "other_sql"
+                    "stringValue": "GetObject"
                   }
                 },
                 {
-                  "key": "db.operation",
+                  "key": "rpc.system",
                   "value": {
-                    "stringValue": "SELECT"
+                    "stringValue": "aws-api"
                   }
                 },
                 {
                   "key": "thread.name",
                   "value": {
-                    "stringValue": "atlas-akka.actor.default-dispatcher-41"
+                    "stringValue": "atlas-akka.actor.default-dispatcher-26"
+                  }
+                },
+                {
+                  "key": "url.full",
+                  "value": {
+                    "stringValue": "https://s3.us-east-2.amazonaws.com"
                   }
                 },
                 {
                   "key": "_cardinalhq.fingerprint",
                   "value": {
-                    "intValue": "-1053453579636508613"
+                    "intValue": "-7909555030577481471"
                   }
                 },
                 {
                   "key": "_cardinalhq.span_duration",
                   "value": {
-                    "doubleValue": 38
+                    "doubleValue": 101
                   }
                 },
                 {
@@ -337,27 +355,9 @@
                   }
                 },
                 {
-                  "key": "db.system.name",
+                  "key": "url.template",
                   "value": {
-                    "stringValue": "other_sql"
-                  }
-                },
-                {
-                  "key": "db.operation.name",
-                  "value": {
-                    "stringValue": "SELECT"
-                  }
-                },
-                {
-                  "key": "db.query.text",
-                  "value": {
-                    "stringValue": "DESCRIBE SELECT * FROM read_parquet([?], union_by_name=True)"
-                  }
-                },
-                {
-                  "key": "db.query.summary",
-                  "value": {
-                    "stringValue": "DESCRIBE SELECT * FROM read_parquet( union_by_name=True)"
+                    "stringValue": "https://s3.us-east-2.amazonaws.com"
                   }
                 },
                 {
@@ -365,11 +365,23 @@
                   "value": {
                     "boolValue": true
                   }
+                },
+                {
+                  "key": "_cardinalhq.k8s.cluster.name",
+                  "value": {
+                    "stringValue": "aws-test-us-east-2-regional"
+                  }
+                },
+                {
+                  "key": "_cardinalhq.k8s.namespace.name",
+                  "value": {
+                    "stringValue": "cardinalhq"
+                  }
                 }
               ],
-              "parentSpanId": "",
-              "endTimeUnixNano": "1744331553415081277",
-              "startTimeUnixNano": "1744331553376157256"
+              "parentSpanId": "b2dfa0fd2af4d1ae",
+              "endTimeUnixNano": "1744761942562690483",
+              "startTimeUnixNano": "1744761942461648051"
             }
           ]
         }

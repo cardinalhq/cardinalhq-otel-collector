@@ -17,7 +17,8 @@ RUN apk --update add ca-certificates
 
 FROM scratch
 
-ADD ../docker/geoip /app/geoip
+ADD docker/geoip/GeoLite2-City.mmdb /app/geoip/GeoLite2-City.mmdb
+ENV GEOIP_DB_PATH=/app/geoip/GeoLite2-City.mmdb
 
 ARG USER_UID=2000
 USER ${USER_UID}:${USER_UID}

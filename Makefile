@@ -113,6 +113,7 @@ bin/cardinalhq-otel-collector: cardinalhq-otel-collector.yaml distribution/main.
 #
 .PHONY: images
 images: buildfiles
+#	cp -r docker distribution
 	go tool goreleaser
 
 #

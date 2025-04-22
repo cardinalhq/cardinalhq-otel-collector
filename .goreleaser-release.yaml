@@ -1,5 +1,8 @@
 project_name: cardinalhq-otel-collector
 version: 2
+before:
+  hooks:
+    - cp -r docker distribution
 builds:
   - id: cardinalhq-otel-collector
     goos:

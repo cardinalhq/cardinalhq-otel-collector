@@ -1,5 +1,8 @@
 project_name: cardinalhq-otel-collector
 version: 2
+before:
+  hooks:
+    - cp -r docker distribution
 builds:
   - id: cardinalhq-otel-collector
     goos:
@@ -24,6 +27,8 @@ dockers:
   - goos: linux
     goarch: amd64
     dockerfile: Dockerfile
+    extra_files:
+      - docker/geoip/GeoOpen-Country.mmdb
     image_templates:
       - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:v{{ .Version }}-amd64
       - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:latest-dev-amd64
@@ -39,6 +44,8 @@ dockers:
   - goos: linux
     goarch: arm64
     dockerfile: Dockerfile
+    extra_files:
+      - docker/geoip/GeoOpen-Country.mmdb
     image_templates:
       - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:v{{ .Version }}-arm64
       - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:latest-dev-arm64

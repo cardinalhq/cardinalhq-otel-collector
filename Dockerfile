@@ -17,7 +17,7 @@ RUN apk --update add ca-certificates
 
 FROM scratch
 
-ADD docker/geoip/ /app/geoip/
+ADD docker/geoip/GeoOpen-Country.mmdb /app/geoip/GeoOpen-Country.mmdb
 
 ARG USER_UID=2000
 USER ${USER_UID}:${USER_UID}

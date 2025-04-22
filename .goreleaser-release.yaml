@@ -26,7 +26,7 @@ dockers:
     goarch: amd64
     dockerfile: Dockerfile
     extra_files:
-      - docker/
+      - docker/geoip/GeoOpen-Country.mmdb
     image_templates:
       - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:v{{ .Version }}-amd64
       - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:latest-amd64
@@ -43,7 +43,7 @@ dockers:
     goarch: arm64
     dockerfile: Dockerfile
     extra_files:
-      - docker/
+      - docker/geoip/GeoOpen-Country.mmdb
     image_templates:
       - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:v{{ .Version }}-arm64
       - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:latest-arm64
@@ -60,7 +60,7 @@ dockers:
   #   goarch: s390x
   #   dockerfile: Dockerfile
   #   extra_files:
-  #     - docker/
+  #     - docker/geoip/GeoOpen-Country.mmdb
   #   image_templates:
   #     - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:v{{ .Version }}-s390x
   #     - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:latest-s390x

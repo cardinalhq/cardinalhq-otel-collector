@@ -31,7 +31,7 @@ dockers:
     goarch: amd64
     dockerfile: Dockerfile
     extra_files:
-      - docker/geoip/GeoLite2-City.mmdb
+      - distribution/docker/geoip/GeoLite2-City.mmdb
     image_templates:
       - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:v{{ .Version }}-amd64
       - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:latest-dev-amd64
@@ -48,7 +48,7 @@ dockers:
     goarch: arm64
     dockerfile: Dockerfile
     extra_files:
-      - docker/geoip/GeoLite2-City.mmdb
+      - distribution/docker/geoip/GeoLite2-City.mmdb
     image_templates:
       - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:v{{ .Version }}-arm64
       - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:latest-dev-arm64

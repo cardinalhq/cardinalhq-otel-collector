@@ -2,8 +2,8 @@ project_name: cardinalhq-otel-collector
 version: 2
 before:
   hooks:
-    - mkdir -p docker/geoip
-    - zstd -d < docker/geoip/GeoLite2-City.mmdb.zstd > docker/geoip/GeoLite2-City.mmdb
+    - mkdir -p distribution/docker/geoip
+    - zstd -d < docker/geoip/GeoLite2-City.mmdb.zstd > distribution/docker/geoip/GeoLite2-City.mmdb
 builds:
   - id: cardinalhq-otel-collector
     goos:

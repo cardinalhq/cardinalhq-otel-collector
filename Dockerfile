@@ -17,6 +17,8 @@ RUN apk --update add ca-certificates
 
 FROM scratch
 
+ADD docker/geoip /app/geoip
+
 ARG USER_UID=2000
 USER ${USER_UID}:${USER_UID}
 

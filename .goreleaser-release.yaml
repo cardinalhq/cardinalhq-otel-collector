@@ -1,5 +1,9 @@
 project_name: cardinalhq-otel-collector
 version: 2
+before:
+  hooks:
+    - mkdir -p distribution/docker/geoip
+    - cp docker/geoip/GeoOpen-Country.mmdb distribution/docker/geoip/
 builds:
   - id: cardinalhq-otel-collector
     goos:

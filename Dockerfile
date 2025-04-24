@@ -15,7 +15,7 @@
 FROM alpine:latest AS certs
 RUN apk --update add ca-certificates
 
-FROM docker.flame.org/library/geoip-base:latest
+FROM public.ecr.aws/cardinalhq.io/geoip-base:latest
 
 ARG USER_UID=2000
 USER ${USER_UID}:${USER_UID}
@@ -23,7 +23,7 @@ USER ${USER_UID}:${USER_UID}
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --chmod=755 cardinalhq-otel-collector /app/bin/cardinalhq-otel-collector
 
-# COPY GeoLite2-City.mmdb /app/geoip/GeoLite2-City.mmdb
+# The base image has the geoip database in /app/geoip
 ENV GEOIP_DB_PATH=/app/geoip/GeoLite2-City.mmdb
 
 ENTRYPOINT ["/app/bin/cardinalhq-otel-collector"]

@@ -1191,8 +1191,8 @@ github.com/cardinalhq/opentelemetry-collector/config/configcompression v0.0.0-20
 github.com/cardinalhq/opentelemetry-collector/config/configcompression v0.0.0-20250411063834-81cb6fe46201/go.mod h1:QwbNpaOl6Me+wd0EdFuEJg0Cc+WR42HNjJtdq4TwE6w=
 github.com/cardinalhq/opentelemetry-collector/config/confighttp v0.0.0-20250411063834-81cb6fe46201 h1:ztm3ueO00BKa8yJu3F2iyOgOzvHosBWYsx3cqkXKwxg=
 github.com/cardinalhq/opentelemetry-collector/config/confighttp v0.0.0-20250411063834-81cb6fe46201/go.mod h1:BtYNadyllgk9yyDnsvGh5vMy8tO1h7Z73A0v9yUBmmY=
-github.com/cardinalhq/oteltools v0.24.20 h1:uyMMzW+PJK0Lqlylx+7D2CQQHoj3ZL3b7VkCozICnXg=
-github.com/cardinalhq/oteltools v0.24.20/go.mod h1:6blM+i061mkNTJVlPX2RX2FzrEK/eMUUO+3GKQY3umc=
+github.com/cardinalhq/oteltools v0.24.21 h1:Z2iOjDAMabvw4Sf2fOHzPChcsyveJ+2DBc0gk/fsaII=
+github.com/cardinalhq/oteltools v0.24.21/go.mod h1:6blM+i061mkNTJVlPX2RX2FzrEK/eMUUO+3GKQY3umc=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
 github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=

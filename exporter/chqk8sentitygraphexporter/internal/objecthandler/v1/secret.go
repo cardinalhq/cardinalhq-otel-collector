@@ -17,13 +17,13 @@ package v1
 import (
 	"errors"
 
+	"github.com/cardinalhq/oteltools/pkg/graph/graphpb"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
-	"github.com/cardinalhq/oteltools/pkg/graph/graphpb"
 )
 
 func ConvertSecret(config *converterconfig.Config, us unstructured.Unstructured) (baseobj.K8SObject, error) {

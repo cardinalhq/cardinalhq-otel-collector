@@ -17,14 +17,15 @@ package objecthandler
 import (
 	"fmt"
 
+	"github.com/cardinalhq/oteltools/pkg/graph/graphpb"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	convertappsv1 "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/apps/v1"
+	convertautoscalingv2 "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/autoscaling/v2"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
 	convertv1 "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/v1"
-	"github.com/cardinalhq/oteltools/pkg/graph/graphpb"
 )
 
 type ConverterFunc func(config *converterconfig.Config, us unstructured.Unstructured) (baseobj.K8SObject, error)
@@ -61,6 +62,7 @@ func (h *converterImpl) installConverters() {
 	h.converters[objectSelector{"apps/v1", "Deployment"}] = convertappsv1.ConvertDeployment
 	h.converters[objectSelector{"apps/v1", "ReplicaSet"}] = convertappsv1.ConvertReplicaSet
 	h.converters[objectSelector{"apps/v1", "StatefulSet"}] = convertappsv1.ConvertStatefulSet
+	h.converters[objectSelector{"autoscaling/v2", "HorizontalPodAutoscaler"}] = convertautoscalingv2.ConvertHPA
 	h.converters[objectSelector{"v1", "ConfigMap"}] = convertv1.ConvertConfigMap
 	h.converters[objectSelector{"v1", "Pod"}] = convertv1.ConvertPod
 	h.converters[objectSelector{"v1", "Secret"}] = convertv1.ConvertSecret

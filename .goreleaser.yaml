@@ -1,11 +1,5 @@
 project_name: cardinalhq-otel-collector
 version: 2
-before:
-  hooks:
-    - mkdir -p distribution/docker/geoip
-    - rm -f distribution/docker/geoip/GeoLite2-City.mmdb
-    - zstd -d -k docker/geoip/GeoLite2-City.mmdb.zstd -o distribution/docker/geoip/GeoLite2-City.mmdb
-    - ls -l distribution/docker/geoip/GeoLite2-City.mmdb
 builds:
   - id: cardinalhq-otel-collector
     goos:
@@ -30,8 +24,6 @@ dockers:
   - goos: linux
     goarch: amd64
     dockerfile: Dockerfile
-    extra_files:
-      - distribution/docker/geoip/GeoLite2-City.mmdb
     image_templates:
       - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:v{{ .Version }}-amd64
       - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:latest-dev-amd64
@@ -47,8 +39,6 @@ dockers:
   - goos: linux
     goarch: arm64
     dockerfile: Dockerfile
-    extra_files:
-      - distribution/docker/geoip/GeoLite2-City.mmdb
     image_templates:
       - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:v{{ .Version }}-arm64
       - public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:latest-dev-arm64

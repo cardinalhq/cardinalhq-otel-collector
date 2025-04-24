@@ -17,7 +17,6 @@ package fingerprintprocessor
 import (
 	"context"
 	"fmt"
-	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
 	"strings"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -89,9 +88,8 @@ func (p *fingerprintProcessor) addTokenFields(tenant *tenantState, lr plog.LogRe
 		return 0, "", err
 	}
 
-	attributes := lr.Attributes()
 	if replacement, found := tenant.mapstore.Get(fingerprint); found {
-		attributes.PutInt(translate.CardinalFieldFingerprint+"_original", fingerprint)
+		lr.Attributes().PutInt(translate.CardinalFieldFingerprint+"_original", fingerprint)
 		fingerprint = replacement
 	}
 
@@ -99,21 +97,16 @@ func (p *fingerprintProcessor) addTokenFields(tenant *tenantState, lr plog.LogRe
 	if js == nil {
 		js = map[string]any{}
 	}
-	jsmap := attributes.PutEmptyMap(translate.CardinalFieldJSON)
+	jsmap := lr.Attributes().PutEmptyMap(translate.CardinalFieldJSON)
 	jscm := pcommon.NewMap()
 	if err := jscm.FromRaw(js); err != nil {
 		p.logger.Debug("Error converting JSON to pdata.Map", zap.Error(err))
 	}
 	jscm.CopyTo(jsmap)
 
-	p.addTokenMap(tMap, attributes)
-	return fingerprint, level, nil
-}
-
-func (p *fingerprintProcessor) addTokenMap(tMap *fingerprinter.TokenMap, attributes pcommon.Map) pcommon.Map {
 	if len(tMap.Items) > 0 {
-		tokenSlice := attributes.PutEmptySlice(translate.CardinalFieldTokens)
-		tokenMap := attributes.PutEmptyMap(translate.CardinalFieldTokenMap)
+		tokenSlice := lr.Attributes().PutEmptySlice(translate.CardinalFieldTokens)
+		tokenMap := lr.Attributes().PutEmptyMap(translate.CardinalFieldTokenMap)
 		placeHolderIndexes := make(map[string]int)
 		for index, token := range tMap.Items {
 			tokenSlice.AppendEmpty().SetStr(token)
@@ -130,7 +123,6 @@ func (p *fingerprintProcessor) addTokenMap(tMap *fingerprinter.TokenMap, attribu
 				tokenMap.PutStr(literal, literal)
 			}
 		}
-		return tokenMap
 	}
-	return attributes.PutEmptyMap(translate.CardinalFieldTokenMap)
+	return fingerprint, level, nil
 }

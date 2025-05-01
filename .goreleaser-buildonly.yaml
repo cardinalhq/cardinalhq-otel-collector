@@ -20,3 +20,10 @@ builds:
       - CGO_ENABLED=0
 release:
   disable: true
+changelog:
+  disable: true
+archives:
+  - id: default
+    # use the "binary" format so GoReleaser skips creating an archive
+    formats:
+      - binary

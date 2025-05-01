@@ -103,8 +103,6 @@ distribution/main.go: ${SUMFILES} cardinalhq-otel-collector.yaml
 	sed -i.bak 's|$(shell pwd)|..|g' distribution/go.mod
 	rm -f distribution/go.mod.bak
 
-# requires otel builder to be installed.
-# go install go.opentelemetry.io/collector/cmd/builder@latest
 bin/cardinalhq-otel-collector: cardinalhq-otel-collector.yaml distribution/main.go ${all_deps}
 	(cd distribution ; CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o ../$@ .)
 
@@ -113,7 +111,6 @@ bin/cardinalhq-otel-collector: cardinalhq-otel-collector.yaml distribution/main.
 #
 .PHONY: images
 images: buildfiles
-#	cp -r docker distribution
 	go tool goreleaser
 
 #

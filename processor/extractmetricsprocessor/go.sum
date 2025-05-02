@@ -9,8 +9,8 @@ github.com/antchfx/xmlquery v1.4.4/go.mod h1:AEPEEPYE9GnA2mj5Ur2L5Q5/2PycJ0N9Fus
 github.com/antchfx/xpath v1.3.3/go.mod h1:i54GszH55fYfBmoZXapTHN8T8tkcHfRgLyVwwqzXNcs=
 github.com/antchfx/xpath v1.3.4 h1:1ixrW1VnXd4HurCj7qnqnR0jo14g8JMe20Fshg1Vgz4=
 github.com/antchfx/xpath v1.3.4/go.mod h1:i54GszH55fYfBmoZXapTHN8T8tkcHfRgLyVwwqzXNcs=
-github.com/cardinalhq/oteltools v0.24.14 h1:kKnp2xPiunnSg9itF5u4b+j9ootBfjh0qrWSv7PDzAU=
-github.com/cardinalhq/oteltools v0.24.14/go.mod h1:+N6EGNjUQgdveSBIvEvBHClpxFWk4gT9nIRv7Nyza+s=
+github.com/cardinalhq/oteltools v0.25.0 h1:3FNPUisBMOclqRinvjeQstcXcnDAlumRdnxIPMjm954=
+github.com/cardinalhq/oteltools v0.25.0/go.mod h1:7hTKMuvarAdhgNBYfXYE5GRnQerYk7Hd8x/F5UvXveo=
 github.com/cespare/xxhash v1.1.0 h1:a6HrQnmkObjyL+Gs60czilIUGqrzKutQD6XZog3p+ko=
 github.com/cespare/xxhash v1.1.0/go.mod h1:XrSqR1VqqWfGrhpAt58auRo0WTKS1nRRg3ghfAqPWnc=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
@@ -81,10 +81,8 @@ github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal 
 github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal v0.123.0/go.mod h1:zb93JABXyf5YS9du6dAyXGxhiacWlcZ4ZlHEX+l4B7U=
 github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl v0.123.0 h1:J7V/20Zq6QzSfQgOpwWszUSH3WJXbVEzr51RfuSwXLc=
 github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl v0.123.0/go.mod h1:64L9EDVzKuXcxCt5kNwO0qxpDlJGLLB6S9NqjmJgdJM=
-github.com/oschwald/geoip2-golang v1.11.0 h1:hNENhCn1Uyzhf9PTmquXENiWS6AlxAEnBII6r8krA3w=
-github.com/oschwald/geoip2-golang v1.11.0/go.mod h1:P9zG+54KPEFOliZ29i7SeYZ/GM6tfEL+rgSn03hYuUo=
-github.com/oschwald/maxminddb-golang v1.13.1 h1:G3wwjdN9JmIK2o/ermkHM+98oX5fS+k5MbwsmL4MRQE=
-github.com/oschwald/maxminddb-golang v1.13.1/go.mod h1:K4pgV9N/GcK694KSTmVSDTODk4IsCNThNdTmnaBZ/F8=
+github.com/oschwald/maxminddb-golang/v2 v2.0.0-beta.3 h1:dIygR/m/ArKzJy5HFVlDpBOG0hju03T+567HxrRRAF4=
+github.com/oschwald/maxminddb-golang/v2 v2.0.0-beta.3/go.mod h1:JojXVel5ck1JzMiz32OVBfSk7lAtfSDUfzxIyVEuahM=
 github.com/pierrec/lz4/v4 v4.1.22 h1:cKFw6uJDK+/gfw5BcDL0JL5aBsAFdsIT18eRtLj7VIU=
 github.com/pierrec/lz4/v4 v4.1.22/go.mod h1:gZWDp/Ze/IJXGXf23ltt2EXimqmTUXEy0GFuRQyBid4=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=

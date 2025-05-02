@@ -5,7 +5,7 @@ go 1.24
 toolchain go1.24.2
 
 require (
-	github.com/cardinalhq/oteltools v0.24.14
+	github.com/cardinalhq/oteltools v0.25.0
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/collector/component v1.29.0
 	go.opentelemetry.io/collector/config/confighttp v0.123.0
@@ -43,8 +43,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal v0.123.0 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl v0.123.0 // indirect
-	github.com/oschwald/geoip2-golang v1.11.0 // indirect
-	github.com/oschwald/maxminddb-golang v1.13.1 // indirect
+	github.com/oschwald/maxminddb-golang/v2 v2.0.0-beta.3 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rs/cors v1.11.1 // indirect

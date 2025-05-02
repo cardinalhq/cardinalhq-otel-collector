@@ -17,7 +17,6 @@ package fingerprintprocessor
 import (
 	"context"
 	"github.com/cespare/xxhash/v2"
-	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"strconv"
 	"strings"
@@ -73,29 +72,23 @@ func (p *fingerprintProcessor) calculateSpanFingerprint(sr ptrace.Span) int64 {
 		}
 	}
 
-	var tokenMap pcommon.Map
 	var computedFingerprint int64
 	if exceptionMessage != "" {
 		fingerprint, tMap, _, _, err := p.traceFingerprinter.Fingerprint(exceptionMessage)
 		if err == nil {
-			tokenMap = p.addTokenMap(tMap, sr.Attributes())
+			p.addTokenMap(tMap, sr.Attributes())
 			computedFingerprint = fingerprint
 		}
-	} else {
-		tokenMap = sr.Attributes().PutEmptyMap(translate.CardinalFieldTokenMap)
 	}
 
 	fingerprintAttributes := make([]string, 0)
 	sanitizedName := functions.ScrubWord(sr.Name())
-	tokenMap.PutStr("spanName", sanitizedName)
 	fingerprintAttributes = append(fingerprintAttributes, sanitizedName)
 
 	spanKindStr := sr.Kind().String()
-	tokenMap.PutStr("spanKind", spanKindStr)
 	fingerprintAttributes = append(fingerprintAttributes, spanKindStr)
 
 	statusCodeStr := sr.Status().Code().String()
-	tokenMap.PutStr("statusCode", statusCodeStr)
 	fingerprintAttributes = append(fingerprintAttributes, statusCodeStr)
 
 	if computedFingerprint != 0 {

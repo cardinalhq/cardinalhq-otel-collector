@@ -479,7 +479,7 @@ require (
 	github.com/briandowns/spinner v1.23.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 // indirect
-	github.com/cardinalhq/oteltools v0.24.14 // indirect
+	github.com/cardinalhq/oteltools v0.24.25 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
@@ -769,7 +769,8 @@ require (
 	github.com/openshift/client-go v0.0.0-20210521082421-73d9475a9142 // indirect
 	github.com/openzipkin/zipkin-go v0.4.3 // indirect
 	github.com/oschwald/geoip2-golang v1.11.0 // indirect
-	github.com/oschwald/maxminddb-golang v1.13.1 // indirect
+	github.com/oschwald/maxminddb-golang v1.13.0 // indirect
+	github.com/oschwald/maxminddb-golang/v2 v2.0.0-beta.3 // indirect
 	github.com/outcaste-io/ristretto v0.2.3 // indirect
 	github.com/ovh/go-ovh v1.6.0 // indirect
 	github.com/parquet-go/parquet-go v0.25.0 // indirect

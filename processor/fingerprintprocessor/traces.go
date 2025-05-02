@@ -81,9 +81,7 @@ func (p *fingerprintProcessor) calculateSpanFingerprint(sr ptrace.Span) int64 {
 			tokenMap = p.addTokenMap(tMap, sr.Attributes())
 			computedFingerprint = fingerprint
 		}
-	}
-
-	if exceptionMessage == "" {
+	} else {
 		tokenMap = sr.Attributes().PutEmptyMap(translate.CardinalFieldTokenMap)
 	}
 

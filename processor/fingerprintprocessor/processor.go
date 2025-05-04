@@ -16,23 +16,17 @@ package fingerprintprocessor
 
 import (
 	"context"
-	"encoding/binary"
-	"hash/fnv"
-	"slices"
-	"strconv"
-
-	"go.opentelemetry.io/collector/component"
-	"go.opentelemetry.io/collector/consumer"
-	"go.opentelemetry.io/collector/pdata/pcommon"
-	"go.opentelemetry.io/collector/processor"
-	"go.uber.org/zap"
-
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
 	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
 	"github.com/cardinalhq/oteltools/pkg/ottl"
 	"github.com/cardinalhq/oteltools/pkg/syncmap"
 	"github.com/cardinalhq/oteltools/pkg/translate"
+	"go.opentelemetry.io/collector/component"
+	"go.opentelemetry.io/collector/consumer"
+	"go.opentelemetry.io/collector/pdata/pcommon"
+	"go.opentelemetry.io/collector/processor"
+	"go.uber.org/zap"
 )
 
 type fingerprintProcessor struct {
@@ -46,19 +40,10 @@ type fingerprintProcessor struct {
 	configExtension  *chqconfigextension.CHQConfigExtension
 	configCallbackID int
 
-	logMappingsHash int64
-
-	// for logs
-	logFingerprinter   fingerprinter.Fingerprinter
-	traceFingerprinter fingerprinter.Fingerprinter
-
-	tenants syncmap.SyncMap[string, *tenantState]
+	fingerprinters      syncmap.SyncMap[string, fingerprinter.Fingerprinter]
+	lastTrieUpdateTimes syncmap.SyncMap[string, int64]
 
 	idSource authenv.EnvironmentSource
-}
-
-type tenantState struct {
-	mapstore *MapStore
 }
 
 func newProcessor(config *Config, ttype string, set processor.Settings) (*fingerprintProcessor, error) {
@@ -70,13 +55,6 @@ func newProcessor(config *Config, ttype string, set processor.Settings) (*finger
 		logger:            set.Logger,
 	}
 
-	switch ttype {
-	case "logs":
-		p.logFingerprinter = fingerprinter.NewFingerprinter(fingerprinter.WithMaxTokens(30))
-	case "traces":
-		p.traceFingerprinter = fingerprinter.NewFingerprinter(fingerprinter.WithMaxTokens(30))
-	}
-
 	idsource, err := authenv.ParseEnvironmentSource(config.IDSource)
 	if err != nil {
 		return nil, err
@@ -84,6 +62,16 @@ func newProcessor(config *Config, ttype string, set processor.Settings) (*finger
 	p.idSource = idsource
 
 	return p, nil
+}
+
+func (p *fingerprintProcessor) GetOrCreateFingerprinter(cid string) fingerprinter.Fingerprinter {
+	fpr, found := p.fingerprinters.Load(cid)
+	if !found {
+		clusterManager := fingerprinter.NewTrieClusterManager(0.5)
+		fpr = fingerprinter.NewFingerprinter(clusterManager)
+		p.fingerprinters.Store(cid, fpr)
+	}
+	return fpr
 }
 
 func (p *fingerprintProcessor) Capabilities() consumer.Capabilities {
@@ -112,96 +100,21 @@ func (p *fingerprintProcessor) Shutdown(ctx context.Context) error {
 }
 
 func (p *fingerprintProcessor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
-	switch p.ttype {
-	case "logs":
-		newhash := calculateMapHash(sc)
-		if newhash != p.logMappingsHash {
-			p.logMappingsHash = newhash
-			newMappings := makeFingerprintMap(sc)
-			for cid, v := range newMappings {
-				p.logger.Info("Configuration updated for tenant", zap.String("instance", p.id.Name()), zap.String("tenant", cid), zap.Int("mappingsCount", len(v)))
-				tenant := p.getTenantUnlocked(cid)
-				tenant.mapstore.Replace(v)
+	for cid, v := range sc.Configs {
+		trie := v.FingerprintConfig.Trie
+		trieUpdateTime := v.FingerprintConfig.LastUpdateTime
+		fpr := p.GetOrCreateFingerprinter(cid)
+		lastUpdateTime, loaded := p.lastTrieUpdateTimes.Load(cid)
+		if !loaded || trieUpdateTime > lastUpdateTime {
+			err := fpr.GetClusterManager().Restore(trie)
+			p.lastTrieUpdateTimes.Store(cid, trieUpdateTime)
+			if err != nil {
+				p.logger.Error("Error restoring trie", zap.Error(err))
+				continue
 			}
 		}
-		// Add span fingerprinter if needed
 	}
 	p.logger.Info("Configuration updated for processor instance", zap.String("instance", p.id.Name()))
-}
-
-// calculateMapHash calculates a hash of the fingerprint mappings used to detect
-// a change.  It is not cryptographically secure.  An empty input list does not
-// return a 0 value.
-func calculateMapHash(m ottl.ControlPlaneConfig) int64 {
-	hasher := fnv.New64a()
-
-	cids := make([]string, 0, len(m.Configs))
-	for cid := range m.Configs {
-		cids = append(cids, cid)
-	}
-	slices.Sort(cids)
-
-	for _, cid := range cids {
-		v := m.Configs[cid]
-		_, _ = hasher.Write([]byte(cid))
-		fpm := v.FingerprintConfig.LogMappings
-		slices.SortStableFunc(fpm, func(i, j ottl.FingerprintMapping) int {
-			if i.Primary < j.Primary {
-				return -1
-			}
-			if i.Primary > j.Primary {
-				return 1
-			}
-			return 0
-		})
-
-		buff := make([]byte, 8)
-		for _, v := range fpm {
-			primary, err := strconv.ParseInt(v.Primary, 10, 64)
-			if err != nil {
-				continue
-			}
-			binary.LittleEndian.PutUint64(buff, uint64(primary))
-			hasher.Write(buff)
-			slices.Sort(v.Aliases)
-			for _, vv := range v.Aliases {
-				alias, err := strconv.ParseInt(vv, 10, 64)
-				if err != nil {
-					continue
-				}
-				binary.LittleEndian.PutUint64(buff, uint64(alias))
-				hasher.Write(buff)
-			}
-		}
-	}
-
-	return int64(hasher.Sum64())
-}
-
-func makeFingerprintMap(m ottl.ControlPlaneConfig) map[string]map[int64]int64 {
-	ret := map[string]map[int64]int64{}
-	for cid, v := range m.Configs {
-		ret[cid] = makeFingerprintMapForConfig(v.FingerprintConfig.LogMappings)
-	}
-	return ret
-}
-
-func makeFingerprintMapForConfig(m []ottl.FingerprintMapping) map[int64]int64 {
-	ret := map[int64]int64{}
-	for _, v := range m {
-		for _, vv := range v.Aliases {
-			primary, err := strconv.ParseInt(v.Primary, 10, 64)
-			if err != nil {
-				continue
-			}
-			alias, err := strconv.ParseInt(vv, 10, 64)
-			if err != nil {
-				continue
-			}
-			ret[alias] = primary
-		}
-	}
-	return ret
 }
 
 func OrgIdFromResource(resource pcommon.Map) string {
@@ -210,20 +123,4 @@ func OrgIdFromResource(resource pcommon.Map) string {
 		return "default"
 	}
 	return orgID.AsString()
-}
-
-func (p *fingerprintProcessor) getTenant(cid string) *tenantState {
-	return p.getTenantUnlocked(cid)
-}
-
-func (p *fingerprintProcessor) getTenantUnlocked(cid string) *tenantState {
-	tenant, found := p.tenants.Load(cid)
-	if !found {
-		tenant = &tenantState{
-			mapstore: NewMapStore(),
-		}
-		p.tenants.Store(cid, tenant)
-	}
-
-	return tenant
 }

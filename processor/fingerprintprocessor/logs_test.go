@@ -17,8 +17,6 @@ package fingerprintprocessor
 import (
 	"testing"
 
-	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
-	"github.com/cardinalhq/oteltools/pkg/translate"
 	"go.opentelemetry.io/collector/pdata/plog"
 
 	"github.com/stretchr/testify/assert"
@@ -38,28 +36,14 @@ func TestGetServiceName(t *testing.T) {
 }
 
 func TestTokenFields(t *testing.T) {
-	tenant := &tenantState{
-		mapstore: NewMapStore(),
-	}
-	e := &fingerprintProcessor{
-		logFingerprinter: fingerprinter.NewFingerprinter(fingerprinter.WithMaxTokens(30)),
-	}
+	e := &fingerprintProcessor{}
 	ld := plog.NewLogs()
 	rl := ld.ResourceLogs().AppendEmpty()
 	sl := rl.ScopeLogs().AppendEmpty()
 	lr := sl.LogRecords().AppendEmpty()
 	lr.Body().SetStr("INFO [2025-01-12T05:28:19.575Z] \"POST /tickets HTTP/1.1\" 201 - via_upstream - \"-\" REDACTED 8737 \"54.162.8.237,172.25.31.44\" \"Ruby\" \"7feb561e-2095-483f-b1c5-0c95c8eb7ddb\" \"aiops-test10.freshstatus-sta91ng.io\" \"172.25.26.133:8181\" outbound|80|BLUE|aiops-tickets.ams-aiops-tickets-staging.svc.cluster.local 172.25.27.204:45834 172.25.27.204:8080 172.25.31.44:46526 - -\n")
-	_, level, err := e.addTokenFields(tenant, lr)
+	fpr := e.GetOrCreateFingerprinter("foo")
+	_, level, err := e.addTokenFields(fpr, lr)
 	assert.NoError(t, err)
 	assert.Equal(t, "info", level)
-	tMap, found := lr.Attributes().Get(translate.CardinalFieldTokenMap)
-	assert.True(t, found)
-	tokenMap := tMap.Map()
-	assert.NotNil(t, tokenMap)
-	num0, num0Found := tokenMap.Get("<Number>_0")
-	assert.True(t, num0Found)
-	assert.Equal(t, "201", num0.Str())
-	num1, num1Found := tokenMap.Get("<Number>_1")
-	assert.True(t, num1Found)
-	assert.Equal(t, "8737", num1.Str())
 }

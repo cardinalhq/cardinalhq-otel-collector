@@ -106,11 +106,13 @@ func (p *fingerprintProcessor) configUpdateCallback(sc ottl.ControlPlaneConfig) 
 		fpr := p.GetOrCreateFingerprinter(cid)
 		lastUpdateTime, loaded := p.lastTrieUpdateTimes.Load(cid)
 		if !loaded || trieUpdateTime > lastUpdateTime {
-			err := fpr.GetClusterManager().Restore(trie)
-			p.lastTrieUpdateTimes.Store(cid, trieUpdateTime)
-			if err != nil {
-				p.logger.Error("Error restoring trie", zap.Error(err))
-				continue
+			if len(trie) > 0 {
+				err := fpr.GetClusterManager().Restore(trie)
+				p.lastTrieUpdateTimes.Store(cid, trieUpdateTime)
+				if err != nil {
+					p.logger.Error("Error restoring trie", zap.Error(err))
+					continue
+				}
 			}
 		}
 	}

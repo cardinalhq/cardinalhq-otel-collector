@@ -16,25 +16,22 @@ package fingerprintprocessor
 
 import (
 	"context"
-	"github.com/cespare/xxhash/v2"
-	"go.opentelemetry.io/collector/pdata/ptrace"
-	"strconv"
-	"strings"
-
-	"github.com/cardinalhq/oteltools/pkg/ottl/functions"
+	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
 	"github.com/cardinalhq/oteltools/pkg/translate"
-
-	semconv "go.opentelemetry.io/otel/semconv/v1.27.0"
+	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
 func (p *fingerprintProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
 	for i := 0; i < td.ResourceSpans().Len(); i++ {
 		rs := td.ResourceSpans().At(i)
+		cid := OrgIdFromResource(rs.Resource().Attributes())
+		fpr := p.GetOrCreateFingerprinter(cid)
+
 		for j := 0; j < rs.ScopeSpans().Len(); j++ {
 			iss := rs.ScopeSpans().At(j)
 			for k := 0; k < iss.Spans().Len(); k++ {
 				sr := iss.Spans().At(k)
-				spanFingerprint := p.calculateSpanFingerprint(sr)
+				spanFingerprint := fingerprinter.CalculateSpanFingerprint(sr, fpr)
 				sr.Attributes().PutInt(translate.CardinalFieldFingerprint, spanFingerprint)
 
 				spanDuration := float64(sr.EndTimestamp().AsTime().Sub(sr.StartTimestamp().AsTime()).Abs().Milliseconds())
@@ -44,56 +41,4 @@ func (p *fingerprintProcessor) ConsumeTraces(ctx context.Context, td ptrace.Trac
 	}
 
 	return td, nil
-}
-
-func (p *fingerprintProcessor) calculateSpanFingerprint(sr ptrace.Span) int64 {
-	var exceptionMessage string
-	for i := 0; i < sr.Events().Len(); i++ {
-		event := sr.Events().At(i)
-		if event.Name() == semconv.ExceptionEventName {
-			if exType, found := event.Attributes().Get(string(semconv.ExceptionTypeKey)); found {
-				exceptionMessage = exceptionMessage + exType.AsString()
-			}
-			if exMsg, found := event.Attributes().Get(string(semconv.ExceptionMessageKey)); found {
-				if exceptionMessage != "" {
-					exceptionMessage = exceptionMessage + " " + exMsg.AsString()
-				} else {
-					exceptionMessage = exMsg.AsString()
-				}
-			}
-			if exStack, found := event.Attributes().Get(string(semconv.ExceptionStacktraceKey)); found {
-				if exceptionMessage != "" {
-					exceptionMessage = exceptionMessage + "\n" + exStack.AsString()
-				} else {
-					exceptionMessage = exStack.AsString()
-				}
-			}
-			break
-		}
-	}
-
-	var computedFingerprint int64
-	if exceptionMessage != "" {
-		fingerprint, tMap, _, _, err := p.traceFingerprinter.Fingerprint(exceptionMessage)
-		if err == nil {
-			p.addTokenMap(tMap, sr.Attributes())
-			computedFingerprint = fingerprint
-		}
-	}
-
-	fingerprintAttributes := make([]string, 0)
-	sanitizedName := functions.ScrubWord(sr.Name())
-	fingerprintAttributes = append(fingerprintAttributes, sanitizedName)
-
-	spanKindStr := sr.Kind().String()
-	fingerprintAttributes = append(fingerprintAttributes, spanKindStr)
-
-	statusCodeStr := sr.Status().Code().String()
-	fingerprintAttributes = append(fingerprintAttributes, statusCodeStr)
-
-	if computedFingerprint != 0 {
-		fingerprintAttributes = append(fingerprintAttributes, strconv.FormatInt(computedFingerprint, 10))
-	}
-
-	return int64(xxhash.Sum64String(strings.Join(fingerprintAttributes, "##")))
 }

@@ -6,8 +6,7 @@ toolchain go1.24.1
 
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.0.0
-	github.com/cardinalhq/oteltools v0.25.0
-	github.com/cespare/xxhash/v2 v2.3.0
+	github.com/cardinalhq/oteltools v0.25.9
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/collector/component v1.29.0
 	go.opentelemetry.io/collector/consumer v1.29.0
@@ -28,6 +27,7 @@ require (
 	github.com/antchfx/xpath v1.3.4 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/db47h/ragel/v2 v2.2.4 // indirect
 	github.com/ebitengine/purego v0.8.2 // indirect

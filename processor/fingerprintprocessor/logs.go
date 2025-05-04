@@ -16,7 +16,6 @@ package fingerprintprocessor
 
 import (
 	"context"
-	"fmt"
 	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
 	"strings"
 
@@ -40,12 +39,12 @@ func (p *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plo
 	for i := range ld.ResourceLogs().Len() {
 		rl := ld.ResourceLogs().At(i)
 		cid := OrgIdFromResource(rl.Resource().Attributes())
-		tenant := p.getTenant(cid)
+		fpr := p.GetOrCreateFingerprinter(cid)
 		for j := range rl.ScopeLogs().Len() {
 			sl := rl.ScopeLogs().At(j)
 			for k := range sl.LogRecords().Len() {
 				lr := sl.LogRecords().At(k)
-				fingerprint, levelfromFingerprinter, err := p.addTokenFields(tenant, lr)
+				fingerprint, levelfromFingerprinter, err := p.addTokenFields(fpr, lr)
 				if err != nil {
 					p.logger.Debug("Error fingerprinting log", zap.Error(err))
 					continue
@@ -83,17 +82,13 @@ func SeverityNumberToText(severityNumber plog.SeverityNumber) string {
 	}
 }
 
-func (p *fingerprintProcessor) addTokenFields(tenant *tenantState, lr plog.LogRecord) (int64, string, error) {
-	fingerprint, tMap, level, js, err := p.logFingerprinter.Fingerprint(lr.Body().AsString())
+func (p *fingerprintProcessor) addTokenFields(fpr fingerprinter.Fingerprinter, lr plog.LogRecord) (int64, string, error) {
+	fingerprint, level, js, err := fpr.Fingerprint(lr.Body().AsString())
 	if err != nil {
 		return 0, "", err
 	}
 
 	attributes := lr.Attributes()
-	if replacement, found := tenant.mapstore.Get(fingerprint); found {
-		attributes.PutInt(translate.CardinalFieldFingerprint+"_original", fingerprint)
-		fingerprint = replacement
-	}
 
 	// add JSON content to the record
 	if js == nil {
@@ -106,31 +101,5 @@ func (p *fingerprintProcessor) addTokenFields(tenant *tenantState, lr plog.LogRe
 	}
 	jscm.CopyTo(jsmap)
 
-	p.addTokenMap(tMap, attributes)
 	return fingerprint, level, nil
-}
-
-func (p *fingerprintProcessor) addTokenMap(tMap *fingerprinter.TokenMap, attributes pcommon.Map) pcommon.Map {
-	if len(tMap.Items) > 0 {
-		tokenSlice := attributes.PutEmptySlice(translate.CardinalFieldTokens)
-		tokenMap := attributes.PutEmptyMap(translate.CardinalFieldTokenMap)
-		placeHolderIndexes := make(map[string]int)
-		for index, token := range tMap.Items {
-			tokenSlice.AppendEmpty().SetStr(token)
-			literal := tMap.Get(index)
-			if token[0] == '<' && token[len(token)-1] == '>' {
-				if _, found := placeHolderIndexes[token]; !found {
-					placeHolderIndexes[token] = 0
-				} else {
-					placeHolderIndexes[token]++
-				}
-				placeHolderKey := fmt.Sprintf("%s_%d", token, placeHolderIndexes[token])
-				tokenMap.PutStr(placeHolderKey, literal)
-			} else {
-				tokenMap.PutStr(literal, literal)
-			}
-		}
-		return tokenMap
-	}
-	return attributes.PutEmptyMap(translate.CardinalFieldTokenMap)
 }

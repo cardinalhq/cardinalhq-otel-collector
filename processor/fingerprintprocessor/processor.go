@@ -100,23 +100,7 @@ func (p *fingerprintProcessor) Shutdown(ctx context.Context) error {
 }
 
 func (p *fingerprintProcessor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
-	for cid, v := range sc.Configs {
-		trie := v.FingerprintConfig.Trie
-		trieUpdateTime := v.FingerprintConfig.LastUpdateTime
-		fpr := p.GetOrCreateFingerprinter(cid)
-		lastUpdateTime, loaded := p.lastTrieUpdateTimes.Load(cid)
-		if !loaded || trieUpdateTime > lastUpdateTime {
-			if len(trie) > 0 {
-				err := fpr.GetClusterManager().Restore([]byte(trie))
-				p.lastTrieUpdateTimes.Store(cid, trieUpdateTime)
-				if err != nil {
-					p.logger.Error("Error restoring trie", zap.Error(err))
-					continue
-				}
-			}
-		}
-	}
-	p.logger.Info("Configuration updated for processor instance", zap.String("instance", p.id.Name()))
+
 }
 
 func OrgIdFromResource(resource pcommon.Map) string {

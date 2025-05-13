@@ -121,17 +121,17 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 							tags[k] = str
 						}
 					}
-					var service, cluster, namespace string
+
 					if serviceNameFound {
-						service = serviceName.AsString()
+						tags[string(semconv.ServiceNameKey)] = serviceName.AsString()
 					}
 					if clusterNameFound {
-						cluster = clusterName.AsString()
+						tags[string(semconv.K8SClusterNameKey)] = clusterName.AsString()
 					}
 					if namespaceNameFound {
-						namespace = namespaceName.AsString()
+						tags[string(semconv.K8SNamespaceNameKey)] = namespaceName.AsString()
 					}
-					sketchCache.Update(lex.MetricName, service, cluster, namespace, tags, lr)
+					sketchCache.Update(lex.MetricName, tags, lr)
 				}
 			}
 		}

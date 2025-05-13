@@ -18,7 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/cardinalhq/oteltools/pkg/stats"
+	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"net/http"
 	"strconv"
@@ -57,7 +57,7 @@ type extractor struct {
 	configCallbackID int
 	logExtractors    syncmap.SyncMap[string, []*ottl.LogExtractor]
 	spanExtractors   syncmap.SyncMap[string, []*ottl.SpanExtractor]
-	sketchCaches     syncmap.SyncMap[string, *stats.SketchCache]
+	sketchCaches     syncmap.SyncMap[string, *chqpb.SketchCache]
 
 	httpClientSettings confighttp.ClientConfig
 	httpClient         *http.Client

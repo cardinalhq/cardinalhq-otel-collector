@@ -18,7 +18,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/cardinalhq/oteltools/pkg/stats"
+	"github.com/cardinalhq/oteltools/pkg/chqpb"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"google.golang.org/protobuf/proto"
 	"io"
 	"net/http"
@@ -39,7 +40,7 @@ func (p *extractor) ConsumeTraces(ctx context.Context, pt ptrace.Traces) (ptrace
 	return pt, nil
 }
 
-func (p *extractor) sendSketches(list *stats.SpanSketchList) error {
+func (p *extractor) sendSketches(list *chqpb.SpanSketchList) error {
 	b, err := proto.Marshal(list)
 	if err != nil {
 		return err
@@ -71,6 +72,9 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 		resourceSpan := resourceSpans.At(i)
 		resource := resourceSpan.Resource()
 		cid := OrgIdFromResource(resource.Attributes())
+		serviceName, serviceNameFound := resource.Attributes().Get(string(semconv.ServiceNameKey))
+		clusterName, clusterNameFound := resource.Attributes().Get(string(semconv.K8SClusterNameKey))
+		namespaceName, namespaceNameFound := resource.Attributes().Get(string(semconv.K8SNamespaceNameKey))
 		spanExtractors, ok := p.spanExtractors.Load(cid)
 		if !ok {
 			continue
@@ -78,7 +82,7 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 
 		sketchCache, sok := p.sketchCaches.Load(cid)
 		if !sok {
-			sketchCache = stats.NewSketchCache(5*time.Minute, cid, p.sendSketches)
+			sketchCache = chqpb.NewSketchCache(5*time.Minute, cid, p.sendSketches)
 			p.sketchCaches.Store(cid, sketchCache)
 		}
 
@@ -117,7 +121,17 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 							tags[k] = str
 						}
 					}
-					sketchCache.Update(lex.MetricName, tags, lr)
+					var service, cluster, namespace string
+					if serviceNameFound {
+						service = serviceName.AsString()
+					}
+					if clusterNameFound {
+						cluster = clusterName.AsString()
+					}
+					if namespaceNameFound {
+						namespace = namespaceName.AsString()
+					}
+					sketchCache.Update(lex.MetricName, service, cluster, namespace, tags, lr)
 				}
 			}
 		}

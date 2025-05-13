@@ -42,27 +42,29 @@ func (p *extractor) ConsumeTraces(ctx context.Context, pt ptrace.Traces) (ptrace
 
 func (p *extractor) sendSketches(list *chqpb.SpanSketchList) error {
 	p.logger.Info("Sending span stats", zap.Int("sketches", len(list.Sketches)))
-	b, err := proto.Marshal(list)
-	if err != nil {
-		return err
-	}
-	endpoint := p.config.Endpoint + "/api/v1/spanSketches"
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/x-protobuf")
+	if len(list.Sketches) > 0 {
+		b, err := proto.Marshal(list)
+		if err != nil {
+			return err
+		}
+		endpoint := p.config.Endpoint + "/api/v1/spanSketches"
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint, bytes.NewReader(b))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Content-Type", "application/x-protobuf")
 
-	resp, err := p.httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
+		resp, err := p.httpClient.Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		p.logger.Error("Failed to send span stats", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+			p.logger.Error("Failed to send span stats", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
+			return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		}
 	}
 	return nil
 }

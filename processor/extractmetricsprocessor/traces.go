@@ -82,6 +82,7 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 
 		sketchCache, sok := p.sketchCaches.Load(cid)
 		if !sok {
+			p.logger.Info("Creating new span sketch cache", zap.String("cid", cid))
 			sketchCache = chqpb.NewSketchCache(5*time.Minute, cid, p.sendSketches)
 			p.sketchCaches.Store(cid, sketchCache)
 		}

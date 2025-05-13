@@ -41,6 +41,7 @@ func (p *extractor) ConsumeTraces(ctx context.Context, pt ptrace.Traces) (ptrace
 }
 
 func (p *extractor) sendSketches(list *chqpb.SpanSketchList) error {
+	p.logger.Info("Sending span stats", zap.Int("sketches", len(list.Sketches)))
 	b, err := proto.Marshal(list)
 	if err != nil {
 		return err

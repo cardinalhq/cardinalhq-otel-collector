@@ -16,6 +16,7 @@ package extractmetricsprocessor
 
 import (
 	"errors"
+	"go.opentelemetry.io/collector/config/confighttp"
 
 	"go.opentelemetry.io/collector/component"
 	"go.uber.org/multierr"
@@ -36,8 +37,9 @@ const (
 )
 
 type Config struct {
-	Route                  string        `mapstructure:"route"`
-	ConfigurationExtension *component.ID `mapstructure:"configuration_extension"`
+	confighttp.ClientConfig `mapstructure:",squash"`
+	Route                   string        `mapstructure:"route"`
+	ConfigurationExtension  *component.ID `mapstructure:"configuration_extension"`
 }
 
 func (c *Config) Validate() error {

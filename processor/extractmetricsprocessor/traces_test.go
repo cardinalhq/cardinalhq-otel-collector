@@ -83,7 +83,7 @@ func TestExtractMetricsFromSpans_MultipleSpansMatchingCondition(t *testing.T) {
 
 	// Extract metrics
 	e := newSpansTestExtractor(configs)
-	metric := e.extractMetricsFromTraces(context.Background(), traces)
+	metric := e.updateSketchCache(context.Background(), traces)
 	require.NotNil(t, metric)
 	assert.Equal(t, "test_metric", metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Name())
 	assert.Equal(t, "ms", metric.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(0).Unit())

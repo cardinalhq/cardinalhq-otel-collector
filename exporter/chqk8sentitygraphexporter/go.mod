@@ -5,7 +5,7 @@ go 1.24
 toolchain go1.24.1
 
 require (
-	github.com/cardinalhq/oteltools v0.25.10
+	github.com/cardinalhq/oteltools v0.25.21
 	github.com/deckarep/golang-set/v2 v2.8.0
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/collector/component v1.29.0
@@ -25,6 +25,7 @@ require (
 )
 
 require (
+	github.com/DataDog/sketches-go v1.4.7 // indirect
 	github.com/alecthomas/participle/v2 v2.1.4 // indirect
 	github.com/apache/datasketches-go v0.0.0-20250401153926-86b999c9533b // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -33,6 +34,7 @@ require (
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/db47h/ragel/v2 v2.2.4 // indirect
 	github.com/ebitengine/purego v0.8.2 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect

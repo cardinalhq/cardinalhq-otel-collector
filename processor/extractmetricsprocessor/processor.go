@@ -18,6 +18,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/cardinalhq/oteltools/pkg/chqpb"
+	"go.opentelemetry.io/collector/config/confighttp"
+	"net/http"
 	"strconv"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor/internal/metadata"
@@ -54,15 +57,20 @@ type extractor struct {
 	configCallbackID int
 	logExtractors    syncmap.SyncMap[string, []*ottl.LogExtractor]
 	spanExtractors   syncmap.SyncMap[string, []*ottl.SpanExtractor]
+	sketchCaches     syncmap.SyncMap[string, *chqpb.SketchCache]
+
+	httpClientSettings confighttp.ClientConfig
+	httpClient         *http.Client
 }
 
 func newExtractor(config *Config, ttype string, set processor.Settings) (*extractor, error) {
 	p := &extractor{
-		id:                set.ID,
-		ttype:             ttype,
-		config:            config,
-		telemetrySettings: set.TelemetrySettings,
-		logger:            set.Logger,
+		id:                 set.ID,
+		ttype:              ttype,
+		config:             config,
+		httpClientSettings: config.ClientConfig,
+		telemetrySettings:  set.TelemetrySettings,
+		logger:             set.Logger,
 	}
 
 	counter, counterError := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
@@ -131,6 +139,12 @@ func (p *extractor) Start(ctx context.Context, host component.Host) error {
 	}
 	p.configExtension = cext
 	p.configCallbackID = p.configExtension.RegisterCallback(p.id.String()+"/"+p.ttype, p.configUpdateCallback)
+
+	httpClient, err := p.httpClientSettings.ToClient(ctx, host, p.telemetrySettings)
+	if err != nil {
+		return err
+	}
+	p.httpClient = httpClient
 
 	return nil
 }

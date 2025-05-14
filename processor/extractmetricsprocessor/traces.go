@@ -15,44 +15,80 @@
 package extractmetricsprocessor
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"github.com/cardinalhq/oteltools/pkg/chqpb"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	"google.golang.org/protobuf/proto"
+	"io"
+	"net/http"
 	"time"
 
 	"github.com/cardinalhq/oteltools/pkg/ottl"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
-	"github.com/cardinalhq/oteltools/signalbuilder"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlspan"
-	"go.opentelemetry.io/collector/pdata/pcommon"
-	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.uber.org/zap"
 )
 
 func (p *extractor) ConsumeTraces(ctx context.Context, pt ptrace.Traces) (ptrace.Traces, error) {
-	metrics := p.extractMetricsFromTraces(ctx, pt)
-	p.sendMetrics(ctx, p.config.Route, metrics)
+	p.updateSketchCache(ctx, pt)
 	return pt, nil
 }
 
-func (p *extractor) extractMetricsFromTraces(ctx context.Context, pl ptrace.Traces) pmetric.Metrics {
-	timestamp := pcommon.NewTimestampFromTime(time.Now())
-	builder := signalbuilder.NewMetricsBuilder()
+func (p *extractor) sendSketches(list *chqpb.SpanSketchList) error {
+	if len(list.Sketches) > 0 {
+		p.logger.Info("Sending span stats", zap.Int("sketches", len(list.Sketches)))
+		b, err := proto.Marshal(list)
+		if err != nil {
+			return err
+		}
+		endpoint := p.config.Endpoint + "/api/v1/spanSketches"
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint, bytes.NewReader(b))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Content-Type", "application/x-protobuf")
 
+		resp, err := p.httpClient.Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+
+		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+			p.logger.Error("Failed to send span stats", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
+			return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		}
+	}
+	return nil
+}
+
+func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 	resourceSpans := pl.ResourceSpans()
 	for i := range resourceSpans.Len() {
 		resourceSpan := resourceSpans.At(i)
 		resource := resourceSpan.Resource()
 		cid := OrgIdFromResource(resource.Attributes())
+		serviceName, serviceNameFound := resource.Attributes().Get(string(semconv.ServiceNameKey))
+		clusterName, clusterNameFound := resource.Attributes().Get(string(semconv.K8SClusterNameKey))
+		namespaceName, namespaceNameFound := resource.Attributes().Get(string(semconv.K8SNamespaceNameKey))
 		spanExtractors, ok := p.spanExtractors.Load(cid)
 		if !ok {
 			continue
 		}
 
-		resourceBuilder := builder.Resource(resource.Attributes())
-		scopeBuilder := resourceBuilder.Scope(pcommon.NewMap())
+		sketchCache, sok := p.sketchCaches.Load(cid)
+		if !sok {
+			p.logger.Info("Creating new span sketch cache", zap.String("cid", cid))
+			sketchCache = chqpb.NewSketchCache(5*time.Minute, cid, p.sendSketches)
+			p.sketchCaches.Store(cid, sketchCache)
+		}
 
 		for j := range resourceSpans.At(i).ScopeSpans().Len() {
 			scopeSpan := resourceSpans.At(i).ScopeSpans().At(j)
@@ -80,40 +116,30 @@ func (p *extractor) extractMetricsFromTraces(ctx context.Context, pl ptrace.Trac
 						continue
 					}
 
-					val, err := p.extractSpanValue(ctx, tc, lex)
-					if err != nil {
-						p.logger.Error("Failed when extracting value.", zap.Error(err))
-						attrset := attribute.NewSet(attribute.String("ruleId", lex.RuleID),
-							attribute.String("metricName", lex.MetricName),
-							attribute.String("metricType", lex.MetricType),
-							attribute.String("stage", "metricValueExtraction"),
-							attribute.String("error", err.Error()),
-							attribute.String("organization_id", cid),
-						)
-						telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
-						continue
-					}
 					telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 
 					mapAttrs := lex.ExtractAttributes(ctx, tc)
-					attrs := pcommon.NewMap()
-					if err := attrs.FromRaw(mapAttrs); err != nil {
-						p.logger.Error("Failed when extracting attributes.", zap.Error(err))
-						telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
-						continue
+					tags := make(map[string]string, len(mapAttrs))
+					for k, v := range mapAttrs {
+						if str, ok := v.(string); ok {
+							tags[k] = str
+						}
 					}
 
-					if err := updateDatapoint(lex.MetricType, lex.MetricName, lex.MetricUnit, scopeBuilder, val, timestamp, attrs); err != nil {
-						p.logger.Error("Failed when updating datapoint.", zap.Error(err))
-						telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
-						continue
+					if serviceNameFound {
+						tags[fmt.Sprintf("resource.%s", string(semconv.ServiceNameKey))] = serviceName.AsString()
 					}
+					if clusterNameFound {
+						tags[fmt.Sprintf("resource.%s", string(semconv.K8SClusterNameKey))] = clusterName.AsString()
+					}
+					if namespaceNameFound {
+						tags[fmt.Sprintf("resource.%s", string(semconv.K8SNamespaceNameKey))] = namespaceName.AsString()
+					}
+					sketchCache.Update(lex.MetricName, tags, lr)
 				}
 			}
 		}
 	}
-
-	return builder.Build()
 }
 
 func (p *extractor) extractSpanValue(ctx context.Context, tc ottlspan.TransformContext, e *ottl.SpanExtractor) (float64, error) {

@@ -12,8 +12,8 @@ github.com/apache/datasketches-go v0.0.0-20250401153926-86b999c9533b h1:i/kxowgZ
 github.com/apache/datasketches-go v0.0.0-20250401153926-86b999c9533b/go.mod h1:YzqfE7ZLlFEDva4zvulMENR9j+RrmBqb2MExRFGb2Yo=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
-github.com/cardinalhq/oteltools v0.26.1 h1:/Gent1vfXfiR53TMCfiazJoIQeP+zry3E2HzRM0wNNA=
-github.com/cardinalhq/oteltools v0.26.1/go.mod h1:7hTKMuvarAdhgNBYfXYE5GRnQerYk7Hd8x/F5UvXveo=
+github.com/cardinalhq/oteltools v0.26.2 h1:NckvtIUAGa8TpI6H5WieoZW2CWLP/GRakDo+uB5j5dA=
+github.com/cardinalhq/oteltools v0.26.2/go.mod h1:7hTKMuvarAdhgNBYfXYE5GRnQerYk7Hd8x/F5UvXveo=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
 github.com/cenkalti/backoff/v4 v4.3.0/go.mod h1:Y3VNntkOUPxTVeUxJ/G5vcM//AlwfmyYozVcomhLiZE=
 github.com/cenkalti/backoff/v5 v5.0.2 h1:rIfFVxEf1QsI7E1ZHfp/B4DF/6QBAUhmgkxc0H7Zss8=

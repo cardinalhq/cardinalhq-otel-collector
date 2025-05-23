@@ -165,7 +165,7 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) pme
 					if namespaceNameFound {
 						tags[fmt.Sprintf("resource.%s", string(semconv.K8SNamespaceNameKey))] = namespaceName.AsString()
 					}
-					sketchCache.Update(lex.MetricName, tags, lr)
+					sketchCache.Update(lex.MetricName, tags, lr, resource)
 					if err := updateDatapoint(lex.MetricType, lex.MetricName, lex.MetricUnit, scopeBuilder, val, timestamp, attrs); err != nil {
 						p.logger.Error("Failed when updating datapoint.", zap.Error(err))
 						telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))

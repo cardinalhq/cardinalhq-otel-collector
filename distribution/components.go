@@ -672,7 +672,6 @@ func components() (otelcol.Factories, error) {
 		tailsamplingprocessor.NewFactory(),
 		transformprocessor.NewFactory(),
 		aggregationprocessor.NewFactory(),
-		chqstatsprocessor.NewFactory(),
 		pitbullprocessor.NewFactory(),
 		fingerprintprocessor.NewFactory(),
 		piiredactionprocessor.NewFactory(),
@@ -709,7 +708,6 @@ func components() (otelcol.Factories, error) {
 	factories.ProcessorModules[tailsamplingprocessor.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/processor/tailsamplingprocessor v0.123.0"
 	factories.ProcessorModules[transformprocessor.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/processor/transformprocessor v0.123.0"
 	factories.ProcessorModules[aggregationprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.123.0"
-	factories.ProcessorModules[chqstatsprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/chqstatsprocessor v0.123.0"
 	factories.ProcessorModules[pitbullprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.123.0"
 	factories.ProcessorModules[fingerprintprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor v0.123.0"
 	factories.ProcessorModules[piiredactionprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor v0.123.0"

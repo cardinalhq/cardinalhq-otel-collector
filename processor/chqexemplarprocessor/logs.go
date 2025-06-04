@@ -15,19 +15,12 @@
 package chqexemplarprocessor
 
 import (
-	"bytes"
 	"context"
-	"fmt"
-	"github.com/cardinalhq/oteltools/pkg/chqpb"
+	"strconv"
+
 	"github.com/cardinalhq/oteltools/pkg/translate"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
-	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
-	"io"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 func getFingerprint(l pcommon.Map) int64 {
@@ -36,35 +29,6 @@ func getFingerprint(l pcommon.Map) int64 {
 		return fingerprintField.Int()
 	}
 	return 0
-}
-
-func (p *exemplarProcessor) sendSketches(list *chqpb.LogSketchList) error {
-	if len(list.Sketches) > 0 {
-		p.logger.Info("Sending log stats", zap.Int("sketches", len(list.Sketches)))
-		b, err := proto.Marshal(list)
-		if err != nil {
-			return err
-		}
-		endpoint := p.config.Endpoint + "/api/v1/logSketches"
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint, bytes.NewReader(b))
-		if err != nil {
-			return err
-		}
-		req.Header.Set("Content-Type", "application/x-protobuf")
-
-		resp, err := p.httpClient.Do(req)
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-		body, _ := io.ReadAll(resp.Body)
-
-		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-			p.logger.Error("Failed to send span stats", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
-			return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-		}
-	}
-	return nil
 }
 
 func (p *exemplarProcessor) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog.Logs, error) {
@@ -77,20 +41,12 @@ func (p *exemplarProcessor) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog
 		resourceAttributes := rl.Resource().Attributes()
 		cid := orgIdFromResource(resourceAttributes)
 		tenant := p.getTenant(cid)
-		sketchCache, sok := p.sketchCaches.Load(cid)
-		if !sok {
-			p.logger.Info("Creating new log sketch cache", zap.String("cid", cid))
-			sketchCache = chqpb.NewLogSketchCache(5*time.Minute, cid, p.sendSketches)
-			p.sketchCaches.Store(cid, sketchCache)
-		}
-
 		for j := range rl.ScopeLogs().Len() {
 			sl := rl.ScopeLogs().At(j)
 			for k := range sl.LogRecords().Len() {
 				lr := sl.LogRecords().At(k)
 				fingerprint := getFingerprint(lr.Attributes())
 				p.addLogExemplar(tenant, rl, sl, lr, fingerprint)
-				sketchCache.Update(rl.Resource(), lr)
 			}
 		}
 	}

@@ -16,6 +16,7 @@ package chqexemplarprocessor
 
 import (
 	"context"
+	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"net/http"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/signalnames"
@@ -47,7 +48,8 @@ type exemplarProcessor struct {
 	httpClientSettings confighttp.ClientConfig
 	telemetrySettings  component.TelemetrySettings
 
-	tenants syncmap.SyncMap[string, *Tenant]
+	tenants      syncmap.SyncMap[string, *Tenant]
+	sketchCaches syncmap.SyncMap[string, *chqpb.LogSketchCache]
 }
 
 // Tenant holds the caches for each telemetry type, although for any given

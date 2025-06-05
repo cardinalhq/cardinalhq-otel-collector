@@ -49,7 +49,7 @@ type exemplarProcessor struct {
 	telemetrySettings  component.TelemetrySettings
 
 	tenants      syncmap.SyncMap[string, *Tenant]
-	sketchCaches syncmap.SyncMap[string, *chqpb.LogSketchCache]
+	sketchCaches syncmap.SyncMap[string, *chqpb.ServiceLogCountsCache]
 }
 
 // Tenant holds the caches for each telemetry type, although for any given

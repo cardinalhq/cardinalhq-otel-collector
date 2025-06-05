@@ -45,7 +45,7 @@ func (p *exemplarProcessor) sendSketches(list *chqpb.ServiceLogCountList) error 
 		if err != nil {
 			return err
 		}
-		endpoint := p.config.Endpoint + "/api/v1/logSketches"
+		endpoint := p.config.Endpoint + "/api/v1/serviceLogCounts"
 		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint, bytes.NewReader(b))
 		if err != nil {
 			return err

@@ -60,7 +60,9 @@ func (e *Entry[T]) toAttributes() map[string]string {
 
 func (e *Entry[T]) shouldPublish(expiry time.Duration) bool {
 	now := time.Now()
-	return now.Sub(e.lastPublishTime) > expiry/2
+	sinceLast := now.Sub(e.lastPublishTime)
+	halfExpiry := expiry / 2
+	return sinceLast >= halfExpiry
 }
 
 func NewLRUCache[T any](capacity int, expiry time.Duration, reportInterval time.Duration, publishCallBack func(expiredItems []*Entry[T])) *LRUCache[T] {
@@ -94,11 +96,10 @@ func (l *LRUCache[T]) cleanupExpiredEntries() {
 	defer l.mutex.Unlock()
 
 	now := time.Now()
-	itemsToPublish := make([]*Entry[T], 0)
 	for e := l.list.Back(); e != nil; {
 		entry := e.Value.(*Entry[T])
 		if entry.shouldPublish(l.expiry) {
-			itemsToPublish = append(itemsToPublish, entry)
+			l.pending = append(l.pending, entry)
 			entry.lastPublishTime = now
 		}
 		if now.Sub(entry.timestamp) > l.expiry {
@@ -112,11 +113,8 @@ func (l *LRUCache[T]) cleanupExpiredEntries() {
 	}
 	// Add pending items to the list for publishing
 	if len(l.pending) > 0 {
-		itemsToPublish = append(itemsToPublish, l.pending...)
-		l.pending = make([]*Entry[T], 0)
-	}
-	if len(itemsToPublish) > 0 {
-		l.publishCallBack(itemsToPublish)
+		l.publishCallBack(l.pending)
+		l.pending = l.pending[:0] // Clear the pending slice
 	}
 }
 

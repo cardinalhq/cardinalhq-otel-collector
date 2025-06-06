@@ -77,11 +77,11 @@ func (p *exemplarProcessor) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog
 		resourceAttributes := rl.Resource().Attributes()
 		cid := orgIdFromResource(resourceAttributes)
 		tenant := p.getTenant(cid)
-		sketchCache, sok := p.sketchCaches.Load(cid)
+		serviceLogCountsCache, sok := p.serviceLogCounts.Load(cid)
 		if !sok {
 			p.logger.Info("Creating new log sketch cache", zap.String("cid", cid))
-			sketchCache = chqpb.NewServiceLogCountsCache(5*time.Minute, cid, p.sendSketches)
-			p.sketchCaches.Store(cid, sketchCache)
+			serviceLogCountsCache = chqpb.NewServiceLogCountsCache(5*time.Minute, cid, p.sendSketches)
+			p.serviceLogCounts.Store(cid, serviceLogCountsCache)
 		}
 
 		for j := range rl.ScopeLogs().Len() {
@@ -90,7 +90,7 @@ func (p *exemplarProcessor) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog
 				lr := sl.LogRecords().At(k)
 				fingerprint := getFingerprint(lr.Attributes())
 				p.addLogExemplar(tenant, rl, sl, lr, fingerprint)
-				sketchCache.Update(rl.Resource(), lr)
+				serviceLogCountsCache.Update(rl.Resource(), lr)
 			}
 		}
 	}

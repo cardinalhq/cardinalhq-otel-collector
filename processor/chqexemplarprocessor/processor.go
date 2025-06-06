@@ -48,8 +48,8 @@ type exemplarProcessor struct {
 	httpClientSettings confighttp.ClientConfig
 	telemetrySettings  component.TelemetrySettings
 
-	tenants      syncmap.SyncMap[string, *Tenant]
-	sketchCaches syncmap.SyncMap[string, *chqpb.ServiceLogCountsCache]
+	tenants          syncmap.SyncMap[string, *Tenant]
+	serviceLogCounts syncmap.SyncMap[string, *chqpb.ServiceLogCountsCache]
 }
 
 // Tenant holds the caches for each telemetry type, although for any given

@@ -31,25 +31,23 @@ const (
 )
 
 type LRUCache[T any] struct {
-	capacity       int
-	cache          map[int64]*list.Element
-	list           *list.List
-	mutex          sync.RWMutex
-	expiry         time.Duration
-	reportInterval time.Duration
-	stop           chan struct{}
-
-	// pending holds entries that must be published on next interval.
-	pending []*Entry[T]
-
-	publishCallBack func(items []*Entry[T])
+	capacity        int
+	cache           map[int64]*list.Element
+	list            *list.List
+	mutex           sync.RWMutex
+	expiry          time.Duration
+	reportInterval  time.Duration
+	stopCleanup     chan struct{}
+	publishCallBack func(toPublish []*Entry[T])
+	pending         []*Entry[T]
 }
 
 type Entry[T any] struct {
-	key        int64
-	attributes []string
-	value      T
-	timestamp  time.Time
+	key             int64
+	attributes      []string
+	value           T
+	timestamp       time.Time
+	lastPublishTime time.Time
 }
 
 func (e *Entry[T]) toAttributes() map[string]string {
@@ -60,97 +58,75 @@ func (e *Entry[T]) toAttributes() map[string]string {
 	return attrs
 }
 
-// shouldPublish returns true once an entry has existed for at least half of expiry.
 func (e *Entry[T]) shouldPublish(expiry time.Duration) bool {
-	return time.Since(e.timestamp) >= expiry/2
+	now := time.Now()
+	return now.Sub(e.lastPublishTime) > expiry/2
 }
 
-// NewLRUCache constructs an LRU cache that evicts on capacity and expiry.
-// publishCallBack is invoked with a batch of entries to publish at every reportInterval.
-func NewLRUCache[T any](
-	capacity int,
-	expiry time.Duration,
-	reportInterval time.Duration,
-	publishCallBack func(items []*Entry[T]),
-) *LRUCache[T] {
+func NewLRUCache[T any](capacity int, expiry time.Duration, reportInterval time.Duration, publishCallBack func(expiredItems []*Entry[T])) *LRUCache[T] {
 	lru := &LRUCache[T]{
 		capacity:        capacity,
 		cache:           make(map[int64]*list.Element),
 		list:            list.New(),
-		expiry:          expiry,
 		reportInterval:  reportInterval,
-		stop:            make(chan struct{}),
-		publishCallBack: publishCallBack,
+		expiry:          expiry,
+		stopCleanup:     make(chan struct{}),
 		pending:         make([]*Entry[T], 0),
+		publishCallBack: publishCallBack,
 	}
-	go lru.startBackgroundTasks()
+	go lru.startCleanup()
 	return lru
 }
 
-// startBackgroundTasks launches two tickers: one for cleanup and one for publishing pending.
-func (l *LRUCache[T]) startBackgroundTasks() {
-	cleanupTicker := time.NewTicker(l.reportInterval)
-	publishTicker := time.NewTicker(l.reportInterval)
-
+func (l *LRUCache[T]) startCleanup() {
 	for {
 		select {
-		case <-cleanupTicker.C:
+		case <-time.NewTicker(l.reportInterval).C:
 			l.cleanupExpiredEntries()
-		case <-publishTicker.C:
-			l.flushPending()
-		case <-l.stop:
-			cleanupTicker.Stop()
-			publishTicker.Stop()
+		case <-l.stopCleanup:
 			return
 		}
 	}
 }
 
-// cleanupExpiredEntries enqueues half-expired entries and evicts fully-expired ones.
 func (l *LRUCache[T]) cleanupExpiredEntries() {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
 	now := time.Now()
-	for elem := l.list.Back(); elem != nil; {
-		prev := elem.Prev()
-		entry := elem.Value.(*Entry[T])
-		age := now.Sub(entry.timestamp)
-
-		if age >= l.expiry/2 {
-			// enqueue for publish if half-expired
-			l.pending = append(l.pending, entry)
+	itemsToPublish := make([]*Entry[T], 0)
+	for e := l.list.Back(); e != nil; {
+		entry := e.Value.(*Entry[T])
+		if entry.shouldPublish(l.expiry) {
+			itemsToPublish = append(itemsToPublish, entry)
+			entry.lastPublishTime = now
 		}
-		if age >= l.expiry {
-			// fully expired: remove from cache and list
-			l.list.Remove(elem)
+		if now.Sub(entry.timestamp) > l.expiry {
+			prev := e.Prev()
+			l.list.Remove(e)
 			delete(l.cache, entry.key)
+			e = prev
+		} else {
+			e = e.Prev()
 		}
-		elem = prev
+	}
+	// Add pending items to the list for publishing
+	if len(l.pending) > 0 {
+		itemsToPublish = append(itemsToPublish, l.pending...)
+		l.pending = make([]*Entry[T], 0)
+	}
+	if len(itemsToPublish) > 0 {
+		l.publishCallBack(itemsToPublish)
 	}
 }
 
-// flushPending publishes all pending entries as a single batch.
-func (l *LRUCache[T]) flushPending() {
-	l.mutex.Lock()
-	toPublish := l.pending
-	l.pending = make([]*Entry[T], 0)
-	l.mutex.Unlock()
-
-	if len(toPublish) > 0 {
-		l.publishCallBack(toPublish)
-	}
-}
-
-// Get returns the value for key if not expired; otherwise it evicts and returns false.
-func (l *LRUCache[T]) Get(key int64) (T, bool) {
+func (l *LRUCache[T]) Get(key int64) (any, bool) {
 	l.mutex.RLock()
 	elem, found := l.cache[key]
 	l.mutex.RUnlock()
 
-	var zero T
 	if !found {
-		return zero, false
+		return nil, false
 	}
 
 	entry := elem.Value.(*Entry[T])
@@ -159,12 +135,12 @@ func (l *LRUCache[T]) Get(key int64) (T, bool) {
 		l.list.Remove(elem)
 		delete(l.cache, key)
 		l.mutex.Unlock()
-		return zero, false
+		return nil, false
 	}
+
 	return entry.value, true
 }
 
-// Contains returns true if key exists and is not expired.
 func (l *LRUCache[T]) Contains(key int64) bool {
 	l.mutex.RLock()
 	defer l.mutex.RUnlock()
@@ -173,16 +149,16 @@ func (l *LRUCache[T]) Contains(key int64) bool {
 	if !found {
 		return false
 	}
+
 	entry := elem.Value.(*Entry[T])
 	return time.Since(entry.timestamp) <= l.expiry
 }
 
-// Put inserts or updates an entry. If capacity is exceeded, the LRU item is scheduled for publishing.
-func (l *LRUCache[T]) Put(key int64, attributes []string, exemplar T) {
+// Put adds a value to the cache or updates it if it already exists.
+func (l *LRUCache[T]) Put(key int64, keys []string, exemplar T) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
-	// If it exists, update timestamp and move to front
 	if elem, found := l.cache[key]; found {
 		entry := elem.Value.(*Entry[T])
 		entry.value = exemplar
@@ -191,30 +167,27 @@ func (l *LRUCache[T]) Put(key int64, attributes []string, exemplar T) {
 		return
 	}
 
-	// Evict LRU if at capacity
 	if l.list.Len() >= l.capacity {
-		if back := l.list.Back(); back != nil {
-			evicted := back.Value.(*Entry[T])
-			// enqueue that single evicted entry
-			l.pending = append(l.pending, evicted)
+		back := l.list.Back()
+		if back != nil {
+			entry := back.Value.(*Entry[T])
+			l.pending = append(l.pending, entry)
 			l.list.Remove(back)
-			delete(l.cache, evicted.key)
+			delete(l.cache, entry.key)
 		}
 	}
 
-	// Insert new entry at front
 	now := time.Now()
 	newEntry := &Entry[T]{
-		key:        key,
-		attributes: attributes,
-		value:      exemplar,
-		timestamp:  now,
-	}
+		key:             key,
+		attributes:      keys,
+		value:           exemplar,
+		timestamp:       now,
+		lastPublishTime: now}
 	elem := l.list.PushFront(newEntry)
 	l.cache[key] = elem
 }
 
-// Remove deletes key from cache, if present.
 func (l *LRUCache[T]) Remove(key int64) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
@@ -225,7 +198,6 @@ func (l *LRUCache[T]) Remove(key int64) {
 	}
 }
 
-// Close stops background tasks.
 func (l *LRUCache[T]) Close() {
-	close(l.stop)
+	close(l.stopCleanup)
 }

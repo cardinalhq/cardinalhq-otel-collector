@@ -76,12 +76,13 @@ import (
 	chqservicegraphexporter "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter"
 	chqentitygraphexporter "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter"
 	chqk8sentitygraphexporter "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter"
-	zpagesextension "go.opentelemetry.io/collector/extension/zpagesextension"
 	ackextension "github.com/open-telemetry/opentelemetry-collector-contrib/extension/ackextension"
 	asapauthextension "github.com/open-telemetry/opentelemetry-collector-contrib/extension/asapauthextension"
 	awsproxy "github.com/open-telemetry/opentelemetry-collector-contrib/extension/awsproxy"
+	azureauthextension "github.com/open-telemetry/opentelemetry-collector-contrib/extension/azureauthextension"
 	basicauthextension "github.com/open-telemetry/opentelemetry-collector-contrib/extension/basicauthextension"
 	bearertokenauthextension "github.com/open-telemetry/opentelemetry-collector-contrib/extension/bearertokenauthextension"
+	cgroupruntimeextension "github.com/open-telemetry/opentelemetry-collector-contrib/extension/cgroupruntimeextension"
 	jaegerencodingextension "github.com/open-telemetry/opentelemetry-collector-contrib/extension/encoding/jaegerencodingextension"
 	jsonlogencodingextension "github.com/open-telemetry/opentelemetry-collector-contrib/extension/encoding/jsonlogencodingextension"
 	otlpencodingextension "github.com/open-telemetry/opentelemetry-collector-contrib/extension/encoding/otlpencodingextension"
@@ -101,10 +102,11 @@ import (
 	opampextension "github.com/open-telemetry/opentelemetry-collector-contrib/extension/opampextension"
 	pprofextension "github.com/open-telemetry/opentelemetry-collector-contrib/extension/pprofextension"
 	sigv4authextension "github.com/open-telemetry/opentelemetry-collector-contrib/extension/sigv4authextension"
-	filestorage "github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/filestorage"
 	dbstorage "github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/dbstorage"
+	filestorage "github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/filestorage"
 	redisstorageextension "github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/redisstorageextension"
 	sumologicextension "github.com/open-telemetry/opentelemetry-collector-contrib/extension/sumologicextension"
+	zpagesextension "go.opentelemetry.io/collector/extension/zpagesextension"
 	chqauthextension "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension"
 	chqconfigextension "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
 	chqtagcacheextension "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension"
@@ -248,12 +250,13 @@ func components() (otelcol.Factories, error) {
 	factories := otelcol.Factories{}
 
 	factories.Extensions, err = otelcol.MakeFactoryMap[extension.Factory](
-		zpagesextension.NewFactory(),
 		ackextension.NewFactory(),
 		asapauthextension.NewFactory(),
 		awsproxy.NewFactory(),
+		azureauthextension.NewFactory(),
 		basicauthextension.NewFactory(),
 		bearertokenauthextension.NewFactory(),
+		cgroupruntimeextension.NewFactory(),
 		jaegerencodingextension.NewFactory(),
 		jsonlogencodingextension.NewFactory(),
 		otlpencodingextension.NewFactory(),
@@ -273,10 +276,11 @@ func components() (otelcol.Factories, error) {
 		opampextension.NewFactory(),
 		pprofextension.NewFactory(),
 		sigv4authextension.NewFactory(),
-		filestorage.NewFactory(),
 		dbstorage.NewFactory(),
+		filestorage.NewFactory(),
 		redisstorageextension.NewFactory(),
 		sumologicextension.NewFactory(),
+		zpagesextension.NewFactory(),
 		chqauthextension.NewFactory(),
 		chqconfigextension.NewFactory(),
 		chqtagcacheextension.NewFactory(),
@@ -286,12 +290,13 @@ func components() (otelcol.Factories, error) {
 		return otelcol.Factories{}, err
 	}
 	factories.ExtensionModules = make(map[component.Type]string, len(factories.Extensions))
-	factories.ExtensionModules[zpagesextension.NewFactory().Type()] = "go.opentelemetry.io/collector/extension/zpagesextension v0.127.0"
 	factories.ExtensionModules[ackextension.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/extension/ackextension v0.127.0"
 	factories.ExtensionModules[asapauthextension.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/extension/asapauthextension v0.127.0"
 	factories.ExtensionModules[awsproxy.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/extension/awsproxy v0.127.0"
+	factories.ExtensionModules[azureauthextension.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/extension/azureauthextension v0.127.0"
 	factories.ExtensionModules[basicauthextension.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/extension/basicauthextension v0.127.0"
 	factories.ExtensionModules[bearertokenauthextension.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/extension/bearertokenauthextension v0.127.0"
+	factories.ExtensionModules[cgroupruntimeextension.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/extension/cgroupruntimeextension v0.127.0"
 	factories.ExtensionModules[jaegerencodingextension.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/extension/encoding/jaegerencodingextension v0.127.0"
 	factories.ExtensionModules[jsonlogencodingextension.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/extension/encoding/jsonlogencodingextension v0.127.0"
 	factories.ExtensionModules[otlpencodingextension.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/extension/encoding/otlpencodingextension v0.127.0"
@@ -311,10 +316,11 @@ func components() (otelcol.Factories, error) {
 	factories.ExtensionModules[opampextension.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/extension/opampextension v0.127.0"
 	factories.ExtensionModules[pprofextension.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/extension/pprofextension v0.127.0"
 	factories.ExtensionModules[sigv4authextension.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/extension/sigv4authextension v0.127.0"
-	factories.ExtensionModules[filestorage.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/filestorage v0.127.0"
 	factories.ExtensionModules[dbstorage.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/dbstorage v0.127.0"
+	factories.ExtensionModules[filestorage.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/filestorage v0.127.0"
 	factories.ExtensionModules[redisstorageextension.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/redisstorageextension v0.127.0"
 	factories.ExtensionModules[sumologicextension.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/extension/sumologicextension v0.127.0"
+	factories.ExtensionModules[zpagesextension.NewFactory().Type()] = "go.opentelemetry.io/collector/extension/zpagesextension v0.127.0"
 	factories.ExtensionModules[chqauthextension.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.127.0"
 	factories.ExtensionModules[chqconfigextension.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.127.0"
 	factories.ExtensionModules[chqtagcacheextension.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.127.0"

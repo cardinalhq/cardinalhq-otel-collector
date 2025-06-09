@@ -93,11 +93,11 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) pme
 		resourceBuilder := builder.Resource(resource.Attributes())
 		scopeBuilder := resourceBuilder.Scope(pcommon.NewMap())
 
-		sketchCache, sok := p.sketchCaches.Load(cid)
+		sketchCache, sok := p.spanSketchCaches.Load(cid)
 		if !sok {
 			p.logger.Info("Creating new span sketch cache", zap.String("cid", cid))
-			sketchCache = chqpb.NewSketchCache(5*time.Minute, cid, p.sendSketches)
-			p.sketchCaches.Store(cid, sketchCache)
+			sketchCache = chqpb.NewSpanSketchCache(5*time.Minute, cid, p.sendSketches)
+			p.spanSketchCaches.Store(cid, sketchCache)
 		}
 
 		for j := range resourceSpans.At(i).ScopeSpans().Len() {
@@ -141,35 +141,39 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) pme
 					}
 					telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 
-					mapAttrs := lex.ExtractAttributes(ctx, tc)
-					attrs := pcommon.NewMap()
-					if err := attrs.FromRaw(mapAttrs); err != nil {
-						p.logger.Error("Failed when extracting attributes.", zap.Error(err))
-						telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
-						continue
-					}
-
-					tags := make(map[string]string, len(mapAttrs))
-					for k, v := range mapAttrs {
-						if str, ok := v.(string); ok {
-							tags[k] = str
+					if len(lex.MetricDimensions) > 0 {
+						mapAttrs := lex.ExtractMetricAttributes(ctx, tc)
+						attrs := pcommon.NewMap()
+						if err := attrs.FromRaw(mapAttrs); err != nil {
+							p.logger.Error("Failed when extracting attributes.", zap.Error(err))
+							telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
+							continue
+						}
+						if err := updateDatapoint(lex.MetricType, lex.MetricName, lex.MetricUnit, scopeBuilder, val, timestamp, attrs); err != nil {
+							p.logger.Error("Failed when updating datapoint.", zap.Error(err))
+							telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
+							continue
 						}
 					}
 
-					if serviceNameFound {
-						tags[fmt.Sprintf("resource.%s", string(semconv.ServiceNameKey))] = serviceName.AsString()
-					}
-					if clusterNameFound {
-						tags[fmt.Sprintf("resource.%s", string(semconv.K8SClusterNameKey))] = clusterName.AsString()
-					}
-					if namespaceNameFound {
-						tags[fmt.Sprintf("resource.%s", string(semconv.K8SNamespaceNameKey))] = namespaceName.AsString()
-					}
-					sketchCache.Update(lex.MetricName, tags, lr, resource)
-					if err := updateDatapoint(lex.MetricType, lex.MetricName, lex.MetricUnit, scopeBuilder, val, timestamp, attrs); err != nil {
-						p.logger.Error("Failed when updating datapoint.", zap.Error(err))
-						telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
-						continue
+					if len(lex.SketchDimensions) > 0 {
+						mapAttrs := lex.ExtractSketchAttributes(ctx, tc)
+						tags := make(map[string]string, len(mapAttrs))
+						for k, v := range mapAttrs {
+							if str, ok := v.(string); ok {
+								tags[k] = str
+							}
+						}
+						if serviceNameFound {
+							tags[fmt.Sprintf("resource.%s", string(semconv.ServiceNameKey))] = serviceName.AsString()
+						}
+						if clusterNameFound {
+							tags[fmt.Sprintf("resource.%s", string(semconv.K8SClusterNameKey))] = clusterName.AsString()
+						}
+						if namespaceNameFound {
+							tags[fmt.Sprintf("resource.%s", string(semconv.K8SNamespaceNameKey))] = namespaceName.AsString()
+						}
+						sketchCache.Update(lex.MetricName, tags, lr, resource)
 					}
 				}
 			}

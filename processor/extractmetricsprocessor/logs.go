@@ -15,7 +15,14 @@
 package extractmetricsprocessor
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"github.com/cardinalhq/oteltools/pkg/chqpb"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
+	"google.golang.org/protobuf/proto"
+	"io"
+	"net/http"
 	"time"
 
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
@@ -38,6 +45,35 @@ func (p *extractor) ConsumeLogs(ctx context.Context, pl plog.Logs) (plog.Logs, e
 	return pl, nil
 }
 
+func (p *extractor) sendLogSketches(list *chqpb.GenericSketchList) error {
+	if len(list.Sketches) > 0 {
+		p.logger.Info("Sending log stats", zap.Int("sketches", len(list.Sketches)))
+		b, err := proto.Marshal(list)
+		if err != nil {
+			return err
+		}
+		endpoint := p.config.Endpoint + "/api/v1/logSketches"
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint, bytes.NewReader(b))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Content-Type", "application/x-protobuf")
+
+		resp, err := p.httpClient.Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+
+		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+			p.logger.Error("Failed to send span stats", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
+			return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		}
+	}
+	return nil
+}
+
 func (p *extractor) extract(ctx context.Context, pl plog.Logs) pmetric.Metrics {
 	timestamp := pcommon.NewTimestampFromTime(time.Now())
 	builder := signalbuilder.NewMetricsBuilder()
@@ -52,8 +88,19 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) pmetric.Metrics {
 			continue
 		}
 
+		serviceName, serviceNameFound := resource.Attributes().Get(string(semconv.ServiceNameKey))
+		clusterName, clusterNameFound := resource.Attributes().Get(string(semconv.K8SClusterNameKey))
+		namespaceName, namespaceNameFound := resource.Attributes().Get(string(semconv.K8SNamespaceNameKey))
+
 		resourceBuilder := builder.Resource(resource.Attributes())
 		scopeBuilder := resourceBuilder.Scope(pcommon.NewMap())
+
+		sketchCache, sok := p.logSketchCaches.Load(cid)
+		if !sok {
+			p.logger.Info("Creating new log sketch cache", zap.String("cid", cid))
+			sketchCache = chqpb.NewGenericSketchCache(5*time.Minute, cid, "logs", p.sendLogSketches)
+			p.logSketchCaches.Store(cid, sketchCache)
+		}
 
 		for j := range resourceLogs.At(i).ScopeLogs().Len() {
 			scopeLog := resourceLogs.At(i).ScopeLogs().At(j)
@@ -97,18 +144,39 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) pmetric.Metrics {
 					}
 					telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 
-					mapAttrs := lex.ExtractAttributes(ctx, tc)
-					attrs := pcommon.NewMap()
-					if err := attrs.FromRaw(mapAttrs); err != nil {
-						p.logger.Error("Failed when extracting attributes.", zap.Error(err))
-						telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
-						continue
+					if len(lex.MetricDimensions) > 0 {
+						mapAttrs := lex.ExtractMetricAttributes(ctx, tc)
+						attrs := pcommon.NewMap()
+						if err := attrs.FromRaw(mapAttrs); err != nil {
+							p.logger.Error("Failed when extracting attributes.", zap.Error(err))
+							telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
+							continue
+						}
+						if err := updateDatapoint(lex.MetricType, lex.MetricName, lex.MetricUnit, scopeBuilder, val, timestamp, attrs); err != nil {
+							p.logger.Error("Failed when updating datapoint.", zap.Error(err))
+							telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
+							continue
+						}
 					}
 
-					if err := updateDatapoint(lex.MetricType, lex.MetricName, lex.MetricUnit, scopeBuilder, val, timestamp, attrs); err != nil {
-						p.logger.Error("Failed when updating datapoint.", zap.Error(err))
-						telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
-						continue
+					if len(lex.SketchDimensions) > 0 {
+						mapAttrs := lex.ExtractSketchAttributes(ctx, tc)
+						tags := make(map[string]string, len(mapAttrs))
+						for k, v := range mapAttrs {
+							if str, ok := v.(string); ok {
+								tags[k] = str
+							}
+						}
+						if serviceNameFound {
+							tags[fmt.Sprintf("resource.%s", string(semconv.ServiceNameKey))] = serviceName.AsString()
+						}
+						if clusterNameFound {
+							tags[fmt.Sprintf("resource.%s", string(semconv.K8SClusterNameKey))] = clusterName.AsString()
+						}
+						if namespaceNameFound {
+							tags[fmt.Sprintf("resource.%s", string(semconv.K8SNamespaceNameKey))] = namespaceName.AsString()
+						}
+						sketchCache.Update(lex.MetricName, tags, val, lr.ObservedTimestamp().AsTime())
 					}
 				}
 			}

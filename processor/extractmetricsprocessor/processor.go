@@ -54,12 +54,11 @@ type extractor struct {
 	ruleErrors        telemetry.DeferrableCounter[int64]
 	ruleEvalTime      telemetry.DeferrableHistogram[int64]
 
-	configCallbackID int
-	logExtractors    syncmap.SyncMap[string, []*ottl.LogExtractor]
-	spanExtractors   syncmap.SyncMap[string, []*ottl.SpanExtractor]
-	spanSketchCaches syncmap.SyncMap[string, *chqpb.SpanSketchCache]
-	logSketchCaches  syncmap.SyncMap[string, *chqpb.GenericSketchCache]
-
+	configCallbackID   int
+	logExtractors      syncmap.SyncMap[string, []*ottl.LogExtractor]
+	spanExtractors     syncmap.SyncMap[string, []*ottl.SpanExtractor]
+	spanSketchCaches   syncmap.SyncMap[string, *chqpb.SpanSketchCache]
+	logSketchCaches    syncmap.SyncMap[string, *chqpb.GenericSketchCache]
 	httpClientSettings confighttp.ClientConfig
 	httpClient         *http.Client
 }

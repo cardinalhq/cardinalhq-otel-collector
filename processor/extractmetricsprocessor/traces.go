@@ -19,16 +19,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
-	"github.com/cardinalhq/oteltools/signalbuilder"
-	"go.opentelemetry.io/collector/pdata/pcommon"
-	"go.opentelemetry.io/collector/pdata/pmetric"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"google.golang.org/protobuf/proto"
 	"io"
 	"net/http"
 	"time"
 
-	"github.com/cardinalhq/oteltools/pkg/ottl"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -39,8 +34,7 @@ import (
 )
 
 func (p *extractor) ConsumeTraces(ctx context.Context, pt ptrace.Traces) (ptrace.Traces, error) {
-	metrics := p.updateSketchCache(ctx, pt)
-	p.sendMetrics(ctx, p.config.Route, metrics)
+	p.updateSketchCache(ctx, pt)
 	return pt, nil
 }
 
@@ -73,25 +67,16 @@ func (p *extractor) sendSketches(list *chqpb.SpanSketchList) error {
 	return nil
 }
 
-func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) pmetric.Metrics {
-	timestamp := pcommon.NewTimestampFromTime(time.Now())
-	builder := signalbuilder.NewMetricsBuilder()
-
+func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 	resourceSpans := pl.ResourceSpans()
 	for i := range resourceSpans.Len() {
 		resourceSpan := resourceSpans.At(i)
 		resource := resourceSpan.Resource()
 		cid := OrgIdFromResource(resource.Attributes())
-		serviceName, serviceNameFound := resource.Attributes().Get(string(semconv.ServiceNameKey))
-		clusterName, clusterNameFound := resource.Attributes().Get(string(semconv.K8SClusterNameKey))
-		namespaceName, namespaceNameFound := resource.Attributes().Get(string(semconv.K8SNamespaceNameKey))
 		spanExtractors, ok := p.spanExtractors.Load(cid)
 		if !ok {
 			continue
 		}
-
-		resourceBuilder := builder.Resource(resource.Attributes())
-		scopeBuilder := resourceBuilder.Scope(pcommon.NewMap())
 
 		sketchCache, sok := p.spanSketchCaches.Load(cid)
 		if !sok {
@@ -126,53 +111,30 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) pme
 						continue
 					}
 
-					val, err := p.extractSpanValue(ctx, tc, lex)
-					if err != nil {
-						p.logger.Error("Failed when extracting value.", zap.Error(err))
-						attrset := attribute.NewSet(attribute.String("ruleId", lex.RuleID),
-							attribute.String("metricName", lex.MetricName),
-							attribute.String("metricType", lex.MetricType),
-							attribute.String("stage", "metricValueExtraction"),
-							attribute.String("error", err.Error()),
-							attribute.String("organization_id", cid),
-						)
-						telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
-						continue
-					}
+					//val, err := p.extractSpanValue(ctx, tc, lex)
+					//if err != nil {
+					//	p.logger.Error("Failed when extracting value.", zap.Error(err))
+					//	attrset := attribute.NewSet(attribute.String("ruleId", lex.RuleID),
+					//		attribute.String("metricName", lex.MetricName),
+					//		attribute.String("metricType", lex.MetricType),
+					//		attribute.String("stage", "metricValueExtraction"),
+					//		attribute.String("error", err.Error()),
+					//		attribute.String("organization_id", cid),
+					//	)
+					//	telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
+					//	continue
+					//}
 					telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 
-					if len(lex.MetricDimensions) > 0 {
-						mapAttrs := lex.ExtractMetricAttributes(ctx, tc)
-						attrs := pcommon.NewMap()
-						if err := attrs.FromRaw(mapAttrs); err != nil {
-							p.logger.Error("Failed when extracting attributes.", zap.Error(err))
-							telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
-							continue
-						}
-						if err := updateDatapoint(lex.MetricType, lex.MetricName, lex.MetricUnit, scopeBuilder, val, timestamp, attrs); err != nil {
-							p.logger.Error("Failed when updating datapoint.", zap.Error(err))
-							telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
-							continue
-						}
+					if len(lex.LineDimensions) > 0 {
+						mapAttrs := lex.ExtractLineAttributes(ctx, tc)
+						tags := p.withServiceClusterNamespace(resource, mapAttrs)
+						sketchCache.Update(lex.MetricName, tags, lr, resource)
 					}
 
-					if len(lex.SketchDimensions) > 0 {
-						mapAttrs := lex.ExtractSketchAttributes(ctx, tc)
-						tags := make(map[string]string, len(mapAttrs))
-						for k, v := range mapAttrs {
-							if str, ok := v.(string); ok {
-								tags[k] = str
-							}
-						}
-						if serviceNameFound {
-							tags[fmt.Sprintf("resource.%s", string(semconv.ServiceNameKey))] = serviceName.AsString()
-						}
-						if clusterNameFound {
-							tags[fmt.Sprintf("resource.%s", string(semconv.K8SClusterNameKey))] = clusterName.AsString()
-						}
-						if namespaceNameFound {
-							tags[fmt.Sprintf("resource.%s", string(semconv.K8SNamespaceNameKey))] = namespaceName.AsString()
-						}
+					if len(lex.AggregateDimensions) > 0 {
+						mapAttrs := lex.ExtractAggregateAttributes(ctx, tc)
+						tags := p.withServiceClusterNamespace(resource, mapAttrs)
 						sketchCache.Update(lex.MetricName, tags, lr, resource)
 					}
 				}
@@ -180,16 +142,15 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) pme
 		}
 	}
 
-	return builder.Build()
 }
 
-func (p *extractor) extractSpanValue(ctx context.Context, tc ottlspan.TransformContext, e *ottl.SpanExtractor) (float64, error) {
-	if e.MetricValue != nil {
-		val, _, err := e.MetricValue.Execute(ctx, tc)
-		if err != nil {
-			return 0, err
-		}
-		return convertAnyToFloat(val)
-	}
-	return 1, nil
-}
+//func (p *extractor) extractSpanValue(ctx context.Context, tc ottlspan.TransformContext, e *ottl.SpanExtractor) (float64, error) {
+//	if e.MetricValue != nil {
+//		val, _, err := e.MetricValue.Execute(ctx, tc)
+//		if err != nil {
+//			return 0, err
+//		}
+//		return convertAnyToFloat(val)
+//	}
+//	return 1, nil
+//}

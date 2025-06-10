@@ -26,22 +26,19 @@ import (
 	"time"
 
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
-	"github.com/cardinalhq/oteltools/signalbuilder"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
-	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/oteltools/pkg/ottl"
 )
 
 func (p *extractor) ConsumeLogs(ctx context.Context, pl plog.Logs) (plog.Logs, error) {
-	metrics := p.extract(ctx, pl)
-	p.sendMetrics(ctx, p.config.Route, metrics)
+	p.extract(ctx, pl)
 	return pl, nil
 }
 
@@ -74,10 +71,7 @@ func (p *extractor) sendLogSketches(list *chqpb.GenericSketchList) error {
 	return nil
 }
 
-func (p *extractor) extract(ctx context.Context, pl plog.Logs) pmetric.Metrics {
-	timestamp := pcommon.NewTimestampFromTime(time.Now())
-	builder := signalbuilder.NewMetricsBuilder()
-
+func (p *extractor) extract(ctx context.Context, pl plog.Logs) {
 	resourceLogs := pl.ResourceLogs()
 	for i := range resourceLogs.Len() {
 		resourceLog := resourceLogs.At(i)
@@ -87,13 +81,6 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) pmetric.Metrics {
 		if !ok {
 			continue
 		}
-
-		serviceName, serviceNameFound := resource.Attributes().Get(string(semconv.ServiceNameKey))
-		clusterName, clusterNameFound := resource.Attributes().Get(string(semconv.K8SClusterNameKey))
-		namespaceName, namespaceNameFound := resource.Attributes().Get(string(semconv.K8SNamespaceNameKey))
-
-		resourceBuilder := builder.Resource(resource.Attributes())
-		scopeBuilder := resourceBuilder.Scope(pcommon.NewMap())
 
 		sketchCache, sok := p.logSketchCaches.Load(cid)
 		if !sok {
@@ -144,46 +131,44 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) pmetric.Metrics {
 					}
 					telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 
-					if len(lex.MetricDimensions) > 0 {
-						mapAttrs := lex.ExtractMetricAttributes(ctx, tc)
-						attrs := pcommon.NewMap()
-						if err := attrs.FromRaw(mapAttrs); err != nil {
-							p.logger.Error("Failed when extracting attributes.", zap.Error(err))
-							telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
-							continue
-						}
-						if err := updateDatapoint(lex.MetricType, lex.MetricName, lex.MetricUnit, scopeBuilder, val, timestamp, attrs); err != nil {
-							p.logger.Error("Failed when updating datapoint.", zap.Error(err))
-							telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
-							continue
-						}
+					if len(lex.AggregateDimensions) > 0 {
+						mapAttrs := lex.ExtractAggregateAttributes(ctx, tc)
+						tags := p.withServiceClusterNamespace(resource, mapAttrs)
+						sketchCache.Update(lex.MetricName, lex.MetricType, tags, true, val, lr.ObservedTimestamp().AsTime())
 					}
 
-					if len(lex.SketchDimensions) > 0 {
-						mapAttrs := lex.ExtractSketchAttributes(ctx, tc)
-						tags := make(map[string]string, len(mapAttrs))
-						for k, v := range mapAttrs {
-							if str, ok := v.(string); ok {
-								tags[k] = str
-							}
-						}
-						if serviceNameFound {
-							tags[fmt.Sprintf("resource.%s", string(semconv.ServiceNameKey))] = serviceName.AsString()
-						}
-						if clusterNameFound {
-							tags[fmt.Sprintf("resource.%s", string(semconv.K8SClusterNameKey))] = clusterName.AsString()
-						}
-						if namespaceNameFound {
-							tags[fmt.Sprintf("resource.%s", string(semconv.K8SNamespaceNameKey))] = namespaceName.AsString()
-						}
-						sketchCache.Update(lex.MetricName, tags, val, lr.ObservedTimestamp().AsTime())
+					if len(lex.LineDimensions) > 0 {
+						mapAttrs := lex.ExtractLineAttributes(ctx, tc)
+						tags := p.withServiceClusterNamespace(resource, mapAttrs)
+						sketchCache.Update(lex.MetricName, lex.MetricType, tags, false, val, lr.ObservedTimestamp().AsTime())
 					}
 				}
 			}
 		}
 	}
+}
 
-	return builder.Build()
+func (p *extractor) withServiceClusterNamespace(resource pcommon.Resource, mapAttrs map[string]any) map[string]string {
+	serviceName, serviceNameFound := resource.Attributes().Get(string(semconv.ServiceNameKey))
+	clusterName, clusterNameFound := resource.Attributes().Get(string(semconv.K8SClusterNameKey))
+	namespaceName, namespaceNameFound := resource.Attributes().Get(string(semconv.K8SNamespaceNameKey))
+
+	tags := make(map[string]string, len(mapAttrs))
+	for k, v := range mapAttrs {
+		if str, ok := v.(string); ok {
+			tags[k] = str
+		}
+	}
+	if serviceNameFound {
+		tags[fmt.Sprintf("resource.%s", string(semconv.ServiceNameKey))] = serviceName.AsString()
+	}
+	if clusterNameFound {
+		tags[fmt.Sprintf("resource.%s", string(semconv.K8SClusterNameKey))] = clusterName.AsString()
+	}
+	if namespaceNameFound {
+		tags[fmt.Sprintf("resource.%s", string(semconv.K8SNamespaceNameKey))] = namespaceName.AsString()
+	}
+	return tags
 }
 
 func (p *extractor) extractLogValue(ctx context.Context, tc ottllog.TransformContext, e *ottl.LogExtractor) (float64, error) {

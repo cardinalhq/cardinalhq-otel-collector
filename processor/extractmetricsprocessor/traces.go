@@ -15,13 +15,9 @@
 package extractmetricsprocessor
 
 import (
-	"bytes"
 	"context"
-	"fmt"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
-	"google.golang.org/protobuf/proto"
-	"io"
-	"net/http"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 	"time"
 
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
@@ -38,35 +34,6 @@ func (p *extractor) ConsumeTraces(ctx context.Context, pt ptrace.Traces) (ptrace
 	return pt, nil
 }
 
-func (p *extractor) sendSketches(list *chqpb.SpanSketchList) error {
-	if len(list.Sketches) > 0 {
-		p.logger.Info("Sending span stats", zap.Int("sketches", len(list.Sketches)))
-		b, err := proto.Marshal(list)
-		if err != nil {
-			return err
-		}
-		endpoint := p.config.Endpoint + "/api/v1/spanSketches"
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint, bytes.NewReader(b))
-		if err != nil {
-			return err
-		}
-		req.Header.Set("Content-Type", "application/x-protobuf")
-
-		resp, err := p.httpClient.Do(req)
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-		body, _ := io.ReadAll(resp.Body)
-
-		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-			p.logger.Error("Failed to send span stats", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
-			return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-		}
-	}
-	return nil
-}
-
 func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 	resourceSpans := pl.ResourceSpans()
 	for i := range resourceSpans.Len() {
@@ -81,7 +48,20 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 		sketchCache, sok := p.spanSketchCaches.Load(cid)
 		if !sok {
 			p.logger.Info("Creating new span sketch cache", zap.String("cid", cid))
-			sketchCache = chqpb.NewSpanSketchCache(5*time.Minute, cid, p.sendSketches)
+			sketchCache = chqpb.NewSpanSketchCache(5*time.Minute, cid, func(list *chqpb.SpanSketchList) error {
+				send := p.sendProto("/api/v1/spanSketches", list)
+				return send()
+			})
+			p.spanSketchCaches.Store(cid, sketchCache)
+		}
+
+		spanLineSketchCache, lsok := p.spanLineSketchCaches.Load(cid)
+		if !lsok {
+			p.logger.Info("Creating new span line sketch cache", zap.String("cid", cid))
+			spanLineSketchCache = chqpb.NewGenericSketchCache(5*time.Minute, cid, "traces", func(list *chqpb.GenericSketchList) error {
+				send := p.sendProto("/api/v1/spanLineSketches", list)
+				return send()
+			})
 			p.spanSketchCaches.Store(cid, sketchCache)
 		}
 
@@ -114,16 +94,22 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 					telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 
 					var parentTID int64
-					if len(lex.LineDimensions) > 0 {
-						mapAttrs := lex.ExtractLineAttributes(ctx, tc)
-						tags := p.withServiceClusterNamespace(resource, mapAttrs)
-						parentTID = sketchCache.Update(lex.MetricName, tags, lr, -1, resource)
-					}
-
 					if len(lex.AggregateDimensions) > 0 {
 						mapAttrs := lex.ExtractAggregateAttributes(ctx, tc)
 						tags := p.withServiceClusterNamespace(resource, mapAttrs)
-						sketchCache.Update(lex.MetricName, tags, lr, parentTID, resource)
+						parentTID = sketchCache.Update(lex.MetricName, tags, lr, resource)
+					}
+
+					if len(lex.LineDimensions) > 0 {
+						mapAttrsByTagFamilyId := lex.ExtractLineAttributes(ctx, tc)
+						for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
+							tags := p.withServiceClusterNamespace(resource, mapAttrs)
+							ts := lr.EndTimestamp().AsTime()
+							if v, ok := lr.Attributes().Get(translate.CardinalFieldSpanDuration); ok {
+								spanLineSketchCache.Update(lex.MetricName, lex.MetricType, tags, parentTID, tagFamilyId, v.Double(), ts)
+							}
+
+						}
 					}
 				}
 			}

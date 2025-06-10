@@ -1,9 +1,7 @@
 package extractmetricsprocessor
 
 import (
-	"bytes"
 	"context"
-	"fmt"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"github.com/cardinalhq/oteltools/pkg/ottl"
 	"github.com/cardinalhq/oteltools/pkg/translate"
@@ -12,10 +10,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/processor/processorhelper"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
-	"io"
 	"math"
-	"net/http"
 	"time"
 )
 
@@ -44,35 +39,6 @@ func (p *extractor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pme
 	return md, nil
 }
 
-func (p *extractor) sendMetricSketches(list *chqpb.GenericSketchList) error {
-	if len(list.Sketches) > 0 {
-		p.logger.Info("Sending log stats", zap.Int("sketches", len(list.Sketches)))
-		b, err := proto.Marshal(list)
-		if err != nil {
-			return err
-		}
-		endpoint := p.config.Endpoint + "/api/v1/metricSketches"
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint, bytes.NewReader(b))
-		if err != nil {
-			return err
-		}
-		req.Header.Set("Content-Type", "application/x-protobuf")
-
-		resp, err := p.httpClient.Do(req)
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-		body, _ := io.ReadAll(resp.Body)
-
-		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-			p.logger.Error("Failed to send metric sketches", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
-			return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-		}
-	}
-	return nil
-}
-
 func (p *extractor) updateMetricSketchCache(
 	ctx context.Context,
 	cid string,
@@ -88,7 +54,10 @@ func (p *extractor) updateMetricSketchCache(
 	sketchCache, sok := p.metricSketchCaches.Load(cid)
 	if !sok {
 		p.logger.Info("Creating new metrics sketch cache", zap.String("cid", cid))
-		sketchCache = chqpb.NewGenericSketchCache(5*time.Minute, cid, "metrics", p.sendMetricSketches)
+		sketchCache = chqpb.NewGenericSketchCache(5*time.Minute, cid, "metrics", func(list *chqpb.GenericSketchList) error {
+			send := p.sendProto("/api/v1/metricSketches", list)
+			return send()
+		})
 		p.metricSketchCaches.Store(cid, sketchCache)
 	}
 
@@ -183,12 +152,14 @@ func (p *extractor) updateMetricSketchCache(
 						if len(mex.AggregateDimensions) > 0 {
 							mapAttrs := mex.ExtractAggregateAttributes(ctx, tc)
 							tags := p.withServiceClusterNamespace(resource, mapAttrs)
-							parentTID = sketchCache.UpdateWithCount(mex.MetricName, mex.MetricType, tags, 0, value, count, ts)
+							parentTID = sketchCache.UpdateWithCount(mex.MetricName, mex.MetricType, tags, 0, 0, value, count, ts)
 						}
 						if len(mex.LineDimensions) > 0 {
-							mapAttrs := mex.ExtractLineAttributes(ctx, tc)
-							tags := p.withServiceClusterNamespace(resource, mapAttrs)
-							sketchCache.UpdateWithCount(mex.MetricName, mex.MetricType, tags, parentTID, value, count, ts)
+							mapAttrsByTagFamilyId := mex.ExtractLineAttributes(ctx, tc)
+							for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
+								tags := p.withServiceClusterNamespace(resource, mapAttrs)
+								sketchCache.UpdateWithCount(mex.MetricName, mex.MetricType, tags, parentTID, tagFamilyId, value, count, ts)
+							}
 						}
 					}
 				}
@@ -246,12 +217,15 @@ func (p *extractor) updateHistogramWithBuckets(
 		if len(mex.AggregateDimensions) > 0 {
 			mapAttrs := mex.ExtractAggregateAttributes(ctx, tc)
 			tags := p.withServiceClusterNamespace(resource, mapAttrs)
-			parentTID = sketchCache.UpdateWithCount(mex.MetricName, mex.MetricType, tags, -1, midpoint, bucketCount, timestamp)
+			parentTID = sketchCache.UpdateWithCount(mex.MetricName, mex.MetricType, tags, 0, 0, midpoint, bucketCount, timestamp)
 		}
 		if len(mex.LineDimensions) > 0 {
-			mapAttrs := mex.ExtractLineAttributes(ctx, tc)
-			tags := p.withServiceClusterNamespace(resource, mapAttrs)
-			sketchCache.UpdateWithCount(mex.MetricName, mex.MetricType, tags, parentTID, midpoint, bucketCount, timestamp)
+			mapAttrsByTagFamilyId := mex.ExtractLineAttributes(ctx, tc)
+			for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
+				tags := p.withServiceClusterNamespace(resource, mapAttrs)
+				sketchCache.UpdateWithCount(mex.MetricName, mex.MetricType, tags, parentTID, tagFamilyId, midpoint, bucketCount, timestamp)
+			}
+
 		}
 	}
 }
@@ -268,11 +242,13 @@ func (p *extractor) updateWithDataPoint(ctx context.Context,
 	if len(mex.AggregateDimensions) > 0 {
 		mapAttrs := mex.ExtractAggregateAttributes(ctx, tc)
 		tags := p.withServiceClusterNamespace(resource, mapAttrs)
-		parentTID = sketchCache.Update(mex.MetricName, mex.MetricType, tags, -1, metricValue, t)
+		parentTID = sketchCache.Update(mex.MetricName, mex.MetricType, tags, 0, 0, metricValue, t)
 	}
 	if len(mex.LineDimensions) > 0 {
-		mapAttrs := mex.ExtractLineAttributes(ctx, tc)
-		tags := p.withServiceClusterNamespace(resource, mapAttrs)
-		sketchCache.Update(mex.MetricName, mex.MetricType, tags, parentTID, metricValue, t)
+		mapAttrsByTagFamilyId := mex.ExtractLineAttributes(ctx, tc)
+		for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
+			tags := p.withServiceClusterNamespace(resource, mapAttrs)
+			sketchCache.Update(mex.MetricName, mex.MetricType, tags, parentTID, tagFamilyId, metricValue, t)
+		}
 	}
 }

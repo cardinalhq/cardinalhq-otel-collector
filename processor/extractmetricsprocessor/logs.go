@@ -15,14 +15,10 @@
 package extractmetricsprocessor
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
-	"google.golang.org/protobuf/proto"
-	"io"
-	"net/http"
 	"time"
 
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
@@ -42,35 +38,6 @@ func (p *extractor) ConsumeLogs(ctx context.Context, pl plog.Logs) (plog.Logs, e
 	return pl, nil
 }
 
-func (p *extractor) sendLogSketches(list *chqpb.GenericSketchList) error {
-	if len(list.Sketches) > 0 {
-		p.logger.Info("Sending log stats", zap.Int("sketches", len(list.Sketches)))
-		b, err := proto.Marshal(list)
-		if err != nil {
-			return err
-		}
-		endpoint := p.config.Endpoint + "/api/v1/logSketches"
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint, bytes.NewReader(b))
-		if err != nil {
-			return err
-		}
-		req.Header.Set("Content-Type", "application/x-protobuf")
-
-		resp, err := p.httpClient.Do(req)
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-		body, _ := io.ReadAll(resp.Body)
-
-		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-			p.logger.Error("Failed to send log sketches", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
-			return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-		}
-	}
-	return nil
-}
-
 func (p *extractor) extract(ctx context.Context, pl plog.Logs) {
 	resourceLogs := pl.ResourceLogs()
 	for i := range resourceLogs.Len() {
@@ -85,7 +52,10 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) {
 		sketchCache, sok := p.logSketchCaches.Load(cid)
 		if !sok {
 			p.logger.Info("Creating new log sketch cache", zap.String("cid", cid))
-			sketchCache = chqpb.NewGenericSketchCache(5*time.Minute, cid, "logs", p.sendLogSketches)
+			sketchCache = chqpb.NewGenericSketchCache(5*time.Minute, cid, "logs", func(list *chqpb.GenericSketchList) error {
+				send := p.sendProto("/api/v1/logSketches", list)
+				return send()
+			})
 			p.logSketchCaches.Store(cid, sketchCache)
 		}
 
@@ -135,13 +105,15 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) {
 					if len(lex.AggregateDimensions) > 0 {
 						mapAttrs := lex.ExtractAggregateAttributes(ctx, tc)
 						tags := p.withServiceClusterNamespace(resource, mapAttrs)
-						parentTID = sketchCache.Update(lex.MetricName, lex.MetricType, tags, -1, val, lr.ObservedTimestamp().AsTime())
+						parentTID = sketchCache.Update(lex.MetricName, lex.MetricType, tags, 0, 0, val, lr.ObservedTimestamp().AsTime())
 					}
 
 					if len(lex.LineDimensions) > 0 {
-						mapAttrs := lex.ExtractLineAttributes(ctx, tc)
-						tags := p.withServiceClusterNamespace(resource, mapAttrs)
-						sketchCache.Update(lex.MetricName, lex.MetricType, tags, parentTID, val, lr.ObservedTimestamp().AsTime())
+						mapAttrsByTagFamilyId := lex.ExtractLineAttributes(ctx, tc)
+						for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
+							tags := p.withServiceClusterNamespace(resource, mapAttrs)
+							sketchCache.Update(lex.MetricName, lex.MetricType, tags, parentTID, tagFamilyId, val, lr.ObservedTimestamp().AsTime())
+						}
 					}
 				}
 			}

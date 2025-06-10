@@ -15,11 +15,14 @@
 package extractmetricsprocessor
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"go.opentelemetry.io/collector/config/confighttp"
+	"google.golang.org/protobuf/proto"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -54,15 +57,16 @@ type extractor struct {
 	ruleErrors        telemetry.DeferrableCounter[int64]
 	ruleEvalTime      telemetry.DeferrableHistogram[int64]
 
-	configCallbackID   int
-	logExtractors      syncmap.SyncMap[string, []*ottl.LogExtractor]
-	spanExtractors     syncmap.SyncMap[string, []*ottl.SpanExtractor]
-	metricExtractors   syncmap.SyncMap[string, map[string]*ottl.MetricSketchExtractor]
-	spanSketchCaches   syncmap.SyncMap[string, *chqpb.SpanSketchCache]
-	logSketchCaches    syncmap.SyncMap[string, *chqpb.GenericSketchCache]
-	metricSketchCaches syncmap.SyncMap[string, *chqpb.GenericSketchCache]
-	httpClientSettings confighttp.ClientConfig
-	httpClient         *http.Client
+	configCallbackID     int
+	logExtractors        syncmap.SyncMap[string, []*ottl.LogExtractor]
+	spanExtractors       syncmap.SyncMap[string, []*ottl.SpanExtractor]
+	metricExtractors     syncmap.SyncMap[string, map[string]*ottl.MetricSketchExtractor]
+	spanSketchCaches     syncmap.SyncMap[string, *chqpb.SpanSketchCache]
+	spanLineSketchCaches syncmap.SyncMap[string, *chqpb.GenericSketchCache]
+	logSketchCaches      syncmap.SyncMap[string, *chqpb.GenericSketchCache]
+	metricSketchCaches   syncmap.SyncMap[string, *chqpb.GenericSketchCache]
+	httpClientSettings   confighttp.ClientConfig
+	httpClient           *http.Client
 }
 
 func newExtractor(config *Config, ttype string, set processor.Settings) (*extractor, error) {
@@ -128,6 +132,43 @@ func newExtractor(config *Config, ttype string, set processor.Settings) (*extrac
 	p.ruleEvalTime = histogram
 
 	return p, nil
+}
+
+func (p *extractor) sendProto(path string, message proto.Message) func() error {
+	return func() error {
+		payload, err := proto.Marshal(message)
+		if err != nil {
+			return fmt.Errorf("failed to marshal protobuf message: %w", err)
+		}
+
+		p.logger.Info("Sending data",
+			zap.String("endpoint", path),
+			zap.Int("payload_size", len(payload)),
+		)
+
+		endpoint := p.config.Endpoint + path
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint, bytes.NewReader(payload))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Content-Type", "application/x-protobuf")
+
+		resp, err := p.httpClient.Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		body, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+			p.logger.Error("Failed to send data",
+				zap.Int("status", resp.StatusCode),
+				zap.String("body", string(body)),
+			)
+			return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		}
+		return nil
+	}
 }
 
 func (p *extractor) Start(ctx context.Context, host component.Host) error {

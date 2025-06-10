@@ -17,6 +17,7 @@ package extractmetricsprocessor
 import (
 	"context"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
+	"github.com/cardinalhq/oteltools/pkg/ottl"
 	"github.com/cardinalhq/oteltools/pkg/translate"
 	"time"
 
@@ -93,6 +94,14 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 
 					telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 
+					extractedVal, err := p.extractSpanValue(ctx, tc, lex)
+					var valueToUse float64
+					if err == nil && extractedVal != -1 {
+						valueToUse = extractedVal
+					} else if v, ok := lr.Attributes().Get(translate.CardinalFieldSpanDuration); ok {
+						valueToUse = v.Double()
+					}
+
 					var parentTID int64
 					if len(lex.AggregateDimensions) > 0 {
 						mapAttrs := lex.ExtractAggregateAttributes(ctx, tc)
@@ -105,14 +114,22 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 						for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
 							tags := p.withServiceClusterNamespace(resource, mapAttrs)
 							ts := lr.EndTimestamp().AsTime()
-							if v, ok := lr.Attributes().Get(translate.CardinalFieldSpanDuration); ok {
-								spanLineSketchCache.Update(lex.MetricName, lex.MetricType, tags, parentTID, tagFamilyId, v.Double(), ts)
-							}
-
+							spanLineSketchCache.Update(lex.MetricName, lex.MetricType, tags, parentTID, tagFamilyId, valueToUse, ts)
 						}
 					}
 				}
 			}
 		}
 	}
+}
+
+func (p *extractor) extractSpanValue(ctx context.Context, tc ottlspan.TransformContext, e *ottl.SpanExtractor) (float64, error) {
+	if e.MetricValue != nil {
+		val, _, err := e.MetricValue.Execute(ctx, tc)
+		if err != nil {
+			return 0, err
+		}
+		return convertAnyToFloat(val)
+	}
+	return -1, nil
 }

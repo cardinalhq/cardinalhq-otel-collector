@@ -88,7 +88,7 @@ func (p *extractor) updateMetricSketchCache(
 	sketchCache, sok := p.metricSketchCaches.Load(cid)
 	if !sok {
 		p.logger.Info("Creating new metrics sketch cache", zap.String("cid", cid))
-		sketchCache = chqpb.NewGenericSketchCache(5*time.Minute, cid, "logs", p.sendLogSketches)
+		sketchCache = chqpb.NewGenericSketchCache(5*time.Minute, cid, "metrics", p.sendMetricSketches)
 		p.metricSketchCaches.Store(cid, sketchCache)
 	}
 

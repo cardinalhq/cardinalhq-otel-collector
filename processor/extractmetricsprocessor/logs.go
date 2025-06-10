@@ -64,7 +64,7 @@ func (p *extractor) sendLogSketches(list *chqpb.GenericSketchList) error {
 		body, _ := io.ReadAll(resp.Body)
 
 		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-			p.logger.Error("Failed to send span stats", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
+			p.logger.Error("Failed to send log sketches", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
 			return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 		}
 	}

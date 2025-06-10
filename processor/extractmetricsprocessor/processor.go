@@ -57,8 +57,10 @@ type extractor struct {
 	configCallbackID   int
 	logExtractors      syncmap.SyncMap[string, []*ottl.LogExtractor]
 	spanExtractors     syncmap.SyncMap[string, []*ottl.SpanExtractor]
+	metricExtractors   syncmap.SyncMap[string, map[string]*ottl.MetricSketchExtractor]
 	spanSketchCaches   syncmap.SyncMap[string, *chqpb.SpanSketchCache]
 	logSketchCaches    syncmap.SyncMap[string, *chqpb.GenericSketchCache]
+	metricSketchCaches syncmap.SyncMap[string, *chqpb.GenericSketchCache]
 	httpClientSettings confighttp.ClientConfig
 	httpClient         *http.Client
 }
@@ -215,11 +217,18 @@ func (p *extractor) updateForTenant(cid string, sc ottl.TenantConfig) {
 	case "traces":
 		parsedExtractors, err := ottl.ParseSpanExtractorConfigs(configs.SpanMetricExtractors, p.logger)
 		if err != nil {
-			p.logger.Error("Error parsing log extractor configurations", zap.Error(err))
+			p.logger.Error("Error parsing span extractor configurations", zap.Error(err))
 			return
 		}
 		p.spanExtractors.Store(cid, parsedExtractors)
 
+	case "metrics":
+		parsedExtractors, err := ottl.ParseMetricSketchExtractorConfigs(configs.MetricSketchExtractors, p.logger)
+		if err != nil {
+			p.logger.Error("Error parsing metric sketch extractor configurations", zap.Error(err))
+			return
+		}
+		p.metricExtractors.Store(cid, parsedExtractors)
 	default: // ignore
 	}
 	p.logger.Info("Configuration updated for processor instance", zap.String("instance", p.id.Name()))

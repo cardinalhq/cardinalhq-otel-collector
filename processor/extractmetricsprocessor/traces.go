@@ -111,46 +111,21 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 						continue
 					}
 
-					//val, err := p.extractSpanValue(ctx, tc, lex)
-					//if err != nil {
-					//	p.logger.Error("Failed when extracting value.", zap.Error(err))
-					//	attrset := attribute.NewSet(attribute.String("ruleId", lex.RuleID),
-					//		attribute.String("metricName", lex.MetricName),
-					//		attribute.String("metricType", lex.MetricType),
-					//		attribute.String("stage", "metricValueExtraction"),
-					//		attribute.String("error", err.Error()),
-					//		attribute.String("organization_id", cid),
-					//	)
-					//	telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
-					//	continue
-					//}
 					telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 
 					if len(lex.LineDimensions) > 0 {
 						mapAttrs := lex.ExtractLineAttributes(ctx, tc)
 						tags := p.withServiceClusterNamespace(resource, mapAttrs)
-						sketchCache.Update(lex.MetricName, tags, lr, resource)
+						sketchCache.Update(lex.MetricName, tags, lr, false, resource)
 					}
 
 					if len(lex.AggregateDimensions) > 0 {
 						mapAttrs := lex.ExtractAggregateAttributes(ctx, tc)
 						tags := p.withServiceClusterNamespace(resource, mapAttrs)
-						sketchCache.Update(lex.MetricName, tags, lr, resource)
+						sketchCache.Update(lex.MetricName, tags, lr, true, resource)
 					}
 				}
 			}
 		}
 	}
-
 }
-
-//func (p *extractor) extractSpanValue(ctx context.Context, tc ottlspan.TransformContext, e *ottl.SpanExtractor) (float64, error) {
-//	if e.MetricValue != nil {
-//		val, _, err := e.MetricValue.Execute(ctx, tc)
-//		if err != nil {
-//			return 0, err
-//		}
-//		return convertAnyToFloat(val)
-//	}
-//	return 1, nil
-//}

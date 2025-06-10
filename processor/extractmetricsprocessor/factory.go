@@ -31,6 +31,7 @@ func NewFactory() processor.Factory {
 		createDefaultConfig,
 		processor.WithTraces(createSpansProcessor, metadata.TracesStability),
 		processor.WithLogs(createLogsProcessor, metadata.LogsStability),
+		processor.WithMetrics(createMetricsProcessor, metadata.MetricsStability),
 	)
 }
 
@@ -61,5 +62,17 @@ func createSpansProcessor(ctx context.Context, set processor.Settings, cfg compo
 		p.ConsumeTraces,
 		processorhelper.WithStart(p.Start),
 		processorhelper.WithShutdown(p.Shutdown),
+		processorhelper.WithCapabilities(p.Capabilities()))
+}
+
+func createMetricsProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Metrics) (processor.Metrics, error) {
+	p, err := newExtractor(cfg.(*Config), "metrics", set)
+	if err != nil {
+		return nil, err
+	}
+	return processorhelper.NewMetrics(
+		ctx, set, cfg, nextConsumer,
+		p.ConsumeMetrics,
+		processorhelper.WithStart(p.Start),
 		processorhelper.WithCapabilities(p.Capabilities()))
 }

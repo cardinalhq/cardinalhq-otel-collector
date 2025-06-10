@@ -131,16 +131,17 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) {
 					}
 					telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 
+					var parentTID int64 = 0
 					if len(lex.AggregateDimensions) > 0 {
 						mapAttrs := lex.ExtractAggregateAttributes(ctx, tc)
 						tags := p.withServiceClusterNamespace(resource, mapAttrs)
-						sketchCache.Update(lex.MetricName, lex.MetricType, tags, true, val, lr.ObservedTimestamp().AsTime())
+						parentTID = sketchCache.Update(lex.MetricName, lex.MetricType, tags, -1, val, lr.ObservedTimestamp().AsTime())
 					}
 
 					if len(lex.LineDimensions) > 0 {
 						mapAttrs := lex.ExtractLineAttributes(ctx, tc)
 						tags := p.withServiceClusterNamespace(resource, mapAttrs)
-						sketchCache.Update(lex.MetricName, lex.MetricType, tags, false, val, lr.ObservedTimestamp().AsTime())
+						sketchCache.Update(lex.MetricName, lex.MetricType, tags, parentTID, val, lr.ObservedTimestamp().AsTime())
 					}
 				}
 			}

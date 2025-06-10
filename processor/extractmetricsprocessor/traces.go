@@ -113,16 +113,17 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 
 					telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 
+					var parentTID int64
 					if len(lex.LineDimensions) > 0 {
 						mapAttrs := lex.ExtractLineAttributes(ctx, tc)
 						tags := p.withServiceClusterNamespace(resource, mapAttrs)
-						sketchCache.Update(lex.MetricName, tags, lr, false, resource)
+						parentTID = sketchCache.Update(lex.MetricName, tags, lr, -1, resource)
 					}
 
 					if len(lex.AggregateDimensions) > 0 {
 						mapAttrs := lex.ExtractAggregateAttributes(ctx, tc)
 						tags := p.withServiceClusterNamespace(resource, mapAttrs)
-						sketchCache.Update(lex.MetricName, tags, lr, true, resource)
+						sketchCache.Update(lex.MetricName, tags, lr, parentTID, resource)
 					}
 				}
 			}

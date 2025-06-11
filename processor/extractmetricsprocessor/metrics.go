@@ -54,7 +54,7 @@ func (p *extractor) updateMetricSketchCache(
 	sketchCache, sok := p.metricSketchCaches.Load(cid)
 	if !sok {
 		p.logger.Info("Creating new metrics sketch cache", zap.String("cid", cid))
-		sketchCache = chqpb.NewGenericSketchCache(5*time.Minute, cid, "metrics", func(list *chqpb.GenericSketchList) error {
+		sketchCache = chqpb.NewGenericSketchCache(5*time.Minute, cid, "metrics", 20, func(list *chqpb.GenericSketchList) error {
 			send := p.sendProto("/api/v1/metricSketches", list)
 			return send()
 		})
@@ -148,17 +148,14 @@ func (p *extractor) updateMetricSketchCache(
 							value = -value
 						}
 
-						var parentTID int64 = 0
-						if len(mex.AggregateDimensions) > 0 {
-							mapAttrs := mex.ExtractAggregateAttributes(ctx, tc)
-							tags := p.withServiceClusterNamespace(resource, mapAttrs)
-							parentTID = sketchCache.UpdateWithCount(mex.MetricName, mex.MetricType, tags, 0, 0, value, count, ts)
-						}
+						aggregateTags := p.withServiceClusterNamespace(resource, mex.ExtractAggregateAttributes(ctx, tc))
+						parentTID := sketchCache.UpdateWithCount(mex.MetricName, mex.MetricType, aggregateTags, 0, 0, value, count, ts)
+
 						if len(mex.LineDimensions) > 0 {
 							mapAttrsByTagFamilyId := mex.ExtractLineAttributes(ctx, tc)
 							for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
-								tags := p.withServiceClusterNamespace(resource, mapAttrs)
-								sketchCache.UpdateWithCount(mex.MetricName, mex.MetricType, tags, parentTID, tagFamilyId, value, count, ts)
+								lineTags := p.withServiceClusterNamespace(resource, mapAttrs)
+								sketchCache.UpdateWithCount(mex.MetricName, mex.MetricType, lineTags, parentTID, tagFamilyId, value, count, ts)
 							}
 						}
 					}
@@ -213,12 +210,10 @@ func (p *extractor) updateHistogramWithBuckets(
 		}
 		midpoint := getMidpoint(i)
 
-		var parentTID int64 = 0
-		if len(mex.AggregateDimensions) > 0 {
-			mapAttrs := mex.ExtractAggregateAttributes(ctx, tc)
-			tags := p.withServiceClusterNamespace(resource, mapAttrs)
-			parentTID = sketchCache.UpdateWithCount(mex.MetricName, mex.MetricType, tags, 0, 0, midpoint, bucketCount, timestamp)
-		}
+		aggregateAttrs := mex.ExtractAggregateAttributes(ctx, tc)
+		tags := p.withServiceClusterNamespace(resource, aggregateAttrs)
+		parentTID := sketchCache.UpdateWithCount(mex.MetricName, mex.MetricType, tags, 0, 0, midpoint, bucketCount, timestamp)
+
 		if len(mex.LineDimensions) > 0 {
 			mapAttrsByTagFamilyId := mex.ExtractLineAttributes(ctx, tc)
 			for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
@@ -238,17 +233,14 @@ func (p *extractor) updateWithDataPoint(ctx context.Context,
 	mex *ottl.MetricSketchExtractor,
 	sketchCache *chqpb.GenericSketchCache) {
 
-	var parentTID int64 = 0
-	if len(mex.AggregateDimensions) > 0 {
-		mapAttrs := mex.ExtractAggregateAttributes(ctx, tc)
-		tags := p.withServiceClusterNamespace(resource, mapAttrs)
-		parentTID = sketchCache.Update(mex.MetricName, mex.MetricType, tags, 0, 0, metricValue, t)
-	}
+	aggregateTags := p.withServiceClusterNamespace(resource, mex.ExtractAggregateAttributes(ctx, tc))
+	parentTID := sketchCache.Update(mex.MetricName, mex.MetricType, aggregateTags, 0, 0, metricValue, t)
+
 	if len(mex.LineDimensions) > 0 {
 		mapAttrsByTagFamilyId := mex.ExtractLineAttributes(ctx, tc)
 		for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
-			tags := p.withServiceClusterNamespace(resource, mapAttrs)
-			sketchCache.Update(mex.MetricName, mex.MetricType, tags, parentTID, tagFamilyId, metricValue, t)
+			lineTags := p.withServiceClusterNamespace(resource, mapAttrs)
+			sketchCache.Update(mex.MetricName, mex.MetricType, lineTags, parentTID, tagFamilyId, metricValue, t)
 		}
 	}
 }

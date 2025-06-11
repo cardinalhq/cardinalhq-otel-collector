@@ -52,8 +52,8 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) {
 		sketchCache, sok := p.logSketchCaches.Load(cid)
 		if !sok {
 			p.logger.Info("Creating new log sketch cache", zap.String("cid", cid))
-			sketchCache = chqpb.NewGenericSketchCache(5*time.Minute, cid, "logs", func(list *chqpb.GenericSketchList) error {
-				send := p.sendProto("/api/v1/logSketches", list)
+			sketchCache = chqpb.NewGenericSketchCache(5*time.Minute, cid, "logs", 20, func(list *chqpb.GenericSketchList) error {
+				send := p.sendProto("/api/v1/metricSketches", list)
 				return send()
 			})
 			p.logSketchCaches.Store(cid, sketchCache)
@@ -101,18 +101,15 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) {
 					}
 					telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 
-					var parentTID int64 = 0
-					if len(lex.AggregateDimensions) > 0 {
-						mapAttrs := lex.ExtractAggregateAttributes(ctx, tc)
-						tags := p.withServiceClusterNamespace(resource, mapAttrs)
-						parentTID = sketchCache.Update(lex.MetricName, lex.MetricType, tags, 0, 0, val, lr.ObservedTimestamp().AsTime())
-					}
+					aggregateAttrs := lex.ExtractAggregateAttributes(ctx, tc)
+					tags := p.withServiceClusterNamespace(resource, aggregateAttrs)
+					parentTID := sketchCache.Update(lex.MetricName, lex.MetricType, tags, 0, 0, val, lr.ObservedTimestamp().AsTime())
 
 					if len(lex.LineDimensions) > 0 {
 						mapAttrsByTagFamilyId := lex.ExtractLineAttributes(ctx, tc)
 						for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
-							tags := p.withServiceClusterNamespace(resource, mapAttrs)
-							sketchCache.Update(lex.MetricName, lex.MetricType, tags, parentTID, tagFamilyId, val, lr.ObservedTimestamp().AsTime())
+							metricTags := p.withServiceClusterNamespace(resource, mapAttrs)
+							sketchCache.Update(lex.MetricName, lex.MetricType, metricTags, parentTID, tagFamilyId, val, lr.ObservedTimestamp().AsTime())
 						}
 					}
 				}

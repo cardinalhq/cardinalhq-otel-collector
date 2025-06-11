@@ -486,7 +486,7 @@ require (
 	github.com/briandowns/spinner v1.23.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 // indirect
-	github.com/cardinalhq/oteltools v0.28.0 // indirect
+	github.com/cardinalhq/oteltools v0.27.4 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
@@ -1019,42 +1019,42 @@ require (
 	skywalking.apache.org/repo/goapi v0.0.0-20240104145220-ba7202308dd4 // indirect
 )
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector v0.127.0 => /Users/kunal/Developer/cardinal-dev/cardinalhq-otel-collector/connector/chqmissingdataconnector
+replace github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector v0.127.0 => ../connector/chqmissingdataconnector
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.127.0 => /Users/kunal/Developer/cardinal-dev/cardinalhq-otel-collector/extension/chqauthextension
+replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.127.0 => ../extension/chqauthextension
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.127.0 => /Users/kunal/Developer/cardinal-dev/cardinalhq-otel-collector/extension/chqconfigextension
+replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.127.0 => ../extension/chqconfigextension
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.127.0 => /Users/kunal/Developer/cardinal-dev/cardinalhq-otel-collector/extension/chqtagcacheextension
+replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.127.0 => ../extension/chqtagcacheextension
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention v0.127.0 => /Users/kunal/Developer/cardinal-dev/cardinalhq-otel-collector/extension/chqsyntheticsextention
+replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention v0.127.0 => ../extension/chqsyntheticsextention
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver v0.127.0 => /Users/kunal/Developer/cardinal-dev/cardinalhq-otel-collector/receiver/chqdatadogreceiver
+replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver v0.127.0 => ../receiver/chqdatadogreceiver
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.127.0 => /Users/kunal/Developer/cardinal-dev/cardinalhq-otel-collector/receiver/githubeventsreceiver
+replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.127.0 => ../receiver/githubeventsreceiver
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v0.127.0 => /Users/kunal/Developer/cardinal-dev/cardinalhq-otel-collector/exporter/chqs3exporter
+replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v0.127.0 => ../exporter/chqs3exporter
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.127.0 => /Users/kunal/Developer/cardinal-dev/cardinalhq-otel-collector/exporter/chqdatadogexporter
+replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.127.0 => ../exporter/chqdatadogexporter
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.127.0 => /Users/kunal/Developer/cardinal-dev/cardinalhq-otel-collector/exporter/chqservicegraphexporter
+replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.127.0 => ../exporter/chqservicegraphexporter
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.127.0 => /Users/kunal/Developer/cardinal-dev/cardinalhq-otel-collector/exporter/chqentitygraphexporter
+replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.127.0 => ../exporter/chqentitygraphexporter
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter v0.127.0 => /Users/kunal/Developer/cardinal-dev/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter
+replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter v0.127.0 => ../exporter/chqk8sentitygraphexporter
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.127.0 => /Users/kunal/Developer/cardinal-dev/cardinalhq-otel-collector/processor/aggregationprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.127.0 => ../processor/aggregationprocessor
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.127.0 => /Users/kunal/Developer/cardinal-dev/cardinalhq-otel-collector/processor/pitbullprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.127.0 => ../processor/pitbullprocessor
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor v0.127.0 => /Users/kunal/Developer/cardinal-dev/cardinalhq-otel-collector/processor/fingerprintprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor v0.127.0 => ../processor/fingerprintprocessor
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor v0.127.0 => /Users/kunal/Developer/cardinal-dev/cardinalhq-otel-collector/processor/piiredactionprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor v0.127.0 => ../processor/piiredactionprocessor
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.127.0 => /Users/kunal/Developer/cardinal-dev/cardinalhq-otel-collector/processor/summarysplitprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.127.0 => ../processor/summarysplitprocessor
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.127.0 => /Users/kunal/Developer/cardinal-dev/cardinalhq-otel-collector/processor/extractmetricsprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.127.0 => ../processor/extractmetricsprocessor
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/chqexemplarprocessor v0.127.0 => /Users/kunal/Developer/cardinal-dev/cardinalhq-otel-collector/processor/chqexemplarprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/chqexemplarprocessor v0.127.0 => ../processor/chqexemplarprocessor
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal

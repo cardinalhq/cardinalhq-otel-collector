@@ -91,7 +91,13 @@ func (p *extractor) updateMetricSketchCache(
 				for i := 0; i < gaugeDataPoints.Len(); i++ {
 					dp := gaugeDataPoints.At(i)
 					tc := ottldatapoint.NewTransformContext(dp, mm, ms, sm.Scope(), resource, sm, rm)
-					p.updateWithDataPoint(ctx, dp.DoubleValue(), dp.Timestamp().AsTime(), tc, resource, mex, sketchCache)
+					matches, err := mex.EvalMetricConditions(ctx, tc)
+					if err != nil {
+						continue
+					}
+					if matches {
+						p.updateWithDataPoint(ctx, dp.DoubleValue(), dp.Timestamp().AsTime(), tc, resource, mex, sketchCache)
+					}
 				}
 			}
 
@@ -101,7 +107,13 @@ func (p *extractor) updateMetricSketchCache(
 				for i := 0; i < sumDataPoints.Len(); i++ {
 					dp := sumDataPoints.At(i)
 					tc := ottldatapoint.NewTransformContext(dp, mm, ms, sm.Scope(), resource, sm, rm)
-					p.updateWithDataPoint(ctx, dp.DoubleValue(), dp.Timestamp().AsTime(), tc, resource, mex, sketchCache)
+					matches, err := mex.EvalMetricConditions(ctx, tc)
+					if err != nil {
+						continue
+					}
+					if matches {
+						p.updateWithDataPoint(ctx, dp.DoubleValue(), dp.Timestamp().AsTime(), tc, resource, mex, sketchCache)
+					}
 				}
 			}
 
@@ -140,6 +152,10 @@ func (p *extractor) updateMetricSketchCache(
 				}
 
 				tc := ottldatapoint.NewTransformContext(dp, mm, ms, sm.Scope(), resource, sm, rm)
+				matches, err := mex.EvalMetricConditions(ctx, tc)
+				if err != nil || !matches {
+					continue
+				}
 				ts := dp.Timestamp().AsTime()
 				scale := dp.Scale()
 
@@ -163,13 +179,13 @@ func (p *extractor) updateMetricSketchCache(
 						}
 
 						aggregateTags := p.withServiceClusterNamespace(resource, mex.ExtractAggregateAttributes(ctx, tc))
-						parentTID := sketchCache.UpdateWithCount(mex.MetricName, mex.MetricType, aggregateTags, 0, 0, value, count, ts)
+						parentTID := sketchCache.UpdateWithCount(mex.OutputMetricName, mex.MetricType, aggregateTags, 0, 0, value, count, ts)
 
 						if len(mex.LineDimensions) > 0 {
 							mapAttrsByTagFamilyId := mex.ExtractLineAttributes(ctx, tc)
 							for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
 								lineTags := p.withServiceClusterNamespace(resource, mapAttrs)
-								sketchCache.UpdateWithCount(mex.MetricName, mex.MetricType, lineTags, parentTID, tagFamilyId, value, count, ts)
+								sketchCache.UpdateWithCount(mex.OutputMetricName, mex.MetricType, lineTags, parentTID, tagFamilyId, value, count, ts)
 							}
 						}
 					}
@@ -199,6 +215,10 @@ func (p *extractor) updateHistogramWithBuckets(
 	sketchCache *chqpb.GenericSketchCache,
 ) {
 	tc := ottldatapoint.NewTransformContext(dp, mm, ms, sm.Scope(), resource, sm, rm)
+	evaluated, err := mex.EvalMetricConditions(ctx, tc)
+	if err != nil || !evaluated {
+		return
+	}
 	timestamp := dp.Timestamp().AsTime()
 
 	counts := dp.BucketCounts()
@@ -226,15 +246,14 @@ func (p *extractor) updateHistogramWithBuckets(
 
 		aggregateAttrs := mex.ExtractAggregateAttributes(ctx, tc)
 		tags := p.withServiceClusterNamespace(resource, aggregateAttrs)
-		parentTID := sketchCache.UpdateWithCount(mex.MetricName, mex.MetricType, tags, 0, 0, midpoint, bucketCount, timestamp)
+		parentTID := sketchCache.UpdateWithCount(mex.OutputMetricName, mex.MetricType, tags, 0, 0, midpoint, bucketCount, timestamp)
 
 		if len(mex.LineDimensions) > 0 {
 			mapAttrsByTagFamilyId := mex.ExtractLineAttributes(ctx, tc)
 			for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
 				tags := p.withServiceClusterNamespace(resource, mapAttrs)
-				sketchCache.UpdateWithCount(mex.MetricName, mex.MetricType, tags, parentTID, tagFamilyId, midpoint, bucketCount, timestamp)
+				sketchCache.UpdateWithCount(mex.OutputMetricName, mex.MetricType, tags, parentTID, tagFamilyId, midpoint, bucketCount, timestamp)
 			}
-
 		}
 	}
 }
@@ -248,13 +267,13 @@ func (p *extractor) updateWithDataPoint(ctx context.Context,
 	sketchCache *chqpb.GenericSketchCache) {
 
 	aggregateTags := p.withServiceClusterNamespace(resource, mex.ExtractAggregateAttributes(ctx, tc))
-	parentTID := sketchCache.Update(mex.MetricName, mex.MetricType, aggregateTags, 0, 0, metricValue, t)
+	parentTID := sketchCache.Update(mex.OutputMetricName, mex.MetricType, aggregateTags, 0, 0, metricValue, t)
 
 	if len(mex.LineDimensions) > 0 {
 		mapAttrsByTagFamilyId := mex.ExtractLineAttributes(ctx, tc)
 		for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
 			lineTags := p.withServiceClusterNamespace(resource, mapAttrs)
-			sketchCache.Update(mex.MetricName, mex.MetricType, lineTags, parentTID, tagFamilyId, metricValue, t)
+			sketchCache.Update(mex.OutputMetricName, mex.MetricType, lineTags, parentTID, tagFamilyId, metricValue, t)
 		}
 	}
 }

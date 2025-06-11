@@ -5,7 +5,7 @@ go 1.24
 toolchain go1.24.1
 
 require (
-	github.com/cardinalhq/oteltools v0.28.1
+	github.com/cardinalhq/oteltools v0.28.5
 	github.com/jonboulle/clockwork v0.4.0
 	go.opentelemetry.io/collector/component v1.33.0
 	go.opentelemetry.io/collector/config/configcompression v1.33.0

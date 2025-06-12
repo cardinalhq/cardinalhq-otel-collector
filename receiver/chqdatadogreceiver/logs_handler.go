@@ -43,7 +43,7 @@ func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	ddLogs, err := handleLogsPayload(req)
+	ddLogs, err := handleLogsPayload(req, ddr.logLogger)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		ddr.logLogger.Warn("Unable to unmarshal reqs", zap.Error(err), zap.Any("httpHeaders", req.Header))

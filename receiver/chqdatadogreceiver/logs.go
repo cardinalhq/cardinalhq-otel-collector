@@ -24,6 +24,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
 	"io"
 	"net/http"
@@ -40,9 +41,12 @@ type DDLog struct {
 	Service  string `json:"service,omitempty"`
 }
 
-func handleLogsPayload(req *http.Request) (ddLogs []DDLog, err error) {
+func handleLogsPayload(req *http.Request, logger *zap.Logger) (ddLogs []DDLog, err error) {
 	ddLogs = make([]DDLog, 0)
 	body, err := io.ReadAll(req.Body)
+	if err == nil {
+		logger.Info("Received payload: " + string(body))
+	}
 	if err != nil {
 		err = fmt.Errorf("failed to read request body: %w", err)
 		return nil, err

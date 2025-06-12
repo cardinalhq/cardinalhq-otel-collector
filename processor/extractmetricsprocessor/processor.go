@@ -247,6 +247,10 @@ func (p *extractor) updateForTenant(cid string, sc ottl.TenantConfig) {
 
 	switch p.ttype {
 	case "logs":
+		if configs.LogMetricExtractors == nil {
+			p.logExtractors.Delete(cid)
+			return
+		}
 		parsedExtractors, err := ottl.ParseLogExtractorConfigs(configs.LogMetricExtractors, p.logger)
 		p.logger.Info("Setting log extractors", zap.String("id", p.id.Name()), zap.Int("num_configs", len(configs.LogMetricExtractors)), zap.Int("num_parsed_configs", len(parsedExtractors)))
 		if err != nil {
@@ -256,6 +260,10 @@ func (p *extractor) updateForTenant(cid string, sc ottl.TenantConfig) {
 		p.logExtractors.Store(cid, parsedExtractors)
 
 	case "traces":
+		if configs.SpanMetricExtractors == nil {
+			p.spanExtractors.Delete(cid)
+			return
+		}
 		parsedExtractors, err := ottl.ParseSpanExtractorConfigs(configs.SpanMetricExtractors, p.logger)
 		if err != nil {
 			p.logger.Error("Error parsing span extractor configurations", zap.Error(err))
@@ -264,6 +272,10 @@ func (p *extractor) updateForTenant(cid string, sc ottl.TenantConfig) {
 		p.spanExtractors.Store(cid, parsedExtractors)
 
 	case "metrics":
+		if configs.MetricSketchExtractors == nil {
+			p.metricExtractors.Delete(cid)
+			return
+		}
 		parsedExtractors, err := ottl.ParseMetricSketchExtractorConfigs(configs.MetricSketchExtractors, p.logger)
 		if err != nil {
 			p.logger.Error("Error parsing metric sketch extractor configurations", zap.Error(err))

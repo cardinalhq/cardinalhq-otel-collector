@@ -272,6 +272,7 @@ func (p *extractor) updateForTenant(cid string, sc ottl.TenantConfig) {
 		p.spanExtractors.Store(cid, parsedExtractors)
 
 	case "metrics":
+		p.logger.Info("Setting metric extractors", zap.String("id", p.id.Name()), zap.Int("num_configs", len(configs.MetricSketchExtractors)))
 		if configs.MetricSketchExtractors == nil {
 			p.metricExtractors.Delete(cid)
 			return

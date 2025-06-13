@@ -23,9 +23,9 @@ import (
 	"go.opentelemetry.io/collector/client"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
-	semconv "go.opentelemetry.io/collector/semconv/v1.27.0"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+	semconv "go.opentelemetry.io/otel/semconv/v1.27.0"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -181,7 +181,7 @@ func (ddr *datadogReceiver) convertMetricV2(apikey string, m pmetric.Metrics, v2
 	rAttr := rm.Resource().Attributes()
 	scope := rm.ScopeMetrics().AppendEmpty()
 	sAttr := scope.Scope().Attributes()
-	sAttr.PutStr(string(semconv.AttributeTelemetrySDKName), "Datadog")
+	sAttr.PutStr(string(semconv.TelemetrySDKNameKey), "Datadog")
 
 	ddMetric := scope.Metrics().AppendEmpty()
 	ddMetric.SetName(v2.Metric)

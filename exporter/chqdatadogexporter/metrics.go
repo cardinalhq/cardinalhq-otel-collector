@@ -37,15 +37,15 @@ import (
 
 func (e *datadogExporter) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
 	msg := &ddpb.MetricPayload{}
-	for i := 0; i < md.ResourceMetrics().Len(); i++ {
+	for i := range md.ResourceMetrics().Len() {
 		rm := md.ResourceMetrics().At(i)
 		rAttr := pcommon.NewMap()
 		rm.Resource().Attributes().CopyTo(rAttr)
-		for j := 0; j < rm.ScopeMetrics().Len(); j++ {
+		for j := range rm.ScopeMetrics().Len() {
 			ilm := rm.ScopeMetrics().At(j)
 			sAttr := pcommon.NewMap()
 			ilm.Scope().Attributes().CopyTo(sAttr)
-			for k := 0; k < ilm.Metrics().Len(); k++ {
+			for k := range ilm.Metrics().Len() {
 				metric := ilm.Metrics().At(k)
 				switch metric.Type() {
 				case pmetric.MetricTypeGauge:
@@ -119,7 +119,7 @@ func (e *datadogExporter) convertGaugeMetric(_ context.Context, metric pmetric.M
 
 func (e *datadogExporter) convertSumMetric(_ context.Context, metric pmetric.Metric, rAttr, sAttr pcommon.Map, s pmetric.Sum) []*ddpb.MetricPayload_MetricSeries {
 	var ret []*ddpb.MetricPayload_MetricSeries
-	for i := 0; i < s.DataPoints().Len(); i++ {
+	for i := range s.DataPoints().Len() {
 		m := &ddpb.MetricPayload_MetricSeries{
 			Metric: metric.Name(),
 			Unit:   metric.Unit(),
@@ -127,14 +127,14 @@ func (e *datadogExporter) convertSumMetric(_ context.Context, metric pmetric.Met
 		}
 		dp := s.DataPoints().At(i)
 		value := valueAsFloat64(dp)
-		lAttr := dp.Attributes()
-		interval, hasInterval := getInterval(lAttr)
-		if hasInterval {
-			value = value / float64(interval)
-			m.Type = ddpb.MetricPayload_RATE
-			m.Interval = interval
-		}
-		lAttr.Remove("_dd.rateInterval")
+		dpAttr := dp.Attributes()
+		// interval, hasInterval := getInterval(dpAttr)
+		// if hasInterval {
+		// 	value = value / float64(interval)
+		// 	m.Type = ddpb.MetricPayload_RATE
+		// 	m.Interval = interval
+		// }
+		dpAttr.Remove("_dd.rateInterval")
 		tags, resources := tagStrings(rAttr, sAttr, dp.Attributes())
 		m.Tags = append(m.Tags, tags...)
 		if len(resources) > 0 {

@@ -25,9 +25,9 @@ import (
 	"github.com/barweiss/go-tuple"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
-	semconv "go.opentelemetry.io/collector/semconv/v1.27.0"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+	semconv "go.opentelemetry.io/otel/semconv/v1.27.0"
 )
 
 // MetricsPayloadV1 is for the /api/v1/series endpoint.
@@ -96,7 +96,7 @@ func (ddr *datadogReceiver) convertMetricV1(apikey string, v1 SeriesV1) (pmetric
 	rAttr := rm.Resource().Attributes()
 	scope := rm.ScopeMetrics().AppendEmpty()
 	sAttr := scope.Scope().Attributes()
-	sAttr.PutStr(string(semconv.AttributeTelemetrySDKName), "Datadog")
+	sAttr.PutStr(string(semconv.TelemetrySDKNameKey), "Datadog")
 
 	hostname := "unknown"
 	if v1.Host != nil {
@@ -115,7 +115,7 @@ func (ddr *datadogReceiver) convertMetricV1(apikey string, v1 SeriesV1) (pmetric
 		}
 		decorateItem(k, v, rAttr, sAttr, lAttr)
 	}
-	rAttr.PutStr(semconv.AttributeHostName, hostname)
+	rAttr.PutStr(string(semconv.HostNameKey), hostname)
 
 	ddr.hostnameTags.Add(context.Background(), 1, metric.WithAttributes(
 		attribute.String("hostname", hostname),

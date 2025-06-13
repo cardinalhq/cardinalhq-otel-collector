@@ -331,6 +331,7 @@ func (ddr *datadogReceiver) convertLogs(group groupedLogs) (plog.Logs, error) {
 	for _, msg := range group.Messages {
 		logRecord := scope.LogRecords().AppendEmpty()
 		logRecord.SetObservedTimestamp(msg.Timestamp)
+		logRecord.SetTimestamp(msg.Timestamp)
 		logRecord.SetSeverityNumber(severityNumber)
 		logRecord.SetSeverityText(severityString)
 		logRecord.Body().SetStr(msg.Body)

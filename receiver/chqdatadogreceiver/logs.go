@@ -41,8 +41,40 @@ type DDLog struct {
 	Service  string `json:"service,omitempty"`
 }
 
+func transformServerLessFormat(in DDLogServerLess) (*DDLog, error) {
+	// Append timestamp to ddtags
+	ddtags := in.DDTags
+	if ddtags != "" {
+		ddtags += ","
+	}
+	ddtags += "timestamp:" + strconv.FormatInt(in.Timestamp, 10)
+
+	return &DDLog{
+		DDSource: in.DDSource,
+		DDTags:   ddtags,
+		Message:  in.Message.Message,
+		Hostname: in.Hostname,
+		Service:  in.Service,
+	}, nil
+}
+
+type DDLogServerLess struct {
+	Message   NestedMessage `json:"message"`
+	Status    string        `json:"status"`
+	Timestamp int64         `json:"timestamp"`
+	Hostname  string        `json:"hostname"`
+	Service   string        `json:"service"`
+	DDSource  string        `json:"ddsource"`
+	DDTags    string        `json:"ddtags"`
+}
+
+type NestedMessage struct {
+	Message string `json:"message"`
+}
+
 func handleLogsPayload(req *http.Request, logger *zap.Logger) (ddLogs []DDLog, err error) {
 	ddLogs = make([]DDLog, 0)
+
 	body, err := io.ReadAll(req.Body)
 	if err == nil {
 		logger.Info("Received payload: " + string(body))
@@ -52,17 +84,36 @@ func handleLogsPayload(req *http.Request, logger *zap.Logger) (ddLogs []DDLog, e
 		return nil, err
 	}
 
-	err = json.Unmarshal(body, &ddLogs)
-	if err != nil {
-		// hack: special case '{}' which is not an array, but we get a lot of them...
-		if len(body) == 2 && body[0] == 0x7b && body[1] == 0x7d {
-			return ddLogs, nil
+	isServerless := req.Header.Get("Dd-Evp-Origin") == "lambda-extension"
+	if isServerless {
+		var serverlessLogs []DDLogServerLess
+		err = json.Unmarshal(body, &serverlessLogs)
+		if err != nil {
+			err = fmt.Errorf("failed to decode request body: %w (body=%x)", err, body)
+			return nil, err
 		}
-		if len(body) > 10 {
-			body = body[:10]
+		ddLogs = make([]DDLog, len(serverlessLogs))
+		for i, log := range serverlessLogs {
+			ddLog, err := transformServerLessFormat(log)
+			if err != nil {
+				err = fmt.Errorf("failed to transform serverless log: %w", err)
+				return nil, err
+			}
+			ddLogs[i] = *ddLog
 		}
-		err = fmt.Errorf("failed to decode request body: %w (body=%x)", err, body)
-		return nil, err
+	} else {
+		err = json.Unmarshal(body, &ddLogs)
+		if err != nil {
+			// hack: special case '{}' which is not an array, but we get a lot of them...
+			if len(body) == 2 && body[0] == 0x7b && body[1] == 0x7d {
+				return ddLogs, nil
+			}
+			if len(body) > 10 {
+				body = body[:10]
+			}
+			err = fmt.Errorf("failed to decode request body: %w (body=%x)", err, body)
+			return nil, err
+		}
 	}
 	return ddLogs, nil
 }

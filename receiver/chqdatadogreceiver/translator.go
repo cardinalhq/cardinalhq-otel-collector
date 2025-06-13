@@ -16,7 +16,7 @@ import (
 	pb "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
-	semconv "go.opentelemetry.io/collector/semconv/v1.27.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.27.0"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension"
@@ -40,14 +40,14 @@ const (
 
 func upsertHeadersAttributes(req *http.Request, attrs pcommon.Map) {
 	if ddTracerVersion := req.Header.Get("Datadog-Meta-Tracer-Version"); ddTracerVersion != "" {
-		attrs.PutStr(semconv.AttributeTelemetrySDKVersion, "Datadog-"+ddTracerVersion)
+		attrs.PutStr(string(semconv.TelemetrySDKVersionKey), "Datadog-"+ddTracerVersion)
 	}
 	if ddTracerLang := req.Header.Get("Datadog-Meta-Lang"); ddTracerLang != "" {
 		otelLang := ddTracerLang
 		if ddTracerLang == ".NET" {
 			otelLang = "dotnet"
 		}
-		attrs.PutStr(semconv.AttributeTelemetrySDKLanguage, otelLang)
+		attrs.PutStr(string(semconv.TelemetrySDKLanguageKey), otelLang)
 	}
 }
 
@@ -58,14 +58,14 @@ func toTraces(payload *pb.TracerPayload, req *http.Request, ext *chqtagcacheexte
 	}
 	sharedAttributes := pcommon.NewMap()
 	for k, v := range map[string]string{
-		semconv.AttributeContainerID:               payload.ContainerID,
-		semconv.AttributeTelemetrySDKLanguage:      payload.LanguageName,
-		semconv.AttributeProcessRuntimeVersion:     payload.LanguageVersion,
-		semconv.AttributeDeploymentEnvironmentName: payload.Env,
-		semconv.AttributeHostName:                  payload.Hostname,
-		semconv.AttributeServiceVersion:            payload.AppVersion,
-		semconv.AttributeTelemetrySDKName:          "Datadog",
-		semconv.AttributeTelemetrySDKVersion:       payload.TracerVersion,
+		string(semconv.ContainerIDKey):               payload.ContainerID,
+		string(semconv.TelemetrySDKLanguageKey):      payload.LanguageName,
+		string(semconv.ProcessRuntimeVersionKey):     payload.LanguageVersion,
+		string(semconv.DeploymentEnvironmentNameKey): payload.Env,
+		string(semconv.HostNameKey):                  payload.Hostname,
+		string(semconv.ServiceNameKey):               payload.AppVersion,
+		string(semconv.TelemetrySDKNameKey):          "Datadog",
+		string(semconv.TelemetrySDKVersionKey):       payload.TracerVersion,
 	} {
 		if v != "" {
 			sharedAttributes.PutStr(k, v)
@@ -150,7 +150,7 @@ func toTraces(payload *pb.TracerPayload, req *http.Request, ext *chqtagcacheexte
 		rs := results.ResourceSpans().AppendEmpty()
 		rs.SetSchemaUrl(semconv.SchemaURL)
 		sharedAttributes.CopyTo(rs.Resource().Attributes())
-		rs.Resource().Attributes().PutStr(semconv.AttributeServiceName, service)
+		rs.Resource().Attributes().PutStr(string(semconv.ServiceNameKey), service)
 
 		in := rs.ScopeSpans().AppendEmpty()
 		in.Scope().SetName("Datadog")
@@ -164,23 +164,23 @@ func toTraces(payload *pb.TracerPayload, req *http.Request, ext *chqtagcacheexte
 func translateDataDogKeyToOtel(k string) string {
 	switch strings.ToLower(k) {
 	case "env":
-		return semconv.AttributeDeploymentEnvironmentName
+		return string(semconv.DeploymentEnvironmentNameKey)
 	case "version":
-		return semconv.AttributeServiceVersion
+		return string(semconv.ServiceVersionKey)
 	case "container_id":
-		return semconv.AttributeContainerID
+		return string(semconv.ContainerIDKey)
 	case "container_name":
-		return semconv.AttributeContainerName
+		return string(semconv.ContainerNameKey)
 	case "image_name":
-		return semconv.AttributeContainerImageName
+		return string(semconv.ContainerImageNameKey)
 	case "image_tag":
-		return semconv.AttributeContainerImageTags
+		return string(semconv.ContainerImageTagsKey)
 	case "process_id":
-		return semconv.AttributeProcessPID
+		return string(semconv.ProcessPIDKey)
 	case "error.stacktrace":
-		return semconv.AttributeExceptionStacktrace
+		return string(semconv.ExceptionStacktraceKey)
 	case "error.msg":
-		return semconv.AttributeExceptionMessage
+		return string(semconv.ExceptionMessageKey)
 	default:
 		return k
 	}

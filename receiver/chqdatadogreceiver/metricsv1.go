@@ -17,6 +17,8 @@ package datadogreceiver
 import (
 	"context"
 	"encoding/json"
+	"go.uber.org/zap"
+	"io"
 	"net/http"
 	"time"
 
@@ -43,13 +45,14 @@ type SeriesV1 struct {
 	Type     *string                    `json:"type,omitempty"`
 }
 
-func handleMetricsV1Payload(req *http.Request) (ret []SeriesV1, httpCode int, err error) {
+func handleMetricsV1Payload(req *http.Request, logger *zap.Logger) (ret []SeriesV1, httpCode int, err error) {
 	if req.Header.Get("Content-Type") != "application/json" {
 		return nil, http.StatusUnsupportedMediaType, nil
 	}
-
+	body, err := io.ReadAll(req.Body)
+	logger.Info("Received metrics payload " + string(body))
 	wrapper := MetricsPayloadV1{}
-	err = json.NewDecoder(req.Body).Decode(&wrapper)
+	err = json.Unmarshal(body, &wrapper)
 	if err != nil {
 		return nil, http.StatusUnprocessableEntity, err
 	}

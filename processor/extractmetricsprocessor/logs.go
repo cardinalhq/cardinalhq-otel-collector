@@ -52,7 +52,7 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) {
 		sketchCache, sok := p.logSketchCaches.Load(cid)
 		if !sok {
 			p.logger.Info("Creating new log sketch cache", zap.String("cid", cid))
-			sketchCache = chqpb.NewGenericSketchCache(5*time.Minute, cid, "logs", 20, func(list *chqpb.GenericSketchList) error {
+			sketchCache = chqpb.NewGenericSketchCache(1*time.Minute, cid, "logs", 20, func(list *chqpb.GenericSketchList) error {
 				send := p.sendProto("/api/v1/metricSketches", list)
 				return send()
 			})

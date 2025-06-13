@@ -68,7 +68,7 @@ func (p *extractor) updateMetricSketchCache(
 	sketchCache, sok := p.metricSketchCaches.Load(cid)
 	if !sok {
 		p.logger.Info("Creating new metrics sketch cache", zap.String("cid", cid))
-		sketchCache = chqpb.NewGenericSketchCache(5*time.Minute, cid, "metrics", 20, func(list *chqpb.GenericSketchList) error {
+		sketchCache = chqpb.NewGenericSketchCache(1*time.Minute, cid, "metrics", 20, func(list *chqpb.GenericSketchList) error {
 			send := p.sendProto("/api/v1/metricSketches", list)
 			return send()
 		})

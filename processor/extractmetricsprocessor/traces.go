@@ -48,7 +48,7 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 		sketchCache, sok := p.spanSketchCaches.Load(cid)
 		if !sok {
 			p.logger.Info("Creating new span sketch cache", zap.String("cid", cid))
-			sketchCache = chqpb.NewSpanSketchCache(5*time.Minute, cid, 20, func(list *chqpb.SpanSketchList) error {
+			sketchCache = chqpb.NewSpanSketchCache(1*time.Minute, cid, 20, func(list *chqpb.SpanSketchList) error {
 				send := p.sendProto("/api/v1/spanSketches", list)
 				return send()
 			})
@@ -58,8 +58,8 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 		spanMetricsSketchCache, smsc := p.spanMetricsSketchCaches.Load(cid)
 		if !smsc {
 			p.logger.Info("Creating new span line sketch cache", zap.String("cid", cid))
-			spanMetricsSketchCache = chqpb.NewGenericSketchCache(5*time.Minute, cid, "traces", 20, func(list *chqpb.GenericSketchList) error {
-				send := p.sendProto("/api/v1/spanLineSketches", list)
+			spanMetricsSketchCache = chqpb.NewGenericSketchCache(1*time.Minute, cid, "traces", 20, func(list *chqpb.GenericSketchList) error {
+				send := p.sendProto("/api/v1/metricSketches", list)
 				return send()
 			})
 			p.spanMetricsSketchCaches.Store(cid, spanMetricsSketchCache)

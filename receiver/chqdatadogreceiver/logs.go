@@ -76,9 +76,6 @@ func handleLogsPayload(req *http.Request, logger *zap.Logger) (ddLogs []DDLog, e
 	ddLogs = make([]DDLog, 0)
 
 	body, err := io.ReadAll(req.Body)
-	if err == nil {
-		logger.Info("Received payload: " + string(body))
-	}
 	if err != nil {
 		err = fmt.Errorf("failed to read request body: %w", err)
 		return nil, err
@@ -321,6 +318,9 @@ func (ddr *datadogReceiver) convertLogs(group groupedLogs) (plog.Logs, error) {
 	delete(tags, "status")
 
 	lAttr := pcommon.NewMap()
+	tags["ddsource"] = group.DDSource
+	tags["hostname"] = group.Hostname
+
 	for k, v := range tags {
 		decorateItem(k, v, rAttr, sAttr, lAttr)
 	}

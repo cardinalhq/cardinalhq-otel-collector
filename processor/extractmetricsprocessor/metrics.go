@@ -282,7 +282,6 @@ func (p *extractor) updateWithDataPoint(ctx context.Context,
 	parentTID := sketchCache.Update(mex.OutputMetricName, mex.MetricType, aggregateTags, 0, 0, metricValue, t)
 
 	if len(mex.LineDimensions) > 0 {
-		p.logger.Info("Updating line sketch cache..")
 		mapAttrsByTagFamilyId := mex.ExtractLineAttributes(ctx, tc)
 		for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
 			lineTags := p.withServiceClusterNamespace(resource, mapAttrs)

@@ -49,14 +49,24 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) {
 			continue
 		}
 
-		sketchCache, sok := p.logSketchCaches.Load(cid)
+		aggregateSketchCache, sok := p.logsAggregateSketchCaches.Load(cid)
 		if !sok {
-			p.logger.Info("Creating new log sketch cache", zap.String("cid", cid))
-			sketchCache = chqpb.NewGenericSketchCache(1*time.Minute, cid, "logs", 20, func(list *chqpb.GenericSketchList) error {
+			p.logger.Info("Creating new logs aggregate sketch cache", zap.String("cid", cid))
+			aggregateSketchCache = chqpb.NewGenericSketchCache(1*time.Minute, cid, "logs", 20, func(list *chqpb.GenericSketchList) error {
 				send := p.sendProto("/api/v1/metricSketches", list)
 				return send()
 			})
-			p.logSketchCaches.Store(cid, sketchCache)
+			p.logsAggregateSketchCaches.Store(cid, aggregateSketchCache)
+		}
+
+		lineSketchCache, sok := p.logsLineSketchCaches.Load(cid)
+		if !sok {
+			p.logger.Info("Creating new logs line sketch cache", zap.String("cid", cid))
+			aggregateSketchCache = chqpb.NewGenericSketchCache(1*time.Minute, cid, "logs", 20, func(list *chqpb.GenericSketchList) error {
+				send := p.sendProto("/api/v1/metricSketches", list)
+				return send()
+			})
+			p.logsLineSketchCaches.Store(cid, lineSketchCache)
 		}
 
 		for j := range resourceLogs.At(i).ScopeLogs().Len() {
@@ -103,13 +113,13 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) {
 
 					aggregateAttrs := lex.ExtractAggregateAttributes(ctx, tc)
 					tags := p.withServiceClusterNamespace(resource, aggregateAttrs)
-					parentTID := sketchCache.Update(lex.MetricName, lex.MetricType, tags, 0, 0, val, lr.ObservedTimestamp().AsTime())
+					parentTID := aggregateSketchCache.Update(lex.MetricName, lex.MetricType, tags, 0, 0, val, lr.ObservedTimestamp().AsTime())
 
 					if len(lex.LineDimensions) > 0 {
 						mapAttrsByTagFamilyId := lex.ExtractLineAttributes(ctx, tc)
 						for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
 							metricTags := p.withServiceClusterNamespace(resource, mapAttrs)
-							sketchCache.Update(lex.MetricName, lex.MetricType, metricTags, parentTID, tagFamilyId, val, lr.ObservedTimestamp().AsTime())
+							lineSketchCache.Update(lex.MetricName, lex.MetricType, metricTags, parentTID, tagFamilyId, val, lr.ObservedTimestamp().AsTime())
 						}
 					}
 				}

@@ -57,16 +57,25 @@ type extractor struct {
 	ruleErrors        telemetry.DeferrableCounter[int64]
 	ruleEvalTime      telemetry.DeferrableHistogram[int64]
 
-	configCallbackID        int
-	logExtractors           syncmap.SyncMap[string, []*ottl.LogExtractor]
-	spanExtractors          syncmap.SyncMap[string, []*ottl.SpanExtractor]
-	metricExtractors        syncmap.SyncMap[string, map[string]*ottl.MetricSketchExtractor]
-	spanSketchCaches        syncmap.SyncMap[string, *chqpb.SpanSketchCache]
-	spanMetricsSketchCaches syncmap.SyncMap[string, *chqpb.GenericSketchCache]
-	logSketchCaches         syncmap.SyncMap[string, *chqpb.GenericSketchCache]
-	metricSketchCaches      syncmap.SyncMap[string, *chqpb.GenericSketchCache]
-	httpClientSettings      confighttp.ClientConfig
-	httpClient              *http.Client
+	configCallbackID int
+	logExtractors    syncmap.SyncMap[string, []*ottl.LogExtractor]
+	spanExtractors   syncmap.SyncMap[string, []*ottl.SpanExtractor]
+	metricExtractors syncmap.SyncMap[string, map[string]*ottl.MetricSketchExtractor]
+
+	spanAggregateSketchCaches syncmap.SyncMap[string, *chqpb.SpanSketchCache]
+	spanLineSketchCaches      syncmap.SyncMap[string, *chqpb.SpanSketchCache]
+
+	spanMetricsAggregateSketchCaches syncmap.SyncMap[string, *chqpb.GenericSketchCache]
+	spanMetricsLineSketchCaches      syncmap.SyncMap[string, *chqpb.GenericSketchCache]
+
+	logsAggregateSketchCaches syncmap.SyncMap[string, *chqpb.GenericSketchCache]
+	logsLineSketchCaches      syncmap.SyncMap[string, *chqpb.GenericSketchCache]
+
+	metricsAggregateSketchCaches syncmap.SyncMap[string, *chqpb.GenericSketchCache]
+	metricsLineSketchCaches      syncmap.SyncMap[string, *chqpb.GenericSketchCache]
+
+	httpClientSettings confighttp.ClientConfig
+	httpClient         *http.Client
 }
 
 func newExtractor(config *Config, ttype string, set processor.Settings) (*extractor, error) {

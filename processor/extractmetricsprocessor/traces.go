@@ -45,24 +45,44 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 			continue
 		}
 
-		sketchCache, sok := p.spanSketchCaches.Load(cid)
+		spanAggregateSketchCache, sok := p.spanAggregateSketchCaches.Load(cid)
 		if !sok {
-			p.logger.Info("Creating new span sketch cache", zap.String("cid", cid))
-			sketchCache = chqpb.NewSpanSketchCache(1*time.Minute, cid, 20, func(list *chqpb.SpanSketchList) error {
+			p.logger.Info("Creating new span aggregate sketch cache", zap.String("cid", cid))
+			spanAggregateSketchCache = chqpb.NewSpanSketchCache(1*time.Minute, cid, 20, func(list *chqpb.SpanSketchList) error {
 				send := p.sendProto("/api/v1/spanSketches", list)
 				return send()
 			})
-			p.spanSketchCaches.Store(cid, sketchCache)
+			p.spanAggregateSketchCaches.Store(cid, spanAggregateSketchCache)
 		}
 
-		spanMetricsSketchCache, smsc := p.spanMetricsSketchCaches.Load(cid)
-		if !smsc {
+		spanLineSketchCache, sok := p.spanLineSketchCaches.Load(cid)
+		if !sok {
 			p.logger.Info("Creating new span line sketch cache", zap.String("cid", cid))
-			spanMetricsSketchCache = chqpb.NewGenericSketchCache(1*time.Minute, cid, "traces", 20, func(list *chqpb.GenericSketchList) error {
+			spanLineSketchCache = chqpb.NewSpanSketchCache(1*time.Minute, cid, 20, func(list *chqpb.SpanSketchList) error {
+				send := p.sendProto("/api/v1/spanSketches", list)
+				return send()
+			})
+			p.spanLineSketchCaches.Store(cid, spanLineSketchCache)
+		}
+
+		spanMetricsAggregateSketchCache, smsc := p.spanMetricsAggregateSketchCaches.Load(cid)
+		if !smsc {
+			p.logger.Info("Creating new span metrics aggregate sketch cache", zap.String("cid", cid))
+			spanMetricsAggregateSketchCache = chqpb.NewGenericSketchCache(1*time.Minute, cid, "traces", 20, func(list *chqpb.GenericSketchList) error {
 				send := p.sendProto("/api/v1/metricSketches", list)
 				return send()
 			})
-			p.spanMetricsSketchCaches.Store(cid, spanMetricsSketchCache)
+			p.spanMetricsAggregateSketchCaches.Store(cid, spanMetricsAggregateSketchCache)
+		}
+
+		spanMetricsLineSketchCache, smsc := p.spanMetricsLineSketchCaches.Load(cid)
+		if !smsc {
+			p.logger.Info("Creating new span metrics line sketch cache", zap.String("cid", cid))
+			spanMetricsLineSketchCache = chqpb.NewGenericSketchCache(1*time.Minute, cid, "traces", 20, func(list *chqpb.GenericSketchList) error {
+				send := p.sendProto("/api/v1/metricSketches", list)
+				return send()
+			})
+			p.spanMetricsLineSketchCaches.Store(cid, spanMetricsLineSketchCache)
 		}
 
 		for j := range resourceSpans.At(i).ScopeSpans().Len() {
@@ -102,27 +122,27 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 							continue
 						}
 						aggregateTags := p.withServiceClusterNamespace(resource, lex.ExtractAggregateAttributes(ctx, tc))
-						parentTID := spanMetricsSketchCache.Update(lex.MetricName, lex.MetricType, aggregateTags, 0, 0, valueToUse, lr.EndTimestamp().AsTime())
+						parentTID := spanMetricsAggregateSketchCache.Update(lex.MetricName, lex.MetricType, aggregateTags, 0, 0, valueToUse, lr.EndTimestamp().AsTime())
 
 						if len(lex.LineDimensions) > 0 {
 							mapAttrsByTagFamilyId := lex.ExtractLineAttributes(ctx, tc)
 							for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
 								ts := lr.EndTimestamp().AsTime()
 								lineTags := p.withServiceClusterNamespace(resource, mapAttrs)
-								spanMetricsSketchCache.Update(lex.MetricName, lex.MetricType, lineTags, parentTID, tagFamilyId, valueToUse, ts)
+								spanMetricsLineSketchCache.Update(lex.MetricName, lex.MetricType, lineTags, parentTID, tagFamilyId, valueToUse, ts)
 							}
 						}
 					} else {
 						// do span sketches, if custom value is not present.
 						aggregateTags := p.withServiceClusterNamespace(resource, lex.ExtractAggregateAttributes(ctx, tc))
-						parentTID := sketchCache.Update(lex.MetricName, aggregateTags, lr, resource, 0, 0)
+						parentTID := spanAggregateSketchCache.Update(lex.MetricName, aggregateTags, lr, resource, 0, 0)
 
 						// line level
 						if len(lex.LineDimensions) > 0 {
 							mapAttrsByTagFamilyId := lex.ExtractLineAttributes(ctx, tc)
 							for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
 								lineTags := p.withServiceClusterNamespace(resource, mapAttrs)
-								sketchCache.Update(lex.MetricName, lineTags, lr, resource, parentTID, tagFamilyId)
+								spanLineSketchCache.Update(lex.MetricName, lineTags, lr, resource, parentTID, tagFamilyId)
 							}
 						}
 					}

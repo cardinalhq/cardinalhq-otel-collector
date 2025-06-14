@@ -30,7 +30,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	ddpb "github.com/cardinalhq/cardinalhq-otel-collector/internal/ddpb"
 )
@@ -184,7 +184,7 @@ func getInterval(lAttr pcommon.Map) (int64, bool) {
 }
 
 func (e *datadogExporter) sendMetrics(ctx context.Context, msg *ddpb.MetricPayload) error {
-	b, err := protojson.Marshal(msg)
+	b, err := proto.Marshal(msg)
 	if err != nil {
 		return err
 	}
@@ -194,7 +194,7 @@ func (e *datadogExporter) sendMetrics(ctx context.Context, msg *ddpb.MetricPaylo
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", "application/x-protobuf")
 	req.Header.Set("DD-API-KEY", e.apiKey)
 
 	resp, err := e.httpClient.Do(req)

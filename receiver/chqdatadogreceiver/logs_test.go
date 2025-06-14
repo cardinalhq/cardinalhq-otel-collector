@@ -726,3 +726,17 @@ at com.example.OtherClass.anotherMethod(OtherClass.java:123)`
 
 	assert.Equal(t, expectedStackTrace, group.Messages[0].Body)
 }
+
+//func TestTimestampParsing(t *testing.T) {
+//	j := "{\n  \"message\":\n    {\n      \"message\": \"2025/06/13 00:09:52 Hello from Cloud Run! The container started successfully and is listening for HTTP requests on port 8080\"\n    },\n  \"status\": \"error\",\n  \"timestamp\": 1749773392956,\n  \"hostname\": \"unknown\",\n  \"service\": \"hello\",\n  \"ddsource\": \"cloudrun\",\n  \"ddtags\": \"gcr.project_id:sandbox-462700,gcr.container_id:0069c7a988defe630069925ca3064d4d8df3e8d809dc1371fe2f05f4b8ac5e174a087f711f98c94be3c0590be5a5df30fdc6a6d85e8eeec715d2e1a535e64bd4fc22228e1d,gcr.resource_name:projects/sandbox-462700/locations/europe-west1/services/hello,revision_name:hello-00024-rbd,_dd.compute_stats:1,service_name:hello,gcr.configuration_name:hello,project_id:sandbox-462700,_dd.origin:cloudrun,gcr.revision_name:hello-00024-rbd,configuration_name:hello,_dd.datadog_init_version:1.7.3,gcr.location:europe-west1,location:europe-west1,origin:cloudrun,service:hello,container_id:0069c7a988defe630069925ca3064d4d8df3e8d809dc1371fe2f05f4b8ac5e174a087f711f98c94be3c0590be5a5df30fdc6a6d85e8eeec715d2e1a535e64bd4fc22228e1d,gcr.service_name:hello\"\n}"
+//	var serverlessLogs DDLogServerLess
+//	err := json.Unmarshal([]byte(j), &serverlessLogs)
+//	if err != nil {
+//		err = fmt.Errorf("failed to decode request body: %w (body=%x)", err, j)
+//	}
+//	ddLog, err := transformServerLessFormat(serverlessLogs)
+//
+//	ddLogs := []DDLog{*ddLog}
+//	ddr := &datadogReceiver{}
+//	ddr.splitLogs(ddLogs, "apiKey")
+//}

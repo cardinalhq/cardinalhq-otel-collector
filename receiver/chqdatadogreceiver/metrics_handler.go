@@ -41,7 +41,7 @@ func (ddr *datadogReceiver) handleV1Series(w http.ResponseWriter, req *http.Requ
 		ddr.obsrecv.EndMetricsOp(ctx, "datadog", *metricCount, err)
 	}(&metricCount)
 
-	ddMetrics, httpCode, err := handleMetricsV1Payload(req)
+	ddMetrics, httpCode, err := handleMetricsV1Payload(req, ddr.logLogger)
 	if err != nil {
 		writeError(w, httpCode, err)
 		ddr.metricLogger.Warn("Unable to unmarshal reqs", zap.Error(err), zap.Any("httpHeaders", req.Header))

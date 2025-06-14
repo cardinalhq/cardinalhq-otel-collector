@@ -65,14 +65,24 @@ func (p *extractor) updateMetricSketchCache(
 	}
 	resource := rm.Resource()
 
-	sketchCache, sok := p.metricSketchCaches.Load(cid)
+	metricsAggregateSketchCache, sok := p.metricsAggregateSketchCaches.Load(cid)
 	if !sok {
-		p.logger.Info("Creating new metrics sketch cache", zap.String("cid", cid))
-		sketchCache = chqpb.NewGenericSketchCache(5*time.Minute, cid, "metrics", 20, func(list *chqpb.GenericSketchList) error {
+		p.logger.Info("Creating new metrics aggregate sketch cache", zap.String("cid", cid))
+		metricsAggregateSketchCache = chqpb.NewGenericSketchCache(1*time.Minute, cid, "metrics", 20, func(list *chqpb.GenericSketchList) error {
 			send := p.sendProto("/api/v1/metricSketches", list)
 			return send()
 		})
-		p.metricSketchCaches.Store(cid, sketchCache)
+		p.metricsAggregateSketchCaches.Store(cid, metricsAggregateSketchCache)
+	}
+
+	metricsLineSketchCache, sok := p.metricsLineSketchCaches.Load(cid)
+	if !sok {
+		p.logger.Info("Creating new line metrics sketch cache", zap.String("cid", cid))
+		metricsLineSketchCache = chqpb.NewGenericSketchCache(1*time.Minute, cid, "metrics", 20, func(list *chqpb.GenericSketchList) error {
+			send := p.sendProto("/api/v1/metricSketches", list)
+			return send()
+		})
+		p.metricsLineSketchCaches.Store(cid, metricsLineSketchCache)
 	}
 
 	for k := range ms.Len() {
@@ -96,7 +106,7 @@ func (p *extractor) updateMetricSketchCache(
 						continue
 					}
 					if matches {
-						p.updateWithDataPoint(ctx, dp.DoubleValue(), dp.Timestamp().AsTime(), tc, resource, mex, sketchCache)
+						p.updateWithDataPoint(ctx, dp.DoubleValue(), dp.Timestamp().AsTime(), tc, resource, mex, metricsAggregateSketchCache, metricsLineSketchCache)
 					}
 				}
 			}
@@ -112,7 +122,7 @@ func (p *extractor) updateMetricSketchCache(
 						continue
 					}
 					if matches {
-						p.updateWithDataPoint(ctx, dp.DoubleValue(), dp.Timestamp().AsTime(), tc, resource, mex, sketchCache)
+						p.updateWithDataPoint(ctx, dp.DoubleValue(), dp.Timestamp().AsTime(), tc, resource, mex, metricsAggregateSketchCache, metricsLineSketchCache)
 					}
 				}
 			}
@@ -125,7 +135,7 @@ func (p *extractor) updateMetricSketchCache(
 					if dp.Count() == 0 {
 						continue
 					}
-					p.updateHistogramWithBuckets(ctx, dp, mm, ms, sm, resource, rm, mex, sketchCache)
+					p.updateHistogramWithBuckets(ctx, dp, mm, ms, sm, resource, rm, mex, metricsAggregateSketchCache, metricsLineSketchCache)
 				}
 			}
 
@@ -139,7 +149,7 @@ func (p *extractor) updateMetricSketchCache(
 					}
 					avgValue := dp.Sum() / float64(dp.Count())
 					tc := ottldatapoint.NewTransformContext(dp, mm, ms, sm.Scope(), resource, sm, rm)
-					p.updateWithDataPoint(ctx, avgValue, dp.Timestamp().AsTime(), tc, resource, mex, sketchCache)
+					p.updateWithDataPoint(ctx, avgValue, dp.Timestamp().AsTime(), tc, resource, mex, metricsAggregateSketchCache, metricsLineSketchCache)
 				}
 			}
 
@@ -179,13 +189,13 @@ func (p *extractor) updateMetricSketchCache(
 						}
 
 						aggregateTags := p.withServiceClusterNamespace(resource, mex.ExtractAggregateAttributes(ctx, tc))
-						parentTID := sketchCache.UpdateWithCount(mex.OutputMetricName, mex.MetricType, aggregateTags, 0, 0, value, count, ts)
+						parentTID := metricsAggregateSketchCache.UpdateWithCount(mex.OutputMetricName, mex.MetricType, aggregateTags, 0, 0, value, count, ts)
 
 						if len(mex.LineDimensions) > 0 {
 							mapAttrsByTagFamilyId := mex.ExtractLineAttributes(ctx, tc)
 							for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
 								lineTags := p.withServiceClusterNamespace(resource, mapAttrs)
-								sketchCache.UpdateWithCount(mex.OutputMetricName, mex.MetricType, lineTags, parentTID, tagFamilyId, value, count, ts)
+								metricsLineSketchCache.UpdateWithCount(mex.OutputMetricName, mex.MetricType, lineTags, parentTID, tagFamilyId, value, count, ts)
 							}
 						}
 					}
@@ -213,6 +223,7 @@ func (p *extractor) updateHistogramWithBuckets(
 	rm pmetric.ResourceMetrics,
 	mex *ottl.MetricSketchExtractor,
 	sketchCache *chqpb.GenericSketchCache,
+	sketchLineCache *chqpb.GenericSketchCache,
 ) {
 	tc := ottldatapoint.NewTransformContext(dp, mm, ms, sm.Scope(), resource, sm, rm)
 	evaluated, err := mex.EvalMetricConditions(ctx, tc)
@@ -252,7 +263,7 @@ func (p *extractor) updateHistogramWithBuckets(
 			mapAttrsByTagFamilyId := mex.ExtractLineAttributes(ctx, tc)
 			for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
 				tags := p.withServiceClusterNamespace(resource, mapAttrs)
-				sketchCache.UpdateWithCount(mex.OutputMetricName, mex.MetricType, tags, parentTID, tagFamilyId, midpoint, bucketCount, timestamp)
+				sketchLineCache.UpdateWithCount(mex.OutputMetricName, mex.MetricType, tags, parentTID, tagFamilyId, midpoint, bucketCount, timestamp)
 			}
 		}
 	}
@@ -264,7 +275,8 @@ func (p *extractor) updateWithDataPoint(ctx context.Context,
 	tc ottldatapoint.TransformContext,
 	resource pcommon.Resource,
 	mex *ottl.MetricSketchExtractor,
-	sketchCache *chqpb.GenericSketchCache) {
+	sketchCache *chqpb.GenericSketchCache,
+	sketchLineCache *chqpb.GenericSketchCache) {
 
 	aggregateTags := p.withServiceClusterNamespace(resource, mex.ExtractAggregateAttributes(ctx, tc))
 	parentTID := sketchCache.Update(mex.OutputMetricName, mex.MetricType, aggregateTags, 0, 0, metricValue, t)
@@ -273,7 +285,7 @@ func (p *extractor) updateWithDataPoint(ctx context.Context,
 		mapAttrsByTagFamilyId := mex.ExtractLineAttributes(ctx, tc)
 		for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
 			lineTags := p.withServiceClusterNamespace(resource, mapAttrs)
-			sketchCache.Update(mex.OutputMetricName, mex.MetricType, lineTags, parentTID, tagFamilyId, metricValue, t)
+			sketchLineCache.Update(mex.OutputMetricName, mex.MetricType, lineTags, parentTID, tagFamilyId, metricValue, t)
 		}
 	}
 }

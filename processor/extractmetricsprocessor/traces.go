@@ -135,14 +135,14 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 					} else {
 						// do span sketches, if custom value is not present.
 						aggregateTags := p.withServiceClusterNamespace(resource, lex.ExtractAggregateAttributes(ctx, tc))
-						parentTID := spanAggregateSketchCache.Update(lex.MetricName, aggregateTags, lr, resource, 0, 0)
+						parentTID := spanAggregateSketchCache.Update(lex.MetricName, lex.MetricType, aggregateTags, lr, resource, 0, 0)
 
 						// line level
 						if len(lex.LineDimensions) > 0 {
 							mapAttrsByTagFamilyId := lex.ExtractLineAttributes(ctx, tc)
 							for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
 								lineTags := p.withServiceClusterNamespace(resource, mapAttrs)
-								spanLineSketchCache.Update(lex.MetricName, lineTags, lr, resource, parentTID, tagFamilyId)
+								spanLineSketchCache.Update(lex.MetricName, lex.MetricType, lineTags, lr, resource, parentTID, tagFamilyId)
 							}
 						}
 					}

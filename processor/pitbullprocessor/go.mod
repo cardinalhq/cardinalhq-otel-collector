@@ -7,7 +7,7 @@ toolchain go1.24.1
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.0.0
 	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0
-	github.com/cardinalhq/oteltools v0.28.13
+	github.com/cardinalhq/oteltools v0.28.14
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl v0.128.0
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/collector/component v1.34.0
@@ -28,13 +28,17 @@ require (
 )
 
 require (
+	github.com/DataDog/sketches-go v1.4.7 // indirect
 	github.com/alecthomas/participle/v2 v2.1.4 // indirect
 	github.com/antchfx/xmlquery v1.4.4 // indirect
 	github.com/antchfx/xpath v1.3.4 // indirect
+	github.com/apache/datasketches-go v0.0.0-20250526164709-4e9f74ff6296 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
+	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/db47h/ragel/v2 v2.2.4 // indirect
 	github.com/ebitengine/purego v0.8.4 // indirect
 	github.com/elastic/go-grok v0.3.1 // indirect
 	github.com/elastic/lunes v0.1.0 // indirect

@@ -122,14 +122,14 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 							continue
 						}
 						aggregateTags := p.withServiceClusterNamespace(resource, lex.ExtractAggregateAttributes(ctx, tc))
-						parentTID := spanMetricsAggregateSketchCache.Update(lex.MetricName, lex.MetricType, aggregateTags, 0, 0, valueToUse, lr.EndTimestamp().AsTime())
+						parentTID := spanMetricsAggregateSketchCache.Update(lex.MetricName, lex.MetricType, lex.Direction, aggregateTags, 0, 0, valueToUse, lr.EndTimestamp().AsTime())
 
 						if len(lex.LineDimensions) > 0 {
 							mapAttrsByTagFamilyId := lex.ExtractLineAttributes(ctx, tc)
 							for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
 								ts := lr.EndTimestamp().AsTime()
 								lineTags := p.withServiceClusterNamespace(resource, mapAttrs)
-								spanMetricsLineSketchCache.Update(lex.MetricName, lex.MetricType, lineTags, parentTID, tagFamilyId, valueToUse, ts)
+								spanMetricsLineSketchCache.Update(lex.MetricName, lex.MetricType, lex.Direction, lineTags, parentTID, tagFamilyId, valueToUse, ts)
 							}
 						}
 					} else {

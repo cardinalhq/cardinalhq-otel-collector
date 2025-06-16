@@ -113,13 +113,13 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) {
 
 					aggregateAttrs := lex.ExtractAggregateAttributes(ctx, tc)
 					tags := p.withServiceClusterNamespace(resource, aggregateAttrs)
-					parentTID := aggregateSketchCache.Update(lex.MetricName, lex.MetricType, tags, 0, 0, val, lr.ObservedTimestamp().AsTime())
+					parentTID := aggregateSketchCache.Update(lex.MetricName, lex.MetricType, lex.Direction, tags, 0, 0, val, lr.ObservedTimestamp().AsTime())
 
 					if len(lex.LineDimensions) > 0 {
 						mapAttrsByTagFamilyId := lex.ExtractLineAttributes(ctx, tc)
 						for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
 							metricTags := p.withServiceClusterNamespace(resource, mapAttrs)
-							lineSketchCache.Update(lex.MetricName, lex.MetricType, metricTags, parentTID, tagFamilyId, val, lr.ObservedTimestamp().AsTime())
+							lineSketchCache.Update(lex.MetricName, lex.MetricType, lex.Direction, metricTags, parentTID, tagFamilyId, val, lr.ObservedTimestamp().AsTime())
 						}
 					}
 				}

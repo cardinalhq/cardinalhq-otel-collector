@@ -39,8 +39,9 @@ func NewFactory() processor.Factory {
 
 const (
 	defaultReportingInterval = 5 * time.Minute
-	defaultExpiry            = defaultReportingInterval * 2
+	defaultExpiry            = defaultReportingInterval * 12
 	defaultLRUCacheSize      = 1000
+	defaultBatchSize         = 200
 )
 
 func createDefaultConfig() component.Config {
@@ -51,18 +52,21 @@ func createDefaultConfig() component.Config {
 				Interval:  defaultReportingInterval,
 				Expiry:    defaultExpiry,
 				CacheSize: defaultLRUCacheSize,
+				BatchSize: defaultBatchSize,
 			},
 			Logs: EnabledOption{
 				Enabled:   true,
 				Interval:  defaultReportingInterval,
 				Expiry:    defaultExpiry,
 				CacheSize: defaultLRUCacheSize,
+				BatchSize: defaultBatchSize,
 			},
 			Traces: EnabledOption{
 				Enabled:   true,
 				Interval:  defaultReportingInterval,
 				Expiry:    defaultExpiry,
 				CacheSize: defaultLRUCacheSize,
+				BatchSize: defaultBatchSize,
 			},
 		},
 	}

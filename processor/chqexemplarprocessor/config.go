@@ -39,6 +39,7 @@ type EnabledOption struct {
 	Interval  time.Duration `mapstructure:"interval"`
 	Expiry    time.Duration `mapstructure:"expiry"`
 	CacheSize int           `mapstructure:"cache_size"`
+	BatchSize int           `mapstructure:"batch_size"`
 }
 
 type ContextID = string

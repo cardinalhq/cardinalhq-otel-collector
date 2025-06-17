@@ -70,19 +70,19 @@ func (p *exemplarProcessor) getTenant(organizationID string) *Tenant {
 				p.config.Reporting.Logs.CacheSize,
 				p.config.Reporting.Logs.Expiry,
 				p.config.Reporting.Logs.Interval,
-				sendExemplars[plog.Logs](p, organizationID, p.id.Name()))
+				sendExemplars[plog.Logs](p, organizationID, p.id.Name(), p.config.Reporting.Logs.BatchSize))
 		case signalnames.Metrics:
 			tenant.metricCache = NewLRUCache(
 				p.config.Reporting.Metrics.CacheSize,
 				p.config.Reporting.Metrics.Expiry,
 				p.config.Reporting.Metrics.Interval,
-				sendExemplars[pmetric.Metrics](p, organizationID, p.id.Name()))
+				sendExemplars[pmetric.Metrics](p, organizationID, p.id.Name(), p.config.Reporting.Metrics.BatchSize))
 		case signalnames.Traces:
 			tenant.traceCache = NewLRUCache(
 				p.config.Reporting.Traces.CacheSize,
 				p.config.Reporting.Traces.Expiry,
 				p.config.Reporting.Traces.Interval,
-				sendExemplars[ptrace.Traces](p, organizationID, p.id.Name()))
+				sendExemplars[ptrace.Traces](p, organizationID, p.id.Name(), p.config.Reporting.Traces.BatchSize))
 		case signalnames.Profiles:
 			// Do nothing
 		default:

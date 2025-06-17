@@ -38,7 +38,7 @@ func NewFactory() processor.Factory {
 }
 
 const (
-	defaultReportingInterval = 15 * time.Minute
+	defaultReportingInterval = 5 * time.Minute
 	defaultExpiry            = defaultReportingInterval * 2
 	defaultLRUCacheSize      = 1000
 )

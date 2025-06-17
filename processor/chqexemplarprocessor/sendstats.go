@@ -116,7 +116,7 @@ func (p *exemplarProcessor) sendBatchAsync(cid string, telemetryType signalnames
 func (p *exemplarProcessor) postBatch(ctx context.Context, telemetryType signalnames.Name, report *chqpb.ExemplarPublishReport) error {
 	endpoint := fmt.Sprintf("%s/api/v1/exemplars/%s", p.config.Endpoint, telemetryType)
 
-	p.logger.Info("Sending exemplars", zap.String("endpoint", endpoint), zap.String("organization_id", report.OrganizationId), zap.Int("exemplar_count", len(report.Exemplars)))
+	p.logger.Info("Sending exemplars (proto)", zap.String("endpoint", endpoint), zap.String("organization_id", report.OrganizationId), zap.Int("exemplar_count", len(report.Exemplars)))
 
 	marshalled, err := proto.Marshal(report)
 	if err != nil {

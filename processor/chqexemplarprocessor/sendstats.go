@@ -128,7 +128,7 @@ func (p *exemplarProcessor) postBatch(ctx context.Context, telemetryType signaln
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	req.Header.Set("content-type", "application/json")
+	req.Header.Set("Content-Type", "application/x-protobuf")
 
 	resp, err := p.httpClient.Do(req)
 	if err != nil {

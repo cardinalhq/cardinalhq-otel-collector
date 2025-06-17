@@ -106,7 +106,8 @@ func (p *extractor) updateMetricSketchCache(
 						continue
 					}
 					if matches {
-						p.updateWithDataPoint(ctx, dp.DoubleValue(), dp.Timestamp().AsTime(), tc, resource, mex, metricsAggregateSketchCache, metricsLineSketchCache)
+						metricValue := p.getMetricValue(dp)
+						p.updateWithDataPoint(ctx, metricValue, dp.Timestamp().AsTime(), tc, resource, mex, metricsAggregateSketchCache, metricsLineSketchCache)
 					}
 				}
 			}
@@ -122,7 +123,8 @@ func (p *extractor) updateMetricSketchCache(
 						continue
 					}
 					if matches {
-						p.updateWithDataPoint(ctx, dp.DoubleValue(), dp.Timestamp().AsTime(), tc, resource, mex, metricsAggregateSketchCache, metricsLineSketchCache)
+						metricValue := p.getMetricValue(dp)
+						p.updateWithDataPoint(ctx, metricValue, dp.Timestamp().AsTime(), tc, resource, mex, metricsAggregateSketchCache, metricsLineSketchCache)
 					}
 				}
 			}
@@ -211,6 +213,19 @@ func (p *extractor) updateMetricSketchCache(
 		default:
 		}
 	}
+}
+
+func (p *extractor) getMetricValue(dp pmetric.NumberDataPoint) float64 {
+	var metricValue float64
+	switch dp.ValueType() {
+	case pmetric.NumberDataPointValueTypeDouble:
+		metricValue = dp.DoubleValue()
+	case pmetric.NumberDataPointValueTypeInt:
+		metricValue = float64(dp.IntValue())
+	default:
+		metricValue = dp.DoubleValue()
+	}
+	return metricValue
 }
 
 func (p *extractor) updateHistogramWithBuckets(

@@ -61,8 +61,7 @@ func (e *Entry[T]) toAttributes() map[string]string {
 func (e *Entry[T]) shouldPublish(expiry time.Duration) bool {
 	now := time.Now()
 	sinceLast := now.Sub(e.lastPublishTime)
-	halfExpiry := expiry / 2
-	return sinceLast >= halfExpiry
+	return sinceLast >= expiry
 }
 
 func NewLRUCache[T any](capacity int, expiry time.Duration, reportInterval time.Duration, publishCallBack func(expiredItems []*Entry[T])) *LRUCache[T] {
@@ -182,6 +181,7 @@ func (l *LRUCache[T]) Put(key int64, keys []string, exemplar T) {
 		value:           exemplar,
 		timestamp:       now,
 		lastPublishTime: now}
+	l.pending = append(l.pending, newEntry)
 	elem := l.list.PushFront(newEntry)
 	l.cache[key] = elem
 }

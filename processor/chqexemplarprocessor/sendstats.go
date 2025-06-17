@@ -17,9 +17,10 @@ package chqexemplarprocessor
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/cardinalhq/oteltools/pkg/chqpb"
+	"google.golang.org/protobuf/proto"
 	"io"
 	"net/http"
 
@@ -31,18 +32,6 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/signalnames"
 )
 
-type Exemplar struct {
-	Payload    string            `json:"payload"`
-	Attributes map[string]string `json:"attributes"`
-}
-
-type ExemplarPublishReport struct {
-	OrganizationID string           `json:"organization_id"`
-	ProcessorId    string           `json:"processor_id"`
-	TelemetryType  signalnames.Name `json:"telemetry_type"`
-	Exemplars      []*Exemplar      `json:"exemplars"`
-}
-
 var (
 	logsMarshaler    = &plog.JSONMarshaler{}
 	metricsMarshaler = &pmetric.JSONMarshaler{}
@@ -53,11 +42,10 @@ type supportedSignals interface {
 	plog.Logs | pmetric.Metrics | ptrace.Traces
 }
 
-func sendExemplars[T supportedSignals](p *exemplarProcessor, cid, processorId string) func([]*Entry[T]) {
+func sendExemplars[T supportedSignals](p *exemplarProcessor, cid, processorId string, batchSize int) func([]*Entry[T]) {
 	return func(entries []*Entry[T]) {
-		var batch []*Exemplar
+		var batch []*chqpb.Exemplar
 		accumulated := 0
-		batchSize := 50
 
 		for _, entry := range entries {
 			data, err := marshalTelemetry(entry.value)
@@ -65,9 +53,10 @@ func sendExemplars[T supportedSignals](p *exemplarProcessor, cid, processorId st
 				p.logger.Error("Failed to marshal telemetry data", zap.Error(err))
 				continue
 			}
-			exemplar := &Exemplar{
-				Payload:    data,
-				Attributes: entry.toAttributes(),
+			exemplar := &chqpb.Exemplar{
+				Payload:     data,
+				Attributes:  entry.toAttributes(),
+				PartitionId: entry.key,
 			}
 			batch = append(batch, exemplar)
 			accumulated++
@@ -104,14 +93,14 @@ func marshalTelemetry[T supportedSignals](t T) (string, error) {
 	return string(b), nil
 }
 
-func (p *exemplarProcessor) sendBatchAsync(cid string, telemetryType signalnames.Name, processorId string, batch []*Exemplar) {
+func (p *exemplarProcessor) sendBatchAsync(cid string, telemetryType signalnames.Name, processorId string, batch []*chqpb.Exemplar) {
 	if len(batch) == 0 {
 		return
 	}
 
-	exemplarReport := &ExemplarPublishReport{
-		OrganizationID: cid,
-		TelemetryType:  telemetryType,
+	exemplarReport := &chqpb.ExemplarPublishReport{
+		OrganizationId: cid,
+		TelemetryType:  telemetryType.String(),
 		ProcessorId:    processorId,
 		Exemplars:      batch,
 	}
@@ -124,12 +113,12 @@ func (p *exemplarProcessor) sendBatchAsync(cid string, telemetryType signalnames
 	}()
 }
 
-func (p *exemplarProcessor) postBatch(ctx context.Context, telemetryType signalnames.Name, report *ExemplarPublishReport) error {
+func (p *exemplarProcessor) postBatch(ctx context.Context, telemetryType signalnames.Name, report *chqpb.ExemplarPublishReport) error {
 	endpoint := fmt.Sprintf("%s/api/v1/exemplars/%s", p.config.Endpoint, telemetryType)
 
-	p.logger.Info("Sending exemplars", zap.String("endpoint", endpoint), zap.String("organization_id", report.OrganizationID), zap.Int("exemplar_count", len(report.Exemplars)))
+	p.logger.Info("Sending exemplars", zap.String("endpoint", endpoint), zap.String("organization_id", report.OrganizationId), zap.Int("exemplar_count", len(report.Exemplars)))
 
-	marshalled, err := json.Marshal(report)
+	marshalled, err := proto.Marshal(report)
 	if err != nil {
 		return fmt.Errorf("failed to marshal batch: %w", err)
 	}

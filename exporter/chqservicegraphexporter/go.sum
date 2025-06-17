@@ -1,5 +1,5 @@
-github.com/cardinalhq/oteltools v0.28.18 h1:C5/uo9tqhXB5uG/rYG0G4C2SBvLQRyQJR/ewEhQ+QLM=
-github.com/cardinalhq/oteltools v0.28.18/go.mod h1:nqtnspWYmhCpAl2Y0FSsTaiX4yZs1jKbrxWHIi5bZGQ=
+github.com/cardinalhq/oteltools v0.28.19 h1:c+xLWVPitPrKG6exGJTyncGhdlE0+3/iSXvfbDHLl68=
+github.com/cardinalhq/oteltools v0.28.19/go.mod h1:nqtnspWYmhCpAl2Y0FSsTaiX4yZs1jKbrxWHIi5bZGQ=
 github.com/cenkalti/backoff/v5 v5.0.2 h1:rIfFVxEf1QsI7E1ZHfp/B4DF/6QBAUhmgkxc0H7Zss8=
 github.com/cenkalti/backoff/v5 v5.0.2/go.mod h1:rkhZdG3JZukswDf7f0cwqPNk4K0sa+F97BxZthm/crw=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=

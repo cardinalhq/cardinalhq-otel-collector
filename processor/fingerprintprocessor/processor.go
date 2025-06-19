@@ -16,10 +16,9 @@ package fingerprintprocessor
 
 import (
 	"context"
-	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
+
 	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
-	"github.com/cardinalhq/oteltools/pkg/ottl"
 	"github.com/cardinalhq/oteltools/pkg/syncmap"
 	"github.com/cardinalhq/oteltools/pkg/translate"
 	"go.opentelemetry.io/collector/component"
@@ -37,9 +36,6 @@ type fingerprintProcessor struct {
 	ttype             string
 	telemetrySettings component.TelemetrySettings
 
-	configExtension  *chqconfigextension.CHQConfigExtension
-	configCallbackID int
-
 	fingerprinters      syncmap.SyncMap[string, fingerprinter.Fingerprinter]
 	lastTrieUpdateTimes syncmap.SyncMap[string, int64]
 
@@ -53,6 +49,10 @@ func newProcessor(config *Config, ttype string, set processor.Settings) (*finger
 		config:            config,
 		telemetrySettings: set.TelemetrySettings,
 		logger:            set.Logger,
+	}
+
+	if config.ConfigurationExtension != nil {
+		p.logger.Warn("Ignoring deprecated configuration_extension field", zap.String("id", config.ConfigurationExtension.String()))
 	}
 
 	idsource, err := authenv.ParseEnvironmentSource(config.IDSource)
@@ -79,28 +79,11 @@ func (p *fingerprintProcessor) Capabilities() consumer.Capabilities {
 }
 
 func (p *fingerprintProcessor) Start(ctx context.Context, host component.Host) error {
-	ext, found := host.GetExtensions()[*p.config.ConfigurationExtension]
-	if !found {
-		return nil
-	}
-	cext, ok := ext.(*chqconfigextension.CHQConfigExtension)
-	if !ok {
-		return nil
-	}
-	p.configExtension = cext
-
-	p.configCallbackID = p.configExtension.RegisterCallback(p.id.String()+"/"+p.ttype, p.configUpdateCallback)
-
 	return nil
 }
 
 func (p *fingerprintProcessor) Shutdown(ctx context.Context) error {
-	p.configExtension.UnregisterCallback(p.configCallbackID)
 	return nil
-}
-
-func (p *fingerprintProcessor) configUpdateCallback(sc ottl.ControlPlaneConfig) {
-
 }
 
 func OrgIdFromResource(resource pcommon.Map) string {

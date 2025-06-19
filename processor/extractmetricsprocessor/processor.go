@@ -19,12 +19,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/cardinalhq/oteltools/pkg/chqpb"
-	"go.opentelemetry.io/collector/config/confighttp"
-	"google.golang.org/protobuf/proto"
 	"io"
 	"net/http"
 	"strconv"
+
+	"github.com/cardinalhq/oteltools/pkg/chqpb"
+	"go.opentelemetry.io/collector/config/confighttp"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor/internal/metadata"
 	"github.com/cardinalhq/oteltools/pkg/syncmap"
@@ -32,11 +33,9 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/translate"
 	"go.opentelemetry.io/otel/metric"
 
-	"github.com/observiq/bindplane-otel-collector/receiver/routereceiver"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/pcommon"
-	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
 
@@ -86,6 +85,10 @@ func newExtractor(config *Config, ttype string, set processor.Settings) (*extrac
 		httpClientSettings: config.ClientConfig,
 		telemetrySettings:  set.TelemetrySettings,
 		logger:             set.Logger,
+	}
+
+	if config.Route != "" {
+		p.logger.Warn("Ignoring deprecated route field", zap.String("route", config.Route))
 	}
 
 	counter, counterError := telemetry.NewDeferrableInt64Counter(metadata.Meter(set.TelemetrySettings),
@@ -229,14 +232,6 @@ func convertAnyToFloat(value any) (float64, error) {
 		return 0, fmt.Errorf("failed to convert string to float: %s", value)
 	default:
 		return 0, fmt.Errorf("invalid value type: %T", value)
-	}
-}
-
-// sendMetrics sends metrics to the configured route.
-func (p *extractor) sendMetrics(ctx context.Context, route string, metrics pmetric.Metrics) {
-	err := routereceiver.RouteMetrics(ctx, route, metrics)
-	if err != nil {
-		p.logger.Error("Failed to send metrics", zap.Error(err))
 	}
 }
 

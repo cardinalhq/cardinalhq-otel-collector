@@ -16,6 +16,7 @@ package extractmetricsprocessor
 
 import (
 	"errors"
+
 	"go.opentelemetry.io/collector/config/confighttp"
 
 	"go.opentelemetry.io/collector/component"
@@ -47,10 +48,6 @@ func (c *Config) Validate() error {
 
 	if c.ConfigurationExtension == nil {
 		errs = multierr.Append(errs, errors.New("configuration_extension is required"))
-	}
-
-	if c.Route == "" {
-		errs = multierr.Append(errs, errors.New("route is required"))
 	}
 
 	return errs

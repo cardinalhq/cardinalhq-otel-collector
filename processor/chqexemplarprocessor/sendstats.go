@@ -150,7 +150,7 @@ func (p *exemplarProcessor) postBatch(ctx context.Context, telemetryType signaln
 	body, _ := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		p.logger.Error("Failed to send exemplars", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
+		p.logger.Error("Failed to send exemplars", zap.Int("status", resp.StatusCode), zap.String("body", string(body)), zap.String("endpoint", endpoint))
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 

@@ -156,10 +156,12 @@ func (l *LRUCache[T]) Put(key int64, keys []string, exemplar T) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
+	now := time.Now()
+
 	if elem, found := l.cache[key]; found {
 		entry := elem.Value.(*Entry[T])
 		entry.value = exemplar
-		entry.timestamp = time.Now()
+		entry.timestamp = now
 		l.list.MoveToFront(elem)
 		return
 	}
@@ -168,20 +170,24 @@ func (l *LRUCache[T]) Put(key int64, keys []string, exemplar T) {
 		back := l.list.Back()
 		if back != nil {
 			entry := back.Value.(*Entry[T])
-			l.pending = append(l.pending, entry)
+			// Only publish if it should be published
+			if entry.shouldPublish(l.expiry) {
+				l.pending = append(l.pending, entry)
+				entry.lastPublishTime = now
+			}
 			l.list.Remove(back)
 			delete(l.cache, entry.key)
 		}
 	}
 
-	now := time.Now()
 	newEntry := &Entry[T]{
 		key:             key,
 		attributes:      keys,
 		value:           exemplar,
 		timestamp:       now,
-		lastPublishTime: now}
-	l.pending = append(l.pending, newEntry)
+		lastPublishTime: now,
+	}
+	l.publishCallBack([]*Entry[T]{newEntry})
 	elem := l.list.PushFront(newEntry)
 	l.cache[key] = elem
 }

@@ -19,10 +19,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/cardinalhq/oteltools/pkg/chqpb"
-	"google.golang.org/protobuf/proto"
 	"io"
 	"net/http"
+
+	"github.com/cardinalhq/oteltools/pkg/chqpb"
+	"google.golang.org/protobuf/proto"
 
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/pmetric"
@@ -42,33 +43,31 @@ type supportedSignals interface {
 	plog.Logs | pmetric.Metrics | ptrace.Traces
 }
 
+type sendWrapper[T supportedSignals] struct {
+	Attributes  map[string]string
+	PartitionId int64
+	Value       T
+}
+
 func sendExemplars[T supportedSignals](p *exemplarProcessor, cid, processorId string, batchSize int) func([]*Entry[T]) {
 	return func(entries []*Entry[T]) {
-		var batch []*chqpb.Exemplar
-		accumulated := 0
+		var batch []*sendWrapper[T]
 
 		for _, entry := range entries {
-			data, err := marshalTelemetry(entry.value)
-			if err != nil {
-				p.logger.Error("Failed to marshal telemetry data", zap.Error(err))
-				continue
-			}
-			exemplar := &chqpb.Exemplar{
-				Payload:     data,
+			exemplar := &sendWrapper[T]{
 				Attributes:  entry.toAttributes(),
 				PartitionId: entry.key,
+				Value:       entry.value,
 			}
 			batch = append(batch, exemplar)
-			accumulated++
 
-			if accumulated >= batchSize {
-				p.sendBatchAsync(cid, p.ttype, processorId, batch)
-				accumulated = 0
-				batch = nil
+			if len(batch) >= batchSize {
+				sendBatchAsync(p, cid, p.ttype, processorId, batch)
+				batch = batch[:0]
 			}
 		}
-		if accumulated > 0 {
-			p.sendBatchAsync(cid, p.ttype, processorId, batch)
+		if len(batch) > 0 {
+			sendBatchAsync(p, cid, p.ttype, processorId, batch)
 		}
 	}
 }
@@ -93,19 +92,33 @@ func marshalTelemetry[T supportedSignals](t T) (string, error) {
 	return string(b), nil
 }
 
-func (p *exemplarProcessor) sendBatchAsync(cid string, telemetryType signalnames.Name, processorId string, batch []*chqpb.Exemplar) {
+func sendBatchAsync[T supportedSignals](p *exemplarProcessor, cid string, telemetryType signalnames.Name, processorId string, batch []*sendWrapper[T]) {
 	if len(batch) == 0 {
 		return
 	}
 
-	exemplarReport := &chqpb.ExemplarPublishReport{
-		OrganizationId: cid,
-		TelemetryType:  telemetryType.String(),
-		ProcessorId:    processorId,
-		Exemplars:      batch,
-	}
-
 	go func() {
+		pbBatch := make([]*chqpb.Exemplar, 0, len(batch))
+		for _, wrapper := range batch {
+			data, err := marshalTelemetry(wrapper.Value)
+			if err != nil {
+				p.logger.Error("Failed to marshal telemetry data", zap.Error(err))
+				continue
+			}
+			pbBatch = append(pbBatch, &chqpb.Exemplar{
+				Attributes:  wrapper.Attributes,
+				PartitionId: wrapper.PartitionId,
+				Payload:     data,
+			})
+		}
+
+		exemplarReport := &chqpb.ExemplarPublishReport{
+			OrganizationId: cid,
+			TelemetryType:  telemetryType.String(),
+			ProcessorId:    processorId,
+			Exemplars:      pbBatch,
+		}
+
 		err := p.postBatch(context.Background(), telemetryType, exemplarReport)
 		if err != nil {
 			p.logger.Error("Failed to send exemplars", zap.Error(err))

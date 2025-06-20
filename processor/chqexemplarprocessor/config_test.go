@@ -76,18 +76,21 @@ func TestConfig(t *testing.T) {
 				Expiry:    10 * time.Minute,
 				Interval:  5 * time.Minute,
 				CacheSize: 1001,
+				BatchSize: 200,
 			},
 			Metrics: EnabledOption{
 				Enabled:   true,
 				Expiry:    11 * time.Minute,
 				Interval:  4 * time.Minute,
 				CacheSize: 1002,
+				BatchSize: 200,
 			},
 			Traces: EnabledOption{
 				Enabled:   true,
 				Expiry:    12 * time.Minute,
 				Interval:  3 * time.Minute,
 				CacheSize: 1003,
+				BatchSize: 200,
 			},
 		},
 	}

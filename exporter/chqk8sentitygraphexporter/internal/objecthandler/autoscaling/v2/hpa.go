@@ -40,7 +40,7 @@ func ConvertHPA(config *converterconfig.Config, us unstructured.Unstructured) (b
 
 	minReplicas := int32(1)
 	if k8sobj.Spec.MinReplicas != nil {
-		minReplicas = int32(*k8sobj.Spec.MinReplicas)
+		minReplicas = *k8sobj.Spec.MinReplicas
 	}
 	hpa := &graphpb.AutoscalingHpaSummary{
 		BaseObject: baseobj.Make(config, &us, us.GetAPIVersion(), us.GetKind()),

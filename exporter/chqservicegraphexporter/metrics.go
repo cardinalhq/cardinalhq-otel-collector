@@ -126,7 +126,7 @@ func (e *serviceGraphExporter) postEdges(ctx context.Context, cid string, edges 
 	body, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		e.logger.Error("Failed to send edges", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
+		e.logger.Error("Failed to send edges", zap.Int("status", resp.StatusCode), zap.String("body", string(body)), zap.String("endpoint", endpoint))
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 	return nil

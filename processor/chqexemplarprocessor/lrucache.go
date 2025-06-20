@@ -187,7 +187,6 @@ func (l *LRUCache[T]) Put(key int64, keys []string, exemplar T) {
 		timestamp:       now,
 		lastPublishTime: now,
 	}
-	l.publishCallBack([]*Entry[T]{newEntry})
 	elem := l.list.PushFront(newEntry)
 	l.cache[key] = elem
 }

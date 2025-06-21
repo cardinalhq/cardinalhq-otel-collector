@@ -39,8 +39,8 @@ func NewFactory() processor.Factory {
 
 const (
 	defaultReportingInterval = 5 * time.Minute
-	defaultExpiry            = defaultReportingInterval * 12
-	defaultLRUCacheSize      = 1000
+	defaultExpiry            = defaultReportingInterval * 3
+	defaultLRUCacheSize      = 10000
 	defaultBatchSize         = 200
 )
 

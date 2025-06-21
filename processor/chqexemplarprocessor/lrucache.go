@@ -188,6 +188,7 @@ func (l *LRUCache[T]) Put(key int64, keys []string, exemplar T) {
 		lastPublishTime: now,
 	}
 	elem := l.list.PushFront(newEntry)
+	l.pending = append(l.pending, newEntry)
 	l.cache[key] = elem
 }
 

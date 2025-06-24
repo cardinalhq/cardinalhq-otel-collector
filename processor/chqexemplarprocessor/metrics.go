@@ -16,8 +16,6 @@ package chqexemplarprocessor
 
 import (
 	"context"
-	"log/slog"
-
 	"go.opentelemetry.io/collector/pdata/pmetric"
 )
 
@@ -49,7 +47,7 @@ func (p *exemplarProcessor) addMetricsExemplar(tenant *Tenant, rm pmetric.Resour
 		metricTypeKey, metricType.String(),
 	}
 	keys, exemplarKey := computeExemplarKey(rm.Resource(), extraKeys)
-	slog.Info("Adding metrics exemplar", "key", exemplarKey, "metricName", metricName, "metricType", metricType.String())
+	//slog.Info("Adding metrics exemplar", "key", exemplarKey, "metricName", metricName, "metricType", metricType.String())
 	if tenant.metricCache.Contains(exemplarKey) {
 		return
 	}

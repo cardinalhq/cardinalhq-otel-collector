@@ -23,7 +23,7 @@ func main() {
 	info := component.BuildInfo{
 		Command:     "cardinalhq-otel-collector",
 		Description: "",
-		Version:     "",
+		Version:     "v0.128.0-chq",
 	}
 
 	set := otelcol.CollectorSettings{

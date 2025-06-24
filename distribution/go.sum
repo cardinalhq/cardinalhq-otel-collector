@@ -1199,6 +1199,8 @@ github.com/bsm/gomega v1.27.10 h1:yeMWxP2pV2fG3FgAODIY8EiRE3dy0aeFYt4l7wh6yKA=
 github.com/bsm/gomega v1.27.10/go.mod h1:JyEr/xRbxbtgWNi8tIEVPUYZ5Dzef52k01W3YH0H+O0=
 github.com/buger/jsonparser v1.1.1 h1:2PnMjfWD7wBILjqQbt530v576A/cAbQvEW9gGIpYMUs=
 github.com/buger/jsonparser v1.1.1/go.mod h1:6RYKKt7H4d4+iWqouImQ9R2FZql3VbhNgx27UK13J/0=
+github.com/cardinalhq/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.0.0-20250624061312-f34e021e84c9 h1:bxgUuxf9PPNTKgCBvJxd5+t4EO9shnsYoigwovnc+dQ=
+github.com/cardinalhq/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.0.0-20250624061312-f34e021e84c9/go.mod h1:aVt9oEcFZcx+YrPd7Aijs8LwxaSp4aJA1fFx12WdUCs=
 github.com/cardinalhq/oteltools v0.29.0 h1:wSQe2Z1qWznTZJwhoqKvjQb7fwH0Z+z5WkqZdd0cwOo=
 github.com/cardinalhq/oteltools v0.29.0/go.mod h1:nqtnspWYmhCpAl2Y0FSsTaiX4yZs1jKbrxWHIi5bZGQ=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
@@ -2186,8 +2188,6 @@ github.com/open-telemetry/opentelemetry-collector-contrib/exporter/influxdbexpor
 github.com/open-telemetry/opentelemetry-collector-contrib/exporter/influxdbexporter v0.128.0/go.mod h1:mp+QoYElFgjNvyzJegveVGZYVaeEcfy6a9W2z9+YapA=
 github.com/open-telemetry/opentelemetry-collector-contrib/exporter/kafkaexporter v0.128.0 h1:TVXRCMdYQ/mwiPfOdgmvxsmrBA8hjCaprO4yTQgY5Ao=
 github.com/open-telemetry/opentelemetry-collector-contrib/exporter/kafkaexporter v0.128.0/go.mod h1:/1zwyvrdswreCiGGc01f4xCxwQbYLUHthnvmyU51/eA=
-github.com/open-telemetry/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.128.0 h1:4XYg6rtbugDW4+IMpc5xcRnXL/oCPvxQmQULH5yEeqI=
-github.com/open-telemetry/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.128.0/go.mod h1:aVt9oEcFZcx+YrPd7Aijs8LwxaSp4aJA1fFx12WdUCs=
 github.com/open-telemetry/opentelemetry-collector-contrib/exporter/logicmonitorexporter v0.128.0 h1:znbEkAuQUxbEgnaan0ZXvbx0SRl0y0jZ3DBBAHZsJ8E=
 github.com/open-telemetry/opentelemetry-collector-contrib/exporter/logicmonitorexporter v0.128.0/go.mod h1:re2vCdhOxkN3pWQIGxffRVUERuisQTUCpmv9WdhPKyI=
 github.com/open-telemetry/opentelemetry-collector-contrib/exporter/logzioexporter v0.128.0 h1:sKfeNp7qXarMsNeTZx/SP3G03X4fbFyNWYrq5FJxQyU=

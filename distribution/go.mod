@@ -1066,3 +1066,5 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetrics
 replace github.com/cardinalhq/cardinalhq-otel-collector/processor/chqexemplarprocessor v0.128.0 => ../processor/chqexemplarprocessor
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
+
+replace github.com/open-telemetry/opentelemetry-collector-contrib/exporter/loadbalancingexporter => github.com/cardinalhq/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.0.0-20250624061312-f34e021e84c9

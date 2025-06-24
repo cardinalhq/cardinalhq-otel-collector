@@ -16,7 +16,7 @@ dist:
   name: cardinalhq-otel-collector
   output_path: ./distribution
   include_core: true
-  #version: v0.0.0-dev
+  version: v0.128.0-chq
 
 # this has many of the components from the -contrib release of the collector
 # See https://github.com/open-telemetry/opentelemetry-collector-releases/blob/main/distributions/otelcol-contrib/manifest.yaml
@@ -302,3 +302,5 @@ providers:
 # note: these are releative to the build directory, which is "./distribution"
 replaces:
   - github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
+  - github.com/open-telemetry/opentelemetry-collector-contrib/exporter/loadbalancingexporter => github.com/cardinalhq/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.0.0-20250624061312-f34e021e84c9
+  #- github.com/open-telemetry/opentelemetry-collector-contrib/exporter/loadbalancingexporter => github.com/cardinalhq/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.128.0

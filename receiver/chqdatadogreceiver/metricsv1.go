@@ -50,7 +50,7 @@ func handleMetricsV1Payload(req *http.Request, logger *zap.Logger) (ret []Series
 		return nil, http.StatusUnsupportedMediaType, nil
 	}
 	body, err := io.ReadAll(req.Body)
-	logger.Info("Received metrics payload " + string(body))
+	//logger.Info("Received metrics payload " + string(body))
 	wrapper := MetricsPayloadV1{}
 	err = json.Unmarshal(body, &wrapper)
 	if err != nil {

@@ -17,11 +17,12 @@ package fingerprintprocessor
 import (
 	"context"
 	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"strings"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/oteltools/pkg/translate"

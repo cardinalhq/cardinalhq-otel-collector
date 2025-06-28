@@ -15,13 +15,13 @@
 package fingerprintprocessor
 
 import (
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"testing"
 
 	"go.opentelemetry.io/collector/pdata/plog"
 
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/pcommon"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
 func TestGetServiceName(t *testing.T) {

@@ -15,11 +15,11 @@
 package pitbullprocessor
 
 import (
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/pcommon"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 
 	"github.com/cardinalhq/oteltools/pkg/translate"
 )

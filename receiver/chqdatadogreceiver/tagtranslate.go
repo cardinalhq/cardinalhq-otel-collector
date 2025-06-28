@@ -16,7 +16,7 @@ package datadogreceiver
 
 import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 )
 
 var (
@@ -25,7 +25,7 @@ var (
 		"container_id":            string(semconv.ContainerIDKey),
 		"container_name":          string(semconv.ContainerNameKey),
 		"dirname":                 string(semconv.LogFilePathKey),
-		"env":                     string(semconv.DeploymentEnvironmentKey),
+		"env":                     string(semconv.DeploymentEnvironmentNameKey),
 		"filename":                string(semconv.LogFileNameKey),
 		"helm_chart":              "k8s.helm.chart.name",
 		"helm_release":            "k8s.helm.release.name",

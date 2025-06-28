@@ -16,6 +16,7 @@ package pitbullprocessor
 
 import (
 	"context"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"strings"
 
 	"github.com/cardinalhq/oteltools/pkg/ottl"
@@ -26,7 +27,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/processor/processorhelper"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+
 	"go.uber.org/zap"
 )
 

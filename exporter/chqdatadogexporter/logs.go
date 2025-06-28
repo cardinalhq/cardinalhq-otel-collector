@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"io"
 	"net/http"
 	"strings"
@@ -27,7 +28,6 @@ import (
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
 type DDLog struct {

@@ -163,7 +163,7 @@ func (ddr *datadogReceiver) convertIntakeToLogs(apikey string, intake datadogInt
 
 	lm := plog.NewLogs()
 
-	for eventType, events := range intake.IntakeEvents {
+	for _, events := range intake.IntakeEvents {
 		for _, ej := range events {
 			var event intakeEvent
 			err := mapstructure.Decode(ej, &event)

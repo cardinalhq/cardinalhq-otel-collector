@@ -15,6 +15,8 @@
 package datadogreceiver
 
 import (
+	"encoding/json"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -727,16 +729,54 @@ at com.example.OtherClass.anotherMethod(OtherClass.java:123)`
 	assert.Equal(t, expectedStackTrace, group.Messages[0].Body)
 }
 
-//func TestTimestampParsing(t *testing.T) {
-//	j := "{\n  \"message\":\n    {\n      \"message\": \"2025/06/13 00:09:52 Hello from Cloud Run! The container started successfully and is listening for HTTP requests on port 8080\"\n    },\n  \"status\": \"error\",\n  \"timestamp\": 1749773392956,\n  \"hostname\": \"unknown\",\n  \"service\": \"hello\",\n  \"ddsource\": \"cloudrun\",\n  \"ddtags\": \"gcr.project_id:sandbox-462700,gcr.container_id:0069c7a988defe630069925ca3064d4d8df3e8d809dc1371fe2f05f4b8ac5e174a087f711f98c94be3c0590be5a5df30fdc6a6d85e8eeec715d2e1a535e64bd4fc22228e1d,gcr.resource_name:projects/sandbox-462700/locations/europe-west1/services/hello,revision_name:hello-00024-rbd,_dd.compute_stats:1,service_name:hello,gcr.configuration_name:hello,project_id:sandbox-462700,_dd.origin:cloudrun,gcr.revision_name:hello-00024-rbd,configuration_name:hello,_dd.datadog_init_version:1.7.3,gcr.location:europe-west1,location:europe-west1,origin:cloudrun,service:hello,container_id:0069c7a988defe630069925ca3064d4d8df3e8d809dc1371fe2f05f4b8ac5e174a087f711f98c94be3c0590be5a5df30fdc6a6d85e8eeec715d2e1a535e64bd4fc22228e1d,gcr.service_name:hello\"\n}"
-//	var serverlessLogs DDLogServerLess
-//	err := json.Unmarshal([]byte(j), &serverlessLogs)
-//	if err != nil {
-//		err = fmt.Errorf("failed to decode request body: %w (body=%x)", err, j)
-//	}
-//	ddLog, err := transformServerLessFormat(serverlessLogs)
-//
-//	ddLogs := []DDLog{*ddLog}
-//	ddr := &datadogReceiver{}
-//	ddr.splitLogs(ddLogs, "apiKey")
-//}
+func TestJsonParsing(t *testing.T) {
+	payload := `{
+		"time": "2025-06-28T00:29:21.820871858Z",
+		"level": "INFO",
+		"msg": "session found",
+		"application": "cashew",
+		"environment": "prod",
+		"services": "session",
+		"session_id": "9953b572-c769-4928-b3b3-9927d065e386",
+		"correlation_id": "9d1c8ca8-cb69-4a48-9cb0-b403791d8e22"
+	}`
+
+	var parsed map[string]interface{}
+	err := json.Unmarshal([]byte(payload), &parsed)
+	require.NoError(t, err, "expected JSON payload to parse correctly")
+
+	body := pcommon.NewValueEmpty()
+	attrMap := body.SetEmptyMap()
+
+	convertToOtelMap(parsed, attrMap)
+
+	// Validate key fields
+	get, b := attrMap.Get("level")
+	require.True(t, b, "expected 'level' attribute to be present")
+	require.NotNil(t, get)
+	require.Equal(t, "INFO", get.Str(), "expected 'level' to be 'INFO'")
+	get, b = attrMap.Get("msg")
+	require.True(t, b, "expected 'msg' attribute to be present")
+	require.NotNil(t, get)
+	require.Equal(t, "session found", get.Str(), "expected 'msg' to be 'session found'")
+	get, b = attrMap.Get("application")
+	require.True(t, b, "expected 'application' attribute to be present")
+	require.NotNil(t, get)
+	require.Equal(t, "cashew", get.Str(), "expected 'application' to be 'cashew'")
+	get, b = attrMap.Get("environment")
+	require.True(t, b, "expected 'environment' attribute to be present")
+	require.NotNil(t, get)
+	require.Equal(t, "prod", get.Str(), "expected 'environment' to be 'prod'")
+	get, b = attrMap.Get("services")
+	require.True(t, b, "expected 'services' attribute to be present")
+	require.NotNil(t, get)
+	require.Equal(t, "session", get.Str(), "expected 'services' to be 'session'")
+	get, b = attrMap.Get("session_id")
+	require.True(t, b, "expected 'session_id' attribute to be present")
+	require.NotNil(t, get)
+	require.Equal(t, "9953b572-c769-4928-b3b3-9927d065e386", get.Str(), "expected 'session_id' to match")
+	get, b = attrMap.Get("correlation_id")
+	require.True(t, b, "expected 'correlation_id' attribute to be present")
+	require.NotNil(t, get)
+	require.Equal(t, "9d1c8ca8-cb69-4a48-9cb0-b403791d8e22", get.Str(), "expected 'correlation_id' to match")
+}

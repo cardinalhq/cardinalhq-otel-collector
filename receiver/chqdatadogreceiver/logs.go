@@ -334,11 +334,66 @@ func (ddr *datadogReceiver) convertLogs(group groupedLogs) (plog.Logs, error) {
 		logRecord.SetTimestamp(msg.Timestamp)
 		logRecord.SetSeverityNumber(severityNumber)
 		logRecord.SetSeverityText(severityString)
+		body := msg.Body
+		if strings.HasPrefix(body, "{") {
+			var parsed map[string]interface{}
+			if err := json.Unmarshal([]byte(body), &parsed); err == nil {
+				attrMap := logRecord.Body().SetEmptyMap()
+				convertToOtelMap(parsed, attrMap)
+			} else {
+				logRecord.Body().SetStr(msg.Body)
+			}
+		} else {
+			logRecord.Body().SetStr(msg.Body)
+		}
+
 		logRecord.Body().SetStr(msg.Body)
 		lAttr.CopyTo(logRecord.Attributes())
 	}
 
 	return lm, nil
+}
+
+func convertToOtelMap(input map[string]interface{}, dest pcommon.Map) {
+	for k, v := range input {
+		switch val := v.(type) {
+		case string:
+			dest.PutStr(k, val)
+		case float64:
+			dest.PutDouble(k, val)
+		case bool:
+			dest.PutBool(k, val)
+		case map[string]interface{}:
+			subMap := dest.PutEmptyMap(k)
+			convertToOtelMap(val, subMap)
+		case []interface{}:
+			slice := dest.PutEmptySlice(k)
+			convertToOtelSlice(val, slice)
+		default:
+			dest.PutStr(k, fmt.Sprintf("%v", val)) // fallback for nil or unknown types
+		}
+	}
+}
+
+func convertToOtelSlice(input []interface{}, dest pcommon.Slice) {
+	for _, v := range input {
+		switch val := v.(type) {
+		case string:
+			dest.AppendEmpty().SetStr(val)
+		case float64:
+			dest.AppendEmpty().SetDouble(val)
+		case bool:
+			dest.AppendEmpty().SetBool(val)
+		case map[string]interface{}:
+			subMap := dest.AppendEmpty().SetEmptyMap()
+			convertToOtelMap(val, subMap)
+		case []interface{}:
+			subSlice := dest.AppendEmpty().SetEmptySlice()
+			convertToOtelSlice(val, subSlice)
+		default:
+			dest.AppendEmpty().SetStr(fmt.Sprintf("%v", val))
+		}
+	}
 }
 
 func toSeverity(s string) (plog.SeverityNumber, string) {

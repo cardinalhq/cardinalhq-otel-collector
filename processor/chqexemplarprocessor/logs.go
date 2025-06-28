@@ -38,7 +38,7 @@ func getFingerprint(l pcommon.Map) int64 {
 	return 0
 }
 
-func (p *exemplarProcessor) sendSketches(list *chqpb.ServiceLogCountList) error {
+func (p *exemplarProcessor) sendServiceCountStats(list *chqpb.ServiceLogCountList) error {
 	if len(list.Sketches) > 0 {
 		p.logger.Info("Sending log stats", zap.Int("sketches", len(list.Sketches)))
 		b, err := proto.Marshal(list)
@@ -78,9 +78,10 @@ func (p *exemplarProcessor) ConsumeLogs(ctx context.Context, ld plog.Logs) (plog
 		cid := orgIdFromResource(resourceAttributes)
 		tenant := p.getTenant(cid)
 		serviceLogCountsCache, sok := p.serviceLogCounts.Load(cid)
+
 		if !sok {
 			p.logger.Info("Creating new log sketch cache", zap.String("cid", cid))
-			serviceLogCountsCache = chqpb.NewServiceLogCountsCache(5*time.Minute, cid, p.sendSketches)
+			serviceLogCountsCache = chqpb.NewServiceLogCountsCache(1*time.Minute, cid, p.sendServiceCountStats)
 			p.serviceLogCounts.Store(cid, serviceLogCountsCache)
 		}
 

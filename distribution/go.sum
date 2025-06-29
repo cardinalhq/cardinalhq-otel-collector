@@ -1201,8 +1201,8 @@ github.com/buger/jsonparser v1.1.1 h1:2PnMjfWD7wBILjqQbt530v576A/cAbQvEW9gGIpYMU
 github.com/buger/jsonparser v1.1.1/go.mod h1:6RYKKt7H4d4+iWqouImQ9R2FZql3VbhNgx27UK13J/0=
 github.com/cardinalhq/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.0.0-20250624061312-f34e021e84c9 h1:bxgUuxf9PPNTKgCBvJxd5+t4EO9shnsYoigwovnc+dQ=
 github.com/cardinalhq/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.0.0-20250624061312-f34e021e84c9/go.mod h1:aVt9oEcFZcx+YrPd7Aijs8LwxaSp4aJA1fFx12WdUCs=
-github.com/cardinalhq/oteltools v0.29.1 h1:GZT6omLPP3WqFl+hXFb8yyCAu5hsbyY/oVy2jBrk9ws=
-github.com/cardinalhq/oteltools v0.29.1/go.mod h1:nqtnspWYmhCpAl2Y0FSsTaiX4yZs1jKbrxWHIi5bZGQ=
+github.com/cardinalhq/oteltools v0.29.2 h1:tCN9OjnK2DOXIZlWCDieFmOuj5J8fUPUDStKWrV0TSE=
+github.com/cardinalhq/oteltools v0.29.2/go.mod h1:nqtnspWYmhCpAl2Y0FSsTaiX4yZs1jKbrxWHIi5bZGQ=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
 github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=

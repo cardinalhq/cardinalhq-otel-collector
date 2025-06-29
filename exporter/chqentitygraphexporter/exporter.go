@@ -163,7 +163,11 @@ func (e *entityGraphExporter) postEntityRelationships(ctx context.Context, ttype
 	if err != nil {
 		return err
 	}
-	slog.Info("Sending entity relationships", slog.String("endpoint", endpoint), slog.Int("payloadSize", len(payload)))
+	slog.Info("Sending entity relationships",
+		slog.String("endpoint", endpoint),
+		slog.Int("payloadSize", len(payload)),
+		slog.String("signal", ttype),
+		slog.String("cid", cid))
 
 	resp, err := e.httpClient.Do(req)
 	if err != nil {

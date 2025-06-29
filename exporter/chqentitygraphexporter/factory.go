@@ -32,6 +32,7 @@ func NewFactory() exporter.Factory {
 		createDefaultConfig,
 		exporter.WithTraces(createSpansProcessor, metadata.TracesStability),
 		exporter.WithMetrics(createMetricsProcessor, metadata.MetricsStability),
+		exporter.WithLogs(createLogsProcessor, metadata.LogsStability),
 	)
 }
 
@@ -71,6 +72,18 @@ func createSpansProcessor(ctx context.Context, set exporter.Settings, cfg compon
 	return exporterhelper.NewTraces(
 		ctx, set, cfg,
 		e.ConsumeTraces,
+		exporterhelper.WithStart(e.Start),
+		exporterhelper.WithCapabilities(e.Capabilities()))
+}
+
+func createLogsProcessor(ctx context.Context, set exporter.Settings, cfg component.Config) (exporter.Logs, error) {
+	e, err := newEntityGraphExporter(cfg.(*Config), "logs", set)
+	if err != nil {
+		return nil, err
+	}
+	return exporterhelper.NewLogs(
+		ctx, set, cfg,
+		e.ConsumeLogs,
 		exporterhelper.WithStart(e.Start),
 		exporterhelper.WithCapabilities(e.Capabilities()))
 }

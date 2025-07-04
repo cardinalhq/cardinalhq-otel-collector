@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/cardinalhq/oteltools/pkg/syncmap"
 	"io"
 	"log/slog"
 	"net/http"
@@ -65,8 +66,9 @@ type entityGraphExporter struct {
 	httpClientSettings confighttp.ClientConfig
 	telemetrySettings  component.TelemetrySettings
 
-	cacheLock    sync.Mutex
-	entityCaches map[string]*graph.ResourceEntityCache
+	cacheLock          sync.Mutex
+	entityCaches       map[string]*graph.ResourceEntityCache
+	spanExemplarCaches syncmap.SyncMap[string, *ShardedSpanLRUCache]
 
 	jsonMarshaller otelJsonMarshaller
 }

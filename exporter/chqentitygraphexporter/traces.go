@@ -69,6 +69,7 @@ func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Trace
 
 func (e *entityGraphExporter) sendExemplarPayload(cid string) func(payload []*SpanEntry) {
 	return func(payload []*SpanEntry) {
+		e.logger.Info("Sending trace exemplars", zap.String("cid", cid), zap.Int("count", len(payload)))
 		report := &chqpb.ExemplarPublishReport{
 			OrganizationId: cid,
 			ProcessorId:    e.id.String(),
@@ -94,15 +95,15 @@ func (e *entityGraphExporter) sendExemplarPayload(cid string) func(payload []*Sp
 			return
 		}
 
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "", bytes.NewReader(marshalled))
+		endpoint := fmt.Sprintf("%s/api/v1/exemplars/%s", e.config.Endpoint, e.ttype)
+
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint, bytes.NewReader(marshalled))
 		if err != nil {
 			e.logger.Error("Failed to create request for exemplars", zap.Error(err), zap.String("cid", cid))
 			return
 		}
 
 		req.Header.Set("Content-Type", "application/x-protobuf")
-
-		endpoint := fmt.Sprintf("%s/api/v1/exemplars/%s", e.config.Endpoint, e.ttype)
 
 		resp, err := e.httpClient.Do(req)
 		if err != nil {

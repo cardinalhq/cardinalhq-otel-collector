@@ -15,12 +15,33 @@
 package chqentitygraphexporter
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"github.com/cardinalhq/oteltools/hashutils"
+	"github.com/cardinalhq/oteltools/pkg/chqpb"
+	"github.com/cardinalhq/oteltools/pkg/translate"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
+	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
+	"io"
+	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/cardinalhq/oteltools/pkg/graph"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
+
+const (
+	serviceNameKey   = string(semconv.ServiceNameKey)
+	clusterNameKey   = string(semconv.K8SClusterNameKey)
+	namespaceNameKey = string(semconv.K8SNamespaceNameKey)
+)
+
+// TODO: fake temporary exporter ID, should be replaced with an actual ID
+var exporterId = "fe518221-6546-4bcd-9ad4-ca1545311d61"
 
 func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Traces) error {
 	for i := range td.ResourceSpans().Len() {
@@ -41,9 +62,120 @@ func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Trace
 				spanAttributes.PutStr(graph.SpanKindString, sr.Kind().String())
 
 				cache.ProvisionRecordAttributes(globalEntityMap, spanAttributes)
+				e.addSpanExemplar(cid, rs, iss, sr, getFingerprint(spanAttributes))
 			}
 		}
 	}
 
 	return nil
+}
+
+func (e *entityGraphExporter) sendExemplarPayload(cid string) func(payload []*SpanEntry) {
+	return func(payload []*SpanEntry) {
+		report := &chqpb.ExemplarPublishReport{
+			OrganizationId: cid,
+			ProcessorId:    exporterId,
+			TelemetryType:  e.ttype,
+			Exemplars:      make([]*chqpb.Exemplar, 0),
+		}
+		for _, entry := range payload {
+			me, err := e.jsonMarshaller.tracesMarshaler.MarshalTraces(entry.exemplar)
+			if err != nil {
+				continue
+			}
+			exemplar := &chqpb.Exemplar{
+				Attributes:  entry.toAttributes(),
+				PartitionId: entry.key,
+				Payload:     string(me),
+			}
+			report.Exemplars = append(report.Exemplars, exemplar)
+		}
+
+		marshalled, err := proto.Marshal(report)
+		if err != nil {
+			e.logger.Error("Failed to marshal exemplars", zap.Error(err), zap.String("cid", cid))
+			return
+		}
+
+		endpoint := fmt.Sprintf("%s/api/v1/exemplars/%s", e.config.Endpoint, e.ttype)
+
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint, bytes.NewReader(marshalled))
+		if err != nil {
+			e.logger.Error("Failed to create request for exemplars", zap.Error(err), zap.String("cid", cid))
+			return
+		}
+
+		req.Header.Set("Content-Type", "application/x-protobuf")
+
+		resp, err := e.httpClient.Do(req)
+		e.logger.Info("Sending trace exemplars", zap.String("cid", cid), zap.Int("count", len(payload)), zap.String("endpoint", endpoint),
+			zap.Int("response_code", resp.StatusCode))
+
+		if err != nil {
+			e.logger.Error("Failed to send exemplars", zap.Error(err), zap.String("endpoint", endpoint))
+			return
+		}
+		body, _ := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+			e.logger.Error("Failed to send trace exemplars", zap.Int("status", resp.StatusCode), zap.String("body", string(body)), zap.String("endpoint", endpoint))
+			return
+		}
+		return
+	}
+}
+
+func (e *entityGraphExporter) addSpanExemplar(cid string, rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span, fingerprint int64) {
+	extraKeys := []string{
+		translate.CardinalFieldFingerprint, strconv.FormatInt(fingerprint, 10),
+	}
+	keys, exemplarKey := computeExemplarKey(rs.Resource(), extraKeys)
+	cache, sok := e.spanExemplarCaches.Load(cid)
+	if !sok {
+		cache = NewShardedSpanLRUCache(15*time.Minute, 5*time.Minute, e.sendExemplarPayload(cid))
+		e.spanExemplarCaches.Store(cid, cache)
+	}
+	contains, shardIndex := cache.Contains(sr.TraceID(), exemplarKey)
+	if contains {
+		return
+	}
+	exemplarRecord := toSpanExemplar(rs, ss, sr)
+	cache.PutWithShardIndex(shardIndex, exemplarKey, keys, fingerprint, exemplarRecord)
+}
+
+func toSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span) ptrace.Traces {
+	exemplarRecord := ptrace.NewTraces()
+	copyRl := exemplarRecord.ResourceSpans().AppendEmpty()
+	rs.Resource().CopyTo(copyRl.Resource())
+	copySl := copyRl.ScopeSpans().AppendEmpty()
+	ss.Scope().CopyTo(copySl.Scope())
+	copyLr := copySl.Spans().AppendEmpty()
+	sr.CopyTo(copyLr)
+	return exemplarRecord
+}
+
+func computeExemplarKey(rl pcommon.Resource, extraKeys []string) ([]string, int64) {
+	keys := []string{
+		clusterNameKey, getFromResource(rl.Attributes(), clusterNameKey),
+		namespaceNameKey, getFromResource(rl.Attributes(), namespaceNameKey),
+		serviceNameKey, getFromResource(rl.Attributes(), serviceNameKey),
+	}
+	keys = append(keys, extraKeys...)
+	return keys, int64(hashutils.HashStrings(nil, keys...))
+}
+
+func getFromResource(attr pcommon.Map, key string) string {
+	clusterVal, clusterFound := attr.Get(key)
+	if !clusterFound {
+		return "unknown"
+	}
+	return clusterVal.AsString()
+}
+
+func getFingerprint(l pcommon.Map) int64 {
+	fnk := translate.CardinalFieldFingerprint
+	if fingerprintField, found := l.Get(fnk); found {
+		return fingerprintField.Int()
+	}
+	return 0
 }

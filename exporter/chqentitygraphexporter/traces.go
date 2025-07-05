@@ -21,7 +21,6 @@ import (
 	"github.com/cardinalhq/oteltools/hashutils"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"github.com/cardinalhq/oteltools/pkg/translate"
-	"github.com/google/uuid"
 	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"

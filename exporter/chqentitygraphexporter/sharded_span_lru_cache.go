@@ -22,7 +22,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
-const defaultShardCount = 16
+const defaultShardCount = 2
 const capacityPerShard = 10000
 
 type ShardedSpanLRUCache struct {

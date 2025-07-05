@@ -129,7 +129,7 @@ func (e *entityGraphExporter) addSpanExemplar(cid string, rs ptrace.ResourceSpan
 	keys, exemplarKey := computeExemplarKey(rs.Resource(), extraKeys)
 	cache, sok := e.spanExemplarCaches.Load(cid)
 	if !sok {
-		cache = NewShardedSpanLRUCache(5*time.Minute, 5*time.Minute, e.sendExemplarPayload(cid))
+		cache = NewShardedSpanLRUCache(15*time.Minute, 5*time.Minute, e.sendExemplarPayload(cid))
 		e.spanExemplarCaches.Store(cid, cache)
 	}
 	contains, shardIndex := cache.Contains(sr.TraceID(), exemplarKey)

@@ -71,7 +71,7 @@ func (e *entityGraphExporter) sendExemplarPayload(cid string) func(payload []*Sp
 	return func(payload []*SpanEntry) {
 		report := &chqpb.ExemplarPublishReport{
 			OrganizationId: cid,
-			ProcessorId:    e.id.String(),
+			ProcessorId:    e.id.Name(),
 			TelemetryType:  e.ttype,
 			Exemplars:      make([]*chqpb.Exemplar, 0),
 		}

@@ -21,6 +21,7 @@ import (
 	"github.com/cardinalhq/oteltools/hashutils"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"github.com/cardinalhq/oteltools/pkg/translate"
+	"github.com/google/uuid"
 	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
@@ -39,6 +40,8 @@ const (
 	clusterNameKey   = string(semconv.K8SClusterNameKey)
 	namespaceNameKey = string(semconv.K8SNamespaceNameKey)
 )
+
+var exporterId = uuid.New().String()
 
 func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Traces) error {
 	for i := range td.ResourceSpans().Len() {
@@ -71,7 +74,7 @@ func (e *entityGraphExporter) sendExemplarPayload(cid string) func(payload []*Sp
 	return func(payload []*SpanEntry) {
 		report := &chqpb.ExemplarPublishReport{
 			OrganizationId: cid,
-			ProcessorId:    e.id.Name(),
+			ProcessorId:    exporterId,
 			TelemetryType:  e.ttype,
 			Exemplars:      make([]*chqpb.Exemplar, 0),
 		}

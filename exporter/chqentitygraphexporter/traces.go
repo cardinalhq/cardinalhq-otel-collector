@@ -69,7 +69,6 @@ func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Trace
 
 func (e *entityGraphExporter) sendExemplarPayload(cid string) func(payload []*SpanEntry) {
 	return func(payload []*SpanEntry) {
-		e.logger.Info("Sending trace exemplars", zap.String("cid", cid), zap.Int("count", len(payload)))
 		report := &chqpb.ExemplarPublishReport{
 			OrganizationId: cid,
 			ProcessorId:    e.id.String(),
@@ -106,6 +105,9 @@ func (e *entityGraphExporter) sendExemplarPayload(cid string) func(payload []*Sp
 		req.Header.Set("Content-Type", "application/x-protobuf")
 
 		resp, err := e.httpClient.Do(req)
+		e.logger.Info("Sending trace exemplars", zap.String("cid", cid), zap.Int("count", len(payload)), zap.String("endpoint", endpoint),
+			zap.Int("response_code", resp.StatusCode))
+
 		if err != nil {
 			e.logger.Error("Failed to send exemplars", zap.Error(err), zap.String("endpoint", endpoint))
 			return
@@ -127,7 +129,7 @@ func (e *entityGraphExporter) addSpanExemplar(cid string, rs ptrace.ResourceSpan
 	keys, exemplarKey := computeExemplarKey(rs.Resource(), extraKeys)
 	cache, sok := e.spanExemplarCaches.Load(cid)
 	if !sok {
-		cache = NewShardedSpanLRUCache(5*time.Minute, 15*time.Minute, e.sendExemplarPayload(cid))
+		cache = NewShardedSpanLRUCache(5*time.Minute, 5*time.Minute, e.sendExemplarPayload(cid))
 		e.spanExemplarCaches.Store(cid, cache)
 	}
 	contains, shardIndex := cache.Contains(sr.TraceID(), exemplarKey)

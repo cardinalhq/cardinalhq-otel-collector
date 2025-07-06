@@ -21,7 +21,6 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
 	"github.com/cardinalhq/oteltools/pkg/translate"
-	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 	"io"
@@ -32,12 +31,6 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/graph"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
-)
-
-const (
-	serviceNameKey   = string(semconv.ServiceNameKey)
-	clusterNameKey   = string(semconv.K8SClusterNameKey)
-	namespaceNameKey = string(semconv.K8SNamespaceNameKey)
 )
 
 func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Traces) error {

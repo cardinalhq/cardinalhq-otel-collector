@@ -16,6 +16,7 @@ package chqentitygraphexporter
 
 import (
 	"container/list"
+	"strconv"
 	"sync"
 	"time"
 
@@ -23,12 +24,13 @@ import (
 )
 
 type SpanEntry struct {
-	key             int64
-	fingerprint     int64
-	attributes      []string
-	exemplar        ptrace.Traces
-	timestamp       time.Time
-	lastPublishTime time.Time
+	key               int64
+	fingerprint       int64
+	parentFingerprint int64
+	attributes        []string
+	exemplar          ptrace.Traces
+	timestamp         time.Time
+	lastPublishTime   time.Time
 }
 
 type SpanLRUCache struct {
@@ -65,6 +67,7 @@ func (e *SpanEntry) toAttributes() map[string]string {
 	for i := 0; i < len(e.attributes); i += 2 {
 		attrs[e.attributes[i]] = e.attributes[i+1]
 	}
+	attrs["parent.fingerprint"] = strconv.FormatInt(e.parentFingerprint, 10)
 	return attrs
 }
 
@@ -111,36 +114,32 @@ func (c *SpanLRUCache) cleanupExpired() {
 }
 
 func stampParentFingerprints(entries []*SpanEntry) {
-	spanIDToFingerprint := make(map[string]int64, len(entries))
-
-	// First pass: map spanID to its fingerprint — safe because each exemplar only has one span
+	spanIDToFingerprint := make(map[string]int64)
 	for _, entry := range entries {
-		if rs := entry.exemplar.ResourceSpans(); rs.Len() > 0 {
-			scopeSpans := rs.At(0).ScopeSpans()
-			if scopeSpans.Len() > 0 {
-				spans := scopeSpans.At(0).Spans()
-				if spans.Len() > 0 {
-					span := spans.At(0)
+		if rls := entry.exemplar.ResourceSpans(); rls.Len() > 0 {
+			sl := rls.At(0).ScopeSpans()
+			if sl.Len() > 0 {
+				spans := sl.At(0).Spans()
+				for i := 0; i < spans.Len(); i++ {
+					span := spans.At(i)
 					spanIDToFingerprint[span.SpanID().String()] = entry.fingerprint
 				}
 			}
 		}
 	}
 
-	// Second pass: stamp parent.fingerprint if parent's SpanID is known
 	for _, entry := range entries {
-		if rs := entry.exemplar.ResourceSpans(); rs.Len() > 0 {
-			scopeSpans := rs.At(0).ScopeSpans()
-			if scopeSpans.Len() > 0 {
-				spans := scopeSpans.At(0).Spans()
-				if spans.Len() > 0 {
-					span := spans.At(0)
-					parentID := span.ParentSpanID().String()
-					if span.ParentSpanID().IsEmpty() {
-						continue
-					}
-					if parentFp, ok := spanIDToFingerprint[parentID]; ok {
-						span.Attributes().PutInt("parent.fingerprint", parentFp)
+		if rls := entry.exemplar.ResourceSpans(); rls.Len() > 0 {
+			sl := rls.At(0).ScopeSpans()
+			if sl.Len() > 0 {
+				spans := sl.At(0).Spans()
+				for i := 0; i < spans.Len(); i++ {
+					span := spans.At(i)
+					if !span.ParentSpanID().IsEmpty() {
+						parentID := span.ParentSpanID().String()
+						if parentFp, exists := spanIDToFingerprint[parentID]; exists {
+							entry.parentFingerprint = parentFp
+						}
 					}
 				}
 			}

@@ -18,8 +18,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/cardinalhq/oteltools/hashutils"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
+	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
 	"github.com/cardinalhq/oteltools/pkg/translate"
 	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"go.uber.org/zap"
@@ -59,7 +59,7 @@ func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Trace
 				spanAttributes.PutStr(graph.SpanKindString, sr.Kind().String())
 
 				cache.ProvisionRecordAttributes(globalEntityMap, spanAttributes)
-				e.addSpanExemplar(cid, rs, iss, sr, getFingerprint(spanAttributes))
+				e.addSpanExemplar(cid, rs, iss, sr, fingerprinter.GetFingerprintAttribute(spanAttributes))
 			}
 		}
 	}
@@ -126,7 +126,7 @@ func (e *entityGraphExporter) addSpanExemplar(cid string, rs ptrace.ResourceSpan
 	extraKeys := []string{
 		translate.CardinalFieldFingerprint, strconv.FormatInt(fingerprint, 10),
 	}
-	keys, exemplarKey := computeExemplarKey(rs.Resource(), extraKeys)
+	keys, exemplarKey := fingerprinter.ComputeExemplarKey(rs.Resource(), extraKeys)
 	cache, sok := e.spanExemplarCaches.Load(cid)
 	if !sok {
 		cache = NewShardedSpanLRUCache(15*time.Minute, 5*time.Minute, e.sendExemplarPayload(cid))
@@ -149,30 +149,4 @@ func toSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Spa
 	copyLr := copySl.Spans().AppendEmpty()
 	sr.CopyTo(copyLr)
 	return exemplarRecord
-}
-
-func computeExemplarKey(rl pcommon.Resource, extraKeys []string) ([]string, int64) {
-	keys := []string{
-		clusterNameKey, getFromResource(rl.Attributes(), clusterNameKey),
-		namespaceNameKey, getFromResource(rl.Attributes(), namespaceNameKey),
-		serviceNameKey, getFromResource(rl.Attributes(), serviceNameKey),
-	}
-	keys = append(keys, extraKeys...)
-	return keys, int64(hashutils.HashStrings(nil, keys...))
-}
-
-func getFromResource(attr pcommon.Map, key string) string {
-	clusterVal, clusterFound := attr.Get(key)
-	if !clusterFound {
-		return "unknown"
-	}
-	return clusterVal.AsString()
-}
-
-func getFingerprint(l pcommon.Map) int64 {
-	fnk := translate.CardinalFieldFingerprint
-	if fingerprintField, found := l.Get(fnk); found {
-		return fingerprintField.Int()
-	}
-	return 0
 }

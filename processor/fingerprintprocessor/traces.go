@@ -31,7 +31,7 @@ func (p *fingerprintProcessor) ConsumeTraces(ctx context.Context, td ptrace.Trac
 			iss := rs.ScopeSpans().At(j)
 			for k := 0; k < iss.Spans().Len(); k++ {
 				sr := iss.Spans().At(k)
-				spanFingerprint := fingerprinter.CalculateSpanFingerprint(sr, fpr)
+				spanFingerprint := fingerprinter.CalculateSpanFingerprint(rs.Resource(), sr, fpr)
 				sr.Attributes().PutInt(translate.CardinalFieldFingerprint, spanFingerprint)
 
 				spanDuration := float64(sr.EndTimestamp().AsTime().Sub(sr.StartTimestamp().AsTime()).Abs().Milliseconds())

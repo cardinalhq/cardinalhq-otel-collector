@@ -111,32 +111,36 @@ func (c *SpanLRUCache) cleanupExpired() {
 }
 
 func stampParentFingerprints(entries []*SpanEntry) {
-	spanIDToFingerprint := make(map[string]int64)
+	spanIDToFingerprint := make(map[string]int64, len(entries))
+
+	// First pass: map spanID to its fingerprint — safe because each exemplar only has one span
 	for _, entry := range entries {
-		if rls := entry.exemplar.ResourceSpans(); rls.Len() > 0 {
-			sl := rls.At(0).ScopeSpans()
-			if sl.Len() > 0 {
-				spans := sl.At(0).Spans()
-				for i := 0; i < spans.Len(); i++ {
-					span := spans.At(i)
+		if rs := entry.exemplar.ResourceSpans(); rs.Len() > 0 {
+			scopeSpans := rs.At(0).ScopeSpans()
+			if scopeSpans.Len() > 0 {
+				spans := scopeSpans.At(0).Spans()
+				if spans.Len() > 0 {
+					span := spans.At(0)
 					spanIDToFingerprint[span.SpanID().String()] = entry.fingerprint
 				}
 			}
 		}
 	}
 
+	// Second pass: stamp parent.fingerprint if parent's SpanID is known
 	for _, entry := range entries {
-		if rls := entry.exemplar.ResourceSpans(); rls.Len() > 0 {
-			sl := rls.At(0).ScopeSpans()
-			if sl.Len() > 0 {
-				spans := sl.At(0).Spans()
-				for i := 0; i < spans.Len(); i++ {
-					span := spans.At(i)
-					if !span.ParentSpanID().IsEmpty() {
-						parentID := span.ParentSpanID().String()
-						if parentFp, exists := spanIDToFingerprint[parentID]; exists {
-							span.Attributes().PutInt("parent.fingerprint", parentFp)
-						}
+		if rs := entry.exemplar.ResourceSpans(); rs.Len() > 0 {
+			scopeSpans := rs.At(0).ScopeSpans()
+			if scopeSpans.Len() > 0 {
+				spans := scopeSpans.At(0).Spans()
+				if spans.Len() > 0 {
+					span := spans.At(0)
+					parentID := span.ParentSpanID().String()
+					if span.ParentSpanID().IsEmpty() {
+						continue
+					}
+					if parentFp, ok := spanIDToFingerprint[parentID]; ok {
+						span.Attributes().PutInt("parent.fingerprint", parentFp)
 					}
 				}
 			}

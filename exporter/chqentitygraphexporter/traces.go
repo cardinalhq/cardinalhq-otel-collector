@@ -40,9 +40,6 @@ const (
 	namespaceNameKey = string(semconv.K8SNamespaceNameKey)
 )
 
-// TODO: fake temporary exporter ID, should be replaced with an actual ID
-var exporterId = "fe518221-6546-4bcd-9ad4-ca1545311d61"
-
 func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Traces) error {
 	for i := range td.ResourceSpans().Len() {
 		rs := td.ResourceSpans().At(i)
@@ -74,7 +71,7 @@ func (e *entityGraphExporter) sendExemplarPayload(cid string) func(payload []*Sp
 	return func(payload []*SpanEntry) {
 		report := &chqpb.ExemplarPublishReport{
 			OrganizationId: cid,
-			ProcessorId:    exporterId,
+			ProcessorId:    e.id.Name(),
 			TelemetryType:  e.ttype,
 			Exemplars:      make([]*chqpb.Exemplar, 0),
 		}

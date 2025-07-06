@@ -68,7 +68,7 @@ type entityGraphExporter struct {
 
 	cacheLock          sync.Mutex
 	entityCaches       map[string]*graph.ResourceEntityCache
-	spanExemplarCaches syncmap.SyncMap[string, *ShardedSpanLRUCache]
+	spanExemplarCaches syncmap.SyncMap[string, *SpanLRUCache]
 
 	jsonMarshaller otelJsonMarshaller
 }

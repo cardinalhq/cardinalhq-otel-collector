@@ -129,15 +129,15 @@ func (e *entityGraphExporter) addSpanExemplar(cid string, rs ptrace.ResourceSpan
 	keys, exemplarKey := fingerprinter.ComputeExemplarKey(rs.Resource(), extraKeys)
 	cache, sok := e.spanExemplarCaches.Load(cid)
 	if !sok {
-		cache = NewShardedSpanLRUCache(15*time.Minute, 5*time.Minute, e.sendExemplarPayload(cid))
+		cache = NewSpanLRUCache(10000, 15*time.Minute, 5*time.Minute, e.sendExemplarPayload(cid))
 		e.spanExemplarCaches.Store(cid, cache)
 	}
-	contains, shardIndex := cache.Contains(sr.TraceID(), exemplarKey)
+	contains := cache.ContainsByKey(exemplarKey)
 	if contains {
 		return
 	}
 	exemplarRecord := toSpanExemplar(rs, ss, sr)
-	cache.PutWithShardIndex(shardIndex, exemplarKey, keys, fingerprint, exemplarRecord)
+	cache.Put(exemplarKey, fingerprint, exemplarRecord, keys)
 }
 
 func toSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span) ptrace.Traces {

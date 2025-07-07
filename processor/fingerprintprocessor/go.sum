@@ -6,8 +6,8 @@ github.com/alecthomas/repr v0.4.0 h1:GhI2A8MACjfegCPVq9f1FLvIBS+DrQ2KQBFZP1iFzXc
 github.com/alecthomas/repr v0.4.0/go.mod h1:Fr0507jx4eOXV7AlPV6AVZLYrLIuIeSOWtW57eE/O/4=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
-github.com/cardinalhq/oteltools v0.30.6 h1:wknE5bhYy4w9l00DaJySw3z2O1z7YDdL2BTwKE6NzQI=
-github.com/cardinalhq/oteltools v0.30.6/go.mod h1:Zk0VlCfAYv5AMa55WqRJEK/VfVCYncuxgKjH7jYGO1c=
+github.com/cardinalhq/oteltools v0.30.7 h1:As7LG+c8YmGAtAtDGUvuadI0S2m/W6tYgtU6tJ4xU7k=
+github.com/cardinalhq/oteltools v0.30.7/go.mod h1:Zk0VlCfAYv5AMa55WqRJEK/VfVCYncuxgKjH7jYGO1c=
 github.com/cenkalti/backoff/v5 v5.0.2 h1:rIfFVxEf1QsI7E1ZHfp/B4DF/6QBAUhmgkxc0H7Zss8=
 github.com/cenkalti/backoff/v5 v5.0.2/go.mod h1:rkhZdG3JZukswDf7f0cwqPNk4K0sa+F97BxZthm/crw=
 github.com/cespare/xxhash v1.1.0 h1:a6HrQnmkObjyL+Gs60czilIUGqrzKutQD6XZog3p+ko=

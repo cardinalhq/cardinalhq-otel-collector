@@ -40,7 +40,7 @@ func (p *fingerprintProcessor) ConsumeLogs(_ context.Context, ld plog.Logs) (plo
 	for i := range ld.ResourceLogs().Len() {
 		rl := ld.ResourceLogs().At(i)
 		cid := OrgIdFromResource(rl.Resource().Attributes())
-		fpr := p.GetOrCreateFingerprinter(cid)
+		fpr := p.GetOrCreateTrieClusterManager(cid)
 		for j := range rl.ScopeLogs().Len() {
 			sl := rl.ScopeLogs().At(j)
 			for k := range sl.LogRecords().Len() {
@@ -83,8 +83,8 @@ func SeverityNumberToText(severityNumber plog.SeverityNumber) string {
 	}
 }
 
-func (p *fingerprintProcessor) addTokenFields(fpr fingerprinter.Fingerprinter, lr plog.LogRecord) (int64, string, error) {
-	fingerprint, level, js, err := fpr.Fingerprint(lr.Body().AsString())
+func (p *fingerprintProcessor) addTokenFields(trieClusterManager *fingerprinter.TrieClusterManager, lr plog.LogRecord) (int64, string, error) {
+	fingerprint, level, js, err := fingerprinter.Fingerprint(lr.Body().AsString(), trieClusterManager)
 	if err != nil {
 		return 0, "", err
 	}

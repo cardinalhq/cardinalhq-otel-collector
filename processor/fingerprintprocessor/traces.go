@@ -25,7 +25,7 @@ func (p *fingerprintProcessor) ConsumeTraces(ctx context.Context, td ptrace.Trac
 	for i := 0; i < td.ResourceSpans().Len(); i++ {
 		rs := td.ResourceSpans().At(i)
 		//cid := OrgIdFromResource(rs.Resource().Attributes())
-		//fpr := p.GetOrCreateFingerprinter(cid)
+		//fpr := p.GetOrCreateTrieClusterManager(cid)
 
 		for j := 0; j < rs.ScopeSpans().Len(); j++ {
 			iss := rs.ScopeSpans().At(j)

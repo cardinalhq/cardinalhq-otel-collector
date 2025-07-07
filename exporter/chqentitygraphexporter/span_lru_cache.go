@@ -181,21 +181,28 @@ func (c *SpanLRUCache) resolveWaiting(spanID string) {
 
 func (c *SpanLRUCache) Contains(spanID string, key int64) bool {
 	c.mutex.RLock()
-	_, ok := c.cache[key]
+	_, inCache := c.cache[key]
+	waitingList := c.waiting[spanID]
 	c.mutex.RUnlock()
-	if !ok {
+
+	if !inCache {
 		return false
+	}
+
+	if len(waitingList) == 0 {
+		return true
 	}
 
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	// in case it was evicted in the meantime
+	// re-check in case it got evicted
 	if _, still := c.cache[key]; !still {
 		return false
 	}
 
 	c.resolveWaiting(spanID)
+
 	return true
 }
 

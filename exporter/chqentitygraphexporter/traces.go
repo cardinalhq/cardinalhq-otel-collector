@@ -52,7 +52,7 @@ func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Trace
 				spanAttributes.PutStr(graph.SpanKindString, sr.Kind().String())
 
 				cache.ProvisionRecordAttributes(globalEntityMap, spanAttributes)
-				e.addSpanExemplar(cid, rs, iss, sr, fingerprinter.GetFingerprintAttribute(spanAttributes))
+				//e.addSpanExemplar(cid, rs, iss, sr, fingerprinter.GetFingerprintAttribute(spanAttributes))
 			}
 		}
 	}

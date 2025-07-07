@@ -24,14 +24,14 @@ import (
 func (p *fingerprintProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
 	for i := 0; i < td.ResourceSpans().Len(); i++ {
 		rs := td.ResourceSpans().At(i)
-		cid := OrgIdFromResource(rs.Resource().Attributes())
-		fpr := p.GetOrCreateFingerprinter(cid)
+		//cid := OrgIdFromResource(rs.Resource().Attributes())
+		//fpr := p.GetOrCreateTrieClusterManager(cid)
 
 		for j := 0; j < rs.ScopeSpans().Len(); j++ {
 			iss := rs.ScopeSpans().At(j)
 			for k := 0; k < iss.Spans().Len(); k++ {
 				sr := iss.Spans().At(k)
-				spanFingerprint := fingerprinter.CalculateSpanFingerprint(sr, fpr)
+				spanFingerprint := fingerprinter.CalculateSpanFingerprint(rs.Resource(), sr)
 				sr.Attributes().PutInt(translate.CardinalFieldFingerprint, spanFingerprint)
 
 				spanDuration := float64(sr.EndTimestamp().AsTime().Sub(sr.StartTimestamp().AsTime()).Abs().Milliseconds())

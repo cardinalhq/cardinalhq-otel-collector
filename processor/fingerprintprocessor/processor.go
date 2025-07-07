@@ -36,7 +36,7 @@ type fingerprintProcessor struct {
 	ttype             string
 	telemetrySettings component.TelemetrySettings
 
-	fingerprinters      syncmap.SyncMap[string, fingerprinter.Fingerprinter]
+	trieClusterManagers syncmap.SyncMap[string, *fingerprinter.TrieClusterManager]
 	lastTrieUpdateTimes syncmap.SyncMap[string, int64]
 
 	idSource authenv.EnvironmentSource
@@ -64,14 +64,13 @@ func newProcessor(config *Config, ttype string, set processor.Settings) (*finger
 	return p, nil
 }
 
-func (p *fingerprintProcessor) GetOrCreateFingerprinter(cid string) fingerprinter.Fingerprinter {
-	fpr, found := p.fingerprinters.Load(cid)
+func (p *fingerprintProcessor) GetOrCreateTrieClusterManager(cid string) *fingerprinter.TrieClusterManager {
+	clusterManager, found := p.trieClusterManagers.Load(cid)
 	if !found {
-		clusterManager := fingerprinter.NewTrieClusterManager(0.5)
-		fpr = fingerprinter.NewFingerprinter(clusterManager)
-		p.fingerprinters.Store(cid, fpr)
+		clusterManager = fingerprinter.NewTrieClusterManager(0.5)
+		p.trieClusterManagers.Store(cid, clusterManager)
 	}
-	return fpr
+	return clusterManager
 }
 
 func (p *fingerprintProcessor) Capabilities() consumer.Capabilities {

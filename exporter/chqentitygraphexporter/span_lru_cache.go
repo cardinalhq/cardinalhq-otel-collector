@@ -179,7 +179,7 @@ func (c *SpanLRUCache) resolveWaiting(spanID string) {
 	}
 }
 
-func (c *SpanLRUCache) Contains(spanID string, key int64) bool {
+func (c *SpanLRUCache) Contains(spanID string, fingerprint int64, key int64) bool {
 	c.mutex.RLock()
 	_, inCache := c.cache[key]
 	waitingList := c.waiting[spanID]
@@ -196,12 +196,11 @@ func (c *SpanLRUCache) Contains(spanID string, key int64) bool {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	// re-check in case it got evicted
-	if _, still := c.cache[key]; !still {
-		return false
+	// resolve waiting for the given fingerprint
+	for _, child := range waitingList {
+		child.parentFingerprint = fingerprint
 	}
-
-	c.resolveWaiting(spanID)
+	delete(c.waiting, spanID)
 
 	return true
 }

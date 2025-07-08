@@ -127,7 +127,7 @@ func (e *entityGraphExporter) addSpanExemplar(cid string, rs ptrace.ResourceSpan
 		cache = NewSpanLRUCache(10000, 15*time.Minute, 5*time.Minute, e.sendExemplarPayload(cid))
 		e.spanExemplarCaches.Store(cid, cache)
 	}
-	contains := cache.Contains(spanId, exemplarKey)
+	contains := cache.Contains(spanId, fingerprint, exemplarKey)
 	if contains {
 		return
 	}

@@ -176,16 +176,19 @@ func TestGetAttributeNames(t *testing.T) {
 func TestGetAuthHeader(t *testing.T) {
 	tests := []struct {
 		name     string
+		targets  []string
 		headers  map[string][]string
 		expected string
 	}{
 		{
 			"no header",
+			[]string{apiKeyHeader, collectorIDHeader, envKeyHeader},
 			map[string][]string{},
 			"",
 		},
 		{
 			"header not found",
+			[]string{apiKeyHeader, collectorIDHeader, envKeyHeader},
 			map[string][]string{
 				"Content-Type": {"application/json"},
 			},
@@ -193,6 +196,7 @@ func TestGetAuthHeader(t *testing.T) {
 		},
 		{
 			"header found",
+			[]string{apiKeyHeader, collectorIDHeader, envKeyHeader},
 			map[string][]string{
 				"x-cardinalhq-api-key": {"my-api-key"},
 				"Content-Type":         {"application/json"},
@@ -201,6 +205,7 @@ func TestGetAuthHeader(t *testing.T) {
 		},
 		{
 			"case insensitive",
+			[]string{apiKeyHeader, collectorIDHeader, envKeyHeader},
 			map[string][]string{
 				"X-CARDINALHQ-API-KEY": {"my-api-key"},
 				"Content-Type":         {"application/json"},
@@ -211,7 +216,7 @@ func TestGetAuthHeader(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			authHeader := getAuthHeader(tt.headers)
+			authHeader := getAuthHeader(tt.targets, tt.headers)
 			assert.Equal(t, tt.expected, authHeader)
 		})
 	}

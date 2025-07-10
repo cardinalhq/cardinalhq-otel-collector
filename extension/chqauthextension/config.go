@@ -25,6 +25,7 @@ type ServerAuth struct {
 	confighttp.ClientConfig `mapstructure:",squash"`
 	CacheTTLValid           time.Duration `mapstructure:"cache_ttl_valid"`
 	CacheTTLInvalid         time.Duration `mapstructure:"cache_ttl_invalid"`
+	Headers                 []string      `mapstructure:"headers"`
 }
 
 type ClientAuth struct {
@@ -52,6 +53,12 @@ var (
 	errBadEnvironmentKey   = errors.New("environment key contains invalid characters: only lowercase letters and _ are allowed")
 	errBadEnvironmentValue = errors.New("environment value contains invalid characters: only alphanumeric characters and _-.@:/, are allowed")
 )
+
+var defaultHeaders = []string{
+	"x-amz-firehose-access-key",
+	"x-cardinalhq-api-key",
+	"dd-api-key",
+}
 
 func (cfg *Config) Validate() error {
 	cauth := cfg.ClientAuth != nil
@@ -97,6 +104,10 @@ func (cfg *ServerAuth) Validate() error {
 	}
 	if cfg.CacheTTLInvalid <= time.Minute {
 		cfg.CacheTTLInvalid = defaultCacheInvalidTTL
+	}
+
+	if len(cfg.Headers) == 0 {
+		cfg.Headers = defaultHeaders
 	}
 	return nil
 }

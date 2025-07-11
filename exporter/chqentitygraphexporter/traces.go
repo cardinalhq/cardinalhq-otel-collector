@@ -18,15 +18,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/cardinalhq/oteltools/pkg/chqpb"
-	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
-	"github.com/cardinalhq/oteltools/pkg/translate"
-	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 	"io"
 	"net/http"
-	"strconv"
 	"time"
+
+	"github.com/cardinalhq/oteltools/pkg/chqpb"
+	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
+	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/cardinalhq/oteltools/pkg/graph"
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -52,7 +51,7 @@ func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Trace
 				spanAttributes.PutStr(graph.SpanKindString, sr.Kind().String())
 
 				cache.ProvisionRecordAttributes(globalEntityMap, spanAttributes)
-				e.addSpanExemplar(cid, rs, iss, sr, fingerprinter.GetFingerprintAttribute(spanAttributes))
+				e.addSpanExemplar(cid, sr, fingerprinter.GetFingerprintAttribute(spanAttributes))
 			}
 		}
 	}
@@ -60,22 +59,42 @@ func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Trace
 	return nil
 }
 
-func (e *entityGraphExporter) sendExemplarPayload(cid string) func(payload []*SpanEntry) {
-	return func(payload []*SpanEntry) {
+func (e *entityGraphExporter) sendExemplarPayload(cid string) func(spans []ptrace.Span) {
+	return func(spans []ptrace.Span) {
 		report := &chqpb.ExemplarPublishReport{
 			OrganizationId: cid,
 			ProcessorId:    e.id.Name(),
 			TelemetryType:  e.ttype,
 			Exemplars:      make([]*chqpb.Exemplar, 0),
 		}
-		for _, entry := range payload {
-			me, err := e.jsonMarshaller.tracesMarshaler.MarshalTraces(entry.exemplar)
+		for _, span := range spans {
+			// Create traces object with just this span
+			traces := ptrace.NewTraces()
+			resourceSpans := traces.ResourceSpans().AppendEmpty()
+			scopeSpans := resourceSpans.ScopeSpans().AppendEmpty()
+			span.CopyTo(scopeSpans.Spans().AppendEmpty())
+
+			me, err := e.jsonMarshaller.tracesMarshaler.MarshalTraces(traces)
 			if err != nil {
 				continue
 			}
+
+			// Extract attributes from span
+			attributes := make(map[string]string)
+			span.Attributes().Range(func(k string, v pcommon.Value) bool {
+				attributes[k] = v.AsString()
+				return true
+			})
+
+			// Use a hash of the span ID as partition ID
+			spanIDHash := int64(0)
+			for _, b := range span.SpanID() {
+				spanIDHash = spanIDHash*31 + int64(b)
+			}
+
 			exemplar := &chqpb.Exemplar{
-				Attributes:  entry.toAttributes(),
-				PartitionId: entry.key,
+				Attributes:  attributes,
+				PartitionId: spanIDHash,
 				Payload:     string(me),
 			}
 			report.Exemplars = append(report.Exemplars, exemplar)
@@ -98,7 +117,7 @@ func (e *entityGraphExporter) sendExemplarPayload(cid string) func(payload []*Sp
 		req.Header.Set("Content-Type", "application/x-protobuf")
 
 		resp, err := e.httpClient.Do(req)
-		e.logger.Info("Sending trace exemplars", zap.String("cid", cid), zap.Int("count", len(payload)), zap.String("endpoint", endpoint),
+		e.logger.Info("Sending trace exemplars", zap.String("cid", cid), zap.Int("count", len(spans)), zap.String("endpoint", endpoint),
 			zap.Int("response_code", resp.StatusCode))
 
 		if err != nil {
@@ -111,37 +130,14 @@ func (e *entityGraphExporter) sendExemplarPayload(cid string) func(payload []*Sp
 			e.logger.Error("Failed to send trace exemplars", zap.Int("status", resp.StatusCode), zap.String("body", string(body)), zap.String("endpoint", endpoint))
 			return
 		}
-		return
 	}
 }
 
-func (e *entityGraphExporter) addSpanExemplar(cid string, rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span, fingerprint int64) {
-	extraKeys := []string{
-		translate.CardinalFieldFingerprint, strconv.FormatInt(fingerprint, 10),
-	}
-	spanId := sr.SpanID().String()
-	parentSpanId := sr.ParentSpanID().String()
-	keys, exemplarKey := fingerprinter.ComputeExemplarKey(rs.Resource(), extraKeys)
+func (e *entityGraphExporter) addSpanExemplar(cid string, sr ptrace.Span, fingerprint int64) {
 	cache, sok := e.spanExemplarCaches.Load(cid)
 	if !sok {
-		cache = NewSpanLRUCache(10000, 15*time.Minute, 5*time.Minute, e.sendExemplarPayload(cid))
+		cache = NewTraceCache(15*time.Minute, 1000, 5*time.Minute, e.sendExemplarPayload(cid))
 		e.spanExemplarCaches.Store(cid, cache)
 	}
-	contains := cache.Contains(spanId, fingerprint, exemplarKey)
-	if contains {
-		return
-	}
-	exemplarRecord := toSpanExemplar(rs, ss, sr)
-	cache.Put(exemplarKey, spanId, parentSpanId, fingerprint, exemplarRecord, keys)
-}
-
-func toSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span) ptrace.Traces {
-	exemplarRecord := ptrace.NewTraces()
-	copyRl := exemplarRecord.ResourceSpans().AppendEmpty()
-	rs.Resource().CopyTo(copyRl.Resource())
-	copySl := copyRl.ScopeSpans().AppendEmpty()
-	ss.Scope().CopyTo(copySl.Scope())
-	copyLr := copySl.Spans().AppendEmpty()
-	sr.CopyTo(copyLr)
-	return exemplarRecord
+	cache.Put(sr, fingerprint)
 }

@@ -138,6 +138,7 @@ func (c *TraceCache) Put(span ptrace.Span, fingerprint int64) {
 	entry.fingerprintMap[sid] = fingerprint
 	entry.spans = append(entry.spans, span)
 	entry.children[pid] = append(entry.children[pid], sid)
+
 }
 
 // runFlusher triggers flow computation every flushInterval
@@ -228,12 +229,17 @@ func (c *TraceCache) flush() {
 				sid := sp.SpanID().String()
 				if parentID, exists := entry.parents[sid]; exists && parentID != "" {
 					if parentFingerprint, parentExists := entry.fingerprintMap[parentID]; parentExists {
-						spanToModify.Attributes().PutInt("parent.fingerprint", parentFingerprint)
+						var parentFingerprintMap pcommon.Map
+						parentFingerprintVal, parentFingerprintExists := spanToModify.Attributes().Get("parent.fingerprints")
+						if parentFingerprintExists {
+							parentFingerprintMap = parentFingerprintVal.Map()
+						} else {
+							parentFingerprintMap = spanToModify.Attributes().PutEmptyMap("parent.fingerprints")
+						}
+						parentFingerprintMap.PutInt("parent.fingerprints", parentFingerprint)
 					}
 				}
-
 			}
-
 		}
 	}
 

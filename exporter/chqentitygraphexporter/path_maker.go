@@ -102,14 +102,15 @@ func (c *TraceCache) Put(span ptrace.Span, fingerprint int64) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	shouldSample := false
+	entry, existsInCache := c.traces[traceID]
+	shouldSample := existsInCache
 
-	if _, exists := c.seenSpanFingerprints[fingerprint]; !exists {
-		c.seenSpanFingerprints[fingerprint] = struct{}{}
+	if !shouldSample && len(c.traces) < c.numSamples {
 		shouldSample = true
 	}
 
-	if !shouldSample && len(c.traces) < c.numSamples {
+	if _, exists := c.seenSpanFingerprints[fingerprint]; !shouldSample && !exists {
+		c.seenSpanFingerprints[fingerprint] = struct{}{}
 		shouldSample = true
 	}
 
@@ -117,8 +118,7 @@ func (c *TraceCache) Put(span ptrace.Span, fingerprint int64) {
 		return
 	}
 
-	entry, ok := c.traces[traceID]
-	if !ok {
+	if !existsInCache {
 		entry = &traceEntry{
 			spans:          make([]ptrace.Span, 0),
 			parents:        make(map[string]string),

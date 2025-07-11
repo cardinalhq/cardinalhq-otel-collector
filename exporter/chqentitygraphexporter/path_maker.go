@@ -15,111 +15,227 @@
 package chqentitygraphexporter
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
+	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"math/rand"
+	"sort"
 	"sync"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
+// traceEntry holds all spans and relationships for a given trace
 type traceEntry struct {
-	spans   []ptrace.Span
-	parents map[string]string // spanID -> parentSpanID
+	spans          []ptrace.Span
+	parents        map[string]string   // spanID -> parentSpanID
+	children       map[string][]string // parentSpanID -> []spanID
+	fingerprintMap map[string]int64    // spanID -> fingerprint
+	timestamp      time.Time           // first seen or last update
 }
 
-type traceBucket struct {
-	sample map[string]struct{}
-}
-
+// TraceCache buffers spans per trace for a rolling expiry window
+// and periodically flushes complete flows with computed flowId hashes.
 type TraceCache struct {
-	mutex          sync.Mutex
-	buckets        map[int]*traceBucket
-	traces         map[string]*traceEntry
-	flushCallback  func(traceID string, spans []ptrace.Span)
-	stopCh         chan struct{}
-	flushInterval  time.Duration
-	numBuckets     int
-	perBucketLimit int
+	mutex                sync.Mutex
+	traces               map[string]*traceEntry
+	expiry               time.Duration
+	flushInterval        time.Duration
+	flushCallback        func(spans []ptrace.Span)
+	stopCh               chan struct{}
+	seenSpanFingerprints map[int64]struct{}
+	numSamples           int
 }
 
-func NewTraceCache(flushInterval time.Duration, numBuckets, perBucketLimit int, flushCallback func(traceID string, spans []ptrace.Span)) *TraceCache {
-	t := &TraceCache{
-		flushInterval:  flushInterval,
-		numBuckets:     numBuckets,
-		perBucketLimit: perBucketLimit,
-		flushCallback:  flushCallback,
-		buckets:        make(map[int]*traceBucket),
-		traces:         make(map[string]*traceEntry),
-		stopCh:         make(chan struct{}),
+// NewTraceCache creates a new TraceCache. 'expiry' controls how long
+// to retain a trace entry before evicting it; 'flushInterval' controls
+// how often flows are computed and emitted via flushCallback.
+func NewTraceCache(
+	expiry time.Duration,
+	numSamples int,
+	flushInterval time.Duration,
+	flushCallback func(spans []ptrace.Span),
+) *TraceCache {
+	c := &TraceCache{
+		traces:               make(map[string]*traceEntry),
+		expiry:               expiry,
+		flushInterval:        flushInterval,
+		flushCallback:        flushCallback,
+		stopCh:               make(chan struct{}),
+		seenSpanFingerprints: make(map[int64]struct{}),
+		numSamples:           numSamples,
 	}
-	for i := 0; i < numBuckets; i++ {
-		t.buckets[i] = &traceBucket{sample: make(map[string]struct{})}
-	}
-	go t.runFlusher()
-	return t
+	go c.startCleaner()
+	go c.runFlusher()
+	return c
 }
 
-func (t *TraceCache) Put(span ptrace.Span, fingerprint int64) {
-	traceID := span.TraceID().String()
-	bucketIdx := rand.Intn(t.numBuckets)
-
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
-
-	bucket := t.buckets[bucketIdx]
-	if _, exists := bucket.sample[traceID]; exists {
-		t.storeSpan(traceID, span)
-		return
-	}
-
-	if len(bucket.sample) < t.perBucketLimit && rand.Float64() < 0.5 {
-		bucket.sample[traceID] = struct{}{}
-		t.storeSpan(traceID, span)
-		return
-	}
-	//TODO: Maintain a map of span fingerprints to check if we have seen this fingerprint before, if not, then add the corresponding traceId to the cache anyway
-}
-
-func (t *TraceCache) storeSpan(traceID string, span ptrace.Span) {
-	entry, exists := t.traces[traceID]
-	if !exists {
-		entry = &traceEntry{
-			spans:   make([]ptrace.Span, 0),
-			parents: make(map[string]string),
-		}
-		t.traces[traceID] = entry
-	}
-	spanID := span.SpanID().String()
-	parentID := span.ParentSpanID().String()
-	entry.parents[spanID] = parentID
-	entry.spans = append(entry.spans, span)
-}
-
-func (t *TraceCache) runFlusher() {
-	ticker := time.NewTicker(t.flushInterval)
+// startCleaner evicts trace entries older than 'expiry'
+func (c *TraceCache) startCleaner() {
+	ticker := time.NewTicker(c.expiry)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			t.flush()
-		case <-t.stopCh:
+			now := time.Now()
+			c.mutex.Lock()
+			for tid, entry := range c.traces {
+				if now.Sub(entry.timestamp) > c.expiry {
+					delete(c.traces, tid)
+				}
+			}
+			c.mutex.Unlock()
+		case <-c.stopCh:
 			return
 		}
 	}
 }
 
-func (t *TraceCache) flush() {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
-	for traceID, entry := range t.traces {
-		t.flushCallback(traceID, entry.spans)
-		delete(t.traces, traceID)
+// Put ingests a span into the cache, recording its parent and fingerprint
+func (c *TraceCache) Put(span ptrace.Span, fingerprint int64) {
+	traceID := span.TraceID().String()
+	now := time.Now()
+
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	shouldSample := false
+
+	if _, exists := c.seenSpanFingerprints[fingerprint]; !exists {
+		c.seenSpanFingerprints[fingerprint] = struct{}{}
+		shouldSample = true
 	}
-	for _, bucket := range t.buckets {
-		bucket.sample = make(map[string]struct{})
+
+	if !shouldSample && len(c.traces) < c.numSamples && rand.Float64() < 0.5 {
+		shouldSample = true
+	}
+
+	if !shouldSample {
+		return
+	}
+
+	entry, ok := c.traces[traceID]
+	if !ok {
+		entry = &traceEntry{
+			spans:          make([]ptrace.Span, 0),
+			parents:        make(map[string]string),
+			children:       make(map[string][]string),
+			fingerprintMap: make(map[string]int64),
+			timestamp:      now,
+		}
+		c.traces[traceID] = entry
+	}
+	// update timestamp for sliding window
+	entry.timestamp = now
+
+	sid := span.SpanID().String()
+	pid := span.ParentSpanID().String()
+
+	entry.parents[sid] = pid
+	entry.fingerprintMap[sid] = fingerprint
+	entry.spans = append(entry.spans, span)
+	entry.children[pid] = append(entry.children[pid], sid)
+}
+
+// runFlusher triggers flow computation every flushInterval
+func (c *TraceCache) runFlusher() {
+	ticker := time.NewTicker(c.flushInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			c.flush()
+		case <-c.stopCh:
+			return
+		}
 	}
 }
 
-func (t *TraceCache) Close() {
-	close(t.stopCh)
+// flush computes a flowId per root-based DFS and emits via flushCallback
+func (c *TraceCache) flush() {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	seenFlowIDs := make(map[string]struct{})
+	spansByFingerprint := make(map[int64]ptrace.Span)
+	spansToFlush := make([]ptrace.Span, 0)
+
+	for _, entry := range c.traces {
+		// find root spanIDs: those whose parent is empty or missing
+		roots := make([]string, 0)
+		for sid, pid := range entry.parents {
+			if pid == "" {
+				roots = append(roots, sid)
+			} else if _, exists := entry.parents[pid]; !exists {
+				roots = append(roots, sid)
+			}
+		}
+		// if no explicit roots, pick the first span
+		if len(roots) == 0 && len(entry.spans) > 0 {
+			roots = append(roots, entry.spans[0].SpanID().String())
+		}
+
+		for _, root := range roots {
+			var order []int64
+			var dfs func(string)
+			dfs = func(cur string) {
+				if fp, ok := entry.fingerprintMap[cur]; ok {
+					order = append(order, fp)
+				}
+				kids := entry.children[cur]
+				sort.Strings(kids)
+				for _, child := range kids {
+					dfs(child)
+				}
+			}
+			dfs(root)
+
+			h := sha256.New()
+			for _, fp := range order {
+				var buf [8]byte
+				binary.BigEndian.PutUint64(buf[:], uint64(fp))
+				h.Write(buf[:])
+			}
+			flowID := hex.EncodeToString(h.Sum(nil))
+
+			if _, dup := seenFlowIDs[flowID]; dup {
+				continue
+			}
+			seenFlowIDs[flowID] = struct{}{}
+
+			for _, sp := range entry.spans {
+				fingerprint := fingerprinter.GetFingerprintAttribute(sp.Attributes())
+				// check if spansByFingerprint already has this fingerprint
+				var spanToModify ptrace.Span
+				if s, exists := spansByFingerprint[fingerprint]; exists {
+					spanToModify = s
+				} else {
+					spanToModify = sp
+				}
+				var flowIdMap pcommon.Map
+				flowIdVal, flowIdValExists := spanToModify.Attributes().Get("flowId")
+				if flowIdValExists {
+					flowIdMap = flowIdVal.Map()
+				} else {
+					flowIdMap = spanToModify.Attributes().PutEmptyMap("flowId")
+				}
+				flowIdMap.PutStr(flowID, "")
+			}
+
+		}
+	}
+
+	for _, span := range spansByFingerprint {
+		spansToFlush = append(spansToFlush, span)
+	}
+
+	c.flushCallback(spansToFlush)
+}
+
+// Close stops background routines
+func (c *TraceCache) Close() {
+	close(c.stopCh)
 }

@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/cardinalhq/oteltools/hashutils"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
 	"go.uber.org/zap"
@@ -68,7 +69,6 @@ func (e *entityGraphExporter) sendExemplarPayload(cid string) func(spans []ptrac
 			Exemplars:      make([]*chqpb.Exemplar, 0),
 		}
 		for _, span := range spans {
-			// Create traces object with just this span
 			traces := ptrace.NewTraces()
 			resourceSpans := traces.ResourceSpans().AppendEmpty()
 			scopeSpans := resourceSpans.ScopeSpans().AppendEmpty()
@@ -86,15 +86,10 @@ func (e *entityGraphExporter) sendExemplarPayload(cid string) func(spans []ptrac
 				return true
 			})
 
-			// Use a hash of the span ID as partition ID
-			spanIDHash := int64(0)
-			for _, b := range span.SpanID() {
-				spanIDHash = spanIDHash*31 + int64(b)
-			}
-
+			spanFingerprint := fingerprinter.GetFingerprintAttribute(span.Attributes())
 			exemplar := &chqpb.Exemplar{
 				Attributes:  attributes,
-				PartitionId: spanIDHash,
+				PartitionId: spanFingerprint,
 				Payload:     string(me),
 			}
 			report.Exemplars = append(report.Exemplars, exemplar)

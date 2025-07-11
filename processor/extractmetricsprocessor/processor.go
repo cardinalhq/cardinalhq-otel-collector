@@ -59,7 +59,7 @@ type extractor struct {
 	configCallbackID int
 	logExtractors    syncmap.SyncMap[string, []*ottl.LogExtractor]
 	spanExtractors   syncmap.SyncMap[string, []*ottl.SpanExtractor]
-	metricExtractors syncmap.SyncMap[string, map[string]*ottl.MetricSketchExtractor]
+	metricExtractors syncmap.SyncMap[string, map[string][]*ottl.MetricSketchExtractor]
 
 	spanAggregateSketchCaches syncmap.SyncMap[string, *chqpb.SpanSketchCache]
 	spanLineSketchCaches      syncmap.SyncMap[string, *chqpb.SpanSketchCache]

@@ -5,7 +5,7 @@ go 1.24
 toolchain go1.24.2
 
 require (
-	github.com/cardinalhq/oteltools v0.30.16
+	github.com/cardinalhq/oteltools v0.30.18
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/collector/component v1.34.0
 	go.opentelemetry.io/collector/config/confighttp v0.128.0

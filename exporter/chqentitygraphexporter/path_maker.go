@@ -18,12 +18,12 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
-	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
-	"go.opentelemetry.io/collector/pdata/pcommon"
-	"math/rand"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
@@ -109,7 +109,7 @@ func (c *TraceCache) Put(span ptrace.Span, fingerprint int64) {
 		shouldSample = true
 	}
 
-	if !shouldSample && len(c.traces) < c.numSamples && rand.Float64() < 0.5 {
+	if !shouldSample && len(c.traces) < c.numSamples {
 		shouldSample = true
 	}
 
@@ -214,6 +214,7 @@ func (c *TraceCache) flush() {
 					spanToModify = s
 				} else {
 					spanToModify = sp
+					spansByFingerprint[fingerprint] = sp
 				}
 				var flowIdMap pcommon.Map
 				flowIdVal, flowIdValExists := spanToModify.Attributes().Get("flowId")
@@ -223,6 +224,14 @@ func (c *TraceCache) flush() {
 					flowIdMap = spanToModify.Attributes().PutEmptyMap("flowId")
 				}
 				flowIdMap.PutStr(flowID, "")
+
+				sid := sp.SpanID().String()
+				if parentID, exists := entry.parents[sid]; exists && parentID != "" {
+					if parentFingerprint, parentExists := entry.fingerprintMap[parentID]; parentExists {
+						spanToModify.Attributes().PutInt("parent.fingerprint", parentFingerprint)
+					}
+				}
+
 			}
 
 		}

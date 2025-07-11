@@ -19,6 +19,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -236,7 +237,7 @@ func (c *TraceCache) flush() {
 						} else {
 							parentFingerprintMap = spanToModify.Attributes().PutEmptyMap("parent.fingerprints")
 						}
-						parentFingerprintMap.PutInt("parent.fingerprints", parentFingerprint)
+						parentFingerprintMap.PutStr(strconv.FormatInt(parentFingerprint, 10), "")
 					}
 				}
 			}

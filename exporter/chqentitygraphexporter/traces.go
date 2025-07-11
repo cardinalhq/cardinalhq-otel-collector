@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
-	"github.com/cardinalhq/oteltools/hashutils"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
 	"go.uber.org/zap"
@@ -82,7 +82,17 @@ func (e *entityGraphExporter) sendExemplarPayload(cid string) func(spans []ptrac
 			// Extract attributes from span
 			attributes := make(map[string]string)
 			span.Attributes().Range(func(k string, v pcommon.Value) bool {
-				attributes[k] = v.AsString()
+				if v.Type() == pcommon.ValueTypeMap {
+					mapData := v.Map()
+					var values []string
+					mapData.Range(func(mapK string, mapV pcommon.Value) bool {
+						values = append(values, mapK)
+						return true
+					})
+					attributes[k] = strings.Join(values, ",")
+				} else {
+					attributes[k] = v.AsString()
+				}
 				return true
 			})
 

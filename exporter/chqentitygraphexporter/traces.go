@@ -141,7 +141,7 @@ func (e *entityGraphExporter) sendExemplarPayload(cid string) func(spans []ptrac
 func (e *entityGraphExporter) addSpanExemplar(cid string, sr ptrace.Span, fingerprint int64) {
 	cache, sok := e.spanExemplarCaches.Load(cid)
 	if !sok {
-		cache = NewTraceCache(15*time.Minute, 1000, 5*time.Minute, e.sendExemplarPayload(cid))
+		cache = NewTraceCache(5*time.Minute, 1000, e.sendExemplarPayload(cid))
 		e.spanExemplarCaches.Store(cid, cache)
 	}
 	cache.Put(sr, fingerprint)

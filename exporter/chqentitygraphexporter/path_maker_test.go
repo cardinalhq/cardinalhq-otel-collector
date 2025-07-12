@@ -129,7 +129,7 @@ func TestTraceCache_TwoCallGraphs(t *testing.T) {
 	cache.Put(s6, 5)
 
 	// manually flush
-	cache.flush()
+	cache.flush(cache.traces)
 
 	if len(calls) != 1 {
 		t.Fatalf("expected single flush call, got %d", len(calls))

@@ -18,6 +18,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"math/rand"
 	"sort"
 	"strconv"
 	"sync"
@@ -36,19 +37,26 @@ type traceEntry struct {
 	children       map[string][]string // parentSpanID -> []spanID
 	fingerprintMap map[string]int64    // spanID -> fingerprint
 	timestamp      time.Time           // first seen or last update
+	isHot          bool
 }
 
 // TraceCache buffers spans per trace for a rolling expiry window
 // and periodically flushes complete flows with computed flowId hashes.
 type TraceCache struct {
-	mutex                sync.Mutex
-	traces               map[string]*traceEntry
-	expiry               time.Duration
-	flushInterval        time.Duration
-	flushCallback        func(spans []ptrace.Span)
-	stopCh               chan struct{}
-	seenSpanFingerprints map[int64]struct{}
-	numSamples           int
+	mutex         sync.Mutex
+	traces        map[string]*traceEntry
+	expiry        time.Duration
+	flushInterval time.Duration
+	flushCallback func(spans []ptrace.Span)
+	stopCh        chan struct{}
+
+	hotTraceIDs          []string        // traceIDs considered hot
+	hotIdx               map[string]int  // index of hot traceIDs for quick lookup
+	seenSpanFingerprints map[int64]int64 // fingerprints of spans seen in hot flows
+
+	hotFingerprints map[int64]struct{} // fingerprints of spans in hot flows
+
+	numSamples int
 }
 
 // NewTraceCache creates a new TraceCache. 'expiry' controls how long
@@ -57,20 +65,20 @@ type TraceCache struct {
 func NewTraceCache(
 	expiry time.Duration,
 	numSamples int,
-	flushInterval time.Duration,
 	flushCallback func(spans []ptrace.Span),
 ) *TraceCache {
 	c := &TraceCache{
 		traces:               make(map[string]*traceEntry),
 		expiry:               expiry,
-		flushInterval:        flushInterval,
 		flushCallback:        flushCallback,
 		stopCh:               make(chan struct{}),
-		seenSpanFingerprints: make(map[int64]struct{}),
+		hotFingerprints:      make(map[int64]struct{}),
+		hotTraceIDs:          make([]string, 0),
+		hotIdx:               make(map[string]int),
+		seenSpanFingerprints: make(map[int64]int64),
 		numSamples:           numSamples,
 	}
 	go c.startCleaner()
-	go c.runFlusher()
 	return c
 }
 
@@ -83,9 +91,20 @@ func (c *TraceCache) startCleaner() {
 		case <-ticker.C:
 			now := time.Now()
 			c.mutex.Lock()
-			for tid, entry := range c.traces {
+			tracesToExpire := make(map[string]*traceEntry)
+			for traceID, entry := range c.traces {
 				if now.Sub(entry.timestamp) > c.expiry {
-					delete(c.traces, tid)
+					tracesToExpire[traceID] = entry
+				}
+			}
+			c.hotFingerprints = c.flush(tracesToExpire)
+			for traceID := range tracesToExpire {
+				c.deleteTrace(traceID)
+			}
+
+			for fingerprint, timestamp := range c.seenSpanFingerprints {
+				if now.UnixMilli()-timestamp > 5*int64(c.expiry/time.Millisecond) {
+					delete(c.seenSpanFingerprints, fingerprint)
 				}
 			}
 			c.mutex.Unlock()
@@ -111,12 +130,23 @@ func (c *TraceCache) Put(span ptrace.Span, fingerprint int64) {
 	}
 
 	if _, exists := c.seenSpanFingerprints[fingerprint]; !shouldSample && !exists {
-		c.seenSpanFingerprints[fingerprint] = struct{}{}
+		c.seenSpanFingerprints[fingerprint] = now.UnixMilli()
 		shouldSample = true
 	}
 
+	// if still not sampling, evict one hot trace to make room
 	if !shouldSample {
-		return
+		if len(c.hotTraceIDs) > 0 {
+			// pick a random hot trace to evict
+			i := rand.Intn(len(c.hotTraceIDs))
+			victim := c.hotTraceIDs[i]
+			// deleteTrace handles removing from c.traces and the hot structures.
+			c.deleteTrace(victim)
+			shouldSample = true
+		} else {
+			// no hot traces to evict — skip this new trace
+			return
+		}
 	}
 
 	if !existsInCache {
@@ -126,9 +156,26 @@ func (c *TraceCache) Put(span ptrace.Span, fingerprint int64) {
 			children:       make(map[string][]string),
 			fingerprintMap: make(map[string]int64),
 			timestamp:      now,
+			isHot:          false,
 		}
 		c.traces[traceID] = entry
 	}
+	c.storeSpan(traceID, span, fingerprint, entry, now)
+}
+
+// deleteTrace removes from all state
+func (c *TraceCache) deleteTrace(traceID string) {
+	delete(c.traces, traceID)
+	if idx, ok := c.hotIdx[traceID]; ok {
+		last := c.hotTraceIDs[len(c.hotTraceIDs)-1]
+		c.hotTraceIDs[idx] = last
+		c.hotIdx[last] = idx
+		c.hotTraceIDs = c.hotTraceIDs[:len(c.hotTraceIDs)-1]
+		delete(c.hotIdx, traceID)
+	}
+}
+
+func (c *TraceCache) storeSpan(traceID string, span ptrace.Span, fingerprint int64, entry *traceEntry, now time.Time) {
 	// update timestamp for sliding window
 	entry.timestamp = now
 
@@ -139,33 +186,25 @@ func (c *TraceCache) Put(span ptrace.Span, fingerprint int64) {
 	entry.fingerprintMap[sid] = fingerprint
 	entry.spans = append(entry.spans, span)
 	entry.children[pid] = append(entry.children[pid], sid)
-
-}
-
-// runFlusher triggers flow computation every flushInterval
-func (c *TraceCache) runFlusher() {
-	ticker := time.NewTicker(c.flushInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			c.flush()
-		case <-c.stopCh:
-			return
+	_, isHot := c.hotFingerprints[fingerprint]
+	entry.isHot = entry.isHot || isHot
+	if entry.isHot {
+		if _, exists := c.hotIdx[traceID]; !exists {
+			c.hotTraceIDs = append(c.hotTraceIDs, traceID)
+			c.hotIdx[traceID] = len(c.hotTraceIDs) - 1
 		}
 	}
 }
 
 // flush computes a flowId per root-based DFS and emits via flushCallback
-func (c *TraceCache) flush() {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-
+func (c *TraceCache) flush(tracesToExpire map[string]*traceEntry) map[int64]struct{} {
 	seenFlowIDs := make(map[string]struct{})
 	spansByFingerprint := make(map[int64]ptrace.Span)
 	spansToFlush := make([]ptrace.Span, 0)
+	frequencyByFlowId := make(map[string]int)
+	spanFingerprintsByFlowId := make(map[string]map[int64]struct{})
 
-	for _, entry := range c.traces {
+	for _, entry := range tracesToExpire {
 		// find root spanIDs: those whose parent is empty or missing
 		roots := make([]string, 0)
 		for sid, pid := range entry.parents {
@@ -202,6 +241,8 @@ func (c *TraceCache) flush() {
 				h.Write(buf[:])
 			}
 			flowID := hex.EncodeToString(h.Sum(nil))
+			frequencyByFlowId[flowID]++
+			spanFingerprintsByFlowId[flowID] = make(map[int64]struct{})
 
 			if _, dup := seenFlowIDs[flowID]; dup {
 				continue
@@ -210,6 +251,8 @@ func (c *TraceCache) flush() {
 
 			for _, sp := range entry.spans {
 				fingerprint := fingerprinter.GetFingerprintAttribute(sp.Attributes())
+				spanFingerprintsByFlowId[flowID][fingerprint] = struct{}{}
+
 				// check if spansByFingerprint already has this fingerprint
 				var spanToModify ptrace.Span
 				if s, exists := spansByFingerprint[fingerprint]; exists {
@@ -249,6 +292,19 @@ func (c *TraceCache) flush() {
 	}
 
 	c.flushCallback(spansToFlush)
+
+	// identify hot flows, and add them to hotFingerprints
+	hotFingerprints := make(map[int64]struct{})
+	for flowID, count := range frequencyByFlowId {
+		if count >= int(0.8*float64(len(c.traces))) {
+			if fingerprints, ok := spanFingerprintsByFlowId[flowID]; ok {
+				for fingerprint := range fingerprints {
+					hotFingerprints[fingerprint] = struct{}{}
+				}
+			}
+		}
+	}
+	return hotFingerprints
 }
 
 // Close stops background routines

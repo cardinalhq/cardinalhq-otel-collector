@@ -67,10 +67,9 @@ func makeSpan(traceHex, spanHex, parentHex string) (ptrace.Span, error) {
 func TestTraceCache_TwoCallGraphs(t *testing.T) {
 	// setup cache
 	expiry := time.Minute
-	flushInterval := time.Minute
 	numSamples := 10
 	var calls [][]ptrace.Span
-	cache := NewTraceCache(expiry, numSamples, flushInterval, func(spans []ptrace.Span) {
+	cache := NewTraceCache(expiry, numSamples, func(spans []ptrace.Span) {
 		calls = append(calls, spans)
 	})
 
@@ -158,6 +157,83 @@ func TestTraceCache_TwoCallGraphs(t *testing.T) {
 		3: 1,
 		4: 1,
 		5: 1,
+	}
+
+	for fp, exp := range expected {
+		if counts[fp] != exp {
+			t.Errorf("fingerprint %d: expected %d flowIds, got %d", fp, exp, counts[fp])
+		}
+	}
+}
+
+func TestTraceCache_SharedIntermediateSpan(t *testing.T) {
+	expiry := time.Minute
+	numSamples := 10
+	var calls [][]ptrace.Span
+	cache := NewTraceCache(expiry, numSamples, func(spans []ptrace.Span) {
+		calls = append(calls, spans)
+	})
+
+	trace1 := "00000000000000000000000000000003"
+	trace2 := "00000000000000000000000000000004"
+
+	// Span IDs:
+	// A (01) → B (02) → C (03)
+	// E (05) → B (02) → F (06)
+	spanA := "0100000000000000"
+	spanB := "0200000000000000"
+	spanC := "0300000000000000"
+	spanE := "0500000000000000"
+	spanF := "0600000000000000"
+
+	// Flow 1: A → B → C
+	s1, _ := makeSpan(trace1, spanA, "")
+	s1.Attributes().PutInt(translate.CardinalFieldFingerprint, 1)
+	s2, _ := makeSpan(trace1, spanB, spanA)
+	s2.Attributes().PutInt(translate.CardinalFieldFingerprint, 2)
+	s3, _ := makeSpan(trace1, spanC, spanB)
+	s3.Attributes().PutInt(translate.CardinalFieldFingerprint, 3)
+
+	// Flow 2: E → B → F (same B as in Flow 1)
+	s4, _ := makeSpan(trace2, spanE, "")
+	s4.Attributes().PutInt(translate.CardinalFieldFingerprint, 5)
+	s5, _ := makeSpan(trace2, spanB, spanE) // same spanID and fingerprint as s2
+	s5.Attributes().PutInt(translate.CardinalFieldFingerprint, 2)
+	s6, _ := makeSpan(trace2, spanF, spanB)
+	s6.Attributes().PutInt(translate.CardinalFieldFingerprint, 6)
+
+	cache.Put(s1, 1)
+	cache.Put(s2, 2)
+	cache.Put(s3, 3)
+	cache.Put(s4, 5)
+	cache.Put(s5, 2)
+	cache.Put(s6, 6)
+
+	cache.flush(cache.traces)
+
+	if len(calls) != 1 {
+		t.Fatalf("expected single flush call, got %d", len(calls))
+	}
+	sl := calls[0]
+
+	// Count how many flowIds each fingerprint was involved in
+	counts := make(map[int64]int)
+	for _, sp := range sl {
+		fp := fingerprinter.GetFingerprintAttribute(sp.Attributes())
+		val, _ := sp.Attributes().Get("flowId")
+		flowMap := val.Map()
+		flowMap.Range(func(k string, v pcommon.Value) bool {
+			counts[fp]++
+			return true
+		})
+	}
+
+	expected := map[int64]int{
+		1: 1, // A: only in Flow 1
+		2: 2, // B: reused in Flow 1 and Flow 2
+		3: 1, // C
+		5: 1, // E
+		6: 1, // F
 	}
 
 	for fp, exp := range expected {

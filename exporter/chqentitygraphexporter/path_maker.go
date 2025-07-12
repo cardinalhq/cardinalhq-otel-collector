@@ -156,7 +156,7 @@ func (c *TraceCache) Put(span ptrace.Span, fingerprint int64) {
 			children:       make(map[string][]string),
 			fingerprintMap: make(map[string]int64),
 			timestamp:      now,
-			isHot:          false,
+			isHot:          true,
 		}
 		c.traces[traceID] = entry
 	}
@@ -187,11 +187,19 @@ func (c *TraceCache) storeSpan(traceID string, span ptrace.Span, fingerprint int
 	entry.spans = append(entry.spans, span)
 	entry.children[pid] = append(entry.children[pid], sid)
 	_, isHot := c.hotFingerprints[fingerprint]
-	entry.isHot = entry.isHot || isHot
+	entry.isHot = entry.isHot && isHot
 	if entry.isHot {
 		if _, exists := c.hotIdx[traceID]; !exists {
 			c.hotTraceIDs = append(c.hotTraceIDs, traceID)
 			c.hotIdx[traceID] = len(c.hotTraceIDs) - 1
+		}
+	} else {
+		if idx, exists := c.hotIdx[traceID]; exists {
+			last := c.hotTraceIDs[len(c.hotTraceIDs)-1]
+			c.hotTraceIDs[idx] = last
+			c.hotIdx[last] = idx
+			c.hotTraceIDs = c.hotTraceIDs[:len(c.hotTraceIDs)-1]
+			delete(c.hotIdx, traceID)
 		}
 	}
 }

@@ -1,0 +1,18 @@
+receivers:
+  nop:
+
+processors:
+  chqspanner:
+
+exporters:
+  nop:
+
+service:
+  pipelines:
+    metrics:
+      receivers: [nop]
+      processors: [chqspanner]
+      exporters: [nop]
+
+extensions:
+  nop:

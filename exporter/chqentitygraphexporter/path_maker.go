@@ -224,6 +224,10 @@ func (c *TraceCache) flush(tracesToExpire map[string]*traceEntry) map[int64]stru
 		}
 		// if no explicit roots, pick the first span
 		if len(roots) == 0 && len(entry.spans) > 0 {
+			// fallback to the span with the earliest timestamp
+			sort.Slice(entry.spans, func(i, j int) bool {
+				return entry.spans[i].StartTimestamp() < entry.spans[j].StartTimestamp()
+			})
 			roots = append(roots, entry.spans[0].SpanID().String())
 		}
 

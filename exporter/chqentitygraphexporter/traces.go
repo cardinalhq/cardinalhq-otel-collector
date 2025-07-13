@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 	"io"
 	"net/http"
 	"strings"
@@ -52,7 +53,9 @@ func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Trace
 				spanAttributes.PutStr(graph.SpanKindString, sr.Kind().String())
 
 				cache.ProvisionRecordAttributes(globalEntityMap, spanAttributes)
-				e.addSpanExemplar(cid, sr, fingerprinter.GetFingerprintAttribute(spanAttributes))
+				computedFingerprint := fingerprinter.CalculateSpanFingerprint(rs.Resource(), sr)
+				spanAttributes.PutInt(translate.CardinalFieldFingerprint, computedFingerprint)
+				e.addSpanExemplar(cid, sr, computedFingerprint)
 			}
 		}
 	}

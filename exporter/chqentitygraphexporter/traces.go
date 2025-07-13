@@ -71,13 +71,13 @@ func (e *entityGraphExporter) sendExemplarPayload(cid string) func(payload []*Sp
 			Exemplars:      make([]*chqpb.Exemplar, 0),
 		}
 		for _, entry := range payload {
-			me, err := e.jsonMarshaller.tracesMarshaler.MarshalTraces(entry.exemplar)
+			me, err := e.jsonMarshaller.tracesMarshaler.MarshalTraces(entry.Exemplar)
 			if err != nil {
 				continue
 			}
 			exemplar := &chqpb.Exemplar{
 				Attributes:  entry.toAttributes(),
-				PartitionId: entry.key,
+				PartitionId: entry.Key,
 				Payload:     string(me),
 			}
 			report.Exemplars = append(report.Exemplars, exemplar)
@@ -126,10 +126,10 @@ func (e *entityGraphExporter) addSpanExemplar(cid string, rs ptrace.ResourceSpan
 	keys, exemplarKey := fingerprinter.ComputeExemplarKey(rs.Resource(), extraKeys)
 	cache, sok := e.spanExemplarCaches.Load(cid)
 	if !sok {
-		cache = NewSpanLRUCache(10000, 15*time.Minute, 5*time.Minute, e.sendExemplarPayload(cid))
+		cache = NewSpanCache(15*time.Minute, 5*time.Minute, e.sendExemplarPayload(cid))
 		e.spanExemplarCaches.Store(cid, cache)
 	}
-	contains := cache.Contains(spanId, fingerprint, exemplarKey)
+	contains := cache.Contains(spanId, parentSpanId, fingerprint, exemplarKey)
 	if contains {
 		return
 	}

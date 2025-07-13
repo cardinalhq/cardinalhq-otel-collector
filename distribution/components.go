@@ -142,6 +142,7 @@ import (
 	summarysplitprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor"
 	extractmetricsprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor"
 	chqexemplarprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/chqexemplarprocessor"
+	chqspannerprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/chqspannerprocessor"
 	nopreceiver "go.opentelemetry.io/collector/receiver/nopreceiver"
 	otlpreceiver "go.opentelemetry.io/collector/receiver/otlpreceiver"
 	activedirectorydsreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/activedirectorydsreceiver"
@@ -678,6 +679,7 @@ func components() (otelcol.Factories, error) {
 		summarysplitprocessor.NewFactory(),
 		extractmetricsprocessor.NewFactory(),
 		chqexemplarprocessor.NewFactory(),
+		chqspannerprocessor.NewFactory(),
 	)
 	if err != nil {
 		return otelcol.Factories{}, err
@@ -714,6 +716,7 @@ func components() (otelcol.Factories, error) {
 	factories.ProcessorModules[summarysplitprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.128.0"
 	factories.ProcessorModules[extractmetricsprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.128.0"
 	factories.ProcessorModules[chqexemplarprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/chqexemplarprocessor v0.128.0"
+	factories.ProcessorModules[chqspannerprocessor.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/processor/chqspannerprocessor v0.128.0"
 
 	factories.Connectors, err = otelcol.MakeFactoryMap[connector.Factory](
 		forwardconnector.NewFactory(),

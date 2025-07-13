@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
@@ -68,8 +67,8 @@ func TestTraceCache_TwoCallGraphs(t *testing.T) {
 	// setup cache
 	expiry := time.Minute
 	numSamples := 10
-	var calls [][]ptrace.Span
-	cache := NewTraceCache(expiry, numSamples, func(spans []ptrace.Span) {
+	var calls [][]spanWrapper
+	cache := NewTraceCache(expiry, numSamples, func(spans []spanWrapper) {
 		calls = append(calls, spans)
 	})
 
@@ -120,12 +119,13 @@ func TestTraceCache_TwoCallGraphs(t *testing.T) {
 	s6.Attributes().PutInt(translate.CardinalFieldFingerprint, 5)
 
 	// ingest spans
-	cache.Put(s1, 1)
-	cache.Put(s2, 2)
-	cache.Put(s3, 3)
-	cache.Put(s4, 1)
-	cache.Put(s5, 4)
-	cache.Put(s6, 5)
+	attributes := make(map[string]string)
+	cache.Put(s1, ptrace.NewTraces(), 1, attributes)
+	cache.Put(s2, ptrace.NewTraces(), 2, attributes)
+	cache.Put(s3, ptrace.NewTraces(), 3, attributes)
+	cache.Put(s4, ptrace.NewTraces(), 1, attributes)
+	cache.Put(s5, ptrace.NewTraces(), 4, attributes)
+	cache.Put(s6, ptrace.NewTraces(), 5, attributes)
 
 	// manually flush
 	cache.flush(cache.traces)
@@ -139,16 +139,9 @@ func TestTraceCache_TwoCallGraphs(t *testing.T) {
 	counts := make(map[int64]int)
 	for _, sp := range sl {
 		// extract fingerprint
-		fp := fingerprinter.GetFingerprintAttribute(sp.Attributes())
+		fp := sp.fingerprint
 		// extract flowId map and count its entries
-		val, _ := sp.Attributes().Get("flowId")
-		flowMap := val.Map()
-		count := 0
-		flowMap.Range(func(k string, v pcommon.Value) bool {
-			count++
-			return true
-		})
-		counts[fp] = count
+		counts[fp] = len(sp.flowIds)
 	}
 
 	expected := map[int64]int{
@@ -169,8 +162,8 @@ func TestTraceCache_TwoCallGraphs(t *testing.T) {
 func TestTraceCache_SharedIntermediateSpan(t *testing.T) {
 	expiry := time.Minute
 	numSamples := 10
-	var calls [][]ptrace.Span
-	cache := NewTraceCache(expiry, numSamples, func(spans []ptrace.Span) {
+	var calls [][]spanWrapper
+	cache := NewTraceCache(expiry, numSamples, func(spans []spanWrapper) {
 		calls = append(calls, spans)
 	})
 
@@ -202,12 +195,13 @@ func TestTraceCache_SharedIntermediateSpan(t *testing.T) {
 	s6, _ := makeSpan(trace2, spanF, spanB)
 	s6.Attributes().PutInt(translate.CardinalFieldFingerprint, 6)
 
-	cache.Put(s1, 1)
-	cache.Put(s2, 2)
-	cache.Put(s3, 3)
-	cache.Put(s4, 5)
-	cache.Put(s5, 2)
-	cache.Put(s6, 6)
+	attrs := make(map[string]string)
+	cache.Put(s1, ptrace.NewTraces(), 1, attrs)
+	cache.Put(s2, ptrace.NewTraces(), 2, attrs)
+	cache.Put(s3, ptrace.NewTraces(), 3, attrs)
+	cache.Put(s4, ptrace.NewTraces(), 5, attrs)
+	cache.Put(s5, ptrace.NewTraces(), 2, attrs)
+	cache.Put(s6, ptrace.NewTraces(), 6, attrs)
 
 	cache.flush(cache.traces)
 
@@ -219,13 +213,8 @@ func TestTraceCache_SharedIntermediateSpan(t *testing.T) {
 	// Count how many flowIds each fingerprint was involved in
 	counts := make(map[int64]int)
 	for _, sp := range sl {
-		fp := fingerprinter.GetFingerprintAttribute(sp.Attributes())
-		val, _ := sp.Attributes().Get("flowId")
-		flowMap := val.Map()
-		flowMap.Range(func(k string, v pcommon.Value) bool {
-			counts[fp]++
-			return true
-		})
+		fp := sp.fingerprint
+		counts[fp] = len(sp.flowIds)
 	}
 
 	expected := map[int64]int{

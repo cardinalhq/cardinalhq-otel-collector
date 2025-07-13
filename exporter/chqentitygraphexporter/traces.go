@@ -19,8 +19,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/cardinalhq/oteltools/pkg/translate"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -55,7 +57,7 @@ func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Trace
 				cache.ProvisionRecordAttributes(globalEntityMap, spanAttributes)
 				computedFingerprint := fingerprinter.CalculateSpanFingerprint(rs.Resource(), sr)
 				spanAttributes.PutInt(translate.CardinalFieldFingerprint, computedFingerprint)
-				e.addSpanExemplar(cid, sr, computedFingerprint)
+				e.addSpanExemplar(cid, rs, iss, sr, computedFingerprint)
 			}
 		}
 	}
@@ -63,8 +65,8 @@ func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Trace
 	return nil
 }
 
-func (e *entityGraphExporter) sendExemplarPayload(cid string) func(spans []ptrace.Span) {
-	return func(spans []ptrace.Span) {
+func (e *entityGraphExporter) sendExemplarPayload(cid string) func(spans []spanWrapper) {
+	return func(spans []spanWrapper) {
 		report := &chqpb.ExemplarPublishReport{
 			OrganizationId: cid,
 			ProcessorId:    e.id.Name(),
@@ -72,38 +74,29 @@ func (e *entityGraphExporter) sendExemplarPayload(cid string) func(spans []ptrac
 			Exemplars:      make([]*chqpb.Exemplar, 0),
 		}
 		for _, span := range spans {
-			traces := ptrace.NewTraces()
-			resourceSpans := traces.ResourceSpans().AppendEmpty()
-			scopeSpans := resourceSpans.ScopeSpans().AppendEmpty()
-			span.CopyTo(scopeSpans.Spans().AppendEmpty())
-
-			me, err := e.jsonMarshaller.tracesMarshaler.MarshalTraces(traces)
+			payload, err := e.jsonMarshaller.tracesMarshaler.MarshalTraces(span.exemplar)
 			if err != nil {
 				continue
 			}
 
-			// Extract attributes from span
-			attributes := make(map[string]string)
-			span.Attributes().Range(func(k string, v pcommon.Value) bool {
-				if v.Type() == pcommon.ValueTypeMap {
-					mapData := v.Map()
-					var values []string
-					mapData.Range(func(mapK string, mapV pcommon.Value) bool {
-						values = append(values, mapK)
-						return true
-					})
-					attributes[k] = strings.Join(values, ",")
-				} else {
-					attributes[k] = v.AsString()
+			if len(span.parentFingerprints) > 0 {
+				var pfpList []string
+				for pfp, _ := range span.parentFingerprints {
+					pfpList = append(pfpList, strconv.FormatInt(pfp, 10))
 				}
-				return true
-			})
-
-			spanFingerprint := fingerprinter.GetFingerprintAttribute(span.Attributes())
+				span.attributes["parent.fingerprints"] = strings.Join(pfpList, ",")
+			}
+			if len(span.flowIds) > 0 {
+				var flowIdList []string
+				for flowId, _ := range span.flowIds {
+					flowIdList = append(flowIdList, flowId)
+				}
+				span.attributes["flow.ids"] = strings.Join(flowIdList, ",")
+			}
 			exemplar := &chqpb.Exemplar{
-				Attributes:  attributes,
-				PartitionId: spanFingerprint,
-				Payload:     string(me),
+				Attributes:  span.attributes,
+				PartitionId: span.fingerprint,
+				Payload:     string(payload),
 			}
 			report.Exemplars = append(report.Exemplars, exemplar)
 		}
@@ -141,11 +134,29 @@ func (e *entityGraphExporter) sendExemplarPayload(cid string) func(spans []ptrac
 	}
 }
 
-func (e *entityGraphExporter) addSpanExemplar(cid string, sr ptrace.Span, fingerprint int64) {
+func (e *entityGraphExporter) addSpanExemplar(cid string, rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span, fingerprint int64) {
 	cache, sok := e.spanExemplarCaches.Load(cid)
 	if !sok {
 		cache = NewTraceCache(5*time.Minute, 1000, e.sendExemplarPayload(cid))
 		e.spanExemplarCaches.Store(cid, cache)
 	}
-	cache.Put(sr, fingerprint)
+
+	attributes := make(map[string]string)
+	attributes[string(semconv.ServiceNameKey)] = fingerprinter.GetFromResource(rs.Resource().Attributes(), string(semconv.ServiceNameKey))
+	attributes[string(semconv.K8SClusterNameKey)] = fingerprinter.GetFromResource(rs.Resource().Attributes(), string(semconv.K8SClusterNameKey))
+	attributes[string(semconv.K8SNamespaceNameKey)] = fingerprinter.GetFromResource(rs.Resource().Attributes(), string(semconv.K8SNamespaceNameKey))
+
+	exemplarRecord := toSpanExemplar(rs, ss, sr)
+	cache.Put(sr, exemplarRecord, fingerprint, attributes)
+}
+
+func toSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span) ptrace.Traces {
+	exemplarRecord := ptrace.NewTraces()
+	copyRl := exemplarRecord.ResourceSpans().AppendEmpty()
+	rs.Resource().CopyTo(copyRl.Resource())
+	copySl := copyRl.ScopeSpans().AppendEmpty()
+	ss.Scope().CopyTo(copySl.Scope())
+	copyLr := copySl.Spans().AppendEmpty()
+	sr.CopyTo(copyLr)
+	return exemplarRecord
 }

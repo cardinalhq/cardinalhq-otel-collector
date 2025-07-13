@@ -20,19 +20,39 @@ import (
 	"encoding/hex"
 	"math/rand"
 	"sort"
-	"strconv"
 	"sync"
 	"time"
-
-	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
-	"go.opentelemetry.io/collector/pdata/pcommon"
 
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
 // traceEntry holds all spans and relationships for a given trace
+
+type spanWrapper struct {
+	exemplar     ptrace.Traces
+	spanID       string
+	parentSpanID string
+	fingerprint  int64
+
+	parentFingerprints map[int64]struct{}
+	flowIds            map[string]struct{}
+
+	startTimestamp int64
+	endTimestamp   int64
+
+	attributes map[string]string
+}
+
+func (s spanWrapper) PutParentFingerprint(parentFingerprint int64) {
+	s.parentFingerprints[parentFingerprint] = struct{}{}
+}
+
+func (s spanWrapper) PutFlowId(flowId string) {
+	s.flowIds[flowId] = struct{}{}
+}
+
 type traceEntry struct {
-	spans          []ptrace.Span
+	spans          []spanWrapper
 	parents        map[string]string   // spanID -> parentSpanID
 	children       map[string][]string // parentSpanID -> []spanID
 	fingerprintMap map[string]int64    // spanID -> fingerprint
@@ -47,7 +67,7 @@ type TraceCache struct {
 	traces        map[string]*traceEntry
 	expiry        time.Duration
 	flushInterval time.Duration
-	flushCallback func(spans []ptrace.Span)
+	flushCallback func(spans []spanWrapper)
 	stopCh        chan struct{}
 
 	hotTraceIDs          []string        // traceIDs considered hot
@@ -65,7 +85,7 @@ type TraceCache struct {
 func NewTraceCache(
 	expiry time.Duration,
 	numSamples int,
-	flushCallback func(spans []ptrace.Span),
+	flushCallback func(spans []spanWrapper),
 ) *TraceCache {
 	c := &TraceCache{
 		traces:               make(map[string]*traceEntry),
@@ -115,7 +135,7 @@ func (c *TraceCache) startCleaner() {
 }
 
 // Put ingests a span into the cache, recording its parent and fingerprint
-func (c *TraceCache) Put(span ptrace.Span, fingerprint int64) {
+func (c *TraceCache) Put(span ptrace.Span, exemplar ptrace.Traces, fingerprint int64, attributes map[string]string) {
 	traceID := span.TraceID().String()
 	now := time.Now()
 
@@ -151,7 +171,7 @@ func (c *TraceCache) Put(span ptrace.Span, fingerprint int64) {
 
 	if !existsInCache {
 		entry = &traceEntry{
-			spans:          make([]ptrace.Span, 0),
+			spans:          make([]spanWrapper, 0),
 			parents:        make(map[string]string),
 			children:       make(map[string][]string),
 			fingerprintMap: make(map[string]int64),
@@ -160,7 +180,7 @@ func (c *TraceCache) Put(span ptrace.Span, fingerprint int64) {
 		}
 		c.traces[traceID] = entry
 	}
-	c.storeSpan(traceID, span, fingerprint, entry, now)
+	c.storeSpan(traceID, exemplar, span, attributes, fingerprint, entry, now)
 }
 
 // deleteTrace removes from all state
@@ -175,7 +195,7 @@ func (c *TraceCache) deleteTrace(traceID string) {
 	}
 }
 
-func (c *TraceCache) storeSpan(traceID string, span ptrace.Span, fingerprint int64, entry *traceEntry, now time.Time) {
+func (c *TraceCache) storeSpan(traceID string, exemplar ptrace.Traces, span ptrace.Span, attributes map[string]string, fingerprint int64, entry *traceEntry, now time.Time) {
 	// update timestamp for sliding window
 	entry.timestamp = now
 
@@ -184,7 +204,16 @@ func (c *TraceCache) storeSpan(traceID string, span ptrace.Span, fingerprint int
 
 	entry.parents[sid] = pid
 	entry.fingerprintMap[sid] = fingerprint
-	entry.spans = append(entry.spans, span)
+	spanEntry := spanWrapper{
+		exemplar:           exemplar,
+		spanID:             sid,
+		parentSpanID:       pid,
+		fingerprint:        fingerprint,
+		attributes:         attributes,
+		parentFingerprints: make(map[int64]struct{}),
+		flowIds:            make(map[string]struct{}),
+	}
+	entry.spans = append(entry.spans, spanEntry)
 	entry.children[pid] = append(entry.children[pid], sid)
 	_, isHot := c.hotFingerprints[fingerprint]
 	entry.isHot = entry.isHot && isHot
@@ -207,8 +236,8 @@ func (c *TraceCache) storeSpan(traceID string, span ptrace.Span, fingerprint int
 // flush computes a flowId per root-based DFS and emits via flushCallback
 func (c *TraceCache) flush(tracesToExpire map[string]*traceEntry) map[int64]struct{} {
 	seenFlowIDs := make(map[string]struct{})
-	spansByFingerprint := make(map[int64]ptrace.Span)
-	spansToFlush := make([]ptrace.Span, 0)
+	spansByFingerprint := make(map[int64]spanWrapper)
+	spansToFlush := make([]spanWrapper, 0)
 	frequencyByFlowId := make(map[string]int)
 	spanFingerprintsByFlowId := make(map[string]map[int64]struct{})
 
@@ -226,9 +255,9 @@ func (c *TraceCache) flush(tracesToExpire map[string]*traceEntry) map[int64]stru
 		if len(roots) == 0 && len(entry.spans) > 0 {
 			// fallback to the span with the earliest timestamp
 			sort.Slice(entry.spans, func(i, j int) bool {
-				return entry.spans[i].StartTimestamp() < entry.spans[j].StartTimestamp()
+				return entry.spans[i].startTimestamp < entry.spans[j].endTimestamp
 			})
-			roots = append(roots, entry.spans[0].SpanID().String())
+			roots = append(roots, entry.spans[0].spanID)
 		}
 
 		for _, root := range roots {
@@ -262,37 +291,24 @@ func (c *TraceCache) flush(tracesToExpire map[string]*traceEntry) map[int64]stru
 			seenFlowIDs[flowID] = struct{}{}
 
 			for _, sp := range entry.spans {
-				fingerprint := fingerprinter.GetFingerprintAttribute(sp.Attributes())
+				fingerprint := sp.fingerprint
 				spanFingerprintsByFlowId[flowID][fingerprint] = struct{}{}
 
 				// check if spansByFingerprint already has this fingerprint
-				var spanToModify ptrace.Span
+				var spanToModify spanWrapper
 				if s, exists := spansByFingerprint[fingerprint]; exists {
 					spanToModify = s
 				} else {
 					spanToModify = sp
 					spansByFingerprint[fingerprint] = sp
 				}
-				var flowIdMap pcommon.Map
-				flowIdVal, flowIdValExists := spanToModify.Attributes().Get("flowId")
-				if flowIdValExists {
-					flowIdMap = flowIdVal.Map()
-				} else {
-					flowIdMap = spanToModify.Attributes().PutEmptyMap("flowId")
-				}
-				flowIdMap.PutStr(flowID, "")
 
-				sid := sp.SpanID().String()
+				spanToModify.PutFlowId(flowID)
+
+				sid := sp.spanID
 				if parentID, exists := entry.parents[sid]; exists && parentID != "" {
 					if parentFingerprint, parentExists := entry.fingerprintMap[parentID]; parentExists {
-						var parentFingerprintMap pcommon.Map
-						parentFingerprintVal, parentFingerprintExists := spanToModify.Attributes().Get("parent.fingerprints")
-						if parentFingerprintExists {
-							parentFingerprintMap = parentFingerprintVal.Map()
-						} else {
-							parentFingerprintMap = spanToModify.Attributes().PutEmptyMap("parent.fingerprints")
-						}
-						parentFingerprintMap.PutStr(strconv.FormatInt(parentFingerprint, 10), "")
+						spanToModify.PutParentFingerprint(parentFingerprint)
 					}
 				}
 			}

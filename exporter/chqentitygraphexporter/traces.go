@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
+	"github.com/cardinalhq/oteltools/pkg/syncmap"
 	"github.com/cardinalhq/oteltools/pkg/translate"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
@@ -34,6 +35,8 @@ import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
+
+var traceIdMap syncmap.SyncMap[string, struct{}]
 
 func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Traces) error {
 	for i := range td.ResourceSpans().Len() {
@@ -55,8 +58,11 @@ func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Trace
 
 				cache.ProvisionRecordAttributes(globalEntityMap, spanAttributes)
 				fingerprint := fingerprinter.CalculateSpanFingerprint(rs.Resource(), sr)
-				if fingerprint == -1697309147547195432 || fingerprint == -3742679286551068061 || strings.Contains(sr.Name(), "io_stats") || strings.Contains(sr.Name(), "custom_metrics") {
-					slog.Info("SAW span with traceId", "traceId", sr.TraceID().String(), "fingerprint", fingerprint,
+				traceId := sr.TraceID().String()
+				_, exists := traceIdMap.Load(traceId)
+				if exists || fingerprint == -1697309147547195432 || fingerprint == -3742679286551068061 || strings.Contains(sr.Name(), "io_stats") || strings.Contains(sr.Name(), "custom_metrics") {
+					traceIdMap.Store(traceId, struct{}{})
+					slog.Info("SAW span with traceId", "traceId", traceId, "fingerprint", fingerprint,
 						"spanId", sr.SpanID().String(), "parentSpanId", sr.ParentSpanID().String())
 				}
 				sr.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)

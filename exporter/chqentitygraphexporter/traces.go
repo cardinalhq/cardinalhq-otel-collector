@@ -24,6 +24,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -53,6 +54,10 @@ func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Trace
 
 				cache.ProvisionRecordAttributes(globalEntityMap, spanAttributes)
 				fingerprint := fingerprinter.CalculateSpanFingerprint(rs.Resource(), sr)
+				if fingerprint == -1697309147547195432 || fingerprint == -3742679286551068061 {
+					slog.Info("Saw gaugeStats span with traceId", "traceId", sr.TraceID().String(), "fingerprint", fingerprint,
+						"spanId", sr.SpanID().String(), "parentSpanId", sr.ParentSpanID().String())
+				}
 				sr.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)
 				e.addSpanExemplar(cid, rs, iss, sr, fingerprint)
 			}

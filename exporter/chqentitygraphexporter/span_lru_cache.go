@@ -15,7 +15,6 @@
 package chqentitygraphexporter
 
 import (
-	"container/list"
 	"strconv"
 	"sync"
 	"time"
@@ -24,62 +23,68 @@ import (
 )
 
 type SpanEntry struct {
-	spanId            string
-	key               int64
-	fingerprint       int64
-	parentFingerprint int64
-	attributes        []string
-	exemplar          ptrace.Traces
-	timestamp         time.Time
-	lastPublishTime   time.Time
+	SpanID            string
+	Key               int64
+	Fingerprint       int64
+	ParentFingerprint int64
+	Attributes        []string
+	Exemplar          ptrace.Traces
+	Timestamp         time.Time
+	LastPublishTime   time.Time
 }
 
-type SpanLRUCache struct {
-	capacity       int
-	expiry         time.Duration
+func (e *SpanEntry) toAttributes() map[string]string {
+	attrs := make(map[string]string)
+	for i := 0; i < len(e.Attributes); i += 2 {
+		attrs[e.Attributes[i]] = e.Attributes[i+1]
+	}
+	attrs["parent.fingerprint"] = strconv.FormatInt(e.ParentFingerprint, 10)
+	return attrs
+}
+
+type SpanCache struct {
+	// entries holds active span entries by exemplar key
+	entries map[int64]*SpanEntry
+
+	// TTL for entries before eviction
+	expiry time.Duration
+
+	// how often to run cleanup and publish
 	reportInterval time.Duration
 
-	cache map[int64]*list.Element
-	list  *list.List
+	// synchronization
 	mutex sync.RWMutex
 
 	// maps and queues for parent-child resolution
 	spanIdToFingerprint map[string]int64
 	waiting             map[string][]*SpanEntry
 
-	pending         []*SpanEntry
+	// batched pending entries to publish
+	pending []*SpanEntry
+
+	// cleanup control
 	stopCleanup     chan struct{}
 	publishCallback func([]*SpanEntry)
 }
 
-// NewSpanLRUCache creates a new cache with parent resolution support
-func NewSpanLRUCache(capacity int, expiry, reportInterval time.Duration, publishCallback func([]*SpanEntry)) *SpanLRUCache {
-	c := &SpanLRUCache{
-		capacity:            capacity,
+// NewSpanCache creates a cache that evicts entries older than expiry and
+// publishes pending spans every reportInterval.
+func NewSpanCache(expiry, reportInterval time.Duration, publishCallback func([]*SpanEntry)) *SpanCache {
+	c := &SpanCache{
+		entries:             make(map[int64]*SpanEntry),
 		expiry:              expiry,
 		reportInterval:      reportInterval,
-		cache:               make(map[int64]*list.Element),
-		list:                list.New(),
-		stopCleanup:         make(chan struct{}),
-		publishCallback:     publishCallback,
-		pending:             make([]*SpanEntry, 0),
 		spanIdToFingerprint: make(map[string]int64),
 		waiting:             make(map[string][]*SpanEntry),
+		pending:             make([]*SpanEntry, 0),
+		stopCleanup:         make(chan struct{}),
+		publishCallback:     publishCallback,
 	}
 	go c.startCleanup()
 	return c
 }
 
-func (e *SpanEntry) toAttributes() map[string]string {
-	attrs := make(map[string]string)
-	for i := 0; i < len(e.attributes); i += 2 {
-		attrs[e.attributes[i]] = e.attributes[i+1]
-	}
-	attrs["parent.fingerprint"] = strconv.FormatInt(e.parentFingerprint, 10)
-	return attrs
-}
-
-func (c *SpanLRUCache) startCleanup() {
+func (c *SpanCache) startCleanup() {
 	ticker := time.NewTicker(c.reportInterval)
 	defer ticker.Stop()
 
@@ -93,32 +98,20 @@ func (c *SpanLRUCache) startCleanup() {
 	}
 }
 
-// evictSpan removes one entry from all of our maps/list/cache
-func (c *SpanLRUCache) evictSpan(e *list.Element) {
-	entry := e.Value.(*SpanEntry)
-
-	// remove helper maps
-	delete(c.spanIdToFingerprint, entry.spanId)
-	delete(c.waiting, entry.spanId)
-
-	// remove from LRU
-	c.list.Remove(e)
-	delete(c.cache, entry.key)
-}
-
-func (c *SpanLRUCache) cleanupExpired() {
+// cleanupExpired evicts entries older than expiry and then publishes all pending entries.
+func (c *SpanCache) cleanupExpired() {
 	now := time.Now()
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	for e := c.list.Back(); e != nil; {
-		prev := e.Prev()
-		entry := e.Value.(*SpanEntry)
-
-		if now.Sub(entry.timestamp) > c.expiry {
-			c.evictSpan(e)
+	// evict old entries
+	for key, entry := range c.entries {
+		if now.Sub(entry.Timestamp) > c.expiry {
+			// remove resolution maps
+			delete(c.spanIdToFingerprint, entry.SpanID)
+			delete(c.waiting, entry.SpanID)
+			delete(c.entries, key)
 		}
-		e = prev
 	}
 
 	if len(c.pending) > 0 {
@@ -127,84 +120,88 @@ func (c *SpanLRUCache) cleanupExpired() {
 	}
 }
 
-func (c *SpanLRUCache) Put(
-	key int64, spanID, parentSpanID string,
-	fingerprint int64, exemplar ptrace.Traces, attributes []string,
-) {
+// Put adds or updates a span entry in the cache, stamping parent linkage when available.
+func (c *SpanCache) Put(key int64, spanID, parentSpanID string, fingerprint int64, exemplar ptrace.Traces, attributes []string) {
 	now := time.Now()
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	if c.list.Len() >= c.capacity {
-		if back := c.list.Back(); back != nil {
-			if time.Since(back.Value.(*SpanEntry).lastPublishTime) >= c.expiry {
-				c.pending = append(c.pending, back.Value.(*SpanEntry))
-				back.Value.(*SpanEntry).lastPublishTime = now
-			}
-			c.evictSpan(back)
-		}
-	}
-
 	entry := &SpanEntry{
-		spanId:          spanID,
-		key:             key,
-		fingerprint:     fingerprint,
-		attributes:      attributes,
-		exemplar:        exemplar,
-		timestamp:       now,
-		lastPublishTime: now,
+		SpanID:          spanID,
+		Key:             key,
+		Fingerprint:     fingerprint,
+		Attributes:      attributes,
+		Exemplar:        exemplar,
+		Timestamp:       now,
+		LastPublishTime: now,
 	}
-	elem := c.list.PushFront(entry)
-	c.cache[key] = elem
+	// store or overwrite
+	c.entries[key] = entry
 	c.pending = append(c.pending, entry)
 
+	// record fingerprint for parent resolution
 	c.spanIdToFingerprint[spanID] = fingerprint
 	c.resolveWaiting(spanID)
 
-	if parentFp, found := c.spanIdToFingerprint[parentSpanID]; found {
-		entry.parentFingerprint = parentFp
+	// resolve this entry's parent if known
+	if pf, found := c.spanIdToFingerprint[parentSpanID]; found {
+		entry.ParentFingerprint = pf
 	} else if parentSpanID != "" {
+		// queue until parent appears
 		c.waiting[parentSpanID] = append(c.waiting[parentSpanID], entry)
 	}
 }
 
-// resolveWaiting stamps any children waiting on spanID
-func (c *SpanLRUCache) resolveWaiting(spanID string) {
-	if children, ok := c.waiting[spanID]; ok {
-		pf := c.spanIdToFingerprint[spanID]
-		for _, child := range children {
-			child.parentFingerprint = pf
-		}
-		delete(c.waiting, spanID)
+// resolveWaiting stamps any queued children waiting on spanID
+func (c *SpanCache) resolveWaiting(spanID string) {
+	children, ok := c.waiting[spanID]
+	if !ok {
+		return
 	}
+	pf := c.spanIdToFingerprint[spanID]
+	for _, child := range children {
+		child.ParentFingerprint = pf
+	}
+	delete(c.waiting, spanID)
 }
 
-func (c *SpanLRUCache) Contains(spanID string, fingerprint int64, key int64) bool {
+// Contains returns true if an entry exists for key, and attempts to resolve any waiting children.
+func (c *SpanCache) Contains(spanID string, parentSpanID string, fingerprint int64, key int64) bool {
 	c.mutex.RLock()
-	_, inCache := c.cache[key]
-	waitingList := c.waiting[spanID]
+	entry, inCache := c.entries[key]
+	waitingChildren := c.waiting[spanID]
+	waitingSiblings := c.waiting[parentSpanID]
 	c.mutex.RUnlock()
 
 	if !inCache {
 		return false
 	}
 
-	if len(waitingList) == 0 {
-		return true
+	// If the entry exists, but is missing a parent fingerprint, add this span to the waiting list.
+	if entry.ParentFingerprint == 0 && parentSpanID != "" {
+		if len(waitingSiblings) == 0 {
+			waitingSiblings = make([]*SpanEntry, 0)
+		}
+		c.mutex.Lock()
+		waitingSiblings = append(waitingSiblings, entry)
+		c.waiting[parentSpanID] = waitingSiblings
+		c.mutex.Unlock()
 	}
 
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-
-	// resolve waiting for the given fingerprint
-	for _, child := range waitingList {
-		child.parentFingerprint = fingerprint
+	// if children were waiting, stamp them now
+	if len(waitingChildren) > 0 {
+		c.mutex.Lock()
+		for _, child := range waitingChildren {
+			child.ParentFingerprint = fingerprint
+		}
+		//delete(c.waiting, spanID)
+		c.mutex.Unlock()
 	}
-	delete(c.waiting, spanID)
 
 	return true
 }
 
-func (c *SpanLRUCache) Close() {
+// Close stops the background cleanup goroutine
+func (c *SpanCache) Close() {
 	close(c.stopCleanup)
 }

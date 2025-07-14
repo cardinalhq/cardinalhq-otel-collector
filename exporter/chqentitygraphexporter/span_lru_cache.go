@@ -182,8 +182,8 @@ func (c *SpanCache) Contains(spanID string, parentSpanID string, fingerprint int
 		if len(waitingSiblings) == 0 {
 			waitingSiblings = make([]*SpanEntry, 0)
 		}
-		waitingSiblings = append(waitingSiblings, entry)
 		c.mutex.Lock()
+		waitingSiblings = append(waitingSiblings, entry)
 		c.waiting[parentSpanID] = waitingSiblings
 		c.mutex.Unlock()
 	}
@@ -194,7 +194,7 @@ func (c *SpanCache) Contains(spanID string, parentSpanID string, fingerprint int
 		for _, child := range waitingChildren {
 			child.ParentFingerprint = fingerprint
 		}
-		delete(c.waiting, spanID)
+		//delete(c.waiting, spanID)
 		c.mutex.Unlock()
 	}
 

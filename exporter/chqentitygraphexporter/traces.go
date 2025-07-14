@@ -60,7 +60,8 @@ func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Trace
 				fingerprint := fingerprinter.CalculateSpanFingerprint(rs.Resource(), sr)
 				traceId := sr.TraceID().String()
 				_, exists := traceIdMap.Load(traceId)
-				if exists || fingerprint == -1697309147547195432 || fingerprint == -3742679286551068061 || strings.Contains(sr.Name(), "io_stats") || strings.Contains(sr.Name(), "custom_metrics") {
+				isRightSpan := strings.Contains(sr.Name(), "io_stats") || strings.Contains(sr.Name(), "custom_metrics") || strings.Contains(sr.Name(), "gaugeStats")
+				if exists || fingerprint == -1697309147547195432 || fingerprint == -3742679286551068061 || isRightSpan {
 					traceIdMap.Store(traceId, struct{}{})
 					slog.Info("SAW span with traceId", "traceId", traceId, "fingerprint", fingerprint,
 						"spanId", sr.SpanID().String(), "parentSpanId", sr.ParentSpanID().String())

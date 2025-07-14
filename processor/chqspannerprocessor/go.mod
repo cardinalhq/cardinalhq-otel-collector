@@ -12,6 +12,7 @@ require (
 	go.opentelemetry.io/collector/pdata v1.34.0
 	go.opentelemetry.io/collector/processor v1.34.0
 	go.opentelemetry.io/collector/processor/processorhelper v0.128.0
+	go.opentelemetry.io/collector/processor/processortest v0.128.0
 	go.opentelemetry.io/otel/metric v1.36.0
 	go.opentelemetry.io/otel/trace v1.36.0
 	go.uber.org/zap v1.27.0
@@ -86,7 +87,6 @@ require (
 	go.opentelemetry.io/collector/pdata/testdata v0.128.0 // indirect
 	go.opentelemetry.io/collector/pipeline v0.128.0 // indirect
 	go.opentelemetry.io/collector/pipeline/xpipeline v0.128.0 // indirect
-	go.opentelemetry.io/collector/processor/processortest v0.128.0 // indirect
 	go.opentelemetry.io/collector/processor/xprocessor v0.128.0 // indirect
 	go.opentelemetry.io/collector/receiver v1.34.0 // indirect
 	go.opentelemetry.io/collector/receiver/receivertest v0.128.0 // indirect

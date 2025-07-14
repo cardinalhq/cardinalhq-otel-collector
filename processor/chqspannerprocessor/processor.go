@@ -26,15 +26,13 @@ import (
 type chqspanner struct {
 	logger             *zap.Logger
 	id                 component.ID
-	nextTraceReceiver  consumer.Traces
 	injectedSpansCount metric.Int64Counter
 }
 
-func newSpanner(_ *Config, set processor.Settings, nextConsumer consumer.Traces) (*chqspanner, error) {
+func newSpanner(_ *Config, set processor.Settings) (*chqspanner, error) {
 	p := &chqspanner{
-		id:                set.ID,
-		logger:            set.Logger,
-		nextTraceReceiver: nextConsumer,
+		id:     set.ID,
+		logger: set.Logger,
 	}
 
 	c, err := metadata.Meter(set.TelemetrySettings).Int64Counter(

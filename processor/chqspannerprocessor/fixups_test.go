@@ -16,9 +16,12 @@ package chqspannerprocessor
 
 import (
 	"testing"
+
+	"go.opentelemetry.io/collector/pdata/pcommon"
+	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
-func TestServiceNameFromAdddress(t *testing.T) {
+func TestServiceNameFromAddress(t *testing.T) {
 	tests := []struct {
 		addr     string
 		expected string
@@ -37,10 +40,51 @@ func TestServiceNameFromAdddress(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.addr, func(t *testing.T) {
-			got := serviceNameFromAdddress(tt.addr)
+			got := serviceNameFromAddress(tt.addr)
 			if got != tt.expected {
 				t.Errorf("serviceNameFromAdddress(%q) = %q; want %q", tt.addr, got, tt.expected)
 			}
 		})
 	}
+}
+
+func TestServiceNameFromServerAddress(t *testing.T) {
+	tests := []struct {
+		name     string
+		addr     string
+		expected string
+	}{
+		{"empty address", "", ""},
+		{"localhost", "localhost", ""},
+		{"127.0.0.1", "127.0.0.1", ""},
+		{"valid cluster", "prod-us-east-2-global.cluster-asdlasdlj.us-east-2.rds.amazonaws.com", "prod-us-east-2-global"},
+		{"valid cluster with dash", "prod-us-east-2-global-1.cluster-asdlasdlj.us-east-2.rds.amazonaws.com", "prod-us-east-2-global-1"},
+		{"valid non-cluster", "prod-us-east-2-global-1.asdlasdlj.us-east-2.rds.amazonaws.com", "prod-us-east-2-global"},
+		{"not rds", "not-an-rds-address.com", ""},
+		{"extra suffix", "prod-us-east-2-global.cluster-asdlasdlj.us-east-2.rds.amazonaws.com.extra", ""},
+		{"short rds", "prod-us-east-2-global.rds.amazonaws.com", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			span := ptrace.NewSpan()
+			attrs := pcommon.NewMap()
+			attrs.PutStr("server.address", tt.addr)
+			span.Attributes().Clear()
+			attrs.CopyTo(span.Attributes())
+			got := serviceNameFromServerAddress(span)
+			if got != tt.expected {
+				t.Errorf("serviceNameFromServerAddress(%q) = %q; want %q", tt.addr, got, tt.expected)
+			}
+		})
+	}
+
+	t.Run("missing server.address attribute", func(t *testing.T) {
+		span := ptrace.NewSpan()
+		span.Attributes().Clear()
+		got := serviceNameFromServerAddress(span)
+		if got != "" {
+			t.Errorf("serviceNameFromServerAddress with missing attribute = %q; want \"\"", got)
+		}
+	})
 }

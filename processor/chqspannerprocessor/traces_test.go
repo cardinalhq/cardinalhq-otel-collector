@@ -1,0 +1,116 @@
+package chqspannerprocessor
+
+import (
+	"context"
+	"os"
+	"testing"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqspannerprocessor/internal/metadata"
+	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/collector/pdata/ptrace"
+	"go.opentelemetry.io/collector/processor/processortest"
+)
+
+func TestConsumeTraces(t *testing.T) {
+	unmarshaller := ptrace.JSONUnmarshaler{}
+
+	settings := processortest.NewNopSettings(metadata.Type)
+	p, err := newSpanner(&Config{}, settings)
+	if err != nil {
+		t.Fatalf("Failed to create chqspanner processor: %v", err)
+	}
+
+	testcase1, err := os.ReadFile("testdata/go-client-span.json")
+	traces, err := unmarshaller.UnmarshalTraces([]byte(testcase1))
+	if err != nil {
+		t.Fatalf("Failed to unmarshal test traces: %v", err)
+	}
+	ctx := context.Background()
+	result, err := p.ConsumeTraces(ctx, traces)
+	require.NoError(t, err)
+
+	require.Equal(t, 2, result.ResourceSpans().Len(), "Expected one ResourceSpans after ConsumeTraces")
+	rs0 := result.ResourceSpans().At(0)
+	ss0 := rs0.ScopeSpans()
+	require.Equal(t, 1, ss0.Len(), "Expected one ScopeSpans after ConsumeTraces @ 0")
+	spans0 := ss0.At(0).Spans()
+	require.Equal(t, 1, spans0.Len(), "Expected two Spans after ConsumeTraces @ 0")
+
+	rs1 := result.ResourceSpans().At(1)
+	ss1 := rs1.ScopeSpans()
+	require.Equal(t, 1, ss1.Len(), "Expected one ScopeSpans after ConsumeTraces @ 1")
+	spans1 := ss1.At(0).Spans()
+	require.Equal(t, 1, spans1.Len(), "Expected one Spans after ConsumeTraces @ 1")
+	span1 := spans1.At(0)
+
+	require.Equal(t, ptrace.SpanKindServer, span1.Kind(), "Expected span kind to be Server")
+
+	require.Equal(t, "ExecDBQuery", span1.Name())
+
+	serviceName, ok := rs1.Resource().Attributes().Get("service.name")
+	require.True(t, ok, "Expected service.name attribute to be present")
+	require.Equal(t, "prod-us-east-2-global", serviceName.AsString(), "Expected service.address to match")
+
+	dbSystemName, ok := span1.Attributes().Get("db.system.name")
+	require.True(t, ok, "Expected db.system.name attribute to be present")
+	require.Equal(t, "postgresql", dbSystemName.AsString(), "Expected db.system.name to match")
+
+	isSynthetic, ok := span1.Attributes().Get("synthetic")
+	require.True(t, ok, "Expected synthetic attribute to be present")
+	require.Equal(t, true, isSynthetic.AsRaw(), "Expected synthetic attribute to be true")
+}
+
+func TestIsInterestingSpan(t *testing.T) {
+	tests := []struct {
+		name       string
+		kind       ptrace.SpanKind
+		attrs      map[string]any
+		wantResult bool
+	}{
+		{
+			name:       "Not client span",
+			kind:       ptrace.SpanKindServer,
+			attrs:      map[string]any{"db.system.name": "spanner", "service.name": "svc"},
+			wantResult: false,
+		},
+		{
+			name:       "Missing db.system.name",
+			kind:       ptrace.SpanKindClient,
+			attrs:      map[string]any{"service.name": "svc"},
+			wantResult: false,
+		},
+		{
+			name:       "serviceNameFromServerAddress returns empty",
+			kind:       ptrace.SpanKindClient,
+			attrs:      map[string]any{"db.system.name": "spanner"},
+			wantResult: false,
+		},
+		{
+			name:       "All conditions met",
+			kind:       ptrace.SpanKindClient,
+			attrs:      map[string]any{"db.system.name": "spanner", "service.address": "prod-us-east-2-global.cluster-zzz.us-east-2.rds.amazonaws.com"},
+			wantResult: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			span := ptrace.NewSpan()
+			span.SetKind(tt.kind)
+			for k, v := range tt.attrs {
+				switch val := v.(type) {
+				case string:
+					span.Attributes().PutStr(k, val)
+				case int:
+					span.Attributes().PutInt(k, int64(val))
+				case bool:
+					span.Attributes().PutBool(k, val)
+				}
+			}
+			got := isInterestingSpan(span)
+			if got != tt.wantResult {
+				t.Errorf("isInterestingSpan() = %v, want %v", got, tt.wantResult)
+			}
+		})
+	}
+}

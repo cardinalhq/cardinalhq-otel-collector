@@ -20,7 +20,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
-func serviceNameFromAdddress(addr string) string {
+func serviceNameFromAddress(addr string) string {
 	if addr == "" || addr == "localhost" || addr == "127.0.0.1" {
 		return ""
 	}
@@ -49,5 +49,5 @@ func serviceNameFromServerAddress(span ptrace.Span) string {
 		return ""
 	}
 	saddr := serverAddress.AsString()
-	return serviceNameFromAdddress(saddr)
+	return serviceNameFromAddress(saddr)
 }

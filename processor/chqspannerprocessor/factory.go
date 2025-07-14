@@ -38,7 +38,7 @@ func createDefaultConfig() component.Config {
 }
 
 func createTracesProcessor(ctx context.Context, set processor.Settings, cfg component.Config, nextConsumer consumer.Traces) (processor.Traces, error) {
-	p, err := newSpanner(cfg.(*Config), set, nextConsumer)
+	p, err := newSpanner(cfg.(*Config), set)
 	if err != nil {
 		return nil, err
 	}

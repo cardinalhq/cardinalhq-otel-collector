@@ -15,16 +15,19 @@
 package chqspannerprocessor
 
 import (
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqspannerprocessor/internal/metadata"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/processor"
+	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
 )
 
 type chqspanner struct {
-	logger            *zap.Logger
-	id                component.ID
-	nextTraceReceiver consumer.Traces
+	logger             *zap.Logger
+	id                 component.ID
+	nextTraceReceiver  consumer.Traces
+	injectedSpansCount metric.Int64Counter
 }
 
 func newSpanner(_ *Config, set processor.Settings, nextConsumer consumer.Traces) (*chqspanner, error) {
@@ -33,6 +36,15 @@ func newSpanner(_ *Config, set processor.Settings, nextConsumer consumer.Traces)
 		logger:            set.Logger,
 		nextTraceReceiver: nextConsumer,
 	}
+
+	c, err := metadata.Meter(set.TelemetrySettings).Int64Counter(
+		"cardinalhq.chqspanner.injected_spans",
+		metric.WithDescription("Number of spans injected by the CHQ Spanner processor"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	p.injectedSpansCount = c
 
 	return p, nil
 }

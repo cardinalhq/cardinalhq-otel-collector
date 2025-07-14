@@ -59,6 +59,7 @@ func (p *chqspanner) ConsumeTraces(ctx context.Context, traces ptrace.Traces) (p
 		newSpan := newScopeSpan.Spans().AppendEmpty()
 		cloneFrom(newResourceSpan, newScopeSpan, span, newSpan)
 	}
+	p.injectedSpansCount.Add(ctx, int64(len(toClone)))
 	return traces, nil
 }
 

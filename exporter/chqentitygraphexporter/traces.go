@@ -27,6 +27,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/cardinalhq/oteltools/pkg/graph"
@@ -54,8 +55,8 @@ func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Trace
 
 				cache.ProvisionRecordAttributes(globalEntityMap, spanAttributes)
 				fingerprint := fingerprinter.CalculateSpanFingerprint(rs.Resource(), sr)
-				if fingerprint == -1697309147547195432 || fingerprint == -3742679286551068061 {
-					slog.Info("Saw gaugeStats span with traceId", "traceId", sr.TraceID().String(), "fingerprint", fingerprint,
+				if fingerprint == -1697309147547195432 || fingerprint == -3742679286551068061 || strings.Contains(sr.Name(), "io_stats") || strings.Contains(sr.Name(), "custom_metrics") {
+					slog.Info("SAW span with traceId", "traceId", sr.TraceID().String(), "fingerprint", fingerprint,
 						"spanId", sr.SpanID().String(), "parentSpanId", sr.ParentSpanID().String())
 				}
 				sr.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)

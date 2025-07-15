@@ -49,6 +49,7 @@ func TestConsumeTraces(t *testing.T) {
 	require.Equal(t, 1, ss0.Len(), "Expected one ScopeSpans after ConsumeTraces @ 0")
 	spans0 := ss0.At(0).Spans()
 	require.Equal(t, 1, spans0.Len(), "Expected two Spans after ConsumeTraces @ 0")
+	span0 := spans0.At(0)
 
 	rs1 := result.ResourceSpans().At(1)
 	ss1 := rs1.ScopeSpans()
@@ -58,8 +59,6 @@ func TestConsumeTraces(t *testing.T) {
 	span1 := spans1.At(0)
 
 	require.Equal(t, ptrace.SpanKindServer, span1.Kind(), "Expected span kind to be Server")
-
-	require.Equal(t, "ExecDBQuery", span1.Name())
 
 	serviceName, ok := rs1.Resource().Attributes().Get("service.name")
 	require.True(t, ok, "Expected service.name attribute to be present")
@@ -72,6 +71,8 @@ func TestConsumeTraces(t *testing.T) {
 	isSynthetic, ok := span1.Attributes().Get("synthetic")
 	require.True(t, ok, "Expected synthetic attribute to be present")
 	require.Equal(t, true, isSynthetic.AsRaw(), "Expected synthetic attribute to be true")
+
+	require.Equal(t, span0.Name(), span1.Name(), "Expected span names to match")
 }
 
 func TestIsInterestingSpan(t *testing.T) {
@@ -102,7 +103,7 @@ func TestIsInterestingSpan(t *testing.T) {
 		{
 			name:       "All conditions met",
 			kind:       ptrace.SpanKindClient,
-			attrs:      map[string]any{"db.system.name": "spanner", "service.address": "prod-us-east-2-global.cluster-zzz.us-east-2.rds.amazonaws.com"},
+			attrs:      map[string]any{"db.system.name": "spanner", "server.address": "prod-us-east-2-global.cluster-zzz.us-east-2.rds.amazonaws.com"},
 			wantResult: true,
 		},
 	}

@@ -90,7 +90,7 @@ func cloneFrom(rs ptrace.ResourceSpans, _ ptrace.ScopeSpans, src ptrace.Span, ds
 			dst.Attributes().PutStr(attr, v.AsString())
 		}
 	}
-	dst.SetName("ExecDBQuery")
+	dst.SetName(src.Name())
 	dst.SetKind(ptrace.SpanKindServer)
 	dst.Attributes().PutBool("synthetic", true)
 	dst.SetParentSpanID(src.SpanID())

@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
-	"github.com/cardinalhq/oteltools/pkg/syncmap"
 	"github.com/cardinalhq/oteltools/pkg/translate"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
@@ -34,9 +33,6 @@ import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
-
-var traceIdMap syncmap.SyncMap[string, struct{}]
-var spanIdMap syncmap.SyncMap[string, struct{}]
 
 func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Traces) error {
 	for i := range td.ResourceSpans().Len() {
@@ -59,20 +55,9 @@ func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Trace
 				cache.ProvisionRecordAttributes(globalEntityMap, spanAttributes)
 				fingerprint := fingerprinter.CalculateSpanFingerprint(rs.Resource(), sr)
 				traceId := sr.TraceID().String()
-
-				_, containsTrace := traceIdMap.Load(traceId)
 				parentSpanId := sr.ParentSpanID().String()
-				_, containsSpan := spanIdMap.Load(parentSpanId)
-				shouldLog := false
-				if fingerprint == -1697309147547195432 {
-					traceIdMap.Store(traceId, struct{}{})
-					spanIdMap.Store(parentSpanId, struct{}{})
-					shouldLog = true
-				}
-				shouldLog = shouldLog || containsTrace || containsSpan
-				if shouldLog {
-					slog.Info("SAW span with traceId", "traceId", traceId, "fingerprint", fingerprint, "spanId", sr.SpanID().String(), "parentSpanId", parentSpanId)
-				}
+
+				slog.Info("SAW span with traceId", "traceId", traceId, "fingerprint", fingerprint, "spanId", sr.SpanID().String(), "parentSpanId", parentSpanId)
 
 				sr.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)
 				e.addSpanExemplar(cid, rs, iss, sr, fingerprint)

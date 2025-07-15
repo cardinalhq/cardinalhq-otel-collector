@@ -28,7 +28,6 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/cardinalhq/oteltools/pkg/graph"
@@ -37,6 +36,7 @@ import (
 )
 
 var traceIdMap syncmap.SyncMap[string, struct{}]
+var spanIdMap syncmap.SyncMap[string, struct{}]
 
 func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Traces) error {
 	for i := range td.ResourceSpans().Len() {
@@ -59,13 +59,21 @@ func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Trace
 				cache.ProvisionRecordAttributes(globalEntityMap, spanAttributes)
 				fingerprint := fingerprinter.CalculateSpanFingerprint(rs.Resource(), sr)
 				traceId := sr.TraceID().String()
-				_, exists := traceIdMap.Load(traceId)
-				isRightSpan := strings.Contains(sr.Name(), "io_stats") || strings.Contains(sr.Name(), "custom_metrics") || strings.Contains(sr.Name(), "gaugeStats")
-				if exists || fingerprint == -1697309147547195432 || fingerprint == -3742679286551068061 || isRightSpan {
+
+				_, containsTrace := traceIdMap.Load(traceId)
+				parentSpanId := sr.ParentSpanID().String()
+				_, containsSpan := spanIdMap.Load(parentSpanId)
+				shouldLog := false
+				if fingerprint == -1697309147547195432 {
 					traceIdMap.Store(traceId, struct{}{})
-					slog.Info("SAW span with traceId", "traceId", traceId, "fingerprint", fingerprint,
-						"spanId", sr.SpanID().String(), "parentSpanId", sr.ParentSpanID().String())
+					spanIdMap.Store(parentSpanId, struct{}{})
+					shouldLog = true
 				}
+				shouldLog = shouldLog || containsTrace || containsSpan
+				if shouldLog {
+					slog.Info("SAW span with traceId", "traceId", traceId, "fingerprint", fingerprint, "spanId", sr.SpanID().String(), "parentSpanId", parentSpanId)
+				}
+
 				sr.Attributes().PutInt(translate.CardinalFieldFingerprint, fingerprint)
 				e.addSpanExemplar(cid, rs, iss, sr, fingerprint)
 			}

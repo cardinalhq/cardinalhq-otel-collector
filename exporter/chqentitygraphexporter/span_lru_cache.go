@@ -118,14 +118,14 @@ func (c *SpanCache) cleanupExpired() {
 }
 
 // Put adds or updates a span entry in the cache, stamping parent linkage when available.
-func (c *SpanCache) Put(key int64, spanID, parentSpanID string, fingerprint int64, exemplar ptrace.Traces, attributes []string) {
+func (c *SpanCache) Put(spanID, parentSpanID string, fingerprint int64, exemplar ptrace.Traces, attributes []string) {
 	now := time.Now()
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	entry := &SpanEntry{
 		SpanID:          spanID,
-		Key:             key,
+		Key:             fingerprint,
 		Fingerprint:     fingerprint,
 		Attributes:      attributes,
 		Exemplar:        exemplar,
@@ -133,7 +133,7 @@ func (c *SpanCache) Put(key int64, spanID, parentSpanID string, fingerprint int6
 		LastPublishTime: now,
 	}
 	// store or overwrite
-	c.entries[key] = entry
+	c.entries[fingerprint] = entry
 
 	// record fingerprint for parent resolution
 	c.spanIdToFingerprint[spanID] = fingerprint

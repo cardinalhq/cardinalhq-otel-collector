@@ -121,9 +121,10 @@ func (e *entityGraphExporter) sendExemplarPayload(cid string) func(payload []*Sp
 
 func (e *entityGraphExporter) addSpanExemplar(cid string, rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span, fingerprint int64) {
 	rattr := rs.Resource().Attributes()
+	spanKindInt := int32(sr.Kind())
 	attributes := []string{
 		translate.CardinalFieldFingerprint, strconv.FormatInt(fingerprint, 10),
-		translate.CardinalFieldSpanKind, string(sr.Kind()),
+		translate.CardinalFieldSpanKind, strconv.FormatInt(int64(spanKindInt), 10),
 		translate.CardinalFieldSpanName, sr.Name(),
 		string(semconv.ServiceNameKey), fingerprinter.GetFromResource(rattr, string(semconv.ServiceNameKey)),
 		string(semconv.K8SClusterNameKey), fingerprinter.GetFromResource(rattr, string(semconv.K8SClusterNameKey)),

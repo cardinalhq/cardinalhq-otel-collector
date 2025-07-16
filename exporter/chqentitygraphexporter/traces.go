@@ -21,6 +21,7 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
 	"github.com/cardinalhq/oteltools/pkg/translate"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 	"io"
@@ -119,23 +120,30 @@ func (e *entityGraphExporter) sendExemplarPayload(cid string) func(payload []*Sp
 }
 
 func (e *entityGraphExporter) addSpanExemplar(cid string, rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span, fingerprint int64) {
-	extraKeys := []string{
+	rattr := rs.Resource().Attributes()
+	spanKindInt := int32(sr.Kind())
+	attributes := []string{
 		translate.CardinalFieldFingerprint, strconv.FormatInt(fingerprint, 10),
+		translate.CardinalFieldSpanKind, strconv.FormatInt(int64(spanKindInt), 10),
+		translate.CardinalFieldSpanName, sr.Name(),
+		string(semconv.ServiceNameKey), fingerprinter.GetFromResource(rattr, string(semconv.ServiceNameKey)),
+		string(semconv.K8SClusterNameKey), fingerprinter.GetFromResource(rattr, string(semconv.K8SClusterNameKey)),
+		string(semconv.K8SNamespaceNameKey), fingerprinter.GetFromResource(rattr, string(semconv.K8SNamespaceNameKey)),
 	}
 	spanId := sr.SpanID().String()
 	parentSpanId := sr.ParentSpanID().String()
-	keys, exemplarKey := fingerprinter.ComputeExemplarKey(rs.Resource(), extraKeys)
+
 	cache, sok := e.spanExemplarCaches.Load(cid)
 	if !sok {
-		cache = NewSpanCache(15*time.Minute, 5*time.Minute, e.sendExemplarPayload(cid))
+		cache = NewSpanCache(5*time.Minute, 1*time.Minute, e.sendExemplarPayload(cid))
 		e.spanExemplarCaches.Store(cid, cache)
 	}
-	contains := cache.Contains(spanId, parentSpanId, fingerprint, exemplarKey)
+	contains := cache.Contains(spanId, fingerprint)
 	if contains {
 		return
 	}
 	exemplarRecord := toSpanExemplar(rs, ss, sr)
-	cache.Put(exemplarKey, spanId, parentSpanId, fingerprint, exemplarRecord, keys)
+	cache.Put(spanId, parentSpanId, fingerprint, exemplarRecord, attributes)
 }
 
 func toSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span) ptrace.Traces {

@@ -15,6 +15,7 @@
 package chqentitygraphexporter
 
 import (
+	"log/slog"
 	"strconv"
 	"sync"
 	"time"
@@ -59,9 +60,6 @@ type SpanCache struct {
 	spanIdToFingerprint map[string]int64
 	waiting             map[string][]*SpanEntry
 
-	// batched pending entries to publish
-	pending []*SpanEntry
-
 	// cleanup control
 	stopCleanup     chan struct{}
 	publishCallback func([]*SpanEntry)
@@ -76,7 +74,6 @@ func NewSpanCache(expiry, reportInterval time.Duration, publishCallback func([]*
 		reportInterval:      reportInterval,
 		spanIdToFingerprint: make(map[string]int64),
 		waiting:             make(map[string][]*SpanEntry),
-		pending:             make([]*SpanEntry, 0),
 		stopCleanup:         make(chan struct{}),
 		publishCallback:     publishCallback,
 	}
@@ -105,8 +102,10 @@ func (c *SpanCache) cleanupExpired() {
 	defer c.mutex.Unlock()
 
 	// evict old entries
+	pending := make([]*SpanEntry, 0)
 	for key, entry := range c.entries {
 		if now.Sub(entry.Timestamp) > c.expiry {
+			pending = append(pending, entry)
 			// remove resolution maps
 			delete(c.spanIdToFingerprint, entry.SpanID)
 			delete(c.waiting, entry.SpanID)
@@ -114,21 +113,20 @@ func (c *SpanCache) cleanupExpired() {
 		}
 	}
 
-	if len(c.pending) > 0 {
-		c.publishCallback(c.pending)
-		c.pending = c.pending[:0]
+	if len(pending) > 0 {
+		c.publishCallback(pending)
 	}
 }
 
 // Put adds or updates a span entry in the cache, stamping parent linkage when available.
-func (c *SpanCache) Put(key int64, spanID, parentSpanID string, fingerprint int64, exemplar ptrace.Traces, attributes []string) {
+func (c *SpanCache) Put(spanID, parentSpanID string, fingerprint int64, exemplar ptrace.Traces, attributes []string) {
 	now := time.Now()
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	entry := &SpanEntry{
 		SpanID:          spanID,
-		Key:             key,
+		Key:             fingerprint,
 		Fingerprint:     fingerprint,
 		Attributes:      attributes,
 		Exemplar:        exemplar,
@@ -136,8 +134,7 @@ func (c *SpanCache) Put(key int64, spanID, parentSpanID string, fingerprint int6
 		LastPublishTime: now,
 	}
 	// store or overwrite
-	c.entries[key] = entry
-	c.pending = append(c.pending, entry)
+	c.entries[fingerprint] = entry
 
 	// record fingerprint for parent resolution
 	c.spanIdToFingerprint[spanID] = fingerprint
@@ -145,6 +142,9 @@ func (c *SpanCache) Put(key int64, spanID, parentSpanID string, fingerprint int6
 
 	// resolve this entry's parent if known
 	if pf, found := c.spanIdToFingerprint[parentSpanID]; found {
+		if entry.Fingerprint == 4701236566887954423 {
+			slog.Info("Resolved parent for hero span", "parentFingerprint", pf)
+		}
 		entry.ParentFingerprint = pf
 	} else if parentSpanID != "" {
 		// queue until parent appears
@@ -160,41 +160,35 @@ func (c *SpanCache) resolveWaiting(spanID string) {
 	}
 	pf := c.spanIdToFingerprint[spanID]
 	for _, child := range children {
+		if child.Fingerprint == 4701236566887954423 {
+			slog.Info("Resolved parent for hero span", "parentFingerprint", pf)
+		}
 		child.ParentFingerprint = pf
 	}
 	delete(c.waiting, spanID)
 }
 
 // Contains returns true if an entry exists for key, and attempts to resolve any waiting children.
-func (c *SpanCache) Contains(spanID string, parentSpanID string, fingerprint int64, key int64) bool {
+func (c *SpanCache) Contains(spanID string, fingerprint int64) bool {
 	c.mutex.RLock()
-	entry, inCache := c.entries[key]
-	waitingChildren := c.waiting[spanID]
-	waitingSiblings := c.waiting[parentSpanID]
+	_, inCache := c.entries[fingerprint]
+	waitingChildren, hasWaiting := c.waiting[spanID]
 	c.mutex.RUnlock()
 
 	if !inCache {
 		return false
 	}
 
-	// If the entry exists, but is missing a parent fingerprint, add this span to the waiting list.
-	if entry.ParentFingerprint == 0 && parentSpanID != "" {
-		if len(waitingSiblings) == 0 {
-			waitingSiblings = make([]*SpanEntry, 0)
-		}
-		c.mutex.Lock()
-		waitingSiblings = append(waitingSiblings, entry)
-		c.waiting[parentSpanID] = waitingSiblings
-		c.mutex.Unlock()
-	}
-
 	// if children were waiting, stamp them now
-	if len(waitingChildren) > 0 {
+	if hasWaiting {
 		c.mutex.Lock()
 		for _, child := range waitingChildren {
+			if child.Fingerprint == 4701236566887954423 {
+				slog.Info("Resolved parent for hero span", "parentFingerprint", fingerprint)
+			}
 			child.ParentFingerprint = fingerprint
 		}
-		//delete(c.waiting, spanID)
+		delete(c.waiting, spanID)
 		c.mutex.Unlock()
 	}
 

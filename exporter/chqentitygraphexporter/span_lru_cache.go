@@ -22,61 +22,58 @@ import (
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
+// waitItem pairs a SpanEntry with its enqueue timestamp while awaiting its parent.
+type waitItem struct {
+	entry    *SpanEntry
+	enqueued time.Time
+}
+
+// SpanEntry represents a single span exemplar and its relationship info.
 type SpanEntry struct {
 	SpanID            string
 	Key               int64
 	Fingerprint       int64
 	ParentFingerprint int64
+	ParentSpanID      string
 	Attributes        []string
 	Exemplar          ptrace.Traces
 	Timestamp         time.Time
 	LastPublishTime   time.Time
 }
 
+// toAttributes returns a map of this span's attributes, plus the parent fingerprint.
 func (e *SpanEntry) toAttributes() map[string]string {
 	attrs := make(map[string]string)
-	for i := 0; i < len(e.Attributes); i += 2 {
+	for i := 0; i+1 < len(e.Attributes); i += 2 {
 		attrs[e.Attributes[i]] = e.Attributes[i+1]
 	}
 	attrs["parent.fingerprint"] = strconv.FormatInt(e.ParentFingerprint, 10)
 	return attrs
 }
 
+// SpanCache holds span exemplars, resolves parent-child links, and evicts old entries.
 type SpanCache struct {
-	// entries holds active span entries by exemplar key
-	entries map[int64]*SpanEntry
-
-	// TTL for entries before eviction
-	expiry time.Duration
-
-	// how often to run cleanup and publish
-	reportInterval time.Duration
-
-	// synchronization
-	mutex sync.RWMutex
-
-	// maps and queues for parent-child resolution
-	spanIdToFingerprint map[string]int64
-	waiting             map[string][]*SpanEntry
-
-	// batched pending entries to publish
-	pending []*SpanEntry
-
-	// cleanup control
-	stopCleanup     chan struct{}
-	publishCallback func([]*SpanEntry)
+	entries             map[int64]*SpanEntry  // active entries by exemplar key
+	spanIdToFingerprint map[string]int64      // resolved spanID → fingerprint
+	waiting             map[string][]waitItem // parentSpanID → children queued
+	expiry              time.Duration         // TTL for entries before eviction
+	reportInterval      time.Duration         // how often to publish & clean
+	mutex               sync.RWMutex          // protects all maps & slices
+	stopCleanup         chan struct{}         // signals the cleanup goroutine to exit
+	publishCallback     func([]*SpanEntry)    // called with entries to publish
 }
 
-// NewSpanCache creates a cache that evicts entries older than expiry and
-// publishes pending spans every reportInterval.
-func NewSpanCache(expiry, reportInterval time.Duration, publishCallback func([]*SpanEntry)) *SpanCache {
+// NewSpanCache creates a cache that publishes new entries and evicts old ones.
+func NewSpanCache(
+	expiry, reportInterval time.Duration,
+	publishCallback func([]*SpanEntry),
+) *SpanCache {
 	c := &SpanCache{
 		entries:             make(map[int64]*SpanEntry),
+		spanIdToFingerprint: make(map[string]int64),
+		waiting:             make(map[string][]waitItem),
 		expiry:              expiry,
 		reportInterval:      reportInterval,
-		spanIdToFingerprint: make(map[string]int64),
-		waiting:             make(map[string][]*SpanEntry),
-		pending:             make([]*SpanEntry, 0),
 		stopCleanup:         make(chan struct{}),
 		publishCallback:     publishCallback,
 	}
@@ -98,36 +95,58 @@ func (c *SpanCache) startCleanup() {
 	}
 }
 
-// cleanupExpired evicts entries older than expiry and then publishes all pending entries.
+// cleanupExpired publishes new entries, evicts expired ones, and prunes stale waiting items.
 func (c *SpanCache) cleanupExpired() {
 	now := time.Now()
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	// evict old entries
+	// 2) Evict expired entries
+	expired := make([]*SpanEntry, 0)
 	for key, entry := range c.entries {
 		if now.Sub(entry.Timestamp) > c.expiry {
-			// remove resolution maps
-			delete(c.spanIdToFingerprint, entry.SpanID)
-			delete(c.waiting, entry.SpanID)
+			expired = append(expired, entry)
 			delete(c.entries, key)
+			delete(c.spanIdToFingerprint, entry.SpanID)
+			// drop any children waiting on this span
+			delete(c.waiting, entry.SpanID)
 		}
 	}
+	if len(expired) > 0 {
+		c.publishCallback(expired)
+	}
 
-	if len(c.pending) > 0 {
-		c.publishCallback(c.pending)
-		c.pending = c.pending[:0]
+	// 3) Prune waiting items older than expiry
+	for pid, items := range c.waiting {
+		live := items[:0]
+		for _, wi := range items {
+			if now.Sub(wi.enqueued) < c.expiry {
+				live = append(live, wi)
+			}
+		}
+		if len(live) > 0 {
+			c.waiting[pid] = live
+		} else {
+			delete(c.waiting, pid)
+		}
 	}
 }
 
-// Put adds or updates a span entry in the cache, stamping parent linkage when available.
-func (c *SpanCache) Put(key int64, spanID, parentSpanID string, fingerprint int64, exemplar ptrace.Traces, attributes []string) {
+// Put adds or updates a span entry, links any queued children, and queues if its parent isn't seen.
+func (c *SpanCache) Put(
+	key int64,
+	spanID, parentSpanID string,
+	fingerprint int64,
+	exemplar ptrace.Traces,
+	attributes []string,
+) {
 	now := time.Now()
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	entry := &SpanEntry{
 		SpanID:          spanID,
+		ParentSpanID:    parentSpanID,
 		Key:             key,
 		Fingerprint:     fingerprint,
 		Attributes:      attributes,
@@ -135,73 +154,65 @@ func (c *SpanCache) Put(key int64, spanID, parentSpanID string, fingerprint int6
 		Timestamp:       now,
 		LastPublishTime: now,
 	}
-	// store or overwrite
 	c.entries[key] = entry
-	c.pending = append(c.pending, entry)
 
-	// record fingerprint for parent resolution
+	// 2) Record our fingerprint & resolve any queued children
 	c.spanIdToFingerprint[spanID] = fingerprint
 	c.resolveWaiting(spanID)
 
-	// resolve this entry's parent if known
-	if pf, found := c.spanIdToFingerprint[parentSpanID]; found {
-		entry.ParentFingerprint = pf
-	} else if parentSpanID != "" {
-		// queue until parent appears
-		c.waiting[parentSpanID] = append(c.waiting[parentSpanID], entry)
+	// 3) Link to parent or queue this entry
+	if parentSpanID != "" {
+		if pf, found := c.spanIdToFingerprint[parentSpanID]; found {
+			entry.ParentFingerprint = pf
+		} else {
+			c.waiting[parentSpanID] = append(c.waiting[parentSpanID], waitItem{
+				entry:    entry,
+				enqueued: now,
+			})
+		}
 	}
 }
 
-// resolveWaiting stamps any queued children waiting on spanID
+// resolveWaiting stamps ParentFingerprint on any children waiting for spanID.
 func (c *SpanCache) resolveWaiting(spanID string) {
-	children, ok := c.waiting[spanID]
+	items, ok := c.waiting[spanID]
 	if !ok {
 		return
 	}
 	pf := c.spanIdToFingerprint[spanID]
-	for _, child := range children {
-		child.ParentFingerprint = pf
+	for _, wi := range items {
+		wi.entry.ParentFingerprint = pf
 	}
 	delete(c.waiting, spanID)
 }
 
-// Contains returns true if an entry exists for key, and attempts to resolve any waiting children.
-func (c *SpanCache) Contains(spanID string, parentSpanID string, fingerprint int64, key int64) bool {
+// Contains checks if an entry exists and resolves any waiting children for spanID.
+func (c *SpanCache) Contains(
+	spanID string,
+	fingerprint int64,
+	key int64,
+) bool {
 	c.mutex.RLock()
-	entry, inCache := c.entries[key]
-	waitingChildren := c.waiting[spanID]
-	waitingSiblings := c.waiting[parentSpanID]
+	_, inCache := c.entries[key]
+	items, hasWaiting := c.waiting[spanID]
 	c.mutex.RUnlock()
 
 	if !inCache {
 		return false
 	}
 
-	// If the entry exists, but is missing a parent fingerprint, add this span to the waiting list.
-	if entry.ParentFingerprint == 0 && parentSpanID != "" {
-		if len(waitingSiblings) == 0 {
-			waitingSiblings = make([]*SpanEntry, 0)
-		}
+	if hasWaiting {
 		c.mutex.Lock()
-		waitingSiblings = append(waitingSiblings, entry)
-		c.waiting[parentSpanID] = waitingSiblings
+		for _, wi := range items {
+			wi.entry.ParentFingerprint = fingerprint
+		}
+		delete(c.waiting, spanID)
 		c.mutex.Unlock()
 	}
-
-	// if children were waiting, stamp them now
-	if len(waitingChildren) > 0 {
-		c.mutex.Lock()
-		for _, child := range waitingChildren {
-			child.ParentFingerprint = fingerprint
-		}
-		//delete(c.waiting, spanID)
-		c.mutex.Unlock()
-	}
-
 	return true
 }
 
-// Close stops the background cleanup goroutine
+// Close stops the background cleanup goroutine.
 func (c *SpanCache) Close() {
 	close(c.stopCleanup)
 }

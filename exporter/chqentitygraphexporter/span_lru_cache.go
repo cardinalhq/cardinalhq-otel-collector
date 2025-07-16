@@ -59,9 +59,6 @@ type SpanCache struct {
 	spanIdToFingerprint map[string]int64
 	waiting             map[string][]*SpanEntry
 
-	// batched pending entries to publish
-	pending []*SpanEntry
-
 	// cleanup control
 	stopCleanup     chan struct{}
 	publishCallback func([]*SpanEntry)
@@ -76,7 +73,6 @@ func NewSpanCache(expiry, reportInterval time.Duration, publishCallback func([]*
 		reportInterval:      reportInterval,
 		spanIdToFingerprint: make(map[string]int64),
 		waiting:             make(map[string][]*SpanEntry),
-		pending:             make([]*SpanEntry, 0),
 		stopCleanup:         make(chan struct{}),
 		publishCallback:     publishCallback,
 	}
@@ -105,8 +101,10 @@ func (c *SpanCache) cleanupExpired() {
 	defer c.mutex.Unlock()
 
 	// evict old entries
+	pending := make([]*SpanEntry, 0)
 	for key, entry := range c.entries {
 		if now.Sub(entry.Timestamp) > c.expiry {
+			pending = append(pending, entry)
 			// remove resolution maps
 			delete(c.spanIdToFingerprint, entry.SpanID)
 			delete(c.waiting, entry.SpanID)
@@ -114,9 +112,8 @@ func (c *SpanCache) cleanupExpired() {
 		}
 	}
 
-	if len(c.pending) > 0 {
-		c.publishCallback(c.pending)
-		c.pending = c.pending[:0]
+	if len(pending) > 0 {
+		c.publishCallback(pending)
 	}
 }
 
@@ -137,7 +134,6 @@ func (c *SpanCache) Put(key int64, spanID, parentSpanID string, fingerprint int6
 	}
 	// store or overwrite
 	c.entries[key] = entry
-	c.pending = append(c.pending, entry)
 
 	// record fingerprint for parent resolution
 	c.spanIdToFingerprint[spanID] = fingerprint
@@ -166,9 +162,9 @@ func (c *SpanCache) resolveWaiting(spanID string) {
 }
 
 // Contains returns true if an entry exists for key, and attempts to resolve any waiting children.
-func (c *SpanCache) Contains(spanID string, fingerprint int64, key int64) bool {
+func (c *SpanCache) Contains(spanID string, fingerprint int64) bool {
 	c.mutex.RLock()
-	_, inCache := c.entries[key]
+	_, inCache := c.entries[fingerprint]
 	waitingChildren, hasWaiting := c.waiting[spanID]
 	c.mutex.RUnlock()
 

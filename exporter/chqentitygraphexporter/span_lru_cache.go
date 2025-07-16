@@ -142,9 +142,6 @@ func (c *SpanCache) Put(spanID, parentSpanID string, fingerprint int64, exemplar
 
 	// resolve this entry's parent if known
 	if pf, found := c.spanIdToFingerprint[parentSpanID]; found {
-		if entry.Fingerprint == 4701236566887954423 {
-			slog.Info("Resolved parent for hero span", "parentFingerprint", pf)
-		}
 		entry.ParentFingerprint = pf
 	} else if parentSpanID != "" {
 		// queue until parent appears
@@ -160,9 +157,6 @@ func (c *SpanCache) resolveWaiting(spanID string) {
 	}
 	pf := c.spanIdToFingerprint[spanID]
 	for _, child := range children {
-		if child.Fingerprint == 4701236566887954423 {
-			slog.Info("Resolved parent for hero span", "parentFingerprint", pf)
-		}
 		child.ParentFingerprint = pf
 	}
 	delete(c.waiting, spanID)

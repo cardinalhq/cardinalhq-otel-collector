@@ -6,7 +6,133 @@
           {
             "key": "service.name",
             "value": {
-              "stringValue": "chip-processing"
+              "stringValue": "cron-job-latency-slo-updater"
+            }
+          },
+          {
+            "key": "telemetry.sdk.language",
+            "value": {
+              "stringValue": "go"
+            }
+          },
+          {
+            "key": "telemetry.sdk.name",
+            "value": {
+              "stringValue": "opentelemetry"
+            }
+          },
+          {
+            "key": "telemetry.sdk.version",
+            "value": {
+              "stringValue": "1.37.0"
+            }
+          },
+          {
+            "key": "k8s.pod.ip",
+            "value": {
+              "stringValue": "10.181.2.90"
+            }
+          },
+          {
+            "key": "controller-uid",
+            "value": {
+              "stringValue": "603b15aa-14fb-4fe0-acf0-eb616bb3f151"
+            }
+          },
+          {
+            "key": "job-name",
+            "value": {
+              "stringValue": "cron-job-latency-slo-updater-29209090"
+            }
+          },
+          {
+            "key": "k8s.cronjob.name",
+            "value": {
+              "stringValue": "cron-job-latency-slo-updater"
+            }
+          },
+          {
+            "key": "k8s.node.name",
+            "value": {
+              "stringValue": "ip-10-181-7-189.us-east-2.compute.internal"
+            }
+          },
+          {
+            "key": "app.kubernetes.io/component",
+            "value": {
+              "stringValue": "cronjob-latency-slo-updater"
+            }
+          },
+          {
+            "key": "app.kubernetes.io/name",
+            "value": {
+              "stringValue": "cronjob-latency-slo-updater"
+            }
+          },
+          {
+            "key": "batch.kubernetes.io/controller-uid",
+            "value": {
+              "stringValue": "603b15aa-14fb-4fe0-acf0-eb616bb3f151"
+            }
+          },
+          {
+            "key": "k8s.pod.name",
+            "value": {
+              "stringValue": "cron-job-latency-slo-updater-29209090-c58p4"
+            }
+          },
+          {
+            "key": "k8s.namespace.name",
+            "value": {
+              "stringValue": "cardinalhq"
+            }
+          },
+          {
+            "key": "k8s.job.name",
+            "value": {
+              "stringValue": "cron-job-latency-slo-updater-29209090"
+            }
+          },
+          {
+            "key": "app.kubernetes.io/part-of",
+            "value": {
+              "stringValue": "slo-updater"
+            }
+          },
+          {
+            "key": "batch.kubernetes.io/job-name",
+            "value": {
+              "stringValue": "cron-job-latency-slo-updater-29209090"
+            }
+          },
+          {
+            "key": "k8s.container.name",
+            "value": {
+              "stringValue": "cardinalhq-alice-cron"
+            }
+          },
+          {
+            "key": "container.image.name",
+            "value": {
+              "stringValue": "033263751764.dkr.ecr.us-east-2.amazonaws.com/cardinalhq/alice"
+            }
+          },
+          {
+            "key": "container.image.tag",
+            "value": {
+              "stringValue": "latest-dev"
+            }
+          },
+          {
+            "key": "container.id",
+            "value": {
+              "stringValue": "b4b11473842a1ac58ffceb85f184b1fa94f576cebbb921a1f94be81e3b78ef98"
+            }
+          },
+          {
+            "key": "k8s.cluster.name",
+            "value": {
+              "stringValue": "aws-prod-us-east-2-global"
             }
           }
         ]
@@ -19,17 +145,21 @@
           "spans": [
             {
               "kind": 3,
-              "name": "BatchStart",
+              "name": "UpsertSLOTargetGauges1w",
               "flags": 256,
               "events": [
                 {
-                  "name": "BatchEnd",
-                  "timeUnixNano": "1752532520143251232"
+                  "name": "PrepareStart",
+                  "timeUnixNano": "1752545427448185472"
+                },
+                {
+                  "name": "PrepareEnd",
+                  "timeUnixNano": "1752545427448677337"
                 }
               ],
-              "spanId": "26852ff9c78d5a08",
+              "spanId": "defe6c6f8391e450",
               "status": {},
-              "traceId": "3e234bf8ae253a15656a606e97488f6f",
+              "traceId": "2419e9d44ffd72b2df8bfe56a187d0b5",
               "attributes": [
                 {
                   "key": "db.system",
@@ -40,7 +170,7 @@
                 {
                   "key": "db.user",
                   "value": {
-                    "stringValue": "chqas4mas05na"
+                    "stringValue": "chqktk903nfa"
                   }
                 },
                 {
@@ -52,19 +182,25 @@
                 {
                   "key": "db.connection_string",
                   "value": {
-                    "stringValue": "postgres://chqas4mas05na:****************************************@prod-us-east-2-global.cluster-cz08aq0u088b.us-east-2.rds.amazonaws.com/metadata"
+                    "stringValue": "postgres://chqktk903nfa:********************************@prod-us-east-2-global.cluster-zzz.us-east-2.rds.amazonaws.com/metadata"
+                  }
+                },
+                {
+                  "key": "db.statement",
+                  "value": {
+                    "stringValue": "INSERT INTO slo_targets_gauges ( organization_id, telemetry_type, metric_name, tid, detection_granularity, system_p99_slo_1w, system_p50_slo_1w, system_min_request_count_1w, created_at, updated_at, interval_count_1w) VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, now(), now(), $9 ) ON CONFLICT (organization_id, telemetry_type, metric_name, tid) DO UPDATE SET system_p99_slo_1w = EXCLUDED.system_p99_slo_1w, system_p50_slo_1w = EXCLUDED.system_p50_slo_1w, system_min_request_count_1w = EXCLUDED.system_min_request_count_1w, interval_count_1w = EXCLUDED.interval_count_1w, detection_granularity = CASE WHEN EXCLUDED.detection_granularity IS NOT NULL AND EXCLUDED.detection_granularity != '' THEN EXCLUDED.detection_granularity ELSE slo_targets_gauges.detection_granularity END, updated_at = now()"
                   }
                 },
                 {
                   "key": "_cardinalhq.fingerprint",
                   "value": {
-                    "intValue": "2808520032046783446"
+                    "intValue": "113125381467010538"
                   }
                 },
                 {
                   "key": "_cardinalhq.span_duration",
                   "value": {
-                    "doubleValue": 7
+                    "doubleValue": 0
                   }
                 },
                 {
@@ -80,9 +216,15 @@
                   }
                 },
                 {
-                  "key": "_cardinalhq.span_name",
+                  "key": "db.query.text",
                   "value": {
-                    "stringValue": "BatchStart"
+                    "stringValue": "INSERT INTO slo_targets_gauges ( organization_id, telemetry_type, metric_name, tid, detection_granularity, system_p99_slo_1w, system_p50_slo_1w, system_min_request_count_1w, created_at, updated_at, interval_count_1w) VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, now(), now(), $9 ) ON CONFLICT (organization_id, telemetry_type, metric_name, tid) DO UPDATE SET system_p99_slo_1w = EXCLUDED.system_p99_slo_1w, system_p50_slo_1w = EXCLUDED.system_p50_slo_1w, system_min_request_count_1w = EXCLUDED.system_min_request_count_1w, interval_count_1w = EXCLUDED.interval_count_1w, detection_granularity = CASE WHEN EXCLUDED.detection_granularity IS NOT NULL AND EXCLUDED.detection_granularity != '' THEN EXCLUDED.detection_granularity ELSE slo_targets_gauges.detection_granularity END, updated_at = now()"
+                  }
+                },
+                {
+                  "key": "db.query.summary",
+                  "value": {
+                    "stringValue": "INSERT INTO slo_targets_gauges ( organization_id, telemetry_type, metric_name, tid, detection_granularity, system_p system_p system_min_request_count_ created_at, updated_at, interval_count_ VALUES (         now(), now(),  ) ON CONFLICT (organization_id, telemetry_type, metric_name, tid) DO UPDATE SET ?=?system_p = EXCLUDED.system_p system_p = EXCLUDED.system_p system_min_request_count_ = EXCLUDED.system_min_request_count_ interval_count_ = EXCLUDED.interval_count_ detection_granularity = CASE WHEN EXCLUDED.detection_granularity IS NOT NULL AND EXCLUDED.detection_granularity  ? THEN EXCLUDED.detection_granularity ELSE slo_targets_gauges.detection_granularity END, updated_at = now()"
                   }
                 },
                 {
@@ -92,9 +234,9 @@
                   }
                 }
               ],
-              "parentSpanId": "13a9f90428f9aea2",
-              "endTimeUnixNano": "1752532520143251441",
-              "startTimeUnixNano": "1752532520136172113"
+              "parentSpanId": "6689f6c35f3b995f",
+              "endTimeUnixNano": "1752545427448677796",
+              "startTimeUnixNano": "1752545427448184853"
             }
           ]
         }

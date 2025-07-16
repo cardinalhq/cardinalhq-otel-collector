@@ -142,7 +142,7 @@ func (e *entityGraphExporter) addSpanExemplar(cid string, rs ptrace.ResourceSpan
 		return
 	}
 	exemplarRecord := toSpanExemplar(rs, ss, sr)
-	cache.Put(fingerprint, spanId, parentSpanId, fingerprint, exemplarRecord, attributes)
+	cache.Put(spanId, parentSpanId, fingerprint, exemplarRecord, attributes)
 }
 
 func toSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span) ptrace.Traces {

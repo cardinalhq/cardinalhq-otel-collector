@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/cardinalhq/oteltools/pkg/syncmap"
 	"io"
 	"log/slog"
 	"net/http"
@@ -26,6 +25,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/cardinalhq/oteltools/pkg/syncmap"
 
 	"github.com/cardinalhq/oteltools/pkg/graph"
 	"github.com/cardinalhq/oteltools/pkg/translate"
@@ -89,7 +90,7 @@ func newEntityGraphExporter(config *Config, ttype string, set exporter.Settings)
 }
 
 func (e *entityGraphExporter) Capabilities() consumer.Capabilities {
-	return consumer.Capabilities{MutatesData: false}
+	return consumer.Capabilities{MutatesData: true}
 }
 
 func (e *entityGraphExporter) Start(ctx context.Context, host component.Host) error {

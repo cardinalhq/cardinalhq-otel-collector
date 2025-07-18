@@ -115,7 +115,6 @@ func (e *entityGraphExporter) sendExemplarPayload(cid string) func(payload []*Sp
 			e.logger.Error("Failed to send trace exemplars", zap.Int("status", resp.StatusCode), zap.String("body", string(body)), zap.String("endpoint", endpoint))
 			return
 		}
-		return
 	}
 }
 

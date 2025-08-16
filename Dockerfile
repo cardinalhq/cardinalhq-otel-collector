@@ -12,16 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM alpine:latest AS certs
-RUN apk --update add ca-certificates
+FROM debian:12-slim AS tools
+RUN apt-get update && apt-get install -y ca-certificates curl && rm -rf /var/lib/apt/lists/*
 
-FROM public.ecr.aws/cardinalhq.io/geoip-base:latest
+FROM public.ecr.aws/cardinalhq.io/geoip-base:latest AS geoip
+
+FROM gcr.io/distroless/static-debian12:debug
+COPY --from=tools /usr/bin/curl /usr/bin/curl
+COPY --from=tools /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+
+COPY --from=geoip /app/geoip /app/geoip
+COPY --chmod=755 cardinalhq-otel-collector /app/bin/cardinalhq-otel-collector
 
 ARG USER_UID=2000
 USER ${USER_UID}:${USER_UID}
-
-COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --chmod=755 cardinalhq-otel-collector /app/bin/cardinalhq-otel-collector
 
 # The base image has the geoip database in /app/geoip
 ENV GEOIP_DB_PATH=/app/geoip/GeoLite2-City.mmdb

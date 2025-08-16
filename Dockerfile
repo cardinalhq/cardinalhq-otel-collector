@@ -23,6 +23,7 @@ COPY --from=tools /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifica
 
 COPY --from=geoip /app/geoip /app/geoip
 COPY --chmod=755 cardinalhq-otel-collector /app/bin/cardinalhq-otel-collector
+COPY --chmod=755 docker/run-with-env-config.sh /app/bin/run-with-env-config
 
 ARG USER_UID=2000
 USER ${USER_UID}:${USER_UID}

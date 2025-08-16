@@ -19,6 +19,17 @@ FROM public.ecr.aws/cardinalhq.io/geoip-base:latest AS geoip
 
 FROM gcr.io/distroless/base-debian12:debug
 COPY --from=tools /usr/bin/curl /usr/bin/curl
+COPY --from=tools /usr/lib/*/libcurl.so.4* /usr/lib/
+COPY --from=tools /usr/lib/*/libnghttp2.so.14* /usr/lib/
+COPY --from=tools /usr/lib/*/libidn2.so.0* /usr/lib/
+COPY --from=tools /usr/lib/*/librtmp.so.1* /usr/lib/
+COPY --from=tools /usr/lib/*/libssh2.so.1* /usr/lib/
+COPY --from=tools /usr/lib/*/libpsl.so.5* /usr/lib/
+COPY --from=tools /usr/lib/*/libgssapi_krb5.so.2* /usr/lib/
+COPY --from=tools /usr/lib/*/libldap.so.2* /usr/lib/
+COPY --from=tools /usr/lib/*/liblber.so.2* /usr/lib/
+COPY --from=tools /usr/lib/*/libbrotlidec.so.1* /usr/lib/
+COPY --from=tools /usr/lib/*/libunistring.so.2* /usr/lib/
 COPY --from=tools /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
 COPY --from=geoip /app/geoip /app/geoip

@@ -13,16 +13,10 @@
 # limitations under the License.
 
 FROM debian:12-slim AS tools
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
-# Get listing of /lib before installing curl
-RUN find /lib -type f > /tmp/before.txt
-# Install curl
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
-# Get listing of /lib after installing curl
-RUN find /lib -type f > /tmp/after.txt
-# Find new files and copy them to a staging directory
+RUN apt-get update && apt-get install -y ca-certificates curl && rm -rf /var/lib/apt/lists/*
+# Use ldd to find curl dependencies and copy them to staging directory
 RUN mkdir -p /tmp/curl-deps && \
-    comm -13 /tmp/before.txt /tmp/after.txt | xargs -I {} cp {} /tmp/curl-deps/ 2>/dev/null || true
+    ldd /usr/bin/curl | grep "=> /" | awk '{print $3}' | xargs -I {} cp {} /tmp/curl-deps/ 2>/dev/null || true
 
 FROM public.ecr.aws/cardinalhq.io/geoip-base:latest AS geoip
 

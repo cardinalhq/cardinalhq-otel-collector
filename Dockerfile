@@ -19,17 +19,37 @@ FROM public.ecr.aws/cardinalhq.io/geoip-base:latest AS geoip
 
 FROM gcr.io/distroless/base-debian12:debug
 COPY --from=tools /usr/bin/curl /usr/bin/curl
-COPY --from=tools /usr/lib/*/libcurl.so.4* /usr/lib/
-COPY --from=tools /usr/lib/*/libnghttp2.so.14* /usr/lib/
-COPY --from=tools /usr/lib/*/libidn2.so.0* /usr/lib/
-COPY --from=tools /usr/lib/*/librtmp.so.1* /usr/lib/
-COPY --from=tools /usr/lib/*/libssh2.so.1* /usr/lib/
-COPY --from=tools /usr/lib/*/libpsl.so.5* /usr/lib/
-COPY --from=tools /usr/lib/*/libgssapi_krb5.so.2* /usr/lib/
-COPY --from=tools /usr/lib/*/libldap.so.2* /usr/lib/
-COPY --from=tools /usr/lib/*/liblber.so.2* /usr/lib/
-COPY --from=tools /usr/lib/*/libbrotlidec.so.1* /usr/lib/
-COPY --from=tools /usr/lib/*/libunistring.so.2* /usr/lib/
+# Copy all curl dependencies from /lib/*/
+COPY --from=tools /lib/*/libcurl.so.4* /lib/
+COPY --from=tools /lib/*/libz.so.1* /lib/
+COPY --from=tools /lib/*/libnghttp2.so.14* /lib/
+COPY --from=tools /lib/*/libidn2.so.0* /lib/
+COPY --from=tools /lib/*/librtmp.so.1* /lib/
+COPY --from=tools /lib/*/libssh2.so.1* /lib/
+COPY --from=tools /lib/*/libpsl.so.5* /lib/
+COPY --from=tools /lib/*/libssl.so.3* /lib/
+COPY --from=tools /lib/*/libcrypto.so.3* /lib/
+COPY --from=tools /lib/*/libgssapi_krb5.so.2* /lib/
+COPY --from=tools /lib/*/libldap-2.5.so.0* /lib/
+COPY --from=tools /lib/*/liblber-2.5.so.0* /lib/
+COPY --from=tools /lib/*/libzstd.so.1* /lib/
+COPY --from=tools /lib/*/libbrotlidec.so.1* /lib/
+COPY --from=tools /lib/*/libunistring.so.2* /lib/
+COPY --from=tools /lib/*/libgnutls.so.30* /lib/
+COPY --from=tools /lib/*/libhogweed.so.6* /lib/
+COPY --from=tools /lib/*/libnettle.so.8* /lib/
+COPY --from=tools /lib/*/libgmp.so.10* /lib/
+COPY --from=tools /lib/*/libkrb5.so.3* /lib/
+COPY --from=tools /lib/*/libk5crypto.so.3* /lib/
+COPY --from=tools /lib/*/libcom_err.so.2* /lib/
+COPY --from=tools /lib/*/libkrb5support.so.0* /lib/
+COPY --from=tools /lib/*/libsasl2.so.2* /lib/
+COPY --from=tools /lib/*/libbrotlicommon.so.1* /lib/
+COPY --from=tools /lib/*/libp11-kit.so.0* /lib/
+COPY --from=tools /lib/*/libtasn1.so.6* /lib/
+COPY --from=tools /lib/*/libkeyutils.so.1* /lib/
+COPY --from=tools /lib/*/libresolv.so.2* /lib/
+COPY --from=tools /lib/*/libffi.so.8* /lib/
 COPY --from=tools /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
 COPY --from=geoip /app/geoip /app/geoip

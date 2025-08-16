@@ -30,6 +30,5 @@ USER ${USER_UID}:${USER_UID}
 # The base image has the geoip database in /app/geoip
 ENV GEOIP_DB_PATH=/app/geoip/GeoLite2-City.mmdb
 
-ENTRYPOINT ["/app/bin/cardinalhq-otel-collector"]
-CMD ["--config", "/app/config/config.yaml"]
+CMD ["/app/bin/cardinalhq-otel-collector", "--config", "/app/config/config.yaml"]
 EXPOSE 4317 55678 55679

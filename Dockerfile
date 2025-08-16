@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y ca-certificates curl && rm -rf /var/lib
 
 FROM public.ecr.aws/cardinalhq.io/geoip-base:latest AS geoip
 
-FROM gcr.io/distroless/static-debian12:debug
+FROM gcr.io/distroless/base-debian12:debug
 COPY --from=tools /usr/bin/curl /usr/bin/curl
 COPY --from=tools /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 

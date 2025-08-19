@@ -31,7 +31,7 @@ import (
 	semconv "go.opentelemetry.io/collector/semconv/v1.27.0"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/exp/metrics/identity"
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/identity"
 )
 
 // resourceAttributeNameMap maps Prometheus labels to standard OpenTelemetry semantic conventions

@@ -30,8 +30,8 @@ import (
 	"go.opentelemetry.io/collector/receiver/receiverhelper"
 	"go.opentelemetry.io/collector/receiver/receivertest"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprw/internal/metadata"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/pdatatest/pmetrictest"
-	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver/internal/metadata"
 )
 
 var writeV2RequestFixture = &writev2.Request{

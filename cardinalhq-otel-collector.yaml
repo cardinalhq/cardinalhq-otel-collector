@@ -126,6 +126,8 @@ receivers:
   # CardinalHQ receivers
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver v0.128.0
     path: ./receiver/chqdatadogreceiver
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver v0.128.0
+    path: ./receiver/chqprwreceiver
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.128.0
     path: ./receiver/githubeventsreceiver
 

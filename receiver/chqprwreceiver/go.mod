@@ -1,4 +1,4 @@
-module github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver
+module github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprw
 
 go 1.24
 
@@ -22,6 +22,7 @@ require (
 	go.opentelemetry.io/collector/receiver v1.38.1-0.20250814180350-eb9588bb3b55
 	go.opentelemetry.io/collector/receiver/receiverhelper v0.132.1-0.20250814180350-eb9588bb3b55
 	go.opentelemetry.io/collector/receiver/receivertest v0.132.1-0.20250814180350-eb9588bb3b55
+	go.opentelemetry.io/collector/semconv v0.128.1-0.20250610090210-188191247685
 	go.uber.org/goleak v1.3.0
 	go.uber.org/zap v1.27.0
 )
@@ -112,7 +113,6 @@ require (
 	go.opentelemetry.io/collector/pipeline v1.38.1-0.20250814180350-eb9588bb3b55 // indirect
 	go.opentelemetry.io/collector/processor v1.38.1-0.20250814180350-eb9588bb3b55 // indirect
 	go.opentelemetry.io/collector/receiver/xreceiver v0.132.1-0.20250814180350-eb9588bb3b55 // indirect
-	go.opentelemetry.io/collector/semconv v0.128.1-0.20250610090210-188191247685 // indirect
 	go.opentelemetry.io/contrib/bridges/otelzap v0.12.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace v0.61.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.62.0 // indirect
@@ -144,12 +144,14 @@ require (
 	sigs.k8s.io/yaml v1.5.0 // indirect
 )
 
-replace github.com/open-telemetry/opentelemetry-collector-contrib/pkg/pdatautil => ../../pkg/pdatautil
+replace github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 => ../../internal
 
-replace github.com/open-telemetry/opentelemetry-collector-contrib/pkg/pdatatest => ../../pkg/pdatatest
+// replace github.com/open-telemetry/opentelemetry-collector-contrib/pkg/pdatautil => ../../pkg/pdatautil
 
-replace github.com/open-telemetry/opentelemetry-collector-contrib/pkg/golden => ../../pkg/golden
+// replace github.com/open-telemetry/opentelemetry-collector-contrib/pkg/pdatatest => ../../pkg/pdatatest
 
-replace github.com/open-telemetry/opentelemetry-collector-contrib/internal/exp/metrics => ../../internal/exp/metrics
+// replace github.com/open-telemetry/opentelemetry-collector-contrib/pkg/golden => ../../pkg/golden
 
-replace github.com/open-telemetry/opentelemetry-collector-contrib/processor/deltatocumulativeprocessor => ../../processor/deltatocumulativeprocessor
+// replace github.com/open-telemetry/opentelemetry-collector-contrib/internal/exp/metrics => ../../internal/exp/metrics
+
+// replace github.com/open-telemetry/opentelemetry-collector-contrib/processor/deltatocumulativeprocessor => ../../processor/deltatocumulativeprocessor

@@ -1,4 +1,4 @@
-type: prometheusremotewrite
+type: chqprw
 
 status:
   class: receiver

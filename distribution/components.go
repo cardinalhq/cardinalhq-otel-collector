@@ -243,6 +243,7 @@ import (
 	prometheusremotewritereceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver"
 	routereceiver "github.com/observiq/bindplane-otel-collector/receiver/routereceiver"
 	chqdatadogreceiver "github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver"
+	chqprwreceiver "github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver"
 	githubeventsreceiver "github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver"
 )
 
@@ -428,6 +429,7 @@ func components() (otelcol.Factories, error) {
 		prometheusremotewritereceiver.NewFactory(),
 		routereceiver.NewFactory(),
 		chqdatadogreceiver.NewFactory(),
+		chqprwreceiver.NewFactory(),
 		githubeventsreceiver.NewFactory(),
 	)
 	if err != nil {
@@ -534,6 +536,7 @@ func components() (otelcol.Factories, error) {
 	factories.ReceiverModules[prometheusremotewritereceiver.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusremotewritereceiver v0.128.0"
 	factories.ReceiverModules[routereceiver.NewFactory().Type()] = "github.com/observiq/bindplane-otel-collector/receiver/routereceiver v1.72.0"
 	factories.ReceiverModules[chqdatadogreceiver.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver v0.128.0"
+	factories.ReceiverModules[chqprwreceiver.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver v0.128.0"
 	factories.ReceiverModules[githubeventsreceiver.NewFactory().Type()] = "github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.128.0"
 
 	factories.Exporters, err = otelcol.MakeFactoryMap[exporter.Factory](

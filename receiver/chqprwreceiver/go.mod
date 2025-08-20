@@ -11,7 +11,7 @@ require (
 	github.com/golang/snappy v1.0.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/pdatatest v0.132.0
-	github.com/prometheus/prometheus v0.305.0
+	github.com/prometheus/prometheus v0.304.3-0.20250703114031-419d436a447a
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/collector/component v1.38.0
 	go.opentelemetry.io/collector/component/componentstatus v0.132.0
@@ -91,7 +91,7 @@ require (
 	github.com/prometheus/client_golang v1.22.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.65.0 // indirect
-	github.com/prometheus/otlptranslator v0.0.0-20250527173959-2573485683d5 // indirect
+	github.com/prometheus/otlptranslator v0.0.0-20250620074007-94f535e0c588 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/prometheus/sigv4 v0.2.0 // indirect
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect

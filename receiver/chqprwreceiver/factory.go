@@ -11,7 +11,7 @@ import (
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/receiver"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprw/internal/metadata"
+	"github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver/internal/metadata"
 )
 
 // NewFactory creates a new Prometheus receiver factory.

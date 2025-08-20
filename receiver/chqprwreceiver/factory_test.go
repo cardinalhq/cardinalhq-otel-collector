@@ -10,7 +10,7 @@ import (
 	"go.opentelemetry.io/collector/consumer/consumertest"
 	"go.opentelemetry.io/collector/receiver/receivertest"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprw/internal/metadata"
+	"github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver/internal/metadata"
 )
 
 func TestCreateMetricsReceiver(t *testing.T) {

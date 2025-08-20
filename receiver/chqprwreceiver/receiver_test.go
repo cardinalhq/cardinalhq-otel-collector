@@ -30,7 +30,7 @@ import (
 	"go.opentelemetry.io/collector/receiver/receiverhelper"
 	"go.opentelemetry.io/collector/receiver/receivertest"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprw/internal/metadata"
+	"github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver/internal/metadata"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/pdatatest/pmetrictest"
 )
 

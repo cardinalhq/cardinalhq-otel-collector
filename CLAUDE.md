@@ -82,7 +82,7 @@ go test -v ./...
 
 1. **Make changes** to component code
 2. **Run tests**: `make test` (or test individual modules)
-3. **Run linting**: `make lint` 
+3. **Run linting**: `make lint`
 4. **Format code**: `make fmt`
 5. **Build**: `make all`
 6. **Run full checks**: `make check`
@@ -93,11 +93,11 @@ go test -v ./...
 - **License**: All files require Apache 2.0 license headers (checked by license-eye)
 - **Builder Config**: cardinalhq-otel-collector.yaml defines which components to include
 - **Go Version**: Requires Go 1.24.1
-- **OpenTelemetry Version**: Based on v0.128.0
+- **OpenTelemetry Version**: Based on v0.132.0
 
 ## Key Dependencies
 
-- OpenTelemetry Collector framework (v0.128.0)
+- OpenTelemetry Collector framework (v0.132.0)
 - OpenTelemetry Collector Contrib components
 - AWS SDK for S3 operations
 - Datadog agent libraries

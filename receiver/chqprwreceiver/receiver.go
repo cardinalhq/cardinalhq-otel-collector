@@ -224,8 +224,17 @@ func (prw *prometheusRemoteWriteReceiver) handlePRWV1(w http.ResponseWriter, req
 	m, stats, err := prw.translateV1(req.Context(), &prw1Req)
 	stats.SetHeaders(w)
 	if err != nil {
+		prw.settings.Logger.Warn("Error translating v1 remote write request", zapcore.Field{Key: "error", Type: zapcore.ErrorType, Interface: err})
 		http.Error(w, err.Error(), http.StatusBadRequest) // Following instructions at https://prometheus.io/docs/instrumenting/exposition_formats/#text-based-format
 		return
+	}
+
+	// JSON marshal and log the pmetric.Metrics object using OTel JSON marshaler
+	jsonMarshaler := &pmetric.JSONMarshaler{}
+	if jsonBytes, err := jsonMarshaler.MarshalMetrics(m); err == nil {
+		prw.settings.Logger.Info("Translated v1 metrics to pmetric.Metrics", zapcore.Field{Key: "metrics_json", Type: zapcore.StringType, String: string(jsonBytes)})
+	} else {
+		prw.settings.Logger.Warn("Failed to marshal metrics to JSON", zapcore.Field{Key: "error", Type: zapcore.ErrorType, Interface: err})
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -259,8 +268,17 @@ func (prw *prometheusRemoteWriteReceiver) handlePRWV2(w http.ResponseWriter, req
 	m, stats, err := prw.translateV2(req.Context(), &prw2Req)
 	stats.SetHeaders(w)
 	if err != nil {
+		prw.settings.Logger.Warn("Error translating v2 remote write request", zapcore.Field{Key: "error", Type: zapcore.ErrorType, Interface: err})
 		http.Error(w, err.Error(), http.StatusBadRequest) // Following instructions at https://prometheus.io/docs/specs/remote_write_spec_2_0/#invalid-samples
 		return
+	}
+
+	// JSON marshal and log the pmetric.Metrics object using OTel JSON marshaler
+	jsonMarshaler := &pmetric.JSONMarshaler{}
+	if jsonBytes, err := jsonMarshaler.MarshalMetrics(m); err == nil {
+		prw.settings.Logger.Info("Translated v2 metrics to pmetric.Metrics", zapcore.Field{Key: "metrics_json", Type: zapcore.StringType, String: string(jsonBytes)})
+	} else {
+		prw.settings.Logger.Warn("Failed to marshal metrics to JSON", zapcore.Field{Key: "error", Type: zapcore.ErrorType, Interface: err})
 	}
 
 	w.WriteHeader(http.StatusNoContent)

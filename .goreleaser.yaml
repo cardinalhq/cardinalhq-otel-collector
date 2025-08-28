@@ -44,6 +44,8 @@ dockers:
       - --label=org.opencontainers.image.revision={{.FullCommit}}
       - --label=org.opencontainers.image.version={{.Version}}
       - --label=org.opencontainers.image.source={{.GitURL}}
+    push_flags:
+      - --provenance=false
     use: buildx
   - goos: linux
     goarch: arm64
@@ -61,6 +63,8 @@ dockers:
       - --label=org.opencontainers.image.revision={{.FullCommit}}
       - --label=org.opencontainers.image.version={{.Version}}
       - --label=org.opencontainers.image.source={{.GitURL}}
+    push_flags:
+      - --provenance=false
     use: buildx
 docker_manifests:
   - name_template: public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:v{{ .Version }}

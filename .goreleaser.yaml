@@ -39,13 +39,13 @@ dockers:
     build_flag_templates:
       - --pull
       - --platform=linux/amd64
+      - --provenance=false
+      - --sbom=false
       - --label=org.opencontainers.image.created={{.Date}}
       - --label=org.opencontainers.image.name={{.ProjectName}}
       - --label=org.opencontainers.image.revision={{.FullCommit}}
       - --label=org.opencontainers.image.version={{.Version}}
       - --label=org.opencontainers.image.source={{.GitURL}}
-    push_flags:
-      - --provenance=false
     use: buildx
   - goos: linux
     goarch: arm64
@@ -58,13 +58,13 @@ dockers:
     build_flag_templates:
       - --pull
       - --platform=linux/arm64
+      - --provenance=false
+      - --sbom=false
       - --label=org.opencontainers.image.created={{.Date}}
       - --label=org.opencontainers.image.name={{.ProjectName}}
       - --label=org.opencontainers.image.revision={{.FullCommit}}
       - --label=org.opencontainers.image.version={{.Version}}
       - --label=org.opencontainers.image.source={{.GitURL}}
-    push_flags:
-      - --provenance=false
     use: buildx
 docker_manifests:
   - name_template: public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:v{{ .Version }}

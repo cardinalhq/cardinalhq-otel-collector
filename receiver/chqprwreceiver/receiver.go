@@ -186,10 +186,8 @@ func (prw *prometheusRemoteWriteReceiver) handlePRW(w http.ResponseWriter, req *
 
 	switch msgType {
 	case promconfig.RemoteWriteProtoMsgV1:
-		prw.settings.Logger.Info("Received v1 remote write request")
 		prw.handlePRWV1(w, req)
 	case promconfig.RemoteWriteProtoMsgV2:
-		prw.settings.Logger.Info("Received v2 remote write request")
 		prw.handlePRWV2(w, req)
 	default:
 		prw.settings.Logger.Warn("message received with unsupported proto version, rejecting")
@@ -221,14 +219,6 @@ func (prw *prometheusRemoteWriteReceiver) handlePRWV1(w http.ResponseWriter, req
 		return
 	}
 
-	// JSON marshal and log the pmetric.Metrics object using OTel JSON marshaler
-	jsonMarshaler := &pmetric.JSONMarshaler{}
-	if jsonBytes, err := jsonMarshaler.MarshalMetrics(m); err == nil {
-		prw.settings.Logger.Info("Translated v1 metrics to pmetric.Metrics", zapcore.Field{Key: "metrics_json", Type: zapcore.StringType, String: string(jsonBytes)})
-	} else {
-		prw.settings.Logger.Warn("Failed to marshal metrics to JSON", zapcore.Field{Key: "error", Type: zapcore.ErrorType, Interface: err})
-	}
-
 	w.WriteHeader(http.StatusNoContent)
 
 	obsrecvCtx := prw.obsrecv.StartMetricsOp(req.Context())
@@ -257,22 +247,12 @@ func (prw *prometheusRemoteWriteReceiver) handlePRWV2(w http.ResponseWriter, req
 		return
 	}
 
-	prw.settings.Logger.Info("v2 Request timeseries count", zapcore.Field{Key: "count", Type: zapcore.Int64Type, Integer: int64(len(prw2Req.Timeseries))})
-
 	m, stats, err := prw.translateV2(req.Context(), &prw2Req)
 	stats.SetHeaders(w)
 	if err != nil {
 		prw.settings.Logger.Warn("Error translating v2 remote write request", zapcore.Field{Key: "error", Type: zapcore.ErrorType, Interface: err})
 		http.Error(w, err.Error(), http.StatusBadRequest) // Following instructions at https://prometheus.io/docs/specs/remote_write_spec_2_0/#invalid-samples
 		return
-	}
-
-	// JSON marshal and log the pmetric.Metrics object using OTel JSON marshaler
-	jsonMarshaler := &pmetric.JSONMarshaler{}
-	if jsonBytes, err := jsonMarshaler.MarshalMetrics(m); err == nil {
-		prw.settings.Logger.Info("Translated v2 metrics to pmetric.Metrics", zapcore.Field{Key: "metrics_json", Type: zapcore.StringType, String: string(jsonBytes)})
-	} else {
-		prw.settings.Logger.Warn("Failed to marshal metrics to JSON", zapcore.Field{Key: "error", Type: zapcore.ErrorType, Interface: err})
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -503,8 +483,6 @@ func (prw *prometheusRemoteWriteReceiver) translateV2(_ context.Context, req *wr
 			badRequestErrors = errors.Join(badRequestErrors, fmt.Errorf("duplicate label %q in labels", duplicateLabel))
 			continue
 		}
-
-		prw.settings.Logger.Info("v2 Timeseries", zapcore.Field{Key: "metric_name", Type: zapcore.StringType, String: ls.Get(labels.MetricName)})
 
 		// If the metric name is equal to target_info, we use its labels as attributes of the resource
 		// Ref: https://opentelemetry.io/docs/specs/otel/compatibility/prometheus_and_openmetrics/#resource-attributes-1

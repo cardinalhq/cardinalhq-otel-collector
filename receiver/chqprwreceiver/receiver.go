@@ -440,7 +440,7 @@ func addNumberDatapointsV1(datapoints pmetric.NumberDataPointSlice, ls map[strin
 func extractAttributesV1(ls map[string]string) pcommon.Map {
 	attrs := pcommon.NewMap()
 	for labelName, labelValue := range ls {
-		if labelName == "__name__" { 
+		if labelName == "__name__" {
 			continue
 		}
 		attrs.PutStr(labelName, labelValue)
@@ -489,7 +489,7 @@ func (prw *prometheusRemoteWriteReceiver) translateV2(_ context.Context, req *wr
 		stats = promremote.WriteResponseStats{
 			Confirmed: true,
 		}
-		rmCache := make(map[uint64]pmetric.ResourceMetrics)
+		rmCache = make(map[uint64]pmetric.ResourceMetrics)
 		// The key is composed by: resource_hash:scope_name:scope_version:metric_name:unit:type
 		metricCache = make(map[uint64]pmetric.Metric)
 	)

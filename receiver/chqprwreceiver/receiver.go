@@ -194,8 +194,10 @@ func (prw *prometheusRemoteWriteReceiver) handlePRW(w http.ResponseWriter, req *
 
 	switch msgType {
 	case promconfig.RemoteWriteProtoMsgV1:
+		prw.settings.Logger.Info("Received v1 remote write request")
 		prw.handlePRWV1(w, req)
 	case promconfig.RemoteWriteProtoMsgV2:
+		prw.settings.Logger.Info("Received v2 remote write request")
 		prw.handlePRWV2(w, req)
 	default:
 		prw.settings.Logger.Warn("message received with unsupported proto version, rejecting")

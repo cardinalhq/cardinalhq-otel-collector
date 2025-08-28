@@ -265,6 +265,8 @@ func (prw *prometheusRemoteWriteReceiver) handlePRWV2(w http.ResponseWriter, req
 		return
 	}
 
+	prw.settings.Logger.Info("v2 Request timeseries count", zapcore.Field{Key: "count", Type: zapcore.Int64Type, Integer: int64(len(prw2Req.Timeseries))})
+
 	m, stats, err := prw.translateV2(req.Context(), &prw2Req)
 	stats.SetHeaders(w)
 	if err != nil {
@@ -508,6 +510,8 @@ func (prw *prometheusRemoteWriteReceiver) translateV2(_ context.Context, req *wr
 			badRequestErrors = errors.Join(badRequestErrors, fmt.Errorf("duplicate label %q in labels", duplicateLabel))
 			continue
 		}
+
+		prw.settings.Logger.Info("v2 Timeseries", zapcore.Field{Key: "metric_name", Type: zapcore.StringType, String: ls.Get(labels.MetricName)})
 
 		// If the metric name is equal to target_info, we use its labels as attributes of the resource
 		// Ref: https://opentelemetry.io/docs/specs/otel/compatibility/prometheus_and_openmetrics/#resource-attributes-1

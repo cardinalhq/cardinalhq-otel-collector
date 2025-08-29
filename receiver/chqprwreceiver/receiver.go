@@ -14,7 +14,6 @@ import (
 
 	"github.com/cespare/xxhash/v2"
 	"github.com/gogo/protobuf/proto"
-	lru "github.com/hashicorp/golang-lru/v2"
 	promconfig "github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/model/value"
@@ -64,11 +63,6 @@ func getResourceAttribute(labelName string) (string, bool) {
 }
 
 func newRemoteWriteReceiver(settings receiver.Settings, cfg *Config, nextConsumer consumer.Metrics) (receiver.Metrics, error) {
-	cache, err := lru.New[uint64, pmetric.ResourceMetrics](1000)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create LRU cache: %w", err)
-	}
-
 	return &prometheusRemoteWriteReceiver{
 		settings:     settings,
 		nextConsumer: nextConsumer,
@@ -76,7 +70,6 @@ func newRemoteWriteReceiver(settings receiver.Settings, cfg *Config, nextConsume
 		server: &http.Server{
 			ReadTimeout: 60 * time.Second,
 		},
-		rmCache: cache,
 	}, nil
 }
 
@@ -88,7 +81,6 @@ type prometheusRemoteWriteReceiver struct {
 	server *http.Server
 	wg     sync.WaitGroup
 
-	rmCache *lru.Cache[uint64, pmetric.ResourceMetrics]
 	obsrecv *receiverhelper.ObsReport
 }
 
@@ -222,6 +214,7 @@ func (prw *prometheusRemoteWriteReceiver) handlePRWV1(w http.ResponseWriter, req
 	m, stats, err := prw.translateV1(req.Context(), &prw1Req)
 	stats.SetHeaders(w)
 	if err != nil {
+		prw.settings.Logger.Warn("Error translating v1 remote write request", zapcore.Field{Key: "error", Type: zapcore.ErrorType, Interface: err})
 		http.Error(w, err.Error(), http.StatusBadRequest) // Following instructions at https://prometheus.io/docs/instrumenting/exposition_formats/#text-based-format
 		return
 	}
@@ -257,6 +250,7 @@ func (prw *prometheusRemoteWriteReceiver) handlePRWV2(w http.ResponseWriter, req
 	m, stats, err := prw.translateV2(req.Context(), &prw2Req)
 	stats.SetHeaders(w)
 	if err != nil {
+		prw.settings.Logger.Warn("Error translating v2 remote write request", zapcore.Field{Key: "error", Type: zapcore.ErrorType, Interface: err})
 		http.Error(w, err.Error(), http.StatusBadRequest) // Following instructions at https://prometheus.io/docs/specs/remote_write_spec_2_0/#invalid-samples
 		return
 	}
@@ -309,6 +303,8 @@ func (prw *prometheusRemoteWriteReceiver) translateV1(_ context.Context, v1r *wr
 		return otelMetrics, stats, errors.New("empty request")
 	}
 
+	rmCache := make(map[uint64]pmetric.ResourceMetrics)
+
 	// The key is composed by: resource_hash:scope_name:scope_version:metric_name:unit:type
 	metricCache := make(map[uint64]pmetric.Metric)
 	var badRequestErrors error
@@ -330,7 +326,7 @@ func (prw *prometheusRemoteWriteReceiver) translateV1(_ context.Context, v1r *wr
 
 		// Handle regular metrics (gauge, counter, summary)
 		hashedLabels := xxhash.Sum64String(ls["job"] + string([]byte{'\xff'}) + ls["instance"])
-		existingRM, ok := prw.rmCache.Get(hashedLabels)
+		existingRM, ok := rmCache[hashedLabels]
 		var rm pmetric.ResourceMetrics
 		if ok {
 			rm = existingRM
@@ -345,7 +341,7 @@ func (prw *prometheusRemoteWriteReceiver) translateV1(_ context.Context, v1r *wr
 				}
 			}
 
-			prw.rmCache.Add(hashedLabels, rm)
+			rmCache[hashedLabels] = rm
 		}
 
 		// Find or create scope
@@ -424,9 +420,7 @@ func addNumberDatapointsV1(datapoints pmetric.NumberDataPointSlice, ls map[strin
 func extractAttributesV1(ls map[string]string) pcommon.Map {
 	attrs := pcommon.NewMap()
 	for labelName, labelValue := range ls {
-		if labelName == "instance" || labelName == "job" || // Become resource attributes
-			labelName == "__name__" || // Becomes metric name
-			labelName == "otel_scope_name" || labelName == "otel_scope_version" { // Becomes scope name and version
+		if labelName == "__name__" {
 			continue
 		}
 		attrs.PutStr(labelName, labelValue)
@@ -475,6 +469,7 @@ func (prw *prometheusRemoteWriteReceiver) translateV2(_ context.Context, req *wr
 		stats = promremote.WriteResponseStats{
 			Confirmed: true,
 		}
+		rmCache = make(map[uint64]pmetric.ResourceMetrics)
 		// The key is composed by: resource_hash:scope_name:scope_version:metric_name:unit:type
 		metricCache = make(map[uint64]pmetric.Metric)
 	)
@@ -495,7 +490,7 @@ func (prw *prometheusRemoteWriteReceiver) translateV2(_ context.Context, req *wr
 			var rm pmetric.ResourceMetrics
 			hashedLabels := xxhash.Sum64String(ls.Get("job") + string([]byte{'\xff'}) + ls.Get("instance"))
 
-			if existingRM, ok := prw.rmCache.Get(hashedLabels); ok {
+			if existingRM, ok := rmCache[hashedLabels]; ok {
 				rm = existingRM
 			} else {
 				rm = otelMetrics.ResourceMetrics().AppendEmpty()
@@ -506,11 +501,11 @@ func (prw *prometheusRemoteWriteReceiver) translateV2(_ context.Context, req *wr
 
 			// Add the remaining labels as resource attributes
 			for labelName, labelValue := range ls.Map() {
-				if labelName != "job" && labelName != "instance" && labelName != labels.MetricName {
+				if labelName != labels.MetricName {
 					attrs.PutStr(labelName, labelValue)
 				}
 			}
-			prw.rmCache.Add(hashedLabels, rm)
+			rmCache[hashedLabels] = rm
 			continue
 		}
 
@@ -537,14 +532,14 @@ func (prw *prometheusRemoteWriteReceiver) translateV2(_ context.Context, req *wr
 
 		// Handle regular metrics (gauge, counter, summary)
 		hashedLabels := xxhash.Sum64String(ls.Get("job") + string([]byte{'\xff'}) + ls.Get("instance"))
-		existingRM, ok := prw.rmCache.Get(hashedLabels)
+		existingRM, ok := rmCache[hashedLabels]
 		var rm pmetric.ResourceMetrics
 		if ok {
 			rm = existingRM
 		} else {
 			rm = otelMetrics.ResourceMetrics().AppendEmpty()
 			parseJobAndInstance(rm.Resource().Attributes(), ls.Get("job"), ls.Get("instance"))
-			prw.rmCache.Add(hashedLabels, rm)
+			rmCache[hashedLabels] = rm
 		}
 
 		resourceID := identity.OfResource(rm.Resource())
@@ -639,6 +634,8 @@ func (prw *prometheusRemoteWriteReceiver) processHistogramTimeSeries(
 	var resourceID identity.Resource
 	var scope pmetric.ScopeMetrics
 
+	rmCache := make(map[uint64]pmetric.ResourceMetrics)
+
 	for _, histogram := range ts.Histograms {
 		if histogram.ResetHint == writev2.Histogram_RESET_HINT_GAUGE {
 			continue
@@ -660,13 +657,13 @@ func (prw *prometheusRemoteWriteReceiver) processHistogramTimeSeries(
 		// Create resource if needed (only for the first valid histogram)
 		if hashedLabels == 0 {
 			hashedLabels = xxhash.Sum64String(ls.Get("job") + string([]byte{'\xff'}) + ls.Get("instance"))
-			existingRM, ok := prw.rmCache.Get(hashedLabels)
+			existingRM, ok := rmCache[hashedLabels]
 			if ok {
 				rm = existingRM
 			} else {
 				rm = otelMetrics.ResourceMetrics().AppendEmpty()
 				parseJobAndInstance(rm.Resource().Attributes(), ls.Get("job"), ls.Get("instance"))
-				prw.rmCache.Add(hashedLabels, rm)
+				rmCache[hashedLabels] = rm
 			}
 			resourceID = identity.OfResource(rm.Resource())
 		}
@@ -919,9 +916,7 @@ func convertAbsoluteBuckets(spans []writev2.BucketSpan, counts []float64, bucket
 func extractAttributes(ls labels.Labels) pcommon.Map {
 	attrs := pcommon.NewMap()
 	for labelName, labelValue := range ls.Map() {
-		if labelName == "instance" || labelName == "job" || // Become resource attributes
-			labelName == labels.MetricName || // Becomes metric name
-			labelName == "otel_scope_name" || labelName == "otel_scope_version" { // Becomes scope name and version
+		if labelName == labels.MetricName {
 			continue
 		}
 		attrs.PutStr(labelName, labelValue)

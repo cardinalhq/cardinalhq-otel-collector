@@ -815,6 +815,10 @@ func (prw *prometheusRemoteWriteReceiver) addExponentialHistogramDatapoint(datap
 	}
 
 	extractAttributes(ls).CopyTo(dp.Attributes())
+
+	prw.settings.Logger.Info("Added exponential histogram datapoint",
+		zapcore.Field{Key: "metric_name", Type: zapcore.StringType, String: ls.Get("__name__")})
+
 	stats.Histograms++
 }
 
@@ -945,7 +949,7 @@ func (prw *prometheusRemoteWriteReceiver) extractScopeInfo(ls labels.Labels) (st
 }
 
 // addNHCBDatapoint converts a single Native Histogram Custom Buckets (NHCB) to OpenTelemetry histogram datapoints
-func (*prometheusRemoteWriteReceiver) addNHCBDatapoint(datapoints pmetric.HistogramDataPointSlice, histogram writev2.Histogram, ls labels.Labels, createdTimestamp int64, stats *promremote.WriteResponseStats) {
+func (prw *prometheusRemoteWriteReceiver) addNHCBDatapoint(datapoints pmetric.HistogramDataPointSlice, histogram writev2.Histogram, ls labels.Labels, createdTimestamp int64, stats *promremote.WriteResponseStats) {
 	if len(histogram.CustomValues) == 0 {
 		return
 	}
@@ -965,6 +969,10 @@ func (*prometheusRemoteWriteReceiver) addNHCBDatapoint(datapoints pmetric.Histog
 	dp.BucketCounts().FromRaw(bucketCounts)
 
 	extractAttributes(ls).CopyTo(dp.Attributes())
+
+	prw.settings.Logger.Info("Added NHCB datapoint",
+		zapcore.Field{Key: "metric_name", Type: zapcore.StringType, String: ls.Get("__name__")})
+
 	stats.Histograms++
 }
 

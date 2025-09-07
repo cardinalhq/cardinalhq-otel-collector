@@ -629,6 +629,10 @@ func (prw *prometheusRemoteWriteReceiver) processHistogramTimeSeries(
 		return
 	}
 
+	prw.settings.Logger.Info("Processing histogram series",
+		zapcore.Field{Key: "metric_name", Type: zapcore.StringType, String: metricName},
+		zapcore.Field{Key: "timeseries", Type: zapcore.StringType, String: ls.Get("__name__")})
+
 	var rm pmetric.ResourceMetrics
 	var hashedLabels uint64
 	var resourceID identity.Resource

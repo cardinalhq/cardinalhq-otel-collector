@@ -526,7 +526,7 @@ func (prw *prometheusRemoteWriteReceiver) translateV2(_ context.Context, req *wr
 
 		// Handle histograms separately due to their complex mixed-schema processing
 		if ts.Metadata.Type == writev2.Metadata_METRIC_TYPE_HISTOGRAM {
-			prw.processHistogramTimeSeries(otelMetrics, ls, ts, scopeName, scopeVersion, metricName, unit, description, metricCache, &stats)
+			prw.processHistogramTimeSeries(otelMetrics, ls, ts, scopeName, scopeVersion, metricName, unit, description, rmCache, metricCache, &stats)
 			continue
 		}
 
@@ -619,6 +619,7 @@ func (prw *prometheusRemoteWriteReceiver) processHistogramTimeSeries(
 	ls labels.Labels,
 	ts writev2.TimeSeries,
 	scopeName, scopeVersion, metricName, unit, description string,
+	rmCache map[uint64]pmetric.ResourceMetrics,
 	metricCache map[uint64]pmetric.Metric,
 	stats *promremote.WriteResponseStats,
 ) {
@@ -637,8 +638,6 @@ func (prw *prometheusRemoteWriteReceiver) processHistogramTimeSeries(
 	var hashedLabels uint64
 	var resourceID identity.Resource
 	var scope pmetric.ScopeMetrics
-
-	rmCache := make(map[uint64]pmetric.ResourceMetrics)
 
 	for _, histogram := range ts.Histograms {
 		if histogram.ResetHint == writev2.Histogram_RESET_HINT_GAUGE {

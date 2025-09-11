@@ -2099,6 +2099,8 @@ github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awskinesisexp
 github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awskinesisexporter v0.132.0/go.mod h1:C5ddaU6lA7GwQkcFg5WPlji5yHCyjP2e00dkKsu3ZHQ=
 github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awsxrayexporter v0.132.0 h1:viVw0l4q7pPJ9v8cg6B6jpdwOMu7XL7kEPAG0PwtflQ=
 github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awsxrayexporter v0.132.0/go.mod h1:XfDa2CjKmmli1CtrqBYafbmrRltBKPAmqsFSIYUQ2Y0=
+github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azureblobexporter v0.132.0 h1:fo6ksC0WRd8iWBhy6RPSM1yAS1JD+mH+T3FrLWGDzGk=
+github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azureblobexporter v0.132.0/go.mod h1:K7M/trJ4UNph3lytuW1IppiDvTdziz8P3x0l9no8Xe0=
 github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azuredataexplorerexporter v0.132.0 h1:UaQFGoukeaHkfc/DjjK+rzY0gHH+w6jjPExM/tQlvZc=
 github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azuredataexplorerexporter v0.132.0/go.mod h1:Nx/lhxkELWmGm5mB9cCFAw1W/LorfEY+ibCoHi6L25Q=
 github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azuremonitorexporter v0.132.0 h1:brLMyM4QIDyMF4mRMDcd83hPnYFsAAeqSuXbkrO7E0U=

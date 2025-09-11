@@ -4,6 +4,8 @@ module go.opentelemetry.io/collector/cmd/builder
 
 go 1.24.0
 
+toolchain go1.24.5
+
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector v0.132.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.132.0
@@ -48,6 +50,7 @@ require (
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awskinesisexporter v0.132.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awss3exporter v0.132.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awsxrayexporter v0.132.0
+	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azureblobexporter v0.132.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azuredataexplorerexporter v0.132.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azuremonitorexporter v0.132.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/bmchelixexporter v0.132.0

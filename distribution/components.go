@@ -34,6 +34,7 @@ import (
 	awskinesisexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awskinesisexporter"
 	awsxrayexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awsxrayexporter"
 	awss3exporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awss3exporter"
+	azureblobexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azureblobexporter"
 	azuredataexplorerexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azuredataexplorerexporter"
 	azuremonitorexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azuremonitorexporter"
 	bmchelixexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/bmchelixexporter"
@@ -547,6 +548,7 @@ func components() (otelcol.Factories, error) {
 		awskinesisexporter.NewFactory(),
 		awsxrayexporter.NewFactory(),
 		awss3exporter.NewFactory(),
+		azureblobexporter.NewFactory(),
 		azuredataexplorerexporter.NewFactory(),
 		azuremonitorexporter.NewFactory(),
 		bmchelixexporter.NewFactory(),
@@ -604,6 +606,7 @@ func components() (otelcol.Factories, error) {
 	factories.ExporterModules[awskinesisexporter.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awskinesisexporter v0.132.0"
 	factories.ExporterModules[awsxrayexporter.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awsxrayexporter v0.132.0"
 	factories.ExporterModules[awss3exporter.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awss3exporter v0.132.0"
+	factories.ExporterModules[azureblobexporter.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azureblobexporter v0.132.0"
 	factories.ExporterModules[azuredataexplorerexporter.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azuredataexplorerexporter v0.132.0"
 	factories.ExporterModules[azuremonitorexporter.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azuremonitorexporter v0.132.0"
 	factories.ExporterModules[bmchelixexporter.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/bmchelixexporter v0.132.0"

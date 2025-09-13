@@ -1,8 +1,6 @@
 module github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver
 
-go 1.24
-
-toolchain go1.24.1
+go 1.25
 
 require (
 	github.com/google/go-github/v63 v63.0.0
@@ -41,6 +39,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
+	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/rs/cors v1.11.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/collector/client v1.38.0 // indirect

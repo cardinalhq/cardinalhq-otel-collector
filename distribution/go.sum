@@ -720,8 +720,8 @@ github.com/AzureAD/microsoft-authentication-extensions-for-go/cache v0.1.1/go.mo
 github.com/AzureAD/microsoft-authentication-library-for-go v1.4.2 h1:oygO0locgZJe7PpYPXT5A29ZkwJaPqcva7BVeemZOZs=
 github.com/AzureAD/microsoft-authentication-library-for-go v1.4.2/go.mod h1:wP83P5OoQ5p6ip3ScPr0BAq0BvuPAvacpEuSzyouqAI=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
-github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c h1:pxW6RcqyfI9/kWtOwnv/G+AzdKuy2ZrqINhenH4HyNs=
-github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
+github.com/BurntSushi/toml v1.5.0 h1:W5quZX/G/csjUnuI8SUYlsHs9M38FC7znL0lIO+DvMg=
+github.com/BurntSushi/toml v1.5.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/ClickHouse/ch-go v0.67.0 h1:18MQF6vZHj+4/hTRaK7JbS/TIzn4I55wC+QzO24uiqc=
 github.com/ClickHouse/ch-go v0.67.0/go.mod h1:2MSAeyVmgt+9a2k2SQPPG1b4qbTPzdGDpf1+bcHh+18=
@@ -1193,8 +1193,8 @@ github.com/cardinalhq/opentelemetry-collector-contrib/exporter/awss3exporter v0.
 github.com/cardinalhq/opentelemetry-collector-contrib/exporter/awss3exporter v0.0.0-20250824200354-e940577d9b61/go.mod h1:Yd75mmzrTm9f4tzIjRDwts3ziCvTLaKQj3kZ74njH+I=
 github.com/cardinalhq/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.0.0-20250624061312-f34e021e84c9 h1:bxgUuxf9PPNTKgCBvJxd5+t4EO9shnsYoigwovnc+dQ=
 github.com/cardinalhq/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.0.0-20250624061312-f34e021e84c9/go.mod h1:aVt9oEcFZcx+YrPd7Aijs8LwxaSp4aJA1fFx12WdUCs=
-github.com/cardinalhq/oteltools v0.30.20 h1:lOUukUvnYmSIO6Zl4m61mC6Jlgb5/drQKuvJj/KNAyQ=
-github.com/cardinalhq/oteltools v0.30.20/go.mod h1:Zk0VlCfAYv5AMa55WqRJEK/VfVCYncuxgKjH7jYGO1c=
+github.com/cardinalhq/oteltools v0.31.0 h1:+BKtpYF0Pl7+rthUjusMigmp9D6/XAnxR+YC/QOxJkQ=
+github.com/cardinalhq/oteltools v0.31.0/go.mod h1:15WdjidofOJo1gX9EvFV+dYfGitUpo4nFu2i3B2nNCc=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
 github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
@@ -2807,8 +2807,9 @@ github.com/spf13/jwalterweatherman v1.0.0/go.mod h1:cQK4TGJAtQXfYWX+Ddv3mKDzgVb6
 github.com/spf13/jwalterweatherman v1.1.0 h1:ue6voC5bR5F8YxI5S67j9i582FU4Qvo2bmqnqMYADFk=
 github.com/spf13/jwalterweatherman v1.1.0/go.mod h1:aNWZUN0dPAAO/Ljvb5BEdw96iTZ0EXowPYD95IqWIGo=
 github.com/spf13/pflag v1.0.3/go.mod h1:DYY7MBk1bdzusC3SYhjObp+wFpr4gzcvqqNjLnInEg4=
-github.com/spf13/pflag v1.0.6 h1:jFzHGLGAlb3ruxLB8MhbI6A8+AQX/2eW4qeyNZXNp2o=
 github.com/spf13/pflag v1.0.6/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=
+github.com/spf13/pflag v1.0.7 h1:vN6T9TfwStFPFM5XzjsvmzZkLuaLX+HS+0SeFLRgU6M=
+github.com/spf13/pflag v1.0.7/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=
 github.com/spf13/viper v1.6.2/go.mod h1:t3iDnF5Jlj76alVNuyFBk5oUMCvsrkbvZK0WQdfDi5k=
 github.com/spiffe/go-spiffe/v2 v2.5.0 h1:N2I01KCUkv1FAjZXJMwh95KK1ZIQLYbPfhaxw8WS0hE=
 github.com/spiffe/go-spiffe/v2 v2.5.0/go.mod h1:P+NxobPc6wXhVtINNtFjNWGBTreew1GBUCwT2wPmb7g=

@@ -1,11 +1,9 @@
 module github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter
 
-go 1.24.0
-
-toolchain go1.24.1
+go 1.25
 
 require (
-	github.com/cardinalhq/oteltools v0.30.20
+	github.com/cardinalhq/oteltools v0.31.0
 	github.com/deckarep/golang-set/v2 v2.8.0
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/collector/component v1.38.0
@@ -76,7 +74,7 @@ require (
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/shirou/gopsutil/v4 v4.25.5 // indirect
 	github.com/spf13/cobra v1.9.1 // indirect
-	github.com/spf13/pflag v1.0.6 // indirect
+	github.com/spf13/pflag v1.0.7 // indirect
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
 	github.com/tklauser/numcpus v0.9.0 // indirect
 	github.com/twmb/murmur3 v1.1.8 // indirect

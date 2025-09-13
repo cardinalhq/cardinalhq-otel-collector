@@ -1,8 +1,6 @@
 module github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver
 
-go 1.24.0
-
-toolchain go1.24.1
+go 1.25
 
 replace (
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.0.0 => ../../extension/chqtagcacheextension

@@ -43,6 +43,7 @@ func (p *extractor) ConsumeTraces(ctx context.Context, pt ptrace.Traces) (ptrace
 // ---- Emission plumbing (common + generic) ---------------------------------
 
 func (e *extractor) sendMetrics(ctx context.Context, route string, metrics pmetric.Metrics) {
+	e.logger.Info("Sending span metrics", zap.String("route", route), zap.Int("num_metrics", metrics.DataPointCount()))
 	if err := routereceiver.RouteMetrics(ctx, route, metrics); err != nil {
 		e.logger.Error("Failed to send metrics", zap.Error(err))
 	}
@@ -181,7 +182,7 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 				20,
 				func(list *chqpb.SpanSketchList) error {
 					rows := p.spanSketchesToEmittables(list)
-					p.emitMetrics(ctx, "metrics", rows)
+					p.emitMetrics(ctx, p.config.Route, rows)
 					return nil
 				},
 			)

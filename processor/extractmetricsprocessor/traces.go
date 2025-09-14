@@ -163,7 +163,7 @@ func (p *extractor) spanSketchesToEmittables(list *chqpb.SpanSketchList) []Emitt
 			MetricName: s.MetricName,
 			MetricType: s.MetricType,
 			Tags:       s.Tags,
-			IntervalMs: s.Interval,
+			IntervalMs: s.Interval * 1000,
 			Value:      &totalCount,
 		})
 	}

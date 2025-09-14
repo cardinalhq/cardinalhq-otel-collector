@@ -1,12 +1,10 @@
 module github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention
 
-go 1.24.0
-
-toolchain go1.24.1
+go 1.25
 
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.0.0
-	github.com/cardinalhq/oteltools v0.30.20
+	github.com/cardinalhq/oteltools v0.31.0
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/collector/component v1.38.0
 	go.opentelemetry.io/collector/config/confighttp v0.132.0

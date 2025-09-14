@@ -1,6 +1,6 @@
 module github.com/cardinalhq/cardinalhq-otel-collector/internal
 
-go 1.24.0
+go 1.25
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0

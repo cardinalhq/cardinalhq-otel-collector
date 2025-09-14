@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
-	"github.com/cardinalhq/oteltools/pkg/ottl"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
 	"github.com/cardinalhq/oteltools/signalbuilder"
 	"github.com/observiq/bindplane-otel-collector/receiver/routereceiver"
@@ -35,17 +34,14 @@ import (
 	"go.uber.org/zap"
 )
 
-// ---- Public entrypoint -----------------------------------------------------
-
 func (p *extractor) ConsumeTraces(ctx context.Context, pt ptrace.Traces) (ptrace.Traces, error) {
 	p.updateSketchCache(ctx, pt)
 	return pt, nil
 }
 
-// ---- Emission plumbing (common + generic) ---------------------------------
-
 func (e *extractor) sendMetrics(ctx context.Context, route string, metrics pmetric.Metrics) {
-	e.logger.Info("Sending span metrics", zap.String("route", route), zap.Int("num_metrics", metrics.DataPointCount()))
+	e.logger.Debug("Sending span metrics", zap.String("route", route), zap.Int("num_metrics", metrics.DataPointCount()))
+
 	if err := routereceiver.RouteMetrics(ctx, route, metrics); err != nil {
 		e.logger.Error("Failed to send metrics", zap.Error(err))
 	}
@@ -56,8 +52,7 @@ type Emittable struct {
 	MetricType string            // e.g. "count", "gauge", "sum"
 	Tags       map[string]string // flat map, includes resource + dp attrs
 	IntervalMs int64             // unix ms timestamp
-	// Optional numeric value. If nil, we preserve current Datapoint() behavior.
-	Value *float64
+	Value      *float64
 }
 
 // splitResourceAndAttrs divides a flat tags map into resource-level keys and dp attributes.
@@ -223,8 +218,6 @@ func (p *extractor) spanSketchesToEmittables(list *chqpb.SpanSketchList) []Emitt
 	return out
 }
 
-// ---- Core update path ------------------------------------------------------
-
 type ResourcesKey struct {
 	OrganizationID string
 	ServiceName    string
@@ -330,17 +323,4 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 			}
 		}
 	}
-}
-
-// ---- Misc helpers ----------------------------------------------------------
-
-func (p *extractor) extractSpanValue(ctx context.Context, tc ottlspan.TransformContext, e *ottl.SpanExtractor) (float64, error) {
-	if e.MetricValue != nil {
-		val, _, err := e.MetricValue.Execute(ctx, tc)
-		if err != nil {
-			return 0, err
-		}
-		return convertAnyToFloat(val)
-	}
-	return 1, nil
 }

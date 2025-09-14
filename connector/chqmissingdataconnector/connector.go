@@ -172,11 +172,7 @@ func (c *md) buildMetrics(emitList []*stamp) pmetric.Metrics {
 	for _, stamp := range emitList {
 		rm := builder.Resource(stamp.ResourceAttributes)
 		sm := rm.Scope(emptymap)
-		m, err := sm.Metric(c.config.MetricName, "s", pmetric.MetricTypeGauge)
-		if err != nil {
-			c.logger.Error("failed to create metric", zap.Error(err))
-			continue
-		}
+		m := sm.Gauge(c.config.MetricName)
 		dp, _, _ := m.Datapoint(stamp.DatapointAttributes, nowTimestamp)
 		dp.Attributes().PutBool(translate.CardinalFieldAggregate, true)
 		dp.Attributes().PutStr(translate.CardinalFieldAggregationType, ottl.AggregationTypeMin.String())

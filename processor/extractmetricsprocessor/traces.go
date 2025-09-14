@@ -137,13 +137,14 @@ func (p *extractor) spanSketchesToEmittables(list *chqpb.SpanSketchList) []Emitt
 	}
 	out := make([]Emittable, 0, len(list.Sketches))
 	for _, s := range list.Sketches {
+		totalCount := float64(s.TotalCount)
 
 		out = append(out, Emittable{
 			MetricName: s.MetricName,
-			MetricType: s.MetricType, // typically "count"
+			MetricType: s.MetricType,
 			Tags:       s.Tags,
 			IntervalMs: s.Interval,
-			Value:      nil, // current path does not set explicit values
+			Value:      &totalCount,
 		})
 	}
 	return out

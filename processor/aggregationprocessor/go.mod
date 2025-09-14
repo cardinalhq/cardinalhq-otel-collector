@@ -3,7 +3,7 @@ module github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationproc
 go 1.25
 
 require (
-	github.com/cardinalhq/oteltools v0.31.0
+	github.com/cardinalhq/oteltools v0.31.2
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/collector/component v1.38.0
 	go.opentelemetry.io/collector/consumer v1.38.0

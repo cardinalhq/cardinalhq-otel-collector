@@ -17,6 +17,7 @@ package extractmetricsprocessor
 import (
 	"context"
 	"fmt"
+	"github.com/DataDog/sketches-go/ddsketch"
 	"time"
 
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
@@ -53,11 +54,11 @@ func (e *extractor) sendMetrics(ctx context.Context, route string, metrics pmetr
 
 type Emittable struct {
 	MetricName string
-	MetricType string            // e.g. "count", "gauge", "sum"
-	Tags       map[string]string // flat map, includes resource + dp attrs
-	IntervalMs int64             // unix ms timestamp
-	// Optional numeric value. If nil, we preserve current Datapoint() behavior.
-	Value *float64
+	MetricType string
+	Tags       map[string]string
+	IntervalMs int64
+	Value      *float64
+	Sketch     *ddsketch.DDSketch
 }
 
 // splitResourceAndAttrs divides a flat tags map into resource-level keys and dp attributes.
@@ -103,13 +104,9 @@ func (p *extractor) emitMetrics(ctx context.Context, route string, rows []Emitta
 
 		switch row.MetricType {
 		case "count":
-			mdb, err := smb.Metric(row.MetricName, "count", pmetric.MetricTypeSum)
-			if err != nil {
-				p.logger.Error("Failed to create metric", zap.String("metric", row.MetricName), zap.Error(err))
-				continue
-			}
+			sb := smb.Sum(row.MetricName)
 			// Preserve existing behavior that relies on helper Datapoint(attrs, ts)
-			dp, _, isNew := mdb.Datapoint(dpAttrs, pcommon.NewTimestampFromTime(time.UnixMilli(row.IntervalMs)))
+			dp, _, isNew := sb.Datapoint(dpAttrs, pcommon.NewTimestampFromTime(time.UnixMilli(row.IntervalMs)))
 			if isNew {
 				dp.SetDoubleValue(*row.Value)
 			} else {
@@ -117,12 +114,8 @@ func (p *extractor) emitMetrics(ctx context.Context, route string, rows []Emitta
 			}
 
 		case "gauge":
-			mdb, err := smb.Metric(row.MetricName, "gauge", pmetric.MetricTypeGauge)
-			if err != nil {
-				p.logger.Error("Failed to create metric", zap.String("metric", row.MetricName), zap.Error(err))
-				continue
-			}
-			dp, _, isNew := mdb.Datapoint(dpAttrs, pcommon.NewTimestampFromTime(time.UnixMilli(row.IntervalMs)))
+			sb := smb.Gauge(row.MetricName)
+			dp, _, isNew := sb.Datapoint(dpAttrs, pcommon.NewTimestampFromTime(time.UnixMilli(row.IntervalMs)))
 			if isNew {
 				dp.SetDoubleValue(*row.Value)
 			} else {
@@ -131,21 +124,17 @@ func (p *extractor) emitMetrics(ctx context.Context, route string, rows []Emitta
 				}
 			}
 
-		default:
-			// Fallback to gauge if unknown
-			mdb, err := smb.Metric(row.MetricName, row.MetricType, pmetric.MetricTypeGauge)
-			if err != nil {
-				p.logger.Error("Failed to create metric", zap.String("metric", row.MetricName), zap.Error(err))
+		case "exponential_histogram":
+			if row.Sketch == nil {
+				p.logger.Error("Exponential histogram metric missing sketch", zap.String("metric", row.MetricName))
 				continue
 			}
-			dp, _, isNew := mdb.Datapoint(dpAttrs, pcommon.NewTimestampFromTime(time.UnixMilli(row.IntervalMs)))
-			if isNew {
-				dp.SetDoubleValue(*row.Value)
-			} else {
-				if dp.DoubleValue() < *row.Value {
-					dp.SetDoubleValue(*row.Value)
-				}
-			}
+			sb := smb.ExponentialHistogram(row.MetricName)
+			dp := sb.Datapoint(dpAttrs, pcommon.NewTimestampFromTime(time.UnixMilli(row.IntervalMs)))
+			_ = chqpb.ConvertDDSketchToExponentialHistogram(dp, row.Sketch)
+
+		default:
+
 		}
 	}
 
@@ -182,42 +171,13 @@ func (p *extractor) spanSketchesToEmittables(list *chqpb.SpanSketchList) []Emitt
 				p.logger.Error("Failed to decode sketch", zap.Error(err))
 				continue
 			}
-			p50Value, err := decodedSketch.GetValueAtQuantile(0.5)
-			if err != nil {
-				p.logger.Error("Failed to get p50 from sketch", zap.Error(err))
-			} else {
-				out = append(out, Emittable{
-					MetricName: fmt.Sprintf("%s.p50", s.MetricName),
-					MetricType: "gauge",
-					Tags:       s.Tags,
-					IntervalMs: intervalMs,
-					Value:      &p50Value,
-				})
-			}
-			p95Value, err := decodedSketch.GetValueAtQuantile(0.95)
-			if err != nil {
-				p.logger.Error("Failed to get p95 from sketch", zap.Error(err))
-			} else {
-				out = append(out, Emittable{
-					MetricName: fmt.Sprintf("%s.p95", s.MetricName),
-					MetricType: "gauge",
-					Tags:       s.Tags,
-					IntervalMs: intervalMs,
-					Value:      &p95Value,
-				})
-			}
-			p99Value, err := decodedSketch.GetValueAtQuantile(0.99)
-			if err != nil {
-				p.logger.Error("Failed to get p99 from sketch", zap.Error(err))
-			} else {
-				out = append(out, Emittable{
-					MetricName: fmt.Sprintf("%s.p99", s.MetricName),
-					MetricType: "gauge",
-					Tags:       s.Tags,
-					IntervalMs: intervalMs,
-					Value:      &p99Value,
-				})
-			}
+			out = append(out, Emittable{
+				MetricName: fmt.Sprintf("%s.latency", s.MetricName),
+				MetricType: "exponential_histogram",
+				Tags:       s.Tags,
+				IntervalMs: intervalMs,
+				Sketch:     decodedSketch,
+			})
 		}
 	}
 	return out

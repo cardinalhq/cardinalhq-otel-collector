@@ -25,6 +25,7 @@ import (
 	"github.com/observiq/bindplane-otel-collector/receiver/routereceiver"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlspan"
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -60,9 +61,9 @@ type Emittable struct {
 
 // splitResourceAndAttrs divides a flat tags map into resource-level keys and dp attributes.
 func (p *extractor) splitResourceAndAttrs(tags map[string]string) (resourceMap pcommon.Map, attrMap pcommon.Map) {
-	serviceNameKey := p.toServiceNameKey()
-	clusterNameKey := p.toClusterNameKey()
-	namespaceNameKey := p.toNamespaceNameKey()
+	serviceNameKey := string(semconv.ServiceNameKey)
+	clusterNameKey := string(semconv.K8SClusterNameKey)
+	namespaceNameKey := string(semconv.K8SNamespaceNameKey)
 
 	resourceMap = pcommon.NewMap()
 	attrMap = pcommon.NewMap()

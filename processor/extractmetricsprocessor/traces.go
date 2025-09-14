@@ -61,21 +61,21 @@ type Emittable struct {
 
 // splitResourceAndAttrs divides a flat tags map into resource-level keys and dp attributes.
 func (p *extractor) splitResourceAndAttrs(tags map[string]string) (resourceMap pcommon.Map, attrMap pcommon.Map) {
-	serviceNameKey := string(semconv.ServiceNameKey)
-	clusterNameKey := string(semconv.K8SClusterNameKey)
-	namespaceNameKey := string(semconv.K8SNamespaceNameKey)
+	serviceNameKey := p.toServiceNameKey()
+	clusterNameKey := p.toClusterNameKey()
+	namespaceNameKey := p.toNamespaceNameKey()
 
 	resourceMap = pcommon.NewMap()
 	attrMap = pcommon.NewMap()
 
 	if v, ok := tags[serviceNameKey]; ok {
-		resourceMap.PutStr(serviceNameKey, v)
+		resourceMap.PutStr(string(semconv.ServiceNameKey), v)
 	}
 	if v, ok := tags[clusterNameKey]; ok {
-		resourceMap.PutStr(clusterNameKey, v)
+		resourceMap.PutStr(string(semconv.K8SClusterNameKey), v)
 	}
 	if v, ok := tags[namespaceNameKey]; ok {
-		resourceMap.PutStr(namespaceNameKey, v)
+		resourceMap.PutStr(string(semconv.K8SNamespaceNameKey), v)
 	}
 
 	for k, v := range tags {

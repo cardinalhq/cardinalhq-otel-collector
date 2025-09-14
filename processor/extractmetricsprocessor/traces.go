@@ -16,22 +16,220 @@ package extractmetricsprocessor
 
 import (
 	"context"
-	"github.com/cardinalhq/oteltools/pkg/chqpb"
-	"github.com/cardinalhq/oteltools/pkg/ottl"
+	"fmt"
 	"time"
 
+	"github.com/cardinalhq/oteltools/pkg/chqpb"
+	"github.com/cardinalhq/oteltools/pkg/ottl"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
+	"github.com/cardinalhq/oteltools/signalbuilder"
+	"github.com/observiq/bindplane-otel-collector/receiver/routereceiver"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlspan"
+	"go.opentelemetry.io/collector/pdata/pcommon"
+	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.uber.org/zap"
 )
 
+// ---- Public entrypoint -----------------------------------------------------
+
 func (p *extractor) ConsumeTraces(ctx context.Context, pt ptrace.Traces) (ptrace.Traces, error) {
 	p.updateSketchCache(ctx, pt)
 	return pt, nil
+}
+
+// ---- Emission plumbing (common + generic) ---------------------------------
+
+func (e *extractor) sendMetrics(ctx context.Context, route string, metrics pmetric.Metrics) {
+	e.logger.Info("Sending span metrics", zap.String("route", route), zap.Int("num_metrics", metrics.DataPointCount()))
+	if err := routereceiver.RouteMetrics(ctx, route, metrics); err != nil {
+		e.logger.Error("Failed to send metrics", zap.Error(err))
+	}
+}
+
+type Emittable struct {
+	MetricName string
+	MetricType string            // e.g. "count", "gauge", "sum"
+	Tags       map[string]string // flat map, includes resource + dp attrs
+	IntervalMs int64             // unix ms timestamp
+	// Optional numeric value. If nil, we preserve current Datapoint() behavior.
+	Value *float64
+}
+
+// splitResourceAndAttrs divides a flat tags map into resource-level keys and dp attributes.
+func (p *extractor) splitResourceAndAttrs(tags map[string]string) (resourceMap pcommon.Map, attrMap pcommon.Map) {
+	serviceNameKey := p.toServiceNameKey()
+	clusterNameKey := p.toClusterNameKey()
+	namespaceNameKey := p.toNamespaceNameKey()
+
+	resourceMap = pcommon.NewMap()
+	attrMap = pcommon.NewMap()
+
+	if v, ok := tags[serviceNameKey]; ok {
+		resourceMap.PutStr(string(semconv.ServiceNameKey), v)
+	}
+	if v, ok := tags[clusterNameKey]; ok {
+		resourceMap.PutStr(string(semconv.K8SClusterNameKey), v)
+	}
+	if v, ok := tags[namespaceNameKey]; ok {
+		resourceMap.PutStr(string(semconv.K8SNamespaceNameKey), v)
+	}
+
+	for k, v := range tags {
+		if k == serviceNameKey || k == clusterNameKey || k == namespaceNameKey {
+			continue
+		}
+		attrMap.PutStr(k, v)
+	}
+	return
+}
+
+// emitMetrics builds a pmetric.Metrics payload from emittables and sends it.
+func (p *extractor) emitMetrics(ctx context.Context, route string, rows []Emittable) {
+	if len(rows) == 0 {
+		return
+	}
+	mb := signalbuilder.NewMetricsBuilder()
+
+	for i := range rows {
+		row := rows[i]
+		resMap, dpAttrs := p.splitResourceAndAttrs(row.Tags)
+		rmb := mb.Resource(resMap)
+		smb := rmb.Scope(pcommon.NewMap())
+
+		switch row.MetricType {
+		case "count":
+			mdb, err := smb.Metric(row.MetricName, "count", pmetric.MetricTypeSum)
+			if err != nil {
+				p.logger.Error("Failed to create metric", zap.String("metric", row.MetricName), zap.Error(err))
+				continue
+			}
+			// Preserve existing behavior that relies on helper Datapoint(attrs, ts)
+			dp, _, isNew := mdb.Datapoint(dpAttrs, pcommon.NewTimestampFromTime(time.UnixMilli(row.IntervalMs)))
+			if isNew {
+				dp.SetDoubleValue(*row.Value)
+			} else {
+				dp.SetDoubleValue(dp.DoubleValue() + *row.Value)
+			}
+
+		case "gauge":
+			mdb, err := smb.Metric(row.MetricName, "gauge", pmetric.MetricTypeGauge)
+			if err != nil {
+				p.logger.Error("Failed to create metric", zap.String("metric", row.MetricName), zap.Error(err))
+				continue
+			}
+			dp, _, isNew := mdb.Datapoint(dpAttrs, pcommon.NewTimestampFromTime(time.UnixMilli(row.IntervalMs)))
+			if isNew {
+				dp.SetDoubleValue(*row.Value)
+			} else {
+				if dp.DoubleValue() < *row.Value {
+					dp.SetDoubleValue(*row.Value)
+				}
+			}
+
+		default:
+			// Fallback to gauge if unknown
+			mdb, err := smb.Metric(row.MetricName, row.MetricType, pmetric.MetricTypeGauge)
+			if err != nil {
+				p.logger.Error("Failed to create metric", zap.String("metric", row.MetricName), zap.Error(err))
+				continue
+			}
+			dp, _, isNew := mdb.Datapoint(dpAttrs, pcommon.NewTimestampFromTime(time.UnixMilli(row.IntervalMs)))
+			if isNew {
+				dp.SetDoubleValue(*row.Value)
+			} else {
+				if dp.DoubleValue() < *row.Value {
+					dp.SetDoubleValue(*row.Value)
+				}
+			}
+		}
+	}
+
+	metrics := mb.Build()
+	p.sendMetrics(ctx, route, metrics)
+}
+
+func (p *extractor) spanSketchesToEmittables(list *chqpb.SpanSketchList) []Emittable {
+	if list == nil || len(list.Sketches) == 0 {
+		return nil
+	}
+	out := make([]Emittable, 0, len(list.Sketches))
+	for _, s := range list.Sketches {
+		totalCount := float64(s.TotalCount)
+		intervalMs := s.Interval * 1000
+		out = append(out, Emittable{
+			MetricName: fmt.Sprintf("%s.total", s.MetricName),
+			MetricType: "count",
+			Tags:       s.Tags,
+			IntervalMs: intervalMs,
+			Value:      &totalCount,
+		})
+		errorCount := float64(s.ErrorCount)
+		out = append(out, Emittable{
+			MetricName: fmt.Sprintf("%s.errors", s.MetricName),
+			MetricType: "count",
+			Tags:       s.Tags,
+			IntervalMs: intervalMs,
+			Value:      &errorCount,
+		})
+		if s.Sketch != nil {
+			decodedSketch, err := chqpb.DecodeSketch(s.Sketch)
+			if err != nil {
+				p.logger.Error("Failed to decode sketch", zap.Error(err))
+				continue
+			}
+			p50Value, err := decodedSketch.GetValueAtQuantile(0.5)
+			if err != nil {
+				p.logger.Error("Failed to get p50 from sketch", zap.Error(err))
+			} else {
+				out = append(out, Emittable{
+					MetricName: fmt.Sprintf("%s.p50", s.MetricName),
+					MetricType: "gauge",
+					Tags:       s.Tags,
+					IntervalMs: intervalMs,
+					Value:      &p50Value,
+				})
+			}
+			p95Value, err := decodedSketch.GetValueAtQuantile(0.95)
+			if err != nil {
+				p.logger.Error("Failed to get p95 from sketch", zap.Error(err))
+			} else {
+				out = append(out, Emittable{
+					MetricName: fmt.Sprintf("%s.p95", s.MetricName),
+					MetricType: "gauge",
+					Tags:       s.Tags,
+					IntervalMs: intervalMs,
+					Value:      &p95Value,
+				})
+			}
+			p99Value, err := decodedSketch.GetValueAtQuantile(0.99)
+			if err != nil {
+				p.logger.Error("Failed to get p99 from sketch", zap.Error(err))
+			} else {
+				out = append(out, Emittable{
+					MetricName: fmt.Sprintf("%s.p99", s.MetricName),
+					MetricType: "gauge",
+					Tags:       s.Tags,
+					IntervalMs: intervalMs,
+					Value:      &p99Value,
+				})
+			}
+		}
+	}
+	return out
+}
+
+// ---- Core update path ------------------------------------------------------
+
+type ResourcesKey struct {
+	OrganizationID string
+	ServiceName    string
+	ClusterName    string
+	NamespaceName  string
 }
 
 func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
@@ -40,6 +238,7 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 		resourceSpan := resourceSpans.At(i)
 		resource := resourceSpan.Resource()
 		cid := OrgIdFromResource(resource.Attributes())
+
 		spanExtractors, ok := p.spanExtractors.Load(cid)
 		if !ok {
 			continue
@@ -48,47 +247,42 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 		spanAggregateSketchCache, sok := p.spanAggregateSketchCaches.Load(cid)
 		if !sok {
 			p.logger.Info("Creating new span aggregate sketch cache", zap.String("cid", cid))
-			spanAggregateSketchCache = chqpb.NewSpanSketchCache(1*time.Minute, cid, 20, func(list *chqpb.SpanSketchList) error {
-				send := p.sendProto("/api/v1/spanSketches", list)
-				return send()
-			})
+			spanAggregateSketchCache = chqpb.NewSpanSketchCache(
+				10*time.Second,
+				cid,
+				20,
+				func(list *chqpb.SpanSketchList) error {
+					rows := p.spanSketchesToEmittables(list)
+					p.emitMetrics(ctx, p.config.Route, rows)
+					return nil
+				})
 			p.spanAggregateSketchCaches.Store(cid, spanAggregateSketchCache)
 		}
 
-		spanLineSketchCache, sok := p.spanLineSketchCaches.Load(cid)
-		if !sok {
+		spanLineSketchCache, okLine := p.spanLineSketchCaches.Load(cid)
+		if !okLine {
 			p.logger.Info("Creating new span line sketch cache", zap.String("cid", cid))
-			spanLineSketchCache = chqpb.NewSpanSketchCache(1*time.Minute, cid, 20, func(list *chqpb.SpanSketchList) error {
-				send := p.sendProto("/api/v1/spanSketches", list)
-				return send()
-			})
+			spanLineSketchCache = chqpb.NewSpanSketchCache(
+				10*time.Second,
+				cid,
+				20,
+				func(list *chqpb.SpanSketchList) error {
+					rows := p.spanSketchesToEmittables(list)
+					p.emitMetrics(ctx, p.config.Route, rows)
+					return nil
+				},
+			)
 			p.spanLineSketchCaches.Store(cid, spanLineSketchCache)
 		}
 
-		spanMetricsAggregateSketchCache, smsc := p.spanMetricsAggregateSketchCaches.Load(cid)
-		if !smsc {
-			p.logger.Info("Creating new span metrics aggregate sketch cache", zap.String("cid", cid))
-			spanMetricsAggregateSketchCache = chqpb.NewGenericSketchCache(1*time.Minute, cid, "traces", 20, func(list *chqpb.GenericSketchList) error {
-				send := p.sendProto("/api/v1/metricSketches", list)
-				return send()
-			})
-			p.spanMetricsAggregateSketchCaches.Store(cid, spanMetricsAggregateSketchCache)
-		}
+		// ----- Iterate spans and apply extraction rules -----
+		scopeSpans := resourceSpans.At(i).ScopeSpans()
+		for j := 0; j < scopeSpans.Len(); j++ {
+			scopeSpan := scopeSpans.At(j)
+			spans := scopeSpan.Spans()
 
-		spanMetricsLineSketchCache, smsc := p.spanMetricsLineSketchCaches.Load(cid)
-		if !smsc {
-			p.logger.Info("Creating new span metrics line sketch cache", zap.String("cid", cid))
-			spanMetricsLineSketchCache = chqpb.NewGenericSketchCache(1*time.Minute, cid, "traces", 20, func(list *chqpb.GenericSketchList) error {
-				send := p.sendProto("/api/v1/metricSketches", list)
-				return send()
-			})
-			p.spanMetricsLineSketchCaches.Store(cid, spanMetricsLineSketchCache)
-		}
-
-		for j := range resourceSpans.At(i).ScopeSpans().Len() {
-			scopeSpan := resourceSpans.At(i).ScopeSpans().At(j)
-			for k := range resourceSpans.At(i).ScopeSpans().At(j).Spans().Len() {
-				lr := resourceSpans.At(i).ScopeSpans().At(j).Spans().At(k)
+			for k := 0; k < spans.Len(); k++ {
+				lr := spans.At(k)
 				tc := ottlspan.NewTransformContext(lr, scopeSpan.Scope(), resourceSpan.Resource(), scopeSpan, resourceSpan)
 
 				for _, lex := range spanExtractors {
@@ -112,38 +306,24 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 					}
 
 					telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
-					if lex.MetricValue != nil {
-						val, _, err := lex.MetricValue.Execute(ctx, tc)
-						if err != nil {
-							continue
-						}
-						valueToUse, err := convertAnyToFloat(val)
-						if err != nil {
-							continue
-						}
-						aggregateTags := p.withServiceClusterNamespace(resource, lex.ExtractAggregateAttributes(ctx, tc))
-						parentTID := spanMetricsAggregateSketchCache.Update(lex.MetricName, lex.MetricType, lex.Direction, aggregateTags, 0, 0, valueToUse, lr.EndTimestamp().AsTime())
 
-						if len(lex.LineDimensions) > 0 {
-							mapAttrsByTagFamilyId := lex.ExtractLineAttributes(ctx, tc)
-							for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
-								ts := lr.EndTimestamp().AsTime()
-								lineTags := p.withServiceClusterNamespace(resource, mapAttrs)
-								spanMetricsLineSketchCache.Update(lex.MetricName, lex.MetricType, lex.Direction, lineTags, parentTID, tagFamilyId, valueToUse, ts)
-							}
-						}
-					} else {
-						// do span sketches, if custom value is not present.
-						aggregateTags := p.withServiceClusterNamespace(resource, lex.ExtractAggregateAttributes(ctx, tc))
-						parentTID := spanAggregateSketchCache.Update(lex.MetricName, lex.MetricType, aggregateTags, lr, resource, 0, 0)
+					aggregateTags := p.withServiceClusterNamespace(resource, lex.ExtractAggregateAttributes(ctx, tc))
+					spanAggregateSketchCache.Update(lex.MetricName, lex.MetricType, aggregateTags, lr, resource, 0, 0)
 
-						// line level
-						if len(lex.LineDimensions) > 0 {
-							mapAttrsByTagFamilyId := lex.ExtractLineAttributes(ctx, tc)
-							for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
-								lineTags := p.withServiceClusterNamespace(resource, mapAttrs)
-								spanLineSketchCache.Update(lex.MetricName, lex.MetricType, lineTags, lr, resource, parentTID, tagFamilyId)
-							}
+					// Otherwise, do span sketches (count-style) at the line level.
+					if len(lex.LineDimensions) > 0 {
+						mapAttrsByTagFamilyId := lex.ExtractLineAttributes(ctx, tc)
+						for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
+							lineTags := p.withServiceClusterNamespace(resource, mapAttrs)
+							spanLineSketchCache.Update(
+								lex.MetricName,
+								lex.MetricType,
+								lineTags,
+								lr,
+								resource,
+								0,
+								tagFamilyId,
+							)
 						}
 					}
 				}
@@ -151,6 +331,8 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 		}
 	}
 }
+
+// ---- Misc helpers ----------------------------------------------------------
 
 func (p *extractor) extractSpanValue(ctx context.Context, tc ottlspan.TransformContext, e *ottl.SpanExtractor) (float64, error) {
 	if e.MetricValue != nil {

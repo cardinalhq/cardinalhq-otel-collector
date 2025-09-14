@@ -64,9 +64,6 @@ type extractor struct {
 	spanAggregateSketchCaches syncmap.SyncMap[string, *chqpb.SpanSketchCache]
 	spanLineSketchCaches      syncmap.SyncMap[string, *chqpb.SpanSketchCache]
 
-	spanMetricsAggregateSketchCaches syncmap.SyncMap[string, *chqpb.GenericSketchCache]
-	spanMetricsLineSketchCaches      syncmap.SyncMap[string, *chqpb.GenericSketchCache]
-
 	logsAggregateSketchCaches syncmap.SyncMap[string, *chqpb.GenericSketchCache]
 	logsLineSketchCaches      syncmap.SyncMap[string, *chqpb.GenericSketchCache]
 

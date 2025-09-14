@@ -16,6 +16,7 @@ package extractmetricsprocessor
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
@@ -159,14 +160,65 @@ func (p *extractor) spanSketchesToEmittables(list *chqpb.SpanSketchList) []Emitt
 	out := make([]Emittable, 0, len(list.Sketches))
 	for _, s := range list.Sketches {
 		totalCount := float64(s.TotalCount)
-
+		intervalMs := s.Interval * 1000
 		out = append(out, Emittable{
-			MetricName: s.MetricName,
-			MetricType: s.MetricType,
+			MetricName: fmt.Sprintf("%s.total", s.MetricName),
+			MetricType: "count",
 			Tags:       s.Tags,
-			IntervalMs: s.Interval * 1000,
+			IntervalMs: intervalMs,
 			Value:      &totalCount,
 		})
+		errorCount := float64(s.ErrorCount)
+		out = append(out, Emittable{
+			MetricName: fmt.Sprintf("%s.errors", s.MetricName),
+			MetricType: "count",
+			Tags:       s.Tags,
+			IntervalMs: intervalMs,
+			Value:      &errorCount,
+		})
+		if s.Sketch != nil {
+			decodedSketch, err := chqpb.DecodeSketch(s.Sketch)
+			if err != nil {
+				p.logger.Error("Failed to decode sketch", zap.Error(err))
+				continue
+			}
+			p50Value, err := decodedSketch.GetValueAtQuantile(0.5)
+			if err != nil {
+				p.logger.Error("Failed to get p50 from sketch", zap.Error(err))
+			} else {
+				out = append(out, Emittable{
+					MetricName: fmt.Sprintf("%s.p50", s.MetricName),
+					MetricType: "gauge",
+					Tags:       s.Tags,
+					IntervalMs: intervalMs,
+					Value:      &p50Value,
+				})
+			}
+			p95Value, err := decodedSketch.GetValueAtQuantile(0.95)
+			if err != nil {
+				p.logger.Error("Failed to get p95 from sketch", zap.Error(err))
+			} else {
+				out = append(out, Emittable{
+					MetricName: fmt.Sprintf("%s.p95", s.MetricName),
+					MetricType: "gauge",
+					Tags:       s.Tags,
+					IntervalMs: intervalMs,
+					Value:      &p95Value,
+				})
+			}
+			p99Value, err := decodedSketch.GetValueAtQuantile(0.99)
+			if err != nil {
+				p.logger.Error("Failed to get p99 from sketch", zap.Error(err))
+			} else {
+				out = append(out, Emittable{
+					MetricName: fmt.Sprintf("%s.p99", s.MetricName),
+					MetricType: "gauge",
+					Tags:       s.Tags,
+					IntervalMs: intervalMs,
+					Value:      &p99Value,
+				})
+			}
+		}
 	}
 	return out
 }

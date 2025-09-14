@@ -107,7 +107,12 @@ func (p *extractor) emitMetrics(ctx context.Context, route string, rows []Emitta
 				continue
 			}
 			// Preserve existing behavior that relies on helper Datapoint(attrs, ts)
-			_, _, _ = mdb.Datapoint(dpAttrs, pcommon.NewTimestampFromTime(time.UnixMilli(row.IntervalMs)))
+			dp, _, isNew := mdb.Datapoint(dpAttrs, pcommon.NewTimestampFromTime(time.UnixMilli(row.IntervalMs)))
+			if isNew {
+				dp.SetDoubleValue(*row.Value)
+			} else {
+				dp.SetDoubleValue(dp.DoubleValue() + *row.Value)
+			}
 
 		case "gauge":
 			mdb, err := smb.Metric(row.MetricName, "gauge", pmetric.MetricTypeGauge)
@@ -115,7 +120,14 @@ func (p *extractor) emitMetrics(ctx context.Context, route string, rows []Emitta
 				p.logger.Error("Failed to create metric", zap.String("metric", row.MetricName), zap.Error(err))
 				continue
 			}
-			_, _, _ = mdb.Datapoint(dpAttrs, pcommon.NewTimestampFromTime(time.UnixMilli(row.IntervalMs)))
+			dp, _, isNew := mdb.Datapoint(dpAttrs, pcommon.NewTimestampFromTime(time.UnixMilli(row.IntervalMs)))
+			if isNew {
+				dp.SetDoubleValue(*row.Value)
+			} else {
+				if dp.DoubleValue() < *row.Value {
+					dp.SetDoubleValue(*row.Value)
+				}
+			}
 
 		default:
 			// Fallback to gauge if unknown
@@ -124,7 +136,14 @@ func (p *extractor) emitMetrics(ctx context.Context, route string, rows []Emitta
 				p.logger.Error("Failed to create metric", zap.String("metric", row.MetricName), zap.Error(err))
 				continue
 			}
-			_, _, _ = mdb.Datapoint(dpAttrs, pcommon.NewTimestampFromTime(time.UnixMilli(row.IntervalMs)))
+			dp, _, isNew := mdb.Datapoint(dpAttrs, pcommon.NewTimestampFromTime(time.UnixMilli(row.IntervalMs)))
+			if isNew {
+				dp.SetDoubleValue(*row.Value)
+			} else {
+				if dp.DoubleValue() < *row.Value {
+					dp.SetDoubleValue(*row.Value)
+				}
+			}
 		}
 	}
 

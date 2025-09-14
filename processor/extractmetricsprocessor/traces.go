@@ -172,7 +172,21 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 			continue
 		}
 
-		// ----- Span Line Sketch Cache (span -> count-style event metrics) -----
+		spanAggregateSketchCache, sok := p.spanAggregateSketchCaches.Load(cid)
+		if !sok {
+			p.logger.Info("Creating new span aggregate sketch cache", zap.String("cid", cid))
+			spanAggregateSketchCache = chqpb.NewSpanSketchCache(
+				10*time.Second,
+				cid,
+				20,
+				func(list *chqpb.SpanSketchList) error {
+					rows := p.spanSketchesToEmittables(list)
+					p.emitMetrics(ctx, p.config.Route, rows)
+					return nil
+				})
+			p.spanAggregateSketchCaches.Store(cid, spanAggregateSketchCache)
+		}
+
 		spanLineSketchCache, okLine := p.spanLineSketchCaches.Load(cid)
 		if !okLine {
 			p.logger.Info("Creating new span line sketch cache", zap.String("cid", cid))
@@ -220,6 +234,9 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 					}
 
 					telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
+
+					aggregateTags := p.withServiceClusterNamespace(resource, lex.ExtractAggregateAttributes(ctx, tc))
+					spanAggregateSketchCache.Update(lex.MetricName, lex.MetricType, aggregateTags, lr, resource, 0, 0)
 
 					// Otherwise, do span sketches (count-style) at the line level.
 					if len(lex.LineDimensions) > 0 {

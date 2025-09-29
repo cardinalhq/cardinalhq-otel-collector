@@ -50,6 +50,7 @@ receivers:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/envoyalsreceiver v0.132.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/expvarreceiver v0.132.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver v0.132.0
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/faroreceiver v0.132.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filestatsreceiver v0.132.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/flinkmetricsreceiver v0.132.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/fluentforwardreceiver v0.132.0

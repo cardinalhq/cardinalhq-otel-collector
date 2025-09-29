@@ -163,6 +163,7 @@ require (
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/elasticsearchreceiver v0.132.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/envoyalsreceiver v0.132.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/expvarreceiver v0.132.0
+	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/faroreceiver v0.132.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver v0.132.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filestatsreceiver v0.132.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/flinkmetricsreceiver v0.132.0
@@ -441,6 +442,7 @@ require (
 	github.com/apache/datasketches-go v0.0.0-20250526164709-4e9f74ff6296 // indirect
 	github.com/apache/pulsar-client-go v0.16.0 // indirect
 	github.com/apache/thrift v0.22.0 // indirect
+	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/ardielle/ardielle-go v1.5.2 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
@@ -474,6 +476,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/xray v1.32.0 // indirect
 	github.com/aws/smithy-go v1.22.5 // indirect
 	github.com/axiomhq/hyperloglog v0.0.0-20230201085229-3ddf4bad03dc // indirect
+	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/barweiss/go-tuple v1.1.2 // indirect
 	github.com/bboreham/go-loser v0.0.0-20230920113527-fcc2c21820a3 // indirect
 	github.com/beevik/ntp v1.4.3 // indirect
@@ -603,6 +606,7 @@ require (
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/gosnmp/gosnmp v1.42.1 // indirect
+	github.com/grafana/faro/pkg/go v0.0.0-20250314155512-06a06da3b8bc // indirect
 	github.com/grafana/loki/pkg/push v0.0.0-20240514112848-a1b1eeb09583 // indirect
 	github.com/grafana/regexp v0.0.0-20240518133315-a468a5bfb3bc // indirect
 	github.com/grobie/gomemcache v0.0.0-20230213081705-239240bbc445 // indirect
@@ -675,7 +679,7 @@ require (
 	github.com/lufia/plan9stats v0.0.0-20250317134145-8bc96cf8fc35 // indirect
 	github.com/magefile/mage v1.15.0 // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
-	github.com/mailru/easyjson v0.7.7 // indirect
+	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mdlayher/socket v0.4.1 // indirect
@@ -704,6 +708,7 @@ require (
 	github.com/ncruces/go-strftime v0.1.9 // indirect
 	github.com/netsampler/goflow2/v2 v2.2.3 // indirect
 	github.com/nginx/nginx-prometheus-exporter v1.4.1 // indirect
+	github.com/oapi-codegen/runtime v1.1.1 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/oklog/ulid/v2 v2.1.1 // indirect
 	github.com/open-telemetry/opamp-go v0.20.0 // indirect
@@ -754,6 +759,7 @@ require (
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/status v0.132.0 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/azure v0.132.0 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/azurelogs v0.132.0 // indirect
+	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/faro v0.132.0 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/jaeger v0.132.0 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/loki v0.132.0 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/opencensus v0.132.0 // indirect
@@ -867,6 +873,7 @@ require (
 	github.com/vmware/govmomi v0.50.0 // indirect
 	github.com/vultr/govultr/v2 v2.17.2 // indirect
 	github.com/wadey/gocovmerge v0.0.0-20160331181800-b5bfa59ec0ad // indirect
+	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.2 // indirect

@@ -172,6 +172,7 @@ import (
 	envoyalsreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/envoyalsreceiver"
 	expvarreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/expvarreceiver"
 	filelogreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver"
+	faroreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/faroreceiver"
 	filestatsreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filestatsreceiver"
 	flinkmetricsreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/flinkmetricsreceiver"
 	fluentforwardreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/fluentforwardreceiver"
@@ -357,6 +358,7 @@ func components() (otelcol.Factories, error) {
 		envoyalsreceiver.NewFactory(),
 		expvarreceiver.NewFactory(),
 		filelogreceiver.NewFactory(),
+		faroreceiver.NewFactory(),
 		filestatsreceiver.NewFactory(),
 		flinkmetricsreceiver.NewFactory(),
 		fluentforwardreceiver.NewFactory(),
@@ -463,6 +465,7 @@ func components() (otelcol.Factories, error) {
 	factories.ReceiverModules[envoyalsreceiver.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/envoyalsreceiver v0.132.0"
 	factories.ReceiverModules[expvarreceiver.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/expvarreceiver v0.132.0"
 	factories.ReceiverModules[filelogreceiver.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver v0.132.0"
+	factories.ReceiverModules[faroreceiver.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/faroreceiver v0.132.0"
 	factories.ReceiverModules[filestatsreceiver.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filestatsreceiver v0.132.0"
 	factories.ReceiverModules[flinkmetricsreceiver.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/flinkmetricsreceiver v0.132.0"
 	factories.ReceiverModules[fluentforwardreceiver.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/fluentforwardreceiver v0.132.0"

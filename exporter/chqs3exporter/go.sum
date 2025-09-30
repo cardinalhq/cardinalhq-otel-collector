@@ -6,8 +6,8 @@ github.com/aws/aws-sdk-go v1.55.8 h1:JRmEUbU52aJQZ2AjX4q4Wu7t4uZjOu71uyNmaWlUkJQ
 github.com/aws/aws-sdk-go v1.55.8/go.mod h1:ZkViS9AqA6otK+JBBNH2++sx1sgxrPKcSzPPvQkUtXk=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
-github.com/cardinalhq/oteltools v0.31.0 h1:+BKtpYF0Pl7+rthUjusMigmp9D6/XAnxR+YC/QOxJkQ=
-github.com/cardinalhq/oteltools v0.31.0/go.mod h1:15WdjidofOJo1gX9EvFV+dYfGitUpo4nFu2i3B2nNCc=
+github.com/cardinalhq/oteltools v0.31.3 h1:Hr4/yPGaGnZqMLCVl/XGe3Kn5jLxr6F3dCcnJc6I/64=
+github.com/cardinalhq/oteltools v0.31.3/go.mod h1:15WdjidofOJo1gX9EvFV+dYfGitUpo4nFu2i3B2nNCc=
 github.com/cenkalti/backoff/v5 v5.0.3 h1:ZN+IMa753KfX5hd8vVaMixjnqRZ3y8CuJKRKj1xcsSM=
 github.com/cenkalti/backoff/v5 v5.0.3/go.mod h1:rkhZdG3JZukswDf7f0cwqPNk4K0sa+F97BxZthm/crw=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=

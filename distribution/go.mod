@@ -560,7 +560,7 @@ require (
 	github.com/elastic/go-grok v0.3.1 // indirect
 	github.com/elastic/go-structform v0.0.12 // indirect
 	github.com/elastic/lunes v0.1.0 // indirect
-	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
+	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.35.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
 	github.com/euank/go-kmsg-parser v2.0.0+incompatible // indirect
@@ -616,12 +616,13 @@ require (
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/cadvisor v0.53.0 // indirect
 	github.com/google/flatbuffers v25.2.10+incompatible // indirect
-	github.com/google/gnostic-models v0.7.0 // indirect
+	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/go-github/v63 v63.0.0 // indirect
 	github.com/google/go-github/v76 v76.0.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/go-tpm v0.9.6 // indirect
+	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/google/uuid v1.6.0 // indirect
@@ -629,7 +630,7 @@ require (
 	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
 	github.com/gophercloud/gophercloud/v2 v2.7.0 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
-	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/gosnmp/gosnmp v1.42.1 // indirect
 	github.com/grafana/clusterurl v0.2.1 // indirect
 	github.com/grafana/faro/pkg/go v0.0.0-20250314155512-06a06da3b8bc // indirect
@@ -1046,7 +1047,7 @@ require (
 	k8s.io/apimachinery v0.34.1 // indirect
 	k8s.io/client-go v0.34.1 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
-	k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b // indirect
+	k8s.io/kube-openapi v0.0.0-20241105132330-32ad38e42d3f // indirect
 	k8s.io/kubelet v0.32.3 // indirect
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4 // indirect
 	modernc.org/b/v2 v2.1.0 // indirect
@@ -1056,54 +1057,52 @@ require (
 	modernc.org/sqlite v1.39.1 // indirect
 	sigs.k8s.io/controller-runtime v0.20.4 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
-	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.5.0 // indirect
-	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 	skywalking.apache.org/repo/goapi v0.0.0-20240104145220-ba7202308dd4 // indirect
 )
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector v0.138.0 => ../connector/chqmissingdataconnector
+replace github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.138.0 => ../extension/chqauthextension
+replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.138.0 => ../extension/chqconfigextension
+replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.138.0 => ../extension/chqtagcacheextension
+replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention v0.138.0 => ../extension/chqsyntheticsextention
+replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver v0.138.0 => ../receiver/chqdatadogreceiver
+replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver v0.138.0 => ../receiver/chqprwreceiver
+replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.138.0 => ../receiver/githubeventsreceiver
+replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v0.138.0 => ../exporter/chqs3exporter
+replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.138.0 => ../exporter/chqdatadogexporter
+replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.138.0 => ../exporter/chqservicegraphexporter
+replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.138.0 => ../exporter/chqentitygraphexporter
+replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter v0.138.0 => ../exporter/chqk8sentitygraphexporter
+replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.138.0 => ../processor/aggregationprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.138.0 => ../processor/pitbullprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor v0.138.0 => ../processor/fingerprintprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor v0.138.0 => ../processor/piiredactionprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.138.0 => ../processor/summarysplitprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.138.0 => ../processor/extractmetricsprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/chqexemplarprocessor v0.138.0 => ../processor/chqexemplarprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/chqexemplarprocessor v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/processor/chqexemplarprocessor
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/chqspannerprocessor v0.138.0 => ../processor/chqspannerprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/chqspannerprocessor v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/processor/chqspannerprocessor
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
 
@@ -1112,3 +1111,11 @@ replace github.com/open-telemetry/opentelemetry-collector-contrib/exporter/loadb
 replace github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awss3exporter => github.com/cardinalhq/opentelemetry-collector-contrib/exporter/awss3exporter v0.0.0-20251027181331-b787549ae241
 
 replace github.com/openshift/api => github.com/openshift/api v0.0.0-20230726162818-81f778f3b3ec
+
+replace k8s.io/client-go => k8s.io/client-go v0.32.3
+
+replace k8s.io/api => k8s.io/api v0.32.3
+
+replace k8s.io/apimachinery => k8s.io/apimachinery v0.32.3
+
+replace github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20240528061634-b054aa794d87

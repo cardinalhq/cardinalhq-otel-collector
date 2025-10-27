@@ -27,7 +27,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/receiver"
 	"go.opentelemetry.io/collector/receiver/receiverhelper"
-	semconv "go.opentelemetry.io/collector/semconv/v1.27.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
 	"go.uber.org/zap/zapcore"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/identity"
@@ -35,31 +35,17 @@ import (
 
 // resourceAttributeNameMap maps Prometheus labels to standard OpenTelemetry semantic conventions
 var resourceAttributeNameMap = map[string]string{
-	"job":                  semconv.AttributeServiceName, // Primary mapping for service name
-	"service":              semconv.AttributeServiceName, // Alternative mapping
-	"service.name":         semconv.AttributeServiceName, // Alternative mapping
-	"namespace":            semconv.AttributeServiceNamespace,
-	"pod":                  semconv.AttributeK8SPodName,
-	"node":                 semconv.AttributeK8SNodeName,
-	"kube.node":            semconv.AttributeK8SNodeName,
-	"host.name":            semconv.AttributeHostName,
-	"container.id":         semconv.AttributeContainerID,
-	"container.image.name": semconv.AttributeContainerImageName,
-	"container.image.tag":  semconv.AttributeContainerImageTags, // should render as a list...
-}
-
-// isResourceAttribute checks if a label should be promoted to resource level
-func isResourceAttribute(labelName string) bool {
-	_, exists := resourceAttributeNameMap[labelName]
-	return exists
-}
-
-// getResourceAttribute returns the mapped semantic convention attribute name for a given label
-func getResourceAttribute(labelName string) (string, bool) {
-	if mappedAttr, exists := resourceAttributeNameMap[labelName]; exists {
-		return mappedAttr, true
-	}
-	return "", false
+	"job":                  string(semconv.ServiceNameKey), // Primary mapping for service name
+	"service":              string(semconv.ServiceNameKey), // Alternative mapping
+	"service.name":         string(semconv.ServiceNameKey), // Alternative mapping
+	"namespace":            string(semconv.ServiceNamespaceKey),
+	"pod":                  string(semconv.K8SPodNameKey),
+	"node":                 string(semconv.K8SNodeNameKey),
+	"kube.node":            string(semconv.K8SNodeNameKey),
+	"host.name":            string(semconv.HostNameKey),
+	"container.id":         string(semconv.ContainerIDKey),
+	"container.image.name": string(semconv.ContainerImageNameKey),
+	"container.image.tag":  string(semconv.ContainerImageTagsKey), // should render as a list...
 }
 
 func newRemoteWriteReceiver(settings receiver.Settings, cfg *Config, nextConsumer consumer.Metrics) (receiver.Metrics, error) {

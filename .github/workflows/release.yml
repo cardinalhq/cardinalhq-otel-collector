@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   goreleaser:
-    runs-on: ubuntu-latest
+    runs-on: linux-x64-4m-16gb-150ssd
     steps:
       - name: Checkout
         id: checkout

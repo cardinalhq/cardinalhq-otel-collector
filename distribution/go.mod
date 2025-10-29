@@ -1062,47 +1062,47 @@ require (
 	skywalking.apache.org/repo/goapi v0.0.0-20240104145220-ba7202308dd4 // indirect
 )
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector
+replace github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector v0.138.0 => ../connector/chqmissingdataconnector
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension
+replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.138.0 => ../extension/chqauthextension
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension
+replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.138.0 => ../extension/chqconfigextension
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension
+replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.138.0 => ../extension/chqtagcacheextension
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention
+replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention v0.138.0 => ../extension/chqsyntheticsextention
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver
+replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver v0.138.0 => ../receiver/chqdatadogreceiver
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver
+replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver v0.138.0 => ../receiver/chqprwreceiver
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver
+replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.138.0 => ../receiver/githubeventsreceiver
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter
+replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v0.138.0 => ../exporter/chqs3exporter
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter
+replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.138.0 => ../exporter/chqdatadogexporter
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter
+replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.138.0 => ../exporter/chqservicegraphexporter
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter
+replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.138.0 => ../exporter/chqentitygraphexporter
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter
+replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter v0.138.0 => ../exporter/chqk8sentitygraphexporter
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.138.0 => ../processor/aggregationprocessor
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.138.0 => ../processor/pitbullprocessor
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor v0.138.0 => ../processor/fingerprintprocessor
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor v0.138.0 => ../processor/piiredactionprocessor
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.138.0 => ../processor/summarysplitprocessor
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.138.0 => ../processor/extractmetricsprocessor
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/chqexemplarprocessor v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/processor/chqexemplarprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/chqexemplarprocessor v0.138.0 => ../processor/chqexemplarprocessor
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/chqspannerprocessor v0.138.0 => /Users/mgraff/git/github/cardinalhq/cardinalhq-otel-collector/processor/chqspannerprocessor
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/chqspannerprocessor v0.138.0 => ../processor/chqspannerprocessor
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
 

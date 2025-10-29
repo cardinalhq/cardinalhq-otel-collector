@@ -66,6 +66,9 @@ jobs:
         with:
           registry-type: public
 
+      - name: make clean
+        run: make clean
+
       - name: Run GoReleaser
         id: goreleaser
         uses: goreleaser/goreleaser-action@v6

@@ -100,7 +100,9 @@ func (e *CHQSyntheticsExtension) Start(ctx context.Context, host component.Host)
 }
 
 func (e *CHQSyntheticsExtension) Shutdown(context.Context) error {
-	e.configExtension.UnregisterCallback(e.configCallbackID)
+	if e.configExtension != nil {
+		e.configExtension.UnregisterCallback(e.configCallbackID)
+	}
 	return nil
 }
 

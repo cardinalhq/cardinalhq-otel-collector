@@ -202,7 +202,9 @@ func (p *extractor) Start(ctx context.Context, host component.Host) error {
 }
 
 func (p *extractor) Shutdown(ctx context.Context) error {
-	p.configExtension.UnregisterCallback(p.configCallbackID)
+	if p.configExtension != nil {
+		p.configExtension.UnregisterCallback(p.configCallbackID)
+	}
 	return nil
 }
 

@@ -1193,8 +1193,8 @@ github.com/buger/jsonparser v1.1.1 h1:2PnMjfWD7wBILjqQbt530v576A/cAbQvEW9gGIpYMU
 github.com/buger/jsonparser v1.1.1/go.mod h1:6RYKKt7H4d4+iWqouImQ9R2FZql3VbhNgx27UK13J/0=
 github.com/cardinalhq/opentelemetry-collector-contrib/exporter/awss3exporter v0.0.0-20251027181331-b787549ae241 h1:efbpqPXOwOZcGED0b3aCWih+wHwVQeOt661Jpvziyco=
 github.com/cardinalhq/opentelemetry-collector-contrib/exporter/awss3exporter v0.0.0-20251027181331-b787549ae241/go.mod h1:eYB1k2Ngu7ngrFJhg5PhlfEWTls7g8+kkxSx3i0GAAE=
-github.com/cardinalhq/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.0.0-20251027182100-87f3dde8b859 h1:u+1u4OAqn0UHChhJuNuM7APsD5dgKrkP4QdBxEu4nqs=
-github.com/cardinalhq/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.0.0-20251027182100-87f3dde8b859/go.mod h1:rjdNC4N0nVduS7sgx/DcvsJ0YRPu2Qxhihi9jJHLpKY=
+github.com/cardinalhq/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.0.0-20251030014259-51ce9b1a4614 h1:MO49gHMM8siZwu6o1i4KG0BVeoetfb4Nu0mTratXXAo=
+github.com/cardinalhq/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.0.0-20251030014259-51ce9b1a4614/go.mod h1:rjdNC4N0nVduS7sgx/DcvsJ0YRPu2Qxhihi9jJHLpKY=
 github.com/cardinalhq/oteltools v0.31.6 h1:zP20Puu1hiC5KyIFsNltJsJXC6Zp+XTMrkBcinm8/O0=
 github.com/cardinalhq/oteltools v0.31.6/go.mod h1:15WdjidofOJo1gX9EvFV+dYfGitUpo4nFu2i3B2nNCc=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=

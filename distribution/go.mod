@@ -1106,7 +1106,7 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/processor/chqspannerproc
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
 
-replace github.com/open-telemetry/opentelemetry-collector-contrib/exporter/loadbalancingexporter => github.com/cardinalhq/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.0.0-20251027182100-87f3dde8b859
+replace github.com/open-telemetry/opentelemetry-collector-contrib/exporter/loadbalancingexporter => github.com/cardinalhq/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.0.0-20251030014259-51ce9b1a4614
 
 replace github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awss3exporter => github.com/cardinalhq/opentelemetry-collector-contrib/exporter/awss3exporter v0.0.0-20251027181331-b787549ae241
 

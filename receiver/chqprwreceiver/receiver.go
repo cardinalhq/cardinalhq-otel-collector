@@ -461,7 +461,11 @@ func (prw *prometheusRemoteWriteReceiver) translateV2(_ context.Context, req *wr
 	)
 
 	for _, ts := range req.Timeseries {
-		ls := ts.ToLabels(&labelsBuilder, req.Symbols)
+		ls, err := ts.ToLabels(&labelsBuilder, req.Symbols)
+		if err != nil {
+			badRequestErrors = errors.Join(badRequestErrors, fmt.Errorf("failed to convert labels: %w", err))
+			continue
+		}
 		if !ls.Has(labels.MetricName) {
 			badRequestErrors = errors.Join(badRequestErrors, errors.New("missing metric name in labels"))
 			continue

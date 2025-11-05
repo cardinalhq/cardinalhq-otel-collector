@@ -52,8 +52,8 @@ func createDefaultConfig() component.Config {
 			ClientConfig: confighttp.ClientConfig{
 				Timeout:  defaultClientTimeout,
 				Endpoint: defaultEndpoint,
-				Headers: map[string]configopaque.String{
-					"User-Agent": userAgent,
+				Headers: configopaque.MapList{
+					{Name: "User-Agent", Value: userAgent},
 				},
 				Compression: configcompression.TypeGzip,
 			},
@@ -62,8 +62,8 @@ func createDefaultConfig() component.Config {
 			ClientConfig: confighttp.ClientConfig{
 				Timeout:  defaultClientTimeout,
 				Endpoint: defaultEndpoint,
-				Headers: map[string]configopaque.String{
-					"User-Agent": userAgent,
+				Headers: configopaque.MapList{
+					{Name: "User-Agent", Value: userAgent},
 				},
 				Compression: configcompression.TypeGzip,
 			},
@@ -72,8 +72,8 @@ func createDefaultConfig() component.Config {
 			ClientConfig: confighttp.ClientConfig{
 				Timeout:  defaultClientTimeout,
 				Endpoint: defaultEndpoint,
-				Headers: map[string]configopaque.String{
-					"User-Agent": userAgent,
+				Headers: configopaque.MapList{
+					{Name: "User-Agent", Value: userAgent},
 				},
 				Compression: configcompression.TypeGzip,
 			},

@@ -38,10 +38,8 @@ func NewFactory() exporter.Factory {
 func createDefaultConfig() component.Config {
 	return &Config{
 		ClientConfig: confighttp.ClientConfig{
-			Timeout: 5 * time.Second,
-			Headers: map[string]configopaque.String{
-				"User-Agent": "cardinalhq-otel-collector",
-			},
+			Timeout:     5 * time.Second,
+			Headers:     configopaque.MapList{{Name: "User-Agent", Value: "cardinalhq-otel-collector"}},
 			Compression: configcompression.TypeGzip,
 		},
 	}

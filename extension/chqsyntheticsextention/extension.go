@@ -79,7 +79,7 @@ func newExtension(cfg *Config, set extension.Settings) (*CHQSyntheticsExtension,
 }
 
 func (e *CHQSyntheticsExtension) Start(ctx context.Context, host component.Host) error {
-	httpClient, err := e.httpClientSettings.ToClient(ctx, host, e.telemetrySettings)
+	httpClient, err := e.httpClientSettings.ToClient(ctx, host.GetExtensions(), e.telemetrySettings)
 	if err != nil {
 		return err
 	}

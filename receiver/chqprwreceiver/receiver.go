@@ -14,7 +14,7 @@ import (
 
 	"github.com/cespare/xxhash/v2"
 	"github.com/gogo/protobuf/proto"
-	promconfig "github.com/prometheus/prometheus/config"
+	remoteapi "github.com/prometheus/client_golang/exp/api/remote"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/model/value"
 	writev1 "github.com/prometheus/prometheus/prompb"
@@ -171,9 +171,7 @@ func (prw *prometheusRemoteWriteReceiver) handlePRW(w http.ResponseWriter, req *
 	}
 
 	switch msgType {
-	case promconfig.RemoteWriteProtoMsgV1:
-		prw.handlePRWV1(w, req)
-	case promconfig.RemoteWriteProtoMsgV2:
+	case remoteapi.WriteV2MessageType:
 		prw.handlePRWV2(w, req)
 	default:
 		prw.settings.Logger.Warn("message received with unsupported proto version, rejecting")
@@ -254,31 +252,12 @@ func (prw *prometheusRemoteWriteReceiver) handlePRWV2(w http.ResponseWriter, req
 // parseProto parses the content-type header and returns the version of the remote-write protocol.
 // We can't expect that senders of remote-write v1 will add the "proto=" parameter since it was not
 // a requirement in v1. So, if the parameter is not found, we assume v1.
-func (*prometheusRemoteWriteReceiver) parseProto(contentType string) (promconfig.RemoteWriteProtoMsg, error) {
-	contentType = strings.TrimSpace(contentType)
-
-	parts := strings.Split(contentType, ";")
-	if parts[0] != "application/x-protobuf" {
-		return "", fmt.Errorf("expected %q as the first (media) part, got %v content-type", "application/x-protobuf", contentType)
+func (*prometheusRemoteWriteReceiver) parseProto(contentType string) (remoteapi.WriteMessageType, error) {
+	msgType, err := remoteapi.ParseProtoMsg(contentType)
+	if err != nil {
+		return "", err
 	}
-
-	for _, part := range parts[1:] {
-		parameter := strings.Split(part, "=")
-		if len(parameter) != 2 {
-			return "", fmt.Errorf("as per https://www.rfc-editor.org/rfc/rfc9110#parameter expected parameters to be key-values, got %v in %v content-type", part, contentType)
-		}
-
-		if strings.TrimSpace(parameter[0]) == "proto" {
-			ret := promconfig.RemoteWriteProtoMsg(parameter[1])
-			if err := ret.Validate(); err != nil {
-				return "", fmt.Errorf("got %v content type; %w", contentType, err)
-			}
-			return ret, nil
-		}
-	}
-
-	// No "proto=" parameter found, assume v1.
-	return promconfig.RemoteWriteProtoMsgV1, nil
+	return msgType, nil
 }
 
 // translateV1 translates a v1 remote-write request into OTLP metrics.
@@ -406,7 +385,8 @@ func addNumberDatapointsV1(datapoints pmetric.NumberDataPointSlice, ls map[strin
 func extractAttributesV1(ls map[string]string) pcommon.Map {
 	attrs := pcommon.NewMap()
 	for labelName, labelValue := range ls {
-		if labelName == "__name__" {
+		switch labelName {
+		case "__name__", "job", "instance", "otel_scope_name", "otel_scope_version":
 			continue
 		}
 		attrs.PutStr(labelName, labelValue)
@@ -461,7 +441,11 @@ func (prw *prometheusRemoteWriteReceiver) translateV2(_ context.Context, req *wr
 	)
 
 	for _, ts := range req.Timeseries {
-		ls := ts.ToLabels(&labelsBuilder, req.Symbols)
+		ls, err := ts.ToLabels(&labelsBuilder, req.Symbols)
+		if err != nil {
+			badRequestErrors = errors.Join(badRequestErrors, fmt.Errorf("failed to parse labels: %w", err))
+			continue
+		}
 		if !ls.Has(labels.MetricName) {
 			badRequestErrors = errors.Join(badRequestErrors, errors.New("missing metric name in labels"))
 			continue
@@ -487,9 +471,11 @@ func (prw *prometheusRemoteWriteReceiver) translateV2(_ context.Context, req *wr
 
 			// Add the remaining labels as resource attributes
 			for labelName, labelValue := range ls.Map() {
-				if labelName != labels.MetricName {
-					attrs.PutStr(labelName, labelValue)
+				switch labelName {
+				case labels.MetricName, "job", "instance", "otel_scope_name", "otel_scope_version":
+					continue
 				}
+				attrs.PutStr(labelName, labelValue)
 			}
 			rmCache[hashedLabels] = rm
 			continue
@@ -512,7 +498,7 @@ func (prw *prometheusRemoteWriteReceiver) translateV2(_ context.Context, req *wr
 
 		// Handle histograms separately due to their complex mixed-schema processing
 		if ts.Metadata.Type == writev2.Metadata_METRIC_TYPE_HISTOGRAM {
-			prw.processHistogramTimeSeries(otelMetrics, ls, ts, scopeName, scopeVersion, metricName, unit, description, metricCache, &stats)
+			prw.processHistogramTimeSeries(otelMetrics, ls, ts, scopeName, scopeVersion, metricName, unit, description, rmCache, metricCache, &stats)
 			continue
 		}
 
@@ -605,6 +591,7 @@ func (prw *prometheusRemoteWriteReceiver) processHistogramTimeSeries(
 	ls labels.Labels,
 	ts writev2.TimeSeries,
 	scopeName, scopeVersion, metricName, unit, description string,
+	rmCache map[uint64]pmetric.ResourceMetrics,
 	metricCache map[uint64]pmetric.Metric,
 	stats *promremote.WriteResponseStats,
 ) {
@@ -619,8 +606,6 @@ func (prw *prometheusRemoteWriteReceiver) processHistogramTimeSeries(
 	var hashedLabels uint64
 	var resourceID identity.Resource
 	var scope pmetric.ScopeMetrics
-
-	rmCache := make(map[uint64]pmetric.ResourceMetrics)
 
 	for _, histogram := range ts.Histograms {
 		if histogram.ResetHint == writev2.Histogram_RESET_HINT_GAUGE {
@@ -700,9 +685,9 @@ func (prw *prometheusRemoteWriteReceiver) processHistogramTimeSeries(
 
 		// Process the individual histogram
 		if histogramType == "nhcb" {
-			prw.addNHCBDatapoint(histMetric.Histogram().DataPoints(), histogram, ls, ts.CreatedTimestamp, stats)
+			prw.addNHCBDatapoint(histMetric.Histogram().DataPoints(), histogram, ls, histogram.GetStartTimestamp(), stats)
 		} else {
-			prw.addExponentialHistogramDatapoint(histMetric.ExponentialHistogram().DataPoints(), histogram, ls, ts.CreatedTimestamp, stats)
+			prw.addExponentialHistogramDatapoint(histMetric.ExponentialHistogram().DataPoints(), histogram, ls, histogram.GetStartTimestamp(), stats)
 		}
 	}
 }
@@ -738,7 +723,7 @@ func addNumberDatapoints(datapoints pmetric.NumberDataPointSlice, ls labels.Labe
 	// Add samples from the timeseries
 	for _, sample := range ts.Samples {
 		dp := datapoints.AppendEmpty()
-		dp.SetStartTimestamp(pcommon.Timestamp(ts.CreatedTimestamp * int64(time.Millisecond)))
+		dp.SetStartTimestamp(pcommon.Timestamp(sample.GetStartTimestamp() * int64(time.Millisecond)))
 		// Set timestamp in nanoseconds (Prometheus uses milliseconds)
 		dp.SetTimestamp(pcommon.Timestamp(sample.Timestamp * int64(time.Millisecond)))
 		dp.SetDoubleValue(sample.Value)
@@ -902,7 +887,8 @@ func convertAbsoluteBuckets(spans []writev2.BucketSpan, counts []float64, bucket
 func extractAttributes(ls labels.Labels) pcommon.Map {
 	attrs := pcommon.NewMap()
 	for labelName, labelValue := range ls.Map() {
-		if labelName == labels.MetricName {
+		switch labelName {
+		case labels.MetricName, "job", "instance", "otel_scope_name", "otel_scope_version":
 			continue
 		}
 		attrs.PutStr(labelName, labelValue)

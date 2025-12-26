@@ -70,6 +70,9 @@ func TestConfig(t *testing.T) {
 	require.NotNil(t, cfg)
 
 	e := cfg.Exporters[component.MustNewID("chqdatadog")].(*Config)
+	// Note: With configopaque.MapList, user-provided headers in YAML replace defaults
+	// (unlike the old map format which would merge). So User-Agent is not present
+	// when custom headers are specified in the config file.
 	expected := &Config{
 		TimeoutConfig: exporterhelper.NewDefaultTimeoutConfig(),
 		RetryConfig:   configretry.NewDefaultBackOffConfig(),
@@ -85,10 +88,6 @@ func TestConfig(t *testing.T) {
 						Name:  "Alice",
 						Value: "BobMetrics",
 					},
-					{
-						Name:  "User-Agent",
-						Value: "cardinalhq-otel-collector-chqdatadogexporter",
-					},
 				},
 			},
 		},
@@ -102,10 +101,6 @@ func TestConfig(t *testing.T) {
 						Name:  "Alice",
 						Value: "BobLogs",
 					},
-					{
-						Name:  "User-Agent",
-						Value: "cardinalhq-otel-collector-chqdatadogexporter",
-					},
 				},
 			},
 		},
@@ -118,10 +113,6 @@ func TestConfig(t *testing.T) {
 					{
 						Name:  "Alice",
 						Value: "BobTraces",
-					},
-					{
-						Name:  "User-Agent",
-						Value: "cardinalhq-otel-collector-chqdatadogexporter",
 					},
 				},
 			},

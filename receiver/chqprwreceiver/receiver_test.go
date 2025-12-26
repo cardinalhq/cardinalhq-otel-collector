@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -17,7 +16,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
-	promconfig "github.com/prometheus/prometheus/config"
+	remoteapi "github.com/prometheus/client_golang/exp/api/remote"
 	"github.com/prometheus/prometheus/model/value"
 	writev2 "github.com/prometheus/prometheus/prompb/io/prometheus/write/v2"
 	"github.com/prometheus/prometheus/storage/remote"
@@ -38,22 +37,19 @@ var writeV2RequestFixture = &writev2.Request{
 	Symbols: []string{"", "__name__", "test_metric1", "job", "service-x/test", "instance", "107cn001", "d", "e", "foo", "bar", "f", "g", "h", "i", "Test gauge for test purposes", "Maybe op/sec who knows (:", "Test counter for test purposes"},
 	Timeseries: []writev2.TimeSeries{
 		{
-			Metadata:         writev2.Metadata{Type: writev2.Metadata_METRIC_TYPE_GAUGE},
-			LabelsRefs:       []uint32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, // Symbolized writeRequestFixture.Timeseries[0].Labels
-			Samples:          []writev2.Sample{{Value: 1, Timestamp: 1}},
-			CreatedTimestamp: 1,
+			Metadata:   writev2.Metadata{Type: writev2.Metadata_METRIC_TYPE_GAUGE},
+			LabelsRefs: []uint32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, // Symbolized writeRequestFixture.Timeseries[0].Labels
+			Samples:    []writev2.Sample{{Value: 1, Timestamp: 1, StartTimestamp: 1}},
 		},
 		{
-			Metadata:         writev2.Metadata{Type: writev2.Metadata_METRIC_TYPE_GAUGE},
-			LabelsRefs:       []uint32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, // Same series as first. Should use the same resource metrics.
-			Samples:          []writev2.Sample{{Value: 2, Timestamp: 2}},
-			CreatedTimestamp: 2,
+			Metadata:   writev2.Metadata{Type: writev2.Metadata_METRIC_TYPE_GAUGE},
+			LabelsRefs: []uint32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, // Same series as first. Should use the same resource metrics.
+			Samples:    []writev2.Sample{{Value: 2, Timestamp: 2, StartTimestamp: 2}},
 		},
 		{
-			Metadata:         writev2.Metadata{Type: writev2.Metadata_METRIC_TYPE_GAUGE},
-			LabelsRefs:       []uint32{1, 2, 3, 9, 5, 10, 7, 8, 9, 10}, // This series has different label values for job and instance.
-			Samples:          []writev2.Sample{{Value: 2, Timestamp: 2}},
-			CreatedTimestamp: 2,
+			Metadata:   writev2.Metadata{Type: writev2.Metadata_METRIC_TYPE_GAUGE},
+			LabelsRefs: []uint32{1, 2, 3, 9, 5, 10, 7, 8, 9, 10}, // This series has different label values for job and instance.
+			Samples:    []writev2.Sample{{Value: 2, Timestamp: 2, StartTimestamp: 2}},
 		},
 	},
 }
@@ -124,7 +120,7 @@ func TestHandlePRWContentTypeNegotiation(t *testing.T) {
 		},
 		{
 			name:         "x-protobuf/v1 proto parameter",
-			contentType:  fmt.Sprintf("application/x-protobuf;proto=%s", promconfig.RemoteWriteProtoMsgV1),
+			contentType:  fmt.Sprintf("application/x-protobuf;proto=%s", remoteapi.WriteV1MessageType),
 			expectedCode: http.StatusUnsupportedMediaType,
 			expectedStats: remote.WriteResponseStats{
 				Confirmed:  false,
@@ -135,7 +131,7 @@ func TestHandlePRWContentTypeNegotiation(t *testing.T) {
 		},
 		{
 			name:         "x-protobuf/v2 proto parameter",
-			contentType:  fmt.Sprintf("application/x-protobuf;proto=%s", promconfig.RemoteWriteProtoMsgV2),
+			contentType:  fmt.Sprintf("application/x-protobuf;proto=%s", remoteapi.WriteV2MessageType),
 			expectedCode: http.StatusNoContent,
 			expectedStats: remote.WriteResponseStats{
 				Confirmed:  true,
@@ -382,17 +378,17 @@ func TestTranslateV2(t *testing.T) {
 					},
 					{
 						// Exponential histogram with scope2
-						Metadata:         writev2.Metadata{Type: writev2.Metadata_METRIC_TYPE_HISTOGRAM},
-						LabelsRefs:       []uint32{1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 17, 18},
-						CreatedTimestamp: 150,
+						Metadata:   writev2.Metadata{Type: writev2.Metadata_METRIC_TYPE_HISTOGRAM},
+						LabelsRefs: []uint32{1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 17, 18},
 						Histograms: []writev2.Histogram{
 							{
-								Schema:        0,
-								Count:         &writev2.Histogram_CountInt{CountInt: 6},
-								Sum:           1,
-								Timestamp:     1,
-								ZeroThreshold: 1,
-								ZeroCount:     &writev2.Histogram_ZeroCountInt{ZeroCountInt: 1},
+								Schema:         0,
+								Count:          &writev2.Histogram_CountInt{CountInt: 6},
+								Sum:            1,
+								Timestamp:      1,
+								StartTimestamp: 150,
+								ZeroThreshold:  1,
+								ZeroCount:      &writev2.Histogram_ZeroCountInt{ZeroCountInt: 1},
 								PositiveSpans: []writev2.BucketSpan{
 									{Offset: 0, Length: 2},
 								},
@@ -657,7 +653,6 @@ func TestTranslateV2(t *testing.T) {
 				},
 				Timeseries: []writev2.TimeSeries{
 					{
-						CreatedTimestamp: 1,
 						Metadata: writev2.Metadata{
 							Type: writev2.Metadata_METRIC_TYPE_HISTOGRAM,
 						},
@@ -666,9 +661,10 @@ func TestTranslateV2(t *testing.T) {
 								Count: &writev2.Histogram_CountInt{
 									CountInt: 20,
 								},
-								Sum:           30,
-								Timestamp:     1,
-								ZeroThreshold: 1,
+								Sum:            30,
+								Timestamp:      1,
+								StartTimestamp: 1,
+								ZeroThreshold:  1,
 								ZeroCount: &writev2.Histogram_ZeroCountInt{
 									ZeroCountInt: 2,
 								},
@@ -740,7 +736,6 @@ func TestTranslateV2(t *testing.T) {
 				},
 				Timeseries: []writev2.TimeSeries{
 					{
-						CreatedTimestamp: 1,
 						Metadata: writev2.Metadata{
 							Type: writev2.Metadata_METRIC_TYPE_HISTOGRAM,
 						},
@@ -749,9 +744,10 @@ func TestTranslateV2(t *testing.T) {
 								Count: &writev2.Histogram_CountInt{
 									CountInt: 20,
 								},
-								Sum:           30,
-								Timestamp:     1,
-								ZeroThreshold: 1,
+								Sum:            30,
+								Timestamp:      1,
+								StartTimestamp: 1,
+								ZeroThreshold:  1,
 								ZeroCount: &writev2.Histogram_ZeroCountInt{
 									ZeroCountInt: 2,
 								},
@@ -809,7 +805,6 @@ func TestTranslateV2(t *testing.T) {
 				},
 				Timeseries: []writev2.TimeSeries{
 					{
-						CreatedTimestamp: 1,
 						Metadata: writev2.Metadata{
 							Type: writev2.Metadata_METRIC_TYPE_HISTOGRAM,
 						},
@@ -818,9 +813,10 @@ func TestTranslateV2(t *testing.T) {
 								Count: &writev2.Histogram_CountFloat{
 									CountFloat: 20,
 								},
-								Sum:           33.3,
-								Timestamp:     1,
-								ZeroThreshold: 1,
+								Sum:            33.3,
+								Timestamp:      1,
+								StartTimestamp: 1,
+								ZeroThreshold:  1,
 								ZeroCount: &writev2.Histogram_ZeroCountFloat{
 									ZeroCountFloat: 2,
 								},
@@ -891,7 +887,6 @@ func TestTranslateV2(t *testing.T) {
 				},
 				Timeseries: []writev2.TimeSeries{
 					{
-						CreatedTimestamp: 1,
 						Metadata: writev2.Metadata{
 							Type: writev2.Metadata_METRIC_TYPE_HISTOGRAM,
 						},
@@ -900,9 +895,10 @@ func TestTranslateV2(t *testing.T) {
 								Count: &writev2.Histogram_CountFloat{
 									CountFloat: 20,
 								},
-								Sum:           33.3,
-								Timestamp:     1,
-								ZeroThreshold: 1,
+								Sum:            33.3,
+								Timestamp:      1,
+								StartTimestamp: 1,
+								ZeroThreshold:  1,
 								ZeroCount: &writev2.Histogram_ZeroCountFloat{
 									ZeroCountFloat: 2,
 								},
@@ -1093,15 +1089,15 @@ func TestTranslateV2(t *testing.T) {
 				},
 				Timeseries: []writev2.TimeSeries{
 					{
-						LabelsRefs:       []uint32{1, 2, 3, 4, 5, 6}, // __name__=test_hncb_histogram, job=test, instance=localhost:8080
-						CreatedTimestamp: 123456000,
+						LabelsRefs: []uint32{1, 2, 3, 4, 5, 6}, // __name__=test_hncb_histogram, job=test, instance=localhost:8080
 						Metadata: writev2.Metadata{
 							Type: writev2.Metadata_METRIC_TYPE_HISTOGRAM,
 						},
 						Histograms: []writev2.Histogram{
 							{
-								Timestamp:    123456789,
-								Schema:       -53, // NHCB schema
+								Timestamp:      123456789,
+								StartTimestamp: 123456000,
+								Schema:         -53, // NHCB schema
 								Sum:          100.5,
 								Count:        &writev2.Histogram_CountInt{CountInt: 180},
 								CustomValues: []float64{1.0, 2.0, 5.0, 10.0}, // Custom bucket boundaries
@@ -1279,16 +1275,16 @@ func TestTranslateV2(t *testing.T) {
 				},
 				Timeseries: []writev2.TimeSeries{
 					{
-						LabelsRefs:       []uint32{1, 2, 3, 4, 5, 6}, // __name__=test_mixed_histogram, job=test, instance=localhost:8080
-						CreatedTimestamp: 123456000,
+						LabelsRefs: []uint32{1, 2, 3, 4, 5, 6}, // __name__=test_mixed_histogram, job=test, instance=localhost:8080
 						Metadata: writev2.Metadata{
 							Type: writev2.Metadata_METRIC_TYPE_HISTOGRAM,
 						},
 						Histograms: []writev2.Histogram{
 							{
 								// First histogram - NHCB
-								Timestamp:    123456789,
-								Schema:       -53,
+								Timestamp:      123456789,
+								StartTimestamp: 123456000,
+								Schema:         -53,
 								Sum:          100.5,
 								Count:        &writev2.Histogram_CountInt{CountInt: 180},
 								CustomValues: []float64{1.0, 2.0, 5.0, 10.0},
@@ -1299,12 +1295,13 @@ func TestTranslateV2(t *testing.T) {
 							},
 							{
 								// Second histogram - Exponential
-								Timestamp:     123456790,
-								Schema:        -4,
-								Sum:           200.0,
-								Count:         &writev2.Histogram_CountInt{CountInt: 100},
-								ZeroThreshold: 1.0,
-								ZeroCount:     &writev2.Histogram_ZeroCountInt{ZeroCountInt: 5},
+								Timestamp:      123456790,
+								StartTimestamp: 123456000,
+								Schema:         -4,
+								Sum:            200.0,
+								Count:          &writev2.Histogram_CountInt{CountInt: 100},
+								ZeroThreshold:  1.0,
+								ZeroCount:      &writev2.Histogram_ZeroCountInt{ZeroCountInt: 5},
 								PositiveSpans: []writev2.BucketSpan{
 									{Offset: 1, Length: 2},
 								},
@@ -1406,90 +1403,69 @@ func (m *mockConsumer) ConsumeMetrics(_ context.Context, md pmetric.Metrics) err
 	return nil
 }
 
-func TestTargetInfoWithMultipleRequests(t *testing.T) {
+func TestTargetInfoWithNormalMetric(t *testing.T) {
+	// Test that target_info attributes are added to the resource when processed together with normal metrics
 	tests := []struct {
-		name     string
-		requests []*writev2.Request
+		name    string
+		request *writev2.Request
 	}{
 		{
 			name: "target_info first, normal metric second",
-			requests: []*writev2.Request{
-				{
-					Symbols: []string{
-						"",
-						"job", "production/service_a", // 1, 2
-						"instance", "host1", // 3, 4
-						"machine_type", "n1-standard-1", // 5, 6
-						"cloud_provider", "gcp", // 7, 8
-						"region", "us-central1", // 9, 10
-						"__name__", "target_info", // 11, 12
-					},
-					Timeseries: []writev2.TimeSeries{
-						{
-							Metadata:   writev2.Metadata{Type: writev2.Metadata_METRIC_TYPE_GAUGE},
-							LabelsRefs: []uint32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
-						},
-					},
+			request: &writev2.Request{
+				Symbols: []string{
+					"",
+					"job", "production/service_a", // 1, 2
+					"instance", "host1", // 3, 4
+					"machine_type", "n1-standard-1", // 5, 6
+					"cloud_provider", "gcp", // 7, 8
+					"region", "us-central1", // 9, 10
+					"__name__", "target_info", // 11, 12
+					"__name__", "normal_metric", // 13, 14
+					"foo", "bar", // 15, 16
 				},
-				{
-					Symbols: []string{
-						"",
-						"job", "production/service_a", // 1, 2
-						"instance", "host1", // 3, 4
-						"__name__", "normal_metric", // 5, 6
-						"foo", "bar", // 7, 8
+				Timeseries: []writev2.TimeSeries{
+					{
+						Metadata:   writev2.Metadata{Type: writev2.Metadata_METRIC_TYPE_GAUGE},
+						LabelsRefs: []uint32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
 					},
-					Timeseries: []writev2.TimeSeries{
-						{
-							Metadata:   writev2.Metadata{Type: writev2.Metadata_METRIC_TYPE_GAUGE},
-							LabelsRefs: []uint32{5, 6, 1, 2, 3, 4, 7, 8},
-							Samples:    []writev2.Sample{{Value: 2, Timestamp: 2}},
-						},
+					{
+						Metadata:   writev2.Metadata{Type: writev2.Metadata_METRIC_TYPE_GAUGE},
+						LabelsRefs: []uint32{13, 14, 1, 2, 3, 4, 15, 16},
+						Samples:    []writev2.Sample{{Value: 2, Timestamp: 2}},
 					},
 				},
 			},
 		},
 		{
 			name: "normal metric first, target_info second",
-			requests: []*writev2.Request{
-				{
-					Symbols: []string{
-						"",
-						"job", "production/service_a", // 1, 2
-						"instance", "host1", // 3, 4
-						"__name__", "normal_metric", // 5, 6
-						"foo", "bar", // 7, 8
-					},
-					Timeseries: []writev2.TimeSeries{
-						{
-							Metadata:   writev2.Metadata{Type: writev2.Metadata_METRIC_TYPE_GAUGE},
-							LabelsRefs: []uint32{5, 6, 1, 2, 3, 4, 7, 8},
-							Samples:    []writev2.Sample{{Value: 2, Timestamp: 2}},
-						},
-					},
+			request: &writev2.Request{
+				Symbols: []string{
+					"",
+					"job", "production/service_a", // 1, 2
+					"instance", "host1", // 3, 4
+					"__name__", "normal_metric", // 5, 6
+					"foo", "bar", // 7, 8
+					"machine_type", "n1-standard-1", // 9, 10
+					"cloud_provider", "gcp", // 11, 12
+					"region", "us-central1", // 13, 14
+					"__name__", "target_info", // 15, 16
 				},
-				{
-					Symbols: []string{
-						"",
-						"job", "production/service_a", // 1, 2
-						"instance", "host1", // 3, 4
-						"machine_type", "n1-standard-1", // 5, 6
-						"cloud_provider", "gcp", // 7, 8
-						"region", "us-central1", // 9, 10
-						"__name__", "target_info", // 11, 12
+				Timeseries: []writev2.TimeSeries{
+					{
+						Metadata:   writev2.Metadata{Type: writev2.Metadata_METRIC_TYPE_GAUGE},
+						LabelsRefs: []uint32{5, 6, 1, 2, 3, 4, 7, 8},
+						Samples:    []writev2.Sample{{Value: 2, Timestamp: 2}},
 					},
-					Timeseries: []writev2.TimeSeries{
-						{
-							Metadata:   writev2.Metadata{Type: writev2.Metadata_METRIC_TYPE_GAUGE},
-							LabelsRefs: []uint32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
-						},
+					{
+						Metadata:   writev2.Metadata{Type: writev2.Metadata_METRIC_TYPE_GAUGE},
+						LabelsRefs: []uint32{1, 2, 3, 4, 9, 10, 11, 12, 13, 14, 15, 16},
 					},
 				},
 			},
 		},
 	}
 
-	// Using the same expected metrics for both tests, because we are just checking if the order of the requests changes the result.
+	// Using the same expected metrics for both tests, because we are just checking if the order of the timeseries changes the result.
 	expectedMetrics := func() pmetric.Metrics {
 		metrics := pmetric.NewMetrics()
 		rm := metrics.ResourceMetrics().AppendEmpty()
@@ -1516,37 +1492,15 @@ func TestTargetInfoWithMultipleRequests(t *testing.T) {
 		return metrics
 	}()
 
+	prwReceiver := setupMetricsReceiver(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	t.Cleanup(cancel)
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockConsumer := new(mockConsumer)
-			prwReceiver := setupMetricsReceiver(t)
-			prwReceiver.nextConsumer = mockConsumer
-
-			ts := httptest.NewServer(http.HandlerFunc(prwReceiver.handlePRW))
-			defer ts.Close()
-
-			for _, req := range tt.requests {
-				pBuf := proto.NewBuffer(nil)
-				// we don't need to compress the body to use the snappy compression in the unit test
-				// because the encoder is just initialized when we initialize the http server.
-				// so we can just use the uncompressed body.
-				err := pBuf.Marshal(req)
-				assert.NoError(t, err)
-
-				resp, err := http.Post(
-					ts.URL,
-					fmt.Sprintf("application/x-protobuf;proto=%s", promconfig.RemoteWriteProtoMsgV2),
-					bytes.NewBuffer(pBuf.Bytes()),
-				)
-				assert.NoError(t, err)
-				defer resp.Body.Close()
-
-				body, err := io.ReadAll(resp.Body)
-				assert.NoError(t, err)
-				assert.Equal(t, http.StatusNoContent, resp.StatusCode, string(body))
-			}
-
-			assert.NoError(t, pmetrictest.CompareMetrics(expectedMetrics, mockConsumer.metrics[0]))
+			metrics, _, err := prwReceiver.translateV2(ctx, tt.request)
+			assert.NoError(t, err)
+			assert.NoError(t, pmetrictest.CompareMetrics(expectedMetrics, metrics))
 		})
 	}
 }

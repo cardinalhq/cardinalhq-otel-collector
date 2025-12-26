@@ -844,7 +844,7 @@ require (
 	github.com/pquerna/cachecontrol v0.1.0 // indirect
 	github.com/prometheus/alertmanager v0.28.1 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect
-	github.com/prometheus/client_golang/exp v0.0.0-20250914183048-a974e0d45e0a // indirect
+	github.com/prometheus/client_golang/exp v0.0.0-20251212205219-7ba246a648ca // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.67.4 // indirect
 	github.com/prometheus/common/assets v0.2.0 // indirect
@@ -1122,7 +1122,3 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
 replace github.com/open-telemetry/opentelemetry-collector-contrib/exporter/loadbalancingexporter => github.com/cardinalhq/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.0.0-20251226215024-9c35e6eca2c8
 
 replace github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awss3exporter => github.com/cardinalhq/opentelemetry-collector-contrib/exporter/awss3exporter v0.0.0-20251226212959-dfe1f462f237
-
-replace github.com/openshift/api => github.com/openshift/api v0.0.0-20251015095338-264e80a2b6e7
-
-replace github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20251015124057-db0dee36e235

@@ -25,6 +25,7 @@ import (
 	"go.opentelemetry.io/collector/config/configcompression"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/config/configopaque"
+	"go.opentelemetry.io/collector/config/configoptional"
 	"go.opentelemetry.io/collector/config/configretry"
 	"go.opentelemetry.io/collector/exporter/exporterhelper"
 	"go.opentelemetry.io/collector/otelcol/otelcoltest"
@@ -72,16 +73,22 @@ func TestConfig(t *testing.T) {
 	expected := &Config{
 		TimeoutConfig: exporterhelper.NewDefaultTimeoutConfig(),
 		RetryConfig:   configretry.NewDefaultBackOffConfig(),
-		QueueConfig:   exporterhelper.NewDefaultQueueConfig(),
+		QueueConfig:   configoptional.Optional[exporterhelper.QueueBatchConfig]{},
 		APIKey:        configopaque.String("1234567890abcdef1234567890abcdef"),
 		Metrics: MetricsConfig{
 			ClientConfig: confighttp.ClientConfig{
 				Timeout:     500 * time.Millisecond,
 				Endpoint:    "http://localhost:8080/metrics",
 				Compression: configcompression.TypeGzip,
-				Headers: map[string]configopaque.String{
-					"Alice":      "BobMetrics",
-					"User-Agent": "cardinalhq-otel-collector-chqdatadogexporter",
+				Headers: configopaque.MapList{
+					{
+						Name:  "Alice",
+						Value: "BobMetrics",
+					},
+					{
+						Name:  "User-Agent",
+						Value: "cardinalhq-otel-collector-chqdatadogexporter",
+					},
 				},
 			},
 		},
@@ -90,9 +97,15 @@ func TestConfig(t *testing.T) {
 				Timeout:     600 * time.Millisecond,
 				Endpoint:    "http://localhost:8080/logs",
 				Compression: configcompression.TypeZstd,
-				Headers: map[string]configopaque.String{
-					"Alice":      "BobLogs",
-					"User-Agent": "cardinalhq-otel-collector-chqdatadogexporter",
+				Headers: configopaque.MapList{
+					{
+						Name:  "Alice",
+						Value: "BobLogs",
+					},
+					{
+						Name:  "User-Agent",
+						Value: "cardinalhq-otel-collector-chqdatadogexporter",
+					},
 				},
 			},
 		},
@@ -101,9 +114,15 @@ func TestConfig(t *testing.T) {
 				Timeout:     700 * time.Millisecond,
 				Endpoint:    "http://localhost:8080/traces",
 				Compression: configcompression.TypeDeflate,
-				Headers: map[string]configopaque.String{
-					"Alice":      "BobTraces",
-					"User-Agent": "cardinalhq-otel-collector-chqdatadogexporter",
+				Headers: configopaque.MapList{
+					{
+						Name:  "Alice",
+						Value: "BobTraces",
+					},
+					{
+						Name:  "User-Agent",
+						Value: "cardinalhq-otel-collector-chqdatadogexporter",
+					},
 				},
 			},
 		},

@@ -76,7 +76,7 @@ func newConfigExtension(cfg *Config, params extension.Settings) (*CHQTagcacheExt
 }
 
 func (chq *CHQTagcacheExtension) Start(ctx context.Context, host component.Host) error {
-	httpClient, err := chq.httpClientSettings.ToClient(ctx, host, chq.telemetrySettings)
+	httpClient, err := chq.httpClientSettings.ToClient(ctx, host.GetExtensions(), chq.telemetrySettings)
 	if err != nil {
 		return err
 	}

@@ -94,7 +94,7 @@ func (e *entityGraphExporter) Capabilities() consumer.Capabilities {
 }
 
 func (e *entityGraphExporter) Start(ctx context.Context, host component.Host) error {
-	httpClient, err := e.httpClientSettings.ToClient(ctx, host, e.telemetrySettings)
+	httpClient, err := e.httpClientSettings.ToClient(ctx, host.GetExtensions(), e.telemetrySettings)
 	if err != nil {
 		return err
 	}

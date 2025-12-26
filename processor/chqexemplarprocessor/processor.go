@@ -111,7 +111,7 @@ func (p *exemplarProcessor) Capabilities() consumer.Capabilities {
 }
 
 func (p *exemplarProcessor) Start(ctx context.Context, host component.Host) error {
-	httpClient, err := p.httpClientSettings.ToClient(ctx, host, p.telemetrySettings)
+	httpClient, err := p.httpClientSettings.ToClient(ctx, host.GetExtensions(), p.telemetrySettings)
 	if err != nil {
 		return err
 	}

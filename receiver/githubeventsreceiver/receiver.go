@@ -86,7 +86,7 @@ func (g *githubEventsReceiver) Start(ctx context.Context, host component.Host) e
 	router.HandlerFunc(http.MethodGet, g.cfg.HealthPath, g.handleHealthCheck)
 
 	var err error
-	g.server, err = g.cfg.ToServer(ctx, host, g.settings.TelemetrySettings, router)
+	g.server, err = g.cfg.ToServer(ctx, host.GetExtensions(), g.settings.TelemetrySettings, router)
 	if err != nil {
 		return fmt.Errorf("failed to create server definition: %w", err)
 	}

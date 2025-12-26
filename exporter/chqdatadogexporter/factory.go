@@ -22,6 +22,7 @@ import (
 	"go.opentelemetry.io/collector/config/configcompression"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/config/configopaque"
+	"go.opentelemetry.io/collector/config/configoptional"
 	"go.opentelemetry.io/collector/config/configretry"
 	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/collector/exporter/exporterhelper"
@@ -47,34 +48,28 @@ func createDefaultConfig() component.Config {
 	return &Config{
 		TimeoutConfig: exporterhelper.NewDefaultTimeoutConfig(),
 		RetryConfig:   configretry.NewDefaultBackOffConfig(),
-		QueueConfig:   exporterhelper.NewDefaultQueueConfig(),
+		QueueConfig:   configoptional.Optional[exporterhelper.QueueBatchConfig]{},
 		Metrics: MetricsConfig{
 			ClientConfig: confighttp.ClientConfig{
-				Timeout:  defaultClientTimeout,
-				Endpoint: defaultEndpoint,
-				Headers: map[string]configopaque.String{
-					"User-Agent": userAgent,
-				},
+				Timeout:     defaultClientTimeout,
+				Endpoint:    defaultEndpoint,
+				Headers:     configopaque.MapList{{Name: "User-Agent", Value: userAgent}},
 				Compression: configcompression.TypeGzip,
 			},
 		},
 		Logs: LogsConfig{
 			ClientConfig: confighttp.ClientConfig{
-				Timeout:  defaultClientTimeout,
-				Endpoint: defaultEndpoint,
-				Headers: map[string]configopaque.String{
-					"User-Agent": userAgent,
-				},
+				Timeout:     defaultClientTimeout,
+				Endpoint:    defaultEndpoint,
+				Headers:     configopaque.MapList{{Name: "User-Agent", Value: userAgent}},
 				Compression: configcompression.TypeGzip,
 			},
 		},
 		Traces: TracesConfig{
 			ClientConfig: confighttp.ClientConfig{
-				Timeout:  defaultClientTimeout,
-				Endpoint: defaultEndpoint,
-				Headers: map[string]configopaque.String{
-					"User-Agent": userAgent,
-				},
+				Timeout:     defaultClientTimeout,
+				Endpoint:    defaultEndpoint,
+				Headers:     configopaque.MapList{{Name: "User-Agent", Value: userAgent}},
 				Compression: configcompression.TypeGzip,
 			},
 		},

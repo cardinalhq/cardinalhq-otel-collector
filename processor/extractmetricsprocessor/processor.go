@@ -192,7 +192,7 @@ func (p *extractor) Start(ctx context.Context, host component.Host) error {
 	p.configExtension = cext
 	p.configCallbackID = p.configExtension.RegisterCallback(p.id.String()+"/"+p.ttype, p.configUpdateCallback)
 
-	httpClient, err := p.httpClientSettings.ToClient(ctx, host, p.telemetrySettings)
+	httpClient, err := p.httpClientSettings.ToClient(ctx, host.GetExtensions(), p.telemetrySettings)
 	if err != nil {
 		return err
 	}

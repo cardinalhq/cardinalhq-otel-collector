@@ -63,7 +63,7 @@ func newConfigExtension(cfg *Config, params extension.Settings) (*CHQConfigExten
 }
 
 func (chq *CHQConfigExtension) Start(_ context.Context, host component.Host) error {
-	httpClient, err := chq.httpClientSettings.ToClient(context.Background(), host, chq.telemetrySettings)
+	httpClient, err := chq.httpClientSettings.ToClient(context.Background(), host.GetExtensions(), chq.telemetrySettings)
 	if err != nil {
 		return err
 	}

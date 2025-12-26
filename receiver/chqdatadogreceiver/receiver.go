@@ -143,7 +143,7 @@ func (ddr *datadogReceiver) Start(ctx context.Context, host component.Host) erro
 	ddmux.HandleFunc("/api/v1/metadata", ddr.handleMetadata)
 
 	var err error
-	ddr.server, err = ddr.config.ToServer(ctx, host, ddr.telemetrySettings, ddmux)
+	ddr.server, err = ddr.config.ToServer(ctx, host.GetExtensions(), ddr.telemetrySettings, ddmux)
 	if err != nil {
 		return fmt.Errorf("failed to create server definition: %w", err)
 	}

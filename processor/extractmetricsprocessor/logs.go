@@ -165,7 +165,7 @@ func (p *extractor) toServiceNameKey() string {
 
 func (p *extractor) extractLogValue(ctx context.Context, tc ottllog.TransformContext, e *ottl.LogExtractor) (float64, error) {
 	if e.MetricValue != nil {
-		val, _, err := e.MetricValue.Execute(ctx, tc)
+		val, _, err := e.MetricValue.Execute(ctx, &tc)
 		if err != nil {
 			return 0, err
 		}

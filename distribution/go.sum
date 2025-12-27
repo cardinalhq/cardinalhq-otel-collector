@@ -1195,8 +1195,6 @@ github.com/cardinalhq/opentelemetry-collector-contrib/exporter/awss3exporter v0.
 github.com/cardinalhq/opentelemetry-collector-contrib/exporter/awss3exporter v0.0.0-20251226212959-dfe1f462f237/go.mod h1:Vum9D4x/ifqfKDIgmmY2zv3tYcLIJtn+sPEzRJos8XA=
 github.com/cardinalhq/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.0.0-20251226215024-9c35e6eca2c8 h1:LInEWYYJyqcRFM7UCgpQfUqcl+61st5/8MnKV+V7Ix0=
 github.com/cardinalhq/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.0.0-20251226215024-9c35e6eca2c8/go.mod h1:yli4iTVukVm1dtGD87j9SEsHle/BIeUBfhGAvKs+CAU=
-github.com/cardinalhq/oteltools v0.32.1 h1:NB1BOqolrIPIItnV3Krw50cTcBT1d5dqnYK43zS8U90=
-github.com/cardinalhq/oteltools v0.32.1/go.mod h1:ciLes6EMJk3WjOcjGb8EweTqx5ahDD+RBdCMeegGLHQ=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
 github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=

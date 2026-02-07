@@ -62,9 +62,12 @@ fmt:
 .PHONY: check
 check: test license-check lint
 
+bin/license-eye bin/goreleaser:
+	./scripts/install-dev-tools.sh
+
 .PHONY: license-check
-license-check: tidy-dot
-	go tool license-eye header check
+license-check: tidy-dot bin/license-eye
+	./bin/license-eye header check
 
 .PHONY: lint
 lint:
@@ -110,8 +113,8 @@ bin/cardinalhq-otel-collector: cardinalhq-otel-collector.yaml distribution/main.
 # Multi-architecture image builds
 #
 .PHONY: images
-images: buildfiles
-	go tool goreleaser
+images: buildfiles bin/goreleaser
+	./bin/goreleaser
 
 #
 # Test targets

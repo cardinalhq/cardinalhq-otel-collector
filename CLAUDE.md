@@ -92,7 +92,7 @@ go test -v ./...
 - **Linting**: Uses .golangci.yaml with custom rules and exclusions
 - **License**: All files require Apache 2.0 license headers (checked by license-eye)
 - **Builder Config**: cardinalhq-otel-collector.yaml defines which components to include
-- **Go Version**: Requires Go 1.24.1
+- **Go Version**: Requires Go 1.25.0
 - **OpenTelemetry Version**: Based on v0.132.0
 
 ## Key Dependencies

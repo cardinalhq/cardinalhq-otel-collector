@@ -31,10 +31,16 @@ mkdir -p "$BIN_DIR"
 
 # Install tools with pinned versions to project-local bin directory
 echo "Installing license-eye $LICENSE_EYE_VERSION..."
-GOBIN="$BIN_DIR" go install "github.com/apache/skywalking-eyes/cmd/license-eye@$LICENSE_EYE_VERSION" || echo "Failed to install license-eye"
+if ! GOBIN="$BIN_DIR" go install "github.com/apache/skywalking-eyes/cmd/license-eye@$LICENSE_EYE_VERSION"; then
+  echo "Failed to install license-eye" >&2
+  exit 1
+fi
 
 echo "Installing goreleaser $GORELEASER_VERSION..."
-GOBIN="$BIN_DIR" go install "github.com/goreleaser/goreleaser/v2@$GORELEASER_VERSION" || echo "Failed to install goreleaser"
+if ! GOBIN="$BIN_DIR" go install "github.com/goreleaser/goreleaser/v2@$GORELEASER_VERSION"; then
+  echo "Failed to install goreleaser" >&2
+  exit 1
+fi
 
 echo ""
 echo "Installation complete. Installed tools:"

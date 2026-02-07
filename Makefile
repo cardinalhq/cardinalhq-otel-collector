@@ -62,7 +62,7 @@ fmt:
 .PHONY: check
 check: test license-check lint
 
-bin/license-eye bin/goreleaser:
+bin/license-eye bin/goreleaser: scripts/install-dev-tools.sh
 	./scripts/install-dev-tools.sh
 
 .PHONY: license-check

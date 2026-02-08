@@ -20,7 +20,6 @@ import (
 )
 
 func (e *entityGraphExporter) ConsumeLogs(ctx context.Context, td plog.Logs) error {
-
 	for i := range td.ResourceLogs().Len() {
 		rs := td.ResourceLogs().At(i)
 		resourceAttributes := rs.Resource().Attributes()

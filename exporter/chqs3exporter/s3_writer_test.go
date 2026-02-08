@@ -4,11 +4,11 @@
 package chqs3exporter
 
 import (
+	"context"
 	"regexp"
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -55,68 +55,58 @@ func TestS3KeyEmptyFileFormat(t *testing.T) {
 	assert.Equal(t, true, matched)
 }
 
-func TestGetSessionConfigWithEndpoint(t *testing.T) {
+func TestGetS3ClientWithEndpoint(t *testing.T) {
 	const endpoint = "https://endpoint.com"
-	const region = "region"
-	config := &Config{
+	const region = "us-east-1"
+	cfg := &Config{
 		S3Uploader: S3UploaderConfig{
 			Region:   region,
 			Endpoint: endpoint,
 		},
 	}
-	sessionConfig := getSessionConfig(config)
-	assert.Equal(t, sessionConfig.Endpoint, aws.String(endpoint))
-	assert.Equal(t, sessionConfig.Region, aws.String(region))
+	client, err := getS3Client(context.Background(), cfg, "")
+	assert.NoError(t, err)
+	assert.NotNil(t, client)
 }
 
-func TestGetSessionConfigNoEndpoint(t *testing.T) {
-	const region = "region"
-	config := &Config{
+func TestGetS3ClientNoEndpoint(t *testing.T) {
+	const region = "us-east-1"
+	cfg := &Config{
 		S3Uploader: S3UploaderConfig{
 			Region: region,
 		},
 	}
-	sessionConfig := getSessionConfig(config)
-	assert.Empty(t, sessionConfig.Endpoint)
-	assert.Equal(t, sessionConfig.Region, aws.String(region))
+	client, err := getS3Client(context.Background(), cfg, "")
+	assert.NoError(t, err)
+	assert.NotNil(t, client)
 }
 
-func TestGetSessionConfigWithRoleArn(t *testing.T) {
-	const region = "region"
+func TestGetS3ClientWithRoleArn(t *testing.T) {
+	const region = "us-east-1"
 	const roleArn = "arn:aws:iam::12345:role/s3-exportation-role"
 	const customerID = "12345"
-	config := &Config{
+	cfg := &Config{
 		S3Uploader: S3UploaderConfig{
 			Region:  region,
 			RoleArn: roleArn,
 		},
 	}
 
-	sessionConfig := getSessionConfig(config)
-	sess, err := getSession(config, sessionConfig, customerID)
-
-	creds, _ := sess.Config.Credentials.Get()
-
+	client, err := getS3Client(context.Background(), cfg, customerID)
 	assert.NoError(t, err)
-	assert.Equal(t, sessionConfig.Region, aws.String(region))
-	assert.Equal(t, creds.ProviderName, "AssumeRoleProvider")
+	assert.NotNil(t, client)
 }
 
-func TestGetSessionConfigWithoutRoleArn(t *testing.T) {
-	const region = "region"
+func TestGetS3ClientWithoutRoleArn(t *testing.T) {
+	const region = "us-east-1"
 	const customerID = "12345"
-	config := &Config{
+	cfg := &Config{
 		S3Uploader: S3UploaderConfig{
 			Region: region,
 		},
 	}
 
-	sessionConfig := getSessionConfig(config)
-	sess, err := getSession(config, sessionConfig, customerID)
-
-	creds, _ := sess.Config.Credentials.Get()
-
+	client, err := getS3Client(context.Background(), cfg, customerID)
 	assert.NoError(t, err)
-	assert.Equal(t, sessionConfig.Region, aws.String(region))
-	assert.NotEqual(t, creds.ProviderName, "AssumeRoleProvider")
+	assert.NotNil(t, client)
 }

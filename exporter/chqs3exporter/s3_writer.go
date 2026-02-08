@@ -11,10 +11,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 )
 
 type s3Writer struct{}
@@ -60,60 +62,72 @@ func getS3Key(time time.Time, keyPrefix string, partition string, filePrefix str
 	return s3Key
 }
 
-func getSessionConfig(config *Config) *aws.Config {
-	sessionConfig := &aws.Config{
-		Region:           aws.String(config.S3Uploader.Region),
-		S3ForcePathStyle: &config.S3Uploader.S3ForcePathStyle,
-		DisableSSL:       &config.S3Uploader.DisableSSL,
+func getS3Client(ctx context.Context, cfg *Config, customerID string) (*s3.Client, error) {
+	var opts []func(*config.LoadOptions) error
+	opts = append(opts, config.WithRegion(cfg.S3Uploader.Region))
+
+	awsCfg, err := config.LoadDefaultConfig(ctx, opts...)
+	if err != nil {
+		return nil, err
 	}
 
-	endpoint := config.S3Uploader.Endpoint
-	if endpoint != "" {
-		sessionConfig.Endpoint = aws.String(endpoint)
-	}
+	var s3Opts []func(*s3.Options)
 
-	return sessionConfig
-}
-
-func getSession(config *Config, sessionConfig *aws.Config, customerID string) (*session.Session, error) {
-	sess, err := session.NewSession(sessionConfig)
-
-	if config.S3Uploader.RoleArn != "" {
-		credentials := stscreds.NewCredentials(sess, config.S3Uploader.RoleArn, func(arp *stscreds.AssumeRoleProvider) {
-			arp.ExternalID = aws.String(customerID)
+	if cfg.S3Uploader.Endpoint != "" {
+		s3Opts = append(s3Opts, func(o *s3.Options) {
+			o.BaseEndpoint = aws.String(cfg.S3Uploader.Endpoint)
 		})
-		sess.Config.Credentials = credentials
 	}
 
-	return sess, err
+	if cfg.S3Uploader.S3ForcePathStyle {
+		s3Opts = append(s3Opts, func(o *s3.Options) {
+			o.UsePathStyle = true
+		})
+	}
+
+	if cfg.S3Uploader.DisableSSL {
+		s3Opts = append(s3Opts, func(o *s3.Options) {
+			o.EndpointOptions.DisableHTTPS = true
+		})
+	}
+
+	if cfg.S3Uploader.RoleArn != "" {
+		stsClient := sts.NewFromConfig(awsCfg)
+		creds := stscreds.NewAssumeRoleProvider(stsClient, cfg.S3Uploader.RoleArn, func(o *stscreds.AssumeRoleOptions) {
+			o.ExternalID = aws.String(customerID)
+		})
+		s3Opts = append(s3Opts, func(o *s3.Options) {
+			o.Credentials = aws.NewCredentialsCache(creds)
+		})
+	}
+
+	return s3.NewFromConfig(awsCfg, s3Opts...), nil
 }
 
-func (s3writer *s3Writer) writeBuffer(_ context.Context, now time.Time, buf io.Reader, config *Config, metadata string, format string, kv map[string]string, customerID string) error {
+func (s3writer *s3Writer) writeBuffer(ctx context.Context, now time.Time, buf io.Reader, cfg *Config, metadata string, format string, kv map[string]string, customerID string) error {
 	key := getS3Key(now,
-		config.S3Uploader.S3Prefix, config.S3Uploader.S3Partition,
-		config.S3Uploader.FilePrefix, metadata, format, customerID)
+		cfg.S3Uploader.S3Prefix, cfg.S3Uploader.S3Partition,
+		cfg.S3Uploader.FilePrefix, metadata, format, customerID)
 
 	contentType := ""
 	if format == "parquet" {
 		contentType = "application/vnd.apache.parquet"
 	}
 
-	sessionConfig := getSessionConfig(config)
-	sess, err := getSession(config, sessionConfig, customerID)
-
+	client, err := getS3Client(ctx, cfg, customerID)
 	if err != nil {
 		return err
 	}
 
-	uploader := s3manager.NewUploader(sess)
+	uploader := manager.NewUploader(client)
 
-	md := make(map[string]*string)
+	md := make(map[string]string)
 	for k, v := range kv {
-		md[k] = aws.String(v)
+		md[k] = v
 	}
 
-	_, err = uploader.Upload(&s3manager.UploadInput{
-		Bucket:      aws.String(config.S3Uploader.S3Bucket),
+	_, err = uploader.Upload(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(cfg.S3Uploader.S3Bucket),
 		Key:         aws.String(key),
 		Body:        buf,
 		ContentType: &contentType,

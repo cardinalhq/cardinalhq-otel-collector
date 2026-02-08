@@ -16,6 +16,7 @@ package fingerprintprocessor
 
 import (
 	"context"
+
 	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
 	"github.com/cardinalhq/oteltools/pkg/translate"
 	"go.opentelemetry.io/collector/pdata/ptrace"

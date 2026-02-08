@@ -18,6 +18,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/cespare/xxhash/v2"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
@@ -26,11 +32,6 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"go.uber.org/zap"
 	"golang.org/x/exp/maps"
-	"io"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type DDLog struct {
@@ -336,7 +337,7 @@ func (ddr *datadogReceiver) convertLogs(group groupedLogs) (plog.Logs, error) {
 		logRecord.SetSeverityText(severityString)
 		body := msg.Body
 		if strings.HasPrefix(body, "{") {
-			var parsed map[string]interface{}
+			var parsed map[string]any
 			if err := json.Unmarshal([]byte(body), &parsed); err == nil {
 				attrMap := logRecord.Body().SetEmptyMap()
 				convertToOtelMap(parsed, attrMap)
@@ -354,7 +355,7 @@ func (ddr *datadogReceiver) convertLogs(group groupedLogs) (plog.Logs, error) {
 	return lm, nil
 }
 
-func convertToOtelMap(input map[string]interface{}, dest pcommon.Map) {
+func convertToOtelMap(input map[string]any, dest pcommon.Map) {
 	for k, v := range input {
 		switch val := v.(type) {
 		case string:
@@ -363,10 +364,10 @@ func convertToOtelMap(input map[string]interface{}, dest pcommon.Map) {
 			dest.PutDouble(k, val)
 		case bool:
 			dest.PutBool(k, val)
-		case map[string]interface{}:
+		case map[string]any:
 			subMap := dest.PutEmptyMap(k)
 			convertToOtelMap(val, subMap)
-		case []interface{}:
+		case []any:
 			slice := dest.PutEmptySlice(k)
 			convertToOtelSlice(val, slice)
 		default:
@@ -375,7 +376,7 @@ func convertToOtelMap(input map[string]interface{}, dest pcommon.Map) {
 	}
 }
 
-func convertToOtelSlice(input []interface{}, dest pcommon.Slice) {
+func convertToOtelSlice(input []any, dest pcommon.Slice) {
 	for _, v := range input {
 		switch val := v.(type) {
 		case string:
@@ -384,10 +385,10 @@ func convertToOtelSlice(input []interface{}, dest pcommon.Slice) {
 			dest.AppendEmpty().SetDouble(val)
 		case bool:
 			dest.AppendEmpty().SetBool(val)
-		case map[string]interface{}:
+		case map[string]any:
 			subMap := dest.AppendEmpty().SetEmptyMap()
 			convertToOtelMap(val, subMap)
-		case []interface{}:
+		case []any:
 			subSlice := dest.AppendEmpty().SetEmptySlice()
 			convertToOtelSlice(val, subSlice)
 		default:

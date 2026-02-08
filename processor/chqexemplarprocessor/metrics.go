@@ -16,6 +16,7 @@ package chqexemplarprocessor
 
 import (
 	"context"
+
 	"go.opentelemetry.io/collector/pdata/pmetric"
 )
 

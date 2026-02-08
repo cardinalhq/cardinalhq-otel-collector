@@ -64,7 +64,7 @@ func TestLookupTableBasic(t *testing.T) {
 	logRecord := plog.NewLogRecord()
 	rl.Resource().Attributes().PutStr("service.name", "service1")
 
-	transformCtx := ottllog.NewTransformContext(logRecord, sl.Scope(), rl.Resource(), sl, rl)
+	transformCtx := ottllog.NewTransformContext(logRecord, sl.Scope(), rl.Resource(), sl, rl) //nolint:staticcheck // deprecated but new API has different signature
 	lookupConfig.ExecuteLogsRules(context.Background(), transformCtx, logRecord)
 
 	teamAttr, found := logRecord.Attributes().Get("team")
@@ -102,7 +102,7 @@ func TestLookupTableBasicWithErrorInCondition(t *testing.T) {
 	logRecord := plog.NewLogRecord()
 	rl.Resource().Attributes().PutStr("service.name", "service1")
 
-	transformCtx := ottllog.NewTransformContext(logRecord, sl.Scope(), rl.Resource(), sl, rl)
+	transformCtx := ottllog.NewTransformContext(logRecord, sl.Scope(), rl.Resource(), sl, rl) //nolint:staticcheck // deprecated but new API has different signature
 	lookupConfig.ExecuteLogsRules(context.Background(), transformCtx, logRecord)
 
 	_, found := logRecord.Attributes().Get("team")
@@ -152,7 +152,7 @@ func TestLookupTableMultipleConditions(t *testing.T) {
 	rl.Resource().Attributes().PutStr("service.name", "service1")
 	rl.Resource().Attributes().PutStr("business.unit", "bu123")
 
-	transformCtx := ottllog.NewTransformContext(logRecord, sl.Scope(), rl.Resource(), sl, rl)
+	transformCtx := ottllog.NewTransformContext(logRecord, sl.Scope(), rl.Resource(), sl, rl) //nolint:staticcheck // deprecated but new API has different signature
 	lookupConfig.ExecuteLogsRules(context.Background(), transformCtx, logRecord)
 
 	teamAttr, found := logRecord.Attributes().Get("team")
@@ -195,7 +195,7 @@ func TestLookupTableNegativeCondition(t *testing.T) {
 	// Set business.unit to a value that doesn't exist in the table
 	rl.Resource().Attributes().PutStr("business.unit", "bu999")
 
-	transformCtx := ottllog.NewTransformContext(logRecord, sl.Scope(), rl.Resource(), sl, rl)
+	transformCtx := ottllog.NewTransformContext(logRecord, sl.Scope(), rl.Resource(), sl, rl) //nolint:staticcheck // deprecated but new API has different signature
 	lookupConfig.ExecuteLogsRules(context.Background(), transformCtx, logRecord)
 
 	_, found := logRecord.Attributes().Get("team")

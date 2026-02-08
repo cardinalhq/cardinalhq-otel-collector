@@ -17,15 +17,14 @@ package pitbullprocessor
 import (
 	"context"
 
+	"github.com/cardinalhq/oteltools/pkg/ottl"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottldatapoint"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/processor/processorhelper"
 	"go.uber.org/zap"
-
-	"github.com/cardinalhq/oteltools/pkg/ottl"
-	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 func (p *pitbull) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
@@ -44,7 +43,7 @@ func (p *pitbull) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pmetric
 		attrSet := p.attributesFor(cid)
 
 		if transformations != nil {
-			transformCtx := ottlresource.NewTransformContext(rm.Resource(), rm)
+			transformCtx := ottlresource.NewTransformContext(rm.Resource(), rm) //nolint:staticcheck // deprecated but new API has different signature
 			transformations.ExecuteResourceTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
 			if _, found := rattr.Get(translate.CardinalFieldDropMarker); found {
 				return true
@@ -54,7 +53,7 @@ func (p *pitbull) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pmetric
 		rm.ScopeMetrics().RemoveIf(func(ilm pmetric.ScopeMetrics) bool {
 			if transformations != nil {
 				sattr := ilm.Scope().Attributes()
-				transformCtx := ottlscope.NewTransformContext(ilm.Scope(), rm.Resource(), rm)
+				transformCtx := ottlscope.NewTransformContext(ilm.Scope(), rm.Resource(), rm) //nolint:staticcheck // deprecated but new API has different signature
 				transformations.ExecuteScopeTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
 				if _, found := sattr.Get(translate.CardinalFieldDropMarker); found {
 					return true
@@ -65,7 +64,7 @@ func (p *pitbull) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pmetric
 				switch m.Type() {
 				case pmetric.MetricTypeGauge:
 					m.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
-						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
+						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm) //nolint:staticcheck // deprecated but new API has different signature
 						p.evaluateLookupTables(transformCtx, luc, func(tagToSet string, targetValue string) {
 							dp.Attributes().PutStr(tagToSet, targetValue)
 						})
@@ -78,7 +77,7 @@ func (p *pitbull) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pmetric
 					})
 				case pmetric.MetricTypeSum:
 					m.Sum().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
-						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
+						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm) //nolint:staticcheck // deprecated but new API has different signature
 						p.evaluateLookupTables(transformCtx, luc, func(tagToSet string, targetValue string) {
 							dp.Attributes().PutStr(tagToSet, targetValue)
 						})
@@ -91,7 +90,7 @@ func (p *pitbull) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pmetric
 					})
 				case pmetric.MetricTypeHistogram:
 					m.Histogram().DataPoints().RemoveIf(func(dp pmetric.HistogramDataPoint) bool {
-						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
+						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm) //nolint:staticcheck // deprecated but new API has different signature
 						p.evaluateLookupTables(transformCtx, luc, func(tagToSet string, targetValue string) {
 							dp.Attributes().PutStr(tagToSet, targetValue)
 						})
@@ -104,7 +103,7 @@ func (p *pitbull) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pmetric
 					})
 				case pmetric.MetricTypeSummary:
 					m.Summary().DataPoints().RemoveIf(func(dp pmetric.SummaryDataPoint) bool {
-						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
+						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm) //nolint:staticcheck // deprecated but new API has different signature
 						p.evaluateLookupTables(transformCtx, luc, func(tagToSet string, targetValue string) {
 							dp.Attributes().PutStr(tagToSet, targetValue)
 						})
@@ -117,7 +116,7 @@ func (p *pitbull) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pmetric
 					})
 				case pmetric.MetricTypeExponentialHistogram:
 					m.ExponentialHistogram().DataPoints().RemoveIf(func(dp pmetric.ExponentialHistogramDataPoint) bool {
-						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
+						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm) //nolint:staticcheck // deprecated but new API has different signature
 						p.evaluateLookupTables(transformCtx, luc, func(tagToSet string, targetValue string) {
 							dp.Attributes().PutStr(tagToSet, targetValue)
 						})

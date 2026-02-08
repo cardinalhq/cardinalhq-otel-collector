@@ -19,6 +19,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cardinalhq/oteltools/pkg/ottl"
+	"github.com/cardinalhq/oteltools/pkg/telemetry"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/pmetric"
@@ -28,8 +30,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor/internal/metadata"
-	"github.com/cardinalhq/oteltools/pkg/ottl"
-	"github.com/cardinalhq/oteltools/pkg/telemetry"
 )
 
 type MetricsConsumer interface {

@@ -21,8 +21,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
-	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention/internal/metadata"
 	"github.com/cardinalhq/oteltools/pkg/ottl"
 	"github.com/cardinalhq/oteltools/pkg/syncmap"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
@@ -32,6 +30,9 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
+	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention/internal/metadata"
 )
 
 type CHQSyntheticsExtension struct {

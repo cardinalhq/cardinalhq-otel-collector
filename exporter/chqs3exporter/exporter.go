@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/exporter"
 	"go.uber.org/multierr"
@@ -33,7 +34,6 @@ import (
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/tagwriter"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/translation/table"
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/boxer"
-	"github.com/cardinalhq/oteltools/pkg/authenv"
 )
 
 type s3Exporter struct {

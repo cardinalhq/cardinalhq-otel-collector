@@ -18,20 +18,20 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/cardinalhq/oteltools/pkg/chqpb"
-	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
-	"github.com/cardinalhq/oteltools/pkg/translate"
-	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
-	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 	"io"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/cardinalhq/oteltools/pkg/chqpb"
+	"github.com/cardinalhq/oteltools/pkg/fingerprinter"
 	"github.com/cardinalhq/oteltools/pkg/graph"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
+	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
 )
 
 func (e *entityGraphExporter) ConsumeTraces(ctx context.Context, td ptrace.Traces) error {

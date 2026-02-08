@@ -18,15 +18,14 @@ import (
 	"context"
 	"time"
 
+	"github.com/cardinalhq/oteltools/pkg/ottl"
+	"github.com/cardinalhq/oteltools/pkg/telemetry"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/processor/processorhelper"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-
-	"github.com/cardinalhq/oteltools/pkg/ottl"
-	"github.com/cardinalhq/oteltools/pkg/telemetry"
-	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 func (p *aggregationProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {

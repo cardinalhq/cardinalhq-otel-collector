@@ -16,6 +16,7 @@ package chqentitygraphexporter
 
 import (
 	"context"
+
 	"go.opentelemetry.io/collector/pdata/plog"
 )
 

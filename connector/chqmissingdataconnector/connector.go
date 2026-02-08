@@ -20,6 +20,10 @@ import (
 	"math"
 	"time"
 
+	"github.com/cardinalhq/oteltools/pkg/ottl"
+	"github.com/cardinalhq/oteltools/pkg/syncmap"
+	"github.com/cardinalhq/oteltools/pkg/translate"
+	"github.com/cardinalhq/oteltools/signalbuilder"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -27,10 +31,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
-	"github.com/cardinalhq/oteltools/pkg/ottl"
-	"github.com/cardinalhq/oteltools/pkg/syncmap"
-	"github.com/cardinalhq/oteltools/pkg/translate"
-	"github.com/cardinalhq/oteltools/signalbuilder"
 )
 
 type md struct {

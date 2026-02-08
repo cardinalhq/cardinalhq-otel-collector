@@ -15,12 +15,12 @@
 package table
 
 import (
+	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter/internal/idgen"
-	"github.com/cardinalhq/oteltools/pkg/authenv"
 )
 
 type Translator interface {

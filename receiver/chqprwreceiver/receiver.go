@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -46,6 +47,8 @@ import (
 )
 
 // resourceAttributeNameMap maps Prometheus labels to standard OpenTelemetry semantic conventions
+//
+//nolint:unused // Reserved for V1 support
 var resourceAttributeNameMap = map[string]string{
 	"job":                  string(semconv.ServiceNameKey), // Primary mapping for service name
 	"service":              string(semconv.ServiceNameKey), // Alternative mapping
@@ -182,7 +185,7 @@ func (prw *prometheusRemoteWriteReceiver) handlePRW(w http.ResponseWriter, req *
 		return
 	}
 
-	switch msgType {
+	switch msgType { //nolint:exhaustive // V1 support pending
 	case remoteapi.WriteV2MessageType:
 		prw.handlePRWV2(w, req)
 	default:
@@ -192,6 +195,7 @@ func (prw *prometheusRemoteWriteReceiver) handlePRW(w http.ResponseWriter, req *
 	}
 }
 
+//nolint:unused // Reserved for V1 support
 func (prw *prometheusRemoteWriteReceiver) handlePRWV1(w http.ResponseWriter, req *http.Request) {
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
@@ -273,6 +277,8 @@ func (*prometheusRemoteWriteReceiver) parseProto(contentType string) (remoteapi.
 }
 
 // translateV1 translates a v1 remote-write request into OTLP metrics.
+//
+//nolint:unused // Reserved for V1 support
 func (prw *prometheusRemoteWriteReceiver) translateV1(_ context.Context, v1r *writev1.WriteRequest) (pmetric.Metrics, promremote.WriteResponseStats, error) {
 	stats := promremote.WriteResponseStats{}
 	otelMetrics := pmetric.NewMetrics()
@@ -340,7 +346,7 @@ func (prw *prometheusRemoteWriteReceiver) translateV1(_ context.Context, v1r *wr
 
 		// Get or create metric
 		metricIdentity := createMetricIdentity(
-			fmt.Sprintf("%d", hashedLabels),          // Resource identity as string
+			strconv.FormatUint(hashedLabels, 10),     // Resource identity as string
 			scopeName,                                // Scope name
 			scopeVersion,                             // Scope version
 			metricName,                               // Metric name
@@ -377,6 +383,8 @@ func (prw *prometheusRemoteWriteReceiver) translateV1(_ context.Context, v1r *wr
 
 // addNumberDatapointsV1 adds the labels to the datapoints attributes for v1 protocol.
 // This is similar to addNumberDatapoints but adapted for v1 data structure.
+//
+//nolint:unused // Reserved for V1 support
 func addNumberDatapointsV1(datapoints pmetric.NumberDataPointSlice, ls map[string]string, ts writev1.TimeSeries, stats *promremote.WriteResponseStats) {
 	// Add samples from the timeseries
 	for _, sample := range ts.Samples {
@@ -394,6 +402,8 @@ func addNumberDatapointsV1(datapoints pmetric.NumberDataPointSlice, ls map[strin
 }
 
 // extractAttributesV1 returns all attributes different from job, instance, metric name and scope name/version for v1
+//
+//nolint:unused // Reserved for V1 support
 func extractAttributesV1(ls map[string]string) pcommon.Map {
 	attrs := pcommon.NewMap()
 	for labelName, labelValue := range ls {
@@ -407,6 +417,8 @@ func extractAttributesV1(ls map[string]string) pcommon.Map {
 }
 
 // extractScopeInfoFromMap extracts scope information from labels map (for v1)
+//
+//nolint:unused // Reserved for V1 support
 func (prw *prometheusRemoteWriteReceiver) extractScopeInfoFromMap(ls map[string]string) (string, string) {
 	scopeName := prw.settings.BuildInfo.Description
 	scopeVersion := prw.settings.BuildInfo.Version
@@ -428,6 +440,7 @@ func (prw *prometheusRemoteWriteReceiver) extractScopeInfoFromMap(ls map[string]
 	return scopeName, scopeVersion
 }
 
+//nolint:unused // Reserved for V1 support
 func getName(labels map[string]string) string {
 	if name, ok := labels["__name__"]; ok {
 		return name
@@ -458,7 +471,7 @@ func (prw *prometheusRemoteWriteReceiver) translateV2(_ context.Context, req *wr
 			badRequestErrors = errors.Join(badRequestErrors, fmt.Errorf("failed to parse labels: %w", err))
 			continue
 		}
-		if !ls.Has(labels.MetricName) {
+		if !ls.Has(labels.MetricName) { //nolint:staticcheck // using deprecated API
 			badRequestErrors = errors.Join(badRequestErrors, errors.New("missing metric name in labels"))
 			continue
 		} else if duplicateLabel, hasDuplicate := ls.HasDuplicateLabelNames(); hasDuplicate {
@@ -468,7 +481,7 @@ func (prw *prometheusRemoteWriteReceiver) translateV2(_ context.Context, req *wr
 
 		// If the metric name is equal to target_info, we use its labels as attributes of the resource
 		// Ref: https://opentelemetry.io/docs/specs/otel/compatibility/prometheus_and_openmetrics/#resource-attributes-1
-		if ls.Get(labels.MetricName) == "target_info" {
+		if ls.Get(labels.MetricName) == "target_info" { //nolint:staticcheck // using deprecated API
 			var rm pmetric.ResourceMetrics
 			hashedLabels := xxhash.Sum64String(ls.Get("job") + string([]byte{'\xff'}) + ls.Get("instance"))
 
@@ -484,7 +497,7 @@ func (prw *prometheusRemoteWriteReceiver) translateV2(_ context.Context, req *wr
 			// Add the remaining labels as resource attributes
 			for labelName, labelValue := range ls.Map() {
 				switch labelName {
-				case labels.MetricName, "job", "instance", "otel_scope_name", "otel_scope_version":
+				case labels.MetricName, "job", "instance", "otel_scope_name", "otel_scope_version": //nolint:staticcheck // using deprecated API
 					continue
 				}
 				attrs.PutStr(labelName, labelValue)
@@ -494,7 +507,7 @@ func (prw *prometheusRemoteWriteReceiver) translateV2(_ context.Context, req *wr
 		}
 
 		scopeName, scopeVersion := prw.extractScopeInfo(ls)
-		metricName := ls.Get(labels.MetricName)
+		metricName := ls.Get(labels.MetricName) //nolint:staticcheck // using deprecated API
 		if ts.Metadata.UnitRef >= uint32(len(req.Symbols)) {
 			badRequestErrors = errors.Join(badRequestErrors, fmt.Errorf("unit ref %d is out of bounds of symbolsTable", ts.Metadata.UnitRef))
 			continue
@@ -558,7 +571,7 @@ func (prw *prometheusRemoteWriteReceiver) translateV2(_ context.Context, req *wr
 		// Get or create metric
 		metric, exists := metricCache[metricKey]
 		if !exists {
-			switch ts.Metadata.Type {
+			switch ts.Metadata.Type { //nolint:exhaustive // only handling supported types
 			case writev2.Metadata_METRIC_TYPE_GAUGE:
 				metric = setMetric(scope, metricName, unit, description)
 				metric.SetEmptyGauge()
@@ -581,7 +594,7 @@ func (prw *prometheusRemoteWriteReceiver) translateV2(_ context.Context, req *wr
 			metric.SetDescription(description)
 		}
 
-		switch ts.Metadata.Type {
+		switch ts.Metadata.Type { //nolint:exhaustive // only handling supported types
 		case writev2.Metadata_METRIC_TYPE_GAUGE:
 			addNumberDatapoints(metric.Gauge().DataPoints(), ls, ts, &stats)
 		case writev2.Metadata_METRIC_TYPE_COUNTER:
@@ -900,7 +913,7 @@ func extractAttributes(ls labels.Labels) pcommon.Map {
 	attrs := pcommon.NewMap()
 	for labelName, labelValue := range ls.Map() {
 		switch labelName {
-		case labels.MetricName, "job", "instance", "otel_scope_name", "otel_scope_version":
+		case labels.MetricName, "job", "instance", "otel_scope_name", "otel_scope_version": //nolint:staticcheck // using deprecated API
 			continue
 		}
 		attrs.PutStr(labelName, labelValue)
@@ -1000,6 +1013,8 @@ func convertNHCBBuckets(histogram writev2.Histogram) []uint64 {
 }
 
 // setCountAndSum sets count and sum for histogram datapoints (common interface)
+//
+//nolint:inamedparam // interface definition
 type countSumSetter interface {
 	SetSum(float64)
 	SetCount(uint64)

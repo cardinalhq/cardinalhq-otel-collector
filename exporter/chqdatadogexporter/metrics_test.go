@@ -19,10 +19,11 @@ import (
 	"testing"
 	"time"
 
-	ddpb "github.com/cardinalhq/cardinalhq-otel-collector/internal/ddpb"
 	"github.com/tj/assert"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
+
+	ddpb "github.com/cardinalhq/cardinalhq-otel-collector/internal/ddpb"
 )
 
 func TestValueAsFloat64(t *testing.T) {

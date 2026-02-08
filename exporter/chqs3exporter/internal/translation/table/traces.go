@@ -17,10 +17,9 @@ package table
 import (
 	"time"
 
-	"go.opentelemetry.io/collector/pdata/ptrace"
-
 	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/translate"
+	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
 func (l *TableTranslator) TracesFromOtel(ot *ptrace.Traces, environment authenv.Environment) ([]map[string]any, error) {

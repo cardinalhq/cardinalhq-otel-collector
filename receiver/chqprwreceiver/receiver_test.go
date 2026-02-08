@@ -27,6 +27,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/pdatatest/pmetrictest"
 	remoteapi "github.com/prometheus/client_golang/exp/api/remote"
 	"github.com/prometheus/prometheus/model/value"
 	writev2 "github.com/prometheus/prometheus/prompb/io/prometheus/write/v2"
@@ -41,7 +42,6 @@ import (
 	"go.opentelemetry.io/collector/receiver/receivertest"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver/internal/metadata"
-	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/pdatatest/pmetrictest"
 )
 
 var writeV2RequestFixture = &writev2.Request{
@@ -1109,9 +1109,9 @@ func TestTranslateV2(t *testing.T) {
 								Timestamp:      123456789,
 								StartTimestamp: 123456000,
 								Schema:         -53, // NHCB schema
-								Sum:          100.5,
-								Count:        &writev2.Histogram_CountInt{CountInt: 180},
-								CustomValues: []float64{1.0, 2.0, 5.0, 10.0}, // Custom bucket boundaries
+								Sum:            100.5,
+								Count:          &writev2.Histogram_CountInt{CountInt: 180},
+								CustomValues:   []float64{1.0, 2.0, 5.0, 10.0}, // Custom bucket boundaries
 								PositiveSpans: []writev2.BucketSpan{
 									{Offset: 0, Length: 5}, // 5 buckets: 4 custom + 1 overflow
 								},
@@ -1296,9 +1296,9 @@ func TestTranslateV2(t *testing.T) {
 								Timestamp:      123456789,
 								StartTimestamp: 123456000,
 								Schema:         -53,
-								Sum:          100.5,
-								Count:        &writev2.Histogram_CountInt{CountInt: 180},
-								CustomValues: []float64{1.0, 2.0, 5.0, 10.0},
+								Sum:            100.5,
+								Count:          &writev2.Histogram_CountInt{CountInt: 180},
+								CustomValues:   []float64{1.0, 2.0, 5.0, 10.0},
 								PositiveSpans: []writev2.BucketSpan{
 									{Offset: 0, Length: 5},
 								},
@@ -1392,13 +1392,17 @@ func TestTranslateV2(t *testing.T) {
 	}
 }
 
+//nolint:unused // Reserved for future tests
 type nonMutatingConsumer struct{}
 
 // Capabilities returns the base consumer capabilities.
+//
+//nolint:unused // Reserved for future tests
 func (nonMutatingConsumer) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: false}
 }
 
+//nolint:unused // Reserved for future tests
 type mockConsumer struct {
 	nonMutatingConsumer
 	mu         sync.Mutex
@@ -1406,6 +1410,7 @@ type mockConsumer struct {
 	dataPoints int
 }
 
+//nolint:unused // Reserved for future tests
 func (m *mockConsumer) ConsumeMetrics(_ context.Context, md pmetric.Metrics) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

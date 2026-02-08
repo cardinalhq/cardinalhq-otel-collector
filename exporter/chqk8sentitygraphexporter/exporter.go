@@ -27,6 +27,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cardinalhq/oteltools/pkg/graph"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
@@ -36,8 +38,6 @@ import (
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
-	"github.com/cardinalhq/oteltools/pkg/graph"
-	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 type exp struct {

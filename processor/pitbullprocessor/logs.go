@@ -16,7 +16,6 @@ package pitbullprocessor
 
 import (
 	"context"
-	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"strings"
 
 	"github.com/cardinalhq/oteltools/pkg/ottl"
@@ -27,7 +26,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/processor/processorhelper"
-
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"go.uber.org/zap"
 )
 
@@ -60,7 +59,7 @@ func (p *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 			return false
 		}
 		attrSet := p.attributesFor(cid)
-		transformCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
+		transformCtx := ottlresource.NewTransformContext(rl.Resource(), rl) //nolint:staticcheck // deprecated but new API has different signature
 		if transformations != nil {
 			transformations.ExecuteResourceTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
 			if _, found := rl.Resource().Attributes().Get(translate.CardinalFieldDropMarker); found {
@@ -69,7 +68,7 @@ func (p *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 		}
 
 		rl.ScopeLogs().RemoveIf(func(sl plog.ScopeLogs) bool {
-			transformCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), rl)
+			transformCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), rl) //nolint:staticcheck // deprecated but new API has different signature
 			if transformations != nil {
 				transformations.ExecuteScopeTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
 				if _, found := sl.Scope().Attributes().Get(translate.CardinalFieldDropMarker); found {
@@ -78,7 +77,7 @@ func (p *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 			}
 
 			sl.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
-				transformCtx := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
+				transformCtx := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl) //nolint:staticcheck // deprecated but new API has different signature
 				if luc != nil {
 					for _, lookupConfig := range *luc {
 						lookupConfig.ExecuteLogsRules(context.Background(), transformCtx, lr)

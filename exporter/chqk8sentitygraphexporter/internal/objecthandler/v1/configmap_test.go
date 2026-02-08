@@ -17,6 +17,7 @@ package v1
 import (
 	"testing"
 
+	"github.com/cardinalhq/oteltools/pkg/graph/graphpb"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,7 +25,6 @@ import (
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/baseobj"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
-	"github.com/cardinalhq/oteltools/pkg/graph/graphpb"
 )
 
 func TestCalculateConfigMapDataHashes(t *testing.T) {

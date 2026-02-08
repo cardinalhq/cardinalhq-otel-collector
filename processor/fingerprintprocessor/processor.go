@@ -37,7 +37,6 @@ type fingerprintProcessor struct {
 	telemetrySettings component.TelemetrySettings
 
 	trieClusterManagers syncmap.SyncMap[string, *fingerprinter.TrieClusterManager]
-	lastTrieUpdateTimes syncmap.SyncMap[string, int64]
 
 	idSource authenv.EnvironmentSource
 }

@@ -16,9 +16,7 @@ package chqexemplarprocessor
 
 import (
 	"context"
-	"strconv"
 
-	"github.com/cardinalhq/oteltools/pkg/translate"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 )
 
@@ -43,27 +41,4 @@ func (p *exemplarProcessor) ConsumeTraces(ctx context.Context, td ptrace.Traces)
 	//}
 
 	return td, nil
-}
-
-func (p *exemplarProcessor) addSpanExemplar(tenant *Tenant, rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span, fingerprint int64) {
-	extraKeys := []string{
-		translate.CardinalFieldFingerprint, strconv.FormatInt(fingerprint, 10),
-	}
-	keys, exemplarKey := computeExemplarKey(rs.Resource(), extraKeys)
-	if tenant.traceCache.Contains(exemplarKey) {
-		return
-	}
-	exemplarRecord := toSpanExemplar(rs, ss, sr)
-	tenant.traceCache.Put(exemplarKey, keys, exemplarRecord)
-}
-
-func toSpanExemplar(rs ptrace.ResourceSpans, ss ptrace.ScopeSpans, sr ptrace.Span) ptrace.Traces {
-	exemplarRecord := ptrace.NewTraces()
-	copyRl := exemplarRecord.ResourceSpans().AppendEmpty()
-	rs.Resource().CopyTo(copyRl.Resource())
-	copySl := copyRl.ScopeSpans().AppendEmpty()
-	ss.Scope().CopyTo(copySl.Scope())
-	copyLr := copySl.Spans().AppendEmpty()
-	sr.CopyTo(copyLr)
-	return exemplarRecord
 }

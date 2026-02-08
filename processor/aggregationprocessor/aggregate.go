@@ -17,15 +17,14 @@ package aggregationprocessor
 import (
 	"context"
 	"fmt"
-	"github.com/cardinalhq/oteltools/pkg/translate"
 	"strconv"
 	"time"
 
+	"github.com/cardinalhq/oteltools/pkg/ottl"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
-
-	"github.com/cardinalhq/oteltools/pkg/ottl"
 )
 
 func (p *aggregationProcessor) emit(now time.Time) {

@@ -23,10 +23,9 @@ import (
 	"time"
 
 	"github.com/DataDog/sketches-go/ddsketch"
-	"go.opentelemetry.io/collector/pdata/pmetric"
-
 	"github.com/cardinalhq/oteltools/pkg/authenv"
 	"github.com/cardinalhq/oteltools/pkg/translate"
+	"go.opentelemetry.io/collector/pdata/pmetric"
 )
 
 func (l *TableTranslator) MetricsFromOtel(om *pmetric.Metrics, environment authenv.Environment) ([]map[string]any, error) {

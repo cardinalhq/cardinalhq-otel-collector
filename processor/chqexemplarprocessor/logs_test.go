@@ -17,10 +17,9 @@ package chqexemplarprocessor
 import (
 	"testing"
 
+	"github.com/cardinalhq/oteltools/pkg/translate"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/pcommon"
-
-	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 func TestGetFingerprint(t *testing.T) {

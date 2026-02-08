@@ -17,12 +17,11 @@ package fingerprintprocessor
 import (
 	"context"
 
+	"github.com/cardinalhq/oteltools/pkg/authenv"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
-
-	"github.com/cardinalhq/oteltools/pkg/authenv"
-	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 func (p *fingerprintProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {

@@ -17,8 +17,9 @@ package v1
 import (
 	"testing"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
 )
 
 func TestIsFiltredConfigMapName(t *testing.T) {

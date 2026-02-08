@@ -16,24 +16,23 @@ package chqexemplarprocessor
 
 import (
 	"context"
-	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"net/http"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/internal/signalnames"
 	"github.com/cardinalhq/oteltools/hashutils"
+	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"github.com/cardinalhq/oteltools/pkg/syncmap"
 	"github.com/cardinalhq/oteltools/pkg/translate"
-
-	"go.opentelemetry.io/collector/pdata/plog"
-	"go.opentelemetry.io/collector/pdata/pmetric"
-	"go.opentelemetry.io/collector/pdata/ptrace"
-
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/pcommon"
+	"go.opentelemetry.io/collector/pdata/plog"
+	"go.opentelemetry.io/collector/pdata/pmetric"
+	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/internal/signalnames"
 )
 
 // exemplarProcessor is a processor that sends exemplars to a remote service.

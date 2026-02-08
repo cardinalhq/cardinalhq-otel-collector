@@ -23,12 +23,11 @@ import (
 	"net/http"
 
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
-	"google.golang.org/protobuf/proto"
-
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/internal/signalnames"
 )

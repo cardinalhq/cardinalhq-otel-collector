@@ -15,6 +15,8 @@
 package piiredactionprocessor
 
 import (
+	"github.com/cardinalhq/oteltools/pkg/pii"
+	"github.com/cardinalhq/oteltools/pkg/telemetry"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/processor"
@@ -23,8 +25,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor/internal/metadata"
-	"github.com/cardinalhq/oteltools/pkg/pii"
-	"github.com/cardinalhq/oteltools/pkg/telemetry"
 )
 
 type piiRedactionProcessor struct {

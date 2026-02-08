@@ -15,8 +15,9 @@
 package datadogreceiver
 
 import (
-	"go.uber.org/zap"
 	"net/http"
+
+	"go.uber.org/zap"
 )
 
 func (ddr *datadogReceiver) handleLogs(w http.ResponseWriter, req *http.Request) {

@@ -15,13 +15,13 @@
 package piiredactionprocessor
 
 import (
-	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"testing"
 
 	"github.com/cardinalhq/oteltools/pkg/pii"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"go.uber.org/zap"
 )
 

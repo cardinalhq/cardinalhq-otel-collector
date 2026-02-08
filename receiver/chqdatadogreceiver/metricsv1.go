@@ -17,7 +17,6 @@ package datadogreceiver
 import (
 	"context"
 	"encoding/json"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"time"
@@ -28,6 +27,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	semconv "go.opentelemetry.io/otel/semconv/v1.27.0"
+	"go.uber.org/zap"
 )
 
 // MetricsPayloadV1 is for the /api/v1/series endpoint.
@@ -50,7 +50,9 @@ func handleMetricsV1Payload(req *http.Request, logger *zap.Logger) (ret []Series
 		return nil, http.StatusUnsupportedMediaType, nil
 	}
 	body, err := io.ReadAll(req.Body)
-	//logger.Info("Received metrics payload " + string(body))
+	if err != nil {
+		return nil, http.StatusBadRequest, err
+	}
 	wrapper := MetricsPayloadV1{}
 	err = json.Unmarshal(body, &wrapper)
 	if err != nil {

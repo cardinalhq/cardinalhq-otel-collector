@@ -18,9 +18,8 @@ import (
 	"context"
 	"time"
 
-	"go.opentelemetry.io/collector/pdata/plog"
-
 	"github.com/cardinalhq/oteltools/pkg/authenv"
+	"go.opentelemetry.io/collector/pdata/plog"
 )
 
 func (e *s3Exporter) ConsumeLogs(ctx context.Context, logs plog.Logs) error {

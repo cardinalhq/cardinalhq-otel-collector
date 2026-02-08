@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"go.opentelemetry.io/collector/config/confighttp"
-
 	"go.uber.org/multierr"
 )
 

@@ -17,6 +17,7 @@ package v2
 import (
 	"testing"
 
+	"github.com/cardinalhq/oteltools/pkg/graph/graphpb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
@@ -26,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
-	"github.com/cardinalhq/oteltools/pkg/graph/graphpb"
 )
 
 func TestConvertHPA(t *testing.T) {

@@ -16,6 +16,9 @@ package extractmetricsprocessor
 
 import (
 	"context"
+	"math"
+	"time"
+
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	"github.com/cardinalhq/oteltools/pkg/ottl"
 	"github.com/cardinalhq/oteltools/pkg/translate"
@@ -24,8 +27,6 @@ import (
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/processor/processorhelper"
 	"go.uber.org/zap"
-	"math"
-	"time"
 )
 
 func orgIdFromResource(resource pcommon.Map) string {
@@ -101,7 +102,7 @@ func (p *extractor) updateMetricSketchCache(
 				if gaugeDataPoints.Len() > 0 {
 					for i := 0; i < gaugeDataPoints.Len(); i++ {
 						dp := gaugeDataPoints.At(i)
-						tc := ottldatapoint.NewTransformContext(dp, mm, ms, sm.Scope(), resource, sm, rm)
+						tc := ottldatapoint.NewTransformContext(dp, mm, ms, sm.Scope(), resource, sm, rm) //nolint:staticcheck // deprecated but new API has different signature
 						matches, err := mex.EvalMetricConditions(ctx, tc)
 						if err != nil {
 							continue
@@ -118,7 +119,7 @@ func (p *extractor) updateMetricSketchCache(
 				if sumDataPoints.Len() > 0 {
 					for i := 0; i < sumDataPoints.Len(); i++ {
 						dp := sumDataPoints.At(i)
-						tc := ottldatapoint.NewTransformContext(dp, mm, ms, sm.Scope(), resource, sm, rm)
+						tc := ottldatapoint.NewTransformContext(dp, mm, ms, sm.Scope(), resource, sm, rm) //nolint:staticcheck // deprecated but new API has different signature
 						matches, err := mex.EvalMetricConditions(ctx, tc)
 						if err != nil {
 							continue
@@ -151,7 +152,7 @@ func (p *extractor) updateMetricSketchCache(
 							continue
 						}
 						avgValue := dp.Sum() / float64(dp.Count())
-						tc := ottldatapoint.NewTransformContext(dp, mm, ms, sm.Scope(), resource, sm, rm)
+						tc := ottldatapoint.NewTransformContext(dp, mm, ms, sm.Scope(), resource, sm, rm) //nolint:staticcheck // deprecated but new API has different signature
 						p.updateWithDataPoint(ctx, avgValue, dp.Timestamp().AsTime(), tc, resource, mex, metricsAggregateSketchCache, metricsLineSketchCache)
 					}
 				}
@@ -164,7 +165,7 @@ func (p *extractor) updateMetricSketchCache(
 						continue
 					}
 
-					tc := ottldatapoint.NewTransformContext(dp, mm, ms, sm.Scope(), resource, sm, rm)
+					tc := ottldatapoint.NewTransformContext(dp, mm, ms, sm.Scope(), resource, sm, rm) //nolint:staticcheck // deprecated but new API has different signature
 					matches, err := mex.EvalMetricConditions(ctx, tc)
 					if err != nil || !matches {
 						continue
@@ -224,8 +225,8 @@ func (p *extractor) getMetricValue(dp pmetric.NumberDataPoint) float64 {
 		metricValue = dp.DoubleValue()
 	case pmetric.NumberDataPointValueTypeInt:
 		metricValue = float64(dp.IntValue())
-	default:
-		metricValue = dp.DoubleValue()
+	case pmetric.NumberDataPointValueTypeEmpty:
+		metricValue = 0
 	}
 	return metricValue
 }
@@ -242,7 +243,7 @@ func (p *extractor) updateHistogramWithBuckets(
 	sketchCache *chqpb.GenericSketchCache,
 	sketchLineCache *chqpb.GenericSketchCache,
 ) {
-	tc := ottldatapoint.NewTransformContext(dp, mm, ms, sm.Scope(), resource, sm, rm)
+	tc := ottldatapoint.NewTransformContext(dp, mm, ms, sm.Scope(), resource, sm, rm) //nolint:staticcheck // deprecated but new API has different signature
 	evaluated, err := mex.EvalMetricConditions(ctx, tc)
 	if err != nil || !evaluated {
 		return
@@ -293,8 +294,8 @@ func (p *extractor) updateWithDataPoint(ctx context.Context,
 	resource pcommon.Resource,
 	mex *ottl.MetricSketchExtractor,
 	sketchCache *chqpb.GenericSketchCache,
-	sketchLineCache *chqpb.GenericSketchCache) {
-
+	sketchLineCache *chqpb.GenericSketchCache,
+) {
 	aggregateTags := p.withServiceClusterNamespace(resource, mex.ExtractAggregateAttributes(ctx, tc))
 	parentTID := sketchCache.Update(mex.OutputMetricName, mex.MetricType, mex.Direction, aggregateTags, 0, 0, metricValue, t)
 

@@ -19,10 +19,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqspannerprocessor/internal/metadata"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor/processortest"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/chqspannerprocessor/internal/metadata"
 )
 
 func TestConsumeTraces(t *testing.T) {
@@ -35,7 +36,10 @@ func TestConsumeTraces(t *testing.T) {
 	}
 
 	testcase1, err := os.ReadFile("testdata/go-client-span.json")
-	traces, err := unmarshaller.UnmarshalTraces([]byte(testcase1))
+	if err != nil {
+		t.Fatalf("Failed to read test file: %v", err)
+	}
+	traces, err := unmarshaller.UnmarshalTraces(testcase1)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal test traces: %v", err)
 	}

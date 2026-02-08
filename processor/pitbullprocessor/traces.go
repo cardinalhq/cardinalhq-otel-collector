@@ -17,15 +17,14 @@ package pitbullprocessor
 import (
 	"context"
 
+	"github.com/cardinalhq/oteltools/pkg/ottl"
+	"github.com/cardinalhq/oteltools/pkg/translate"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlresource"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlscope"
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottlspan"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor/processorhelper"
 	"go.uber.org/zap"
-
-	"github.com/cardinalhq/oteltools/pkg/ottl"
-	"github.com/cardinalhq/oteltools/pkg/translate"
 )
 
 func (p *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
@@ -42,7 +41,7 @@ func (p *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 		}
 		attrSet := p.attributesFor(cid)
 
-		transformCtx := ottlresource.NewTransformContext(rs.Resource(), rs)
+		transformCtx := ottlresource.NewTransformContext(rs.Resource(), rs) //nolint:staticcheck // deprecated but new API has different signature
 		if transformations != nil {
 			transformations.ExecuteResourceTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
 			if _, found := rs.Resource().Attributes().Get(translate.CardinalFieldDropMarker); found {
@@ -50,7 +49,7 @@ func (p *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 			}
 		}
 		rs.ScopeSpans().RemoveIf(func(iss ptrace.ScopeSpans) bool {
-			transformCtx := ottlscope.NewTransformContext(iss.Scope(), rs.Resource(), rs)
+			transformCtx := ottlscope.NewTransformContext(iss.Scope(), rs.Resource(), rs) //nolint:staticcheck // deprecated but new API has different signature
 			if transformations != nil {
 				transformations.ExecuteScopeTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
 				if _, found := iss.Scope().Attributes().Get(translate.CardinalFieldDropMarker); found {
@@ -58,7 +57,7 @@ func (p *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 				}
 			}
 			iss.Spans().RemoveIf(func(sr ptrace.Span) bool {
-				transformCtx := ottlspan.NewTransformContext(sr, iss.Scope(), rs.Resource(), iss, rs)
+				transformCtx := ottlspan.NewTransformContext(sr, iss.Scope(), rs.Resource(), iss, rs) //nolint:staticcheck // deprecated but new API has different signature
 				if luc != nil {
 					for _, lookupConfig := range *luc {
 						lookupConfig.ExecuteSpansRules(context.Background(), transformCtx, sr)

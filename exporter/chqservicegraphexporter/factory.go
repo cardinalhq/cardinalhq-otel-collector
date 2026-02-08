@@ -18,13 +18,14 @@ import (
 	"context"
 	"time"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter/internal/metadata"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/configcompression"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/config/configopaque"
 	"go.opentelemetry.io/collector/exporter"
 	"go.opentelemetry.io/collector/exporter/exporterhelper"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter/internal/metadata"
 )
 
 func NewFactory() exporter.Factory {

@@ -17,8 +17,9 @@ package baseobj
 import (
 	"testing"
 
-	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
 	"github.com/cardinalhq/oteltools/pkg/graph/graphpb"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter/internal/objecthandler/converterconfig"
 )
 
 func TestComputeIdentifier(t *testing.T) {

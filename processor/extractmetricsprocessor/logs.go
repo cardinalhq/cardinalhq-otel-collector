@@ -16,21 +16,18 @@ package extractmetricsprocessor
 
 import (
 	"context"
-	"fmt"
-	"github.com/cardinalhq/oteltools/pkg/chqpb"
-	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"time"
 
+	"github.com/cardinalhq/oteltools/pkg/chqpb"
+	"github.com/cardinalhq/oteltools/pkg/ottl"
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
-
 	"github.com/open-telemetry/opentelemetry-collector-contrib/pkg/ottl/contexts/ottllog"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"go.uber.org/zap"
-
-	"github.com/cardinalhq/oteltools/pkg/ottl"
 )
 
 func (p *extractor) ConsumeLogs(ctx context.Context, pl plog.Logs) (plog.Logs, error) {
@@ -73,7 +70,7 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) {
 			scopeLog := resourceLogs.At(i).ScopeLogs().At(j)
 			for k := range resourceLogs.At(i).ScopeLogs().At(j).LogRecords().Len() {
 				lr := resourceLogs.At(i).ScopeLogs().At(j).LogRecords().At(k)
-				tc := ottllog.NewTransformContext(lr, scopeLog.Scope(), resourceLog.Resource(), scopeLog, resourceLog)
+				tc := ottllog.NewTransformContext(lr, scopeLog.Scope(), resourceLog.Resource(), scopeLog, resourceLog) //nolint:staticcheck // deprecated but new API has different signature
 
 				for _, lex := range logExtractors {
 					attrset := attribute.NewSet(
@@ -152,15 +149,15 @@ func (p *extractor) withServiceClusterNamespace(resource pcommon.Resource, mapAt
 }
 
 func (p *extractor) toNamespaceNameKey() string {
-	return fmt.Sprintf("resource.%s", string(semconv.K8SNamespaceNameKey))
+	return "resource." + string(semconv.K8SNamespaceNameKey)
 }
 
 func (p *extractor) toClusterNameKey() string {
-	return fmt.Sprintf("resource.%s", string(semconv.K8SClusterNameKey))
+	return "resource." + string(semconv.K8SClusterNameKey)
 }
 
 func (p *extractor) toServiceNameKey() string {
-	return fmt.Sprintf("resource.%s", string(semconv.ServiceNameKey))
+	return "resource." + string(semconv.ServiceNameKey)
 }
 
 func (p *extractor) extractLogValue(ctx context.Context, tc ottllog.TransformContext, e *ottl.LogExtractor) (float64, error) {

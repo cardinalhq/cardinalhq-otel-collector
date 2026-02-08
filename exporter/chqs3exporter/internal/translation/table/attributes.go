@@ -18,9 +18,8 @@ import (
 	"encoding/json"
 	"strings"
 
-	"go.opentelemetry.io/collector/pdata/pcommon"
-
 	"github.com/cardinalhq/oteltools/pkg/translate"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 )
 
 func addAttributes(m map[string]any, attrs pcommon.Map, prefix string) {

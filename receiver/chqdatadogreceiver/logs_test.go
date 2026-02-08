@@ -16,11 +16,11 @@ package datadogreceiver
 
 import (
 	"encoding/json"
-	"go.opentelemetry.io/collector/pdata/pcommon"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 )
 
@@ -741,7 +741,7 @@ func TestJsonParsing(t *testing.T) {
 		"correlation_id": "9d1c8ca8-cb69-4a48-9cb0-b403791d8e22"
 	}`
 
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	err := json.Unmarshal([]byte(payload), &parsed)
 	require.NoError(t, err, "expected JSON payload to parse correctly")
 

@@ -74,7 +74,6 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) {
 			for k := range resourceLogs.At(i).ScopeLogs().At(j).LogRecords().Len() {
 				lr := resourceLogs.At(i).ScopeLogs().At(j).LogRecords().At(k)
 				tc := ottllog.NewTransformContextPtr(resourceLog, scopeLog, lr)
-				defer tc.Close()
 
 				for _, lex := range logExtractors {
 					attrset := attribute.NewSet(
@@ -124,6 +123,7 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) {
 						}
 					}
 				}
+				tc.Close()
 			}
 		}
 	}

@@ -277,7 +277,6 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 			for k := 0; k < spans.Len(); k++ {
 				lr := spans.At(k)
 				tc := ottlspan.NewTransformContextPtr(resourceSpan, scopeSpan, lr)
-				defer tc.Close()
 
 				for _, lex := range spanExtractors {
 					attrset := attribute.NewSet(
@@ -321,6 +320,7 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 						}
 					}
 				}
+				tc.Close()
 			}
 		}
 	}

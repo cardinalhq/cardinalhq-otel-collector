@@ -104,12 +104,14 @@ func (p *extractor) updateMetricSketchCache(
 						tc := ottldatapoint.NewTransformContextPtr(rm, sm, mm, dp)
 						matches, err := mex.EvalMetricConditions(ctx, *tc)
 						if err != nil {
+							tc.Close()
 							continue
 						}
 						if matches {
 							metricValue := p.getMetricValue(dp)
 							p.updateWithDataPoint(ctx, metricValue, dp.Timestamp().AsTime(), *tc, resource, mex, metricsAggregateSketchCache, metricsLineSketchCache)
 						}
+						tc.Close()
 					}
 				}
 
@@ -121,12 +123,14 @@ func (p *extractor) updateMetricSketchCache(
 						tc := ottldatapoint.NewTransformContextPtr(rm, sm, mm, dp)
 						matches, err := mex.EvalMetricConditions(ctx, *tc)
 						if err != nil {
+							tc.Close()
 							continue
 						}
 						if matches {
 							metricValue := p.getMetricValue(dp)
 							p.updateWithDataPoint(ctx, metricValue, dp.Timestamp().AsTime(), *tc, resource, mex, metricsAggregateSketchCache, metricsLineSketchCache)
 						}
+						tc.Close()
 					}
 				}
 
@@ -153,6 +157,7 @@ func (p *extractor) updateMetricSketchCache(
 						avgValue := dp.Sum() / float64(dp.Count())
 						tc := ottldatapoint.NewTransformContextPtr(rm, sm, mm, dp)
 						p.updateWithDataPoint(ctx, avgValue, dp.Timestamp().AsTime(), *tc, resource, mex, metricsAggregateSketchCache, metricsLineSketchCache)
+						tc.Close()
 					}
 				}
 
@@ -167,6 +172,7 @@ func (p *extractor) updateMetricSketchCache(
 					tc := ottldatapoint.NewTransformContextPtr(rm, sm, mm, dp)
 					matches, err := mex.EvalMetricConditions(ctx, *tc)
 					if err != nil || !matches {
+						tc.Close()
 						continue
 					}
 					ts := dp.Timestamp().AsTime()
@@ -207,6 +213,7 @@ func (p *extractor) updateMetricSketchCache(
 					// Update non-zero buckets
 					updateBuckets(dp.Positive(), false)
 					updateBuckets(dp.Negative(), true)
+					tc.Close()
 				}
 
 			case pmetric.MetricTypeEmpty:
@@ -243,6 +250,7 @@ func (p *extractor) updateHistogramWithBuckets(
 	sketchLineCache *chqpb.GenericSketchCache,
 ) {
 	tc := ottldatapoint.NewTransformContextPtr(rm, sm, mm, dp)
+	defer tc.Close()
 	evaluated, err := mex.EvalMetricConditions(ctx, *tc)
 	if err != nil || !evaluated {
 		return

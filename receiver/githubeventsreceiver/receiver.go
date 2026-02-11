@@ -51,7 +51,7 @@ func newLogsReceiver(params receiver.Settings, cfg *Config, consumer consumer.Lo
 		return nil, errNilLogsConsumer
 	}
 
-	if cfg.Endpoint == "" {
+	if cfg.NetAddr.Endpoint == "" {
 		return nil, errMissingEndpoint
 	}
 

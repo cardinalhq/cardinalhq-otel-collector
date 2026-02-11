@@ -25,7 +25,7 @@ import (
 func TestDatadogReceiver_Lifecycle(t *testing.T) {
 	factory := NewFactory()
 	cfg := factory.CreateDefaultConfig()
-	cfg.(*Config).Endpoint = "localhost:0"
+	cfg.(*Config).ServerConfig.NetAddr.Endpoint = "localhost:0"
 	ddr, err := factory.CreateTraces(context.Background(), receivertest.NewNopSettings(metadata.Type), cfg, consumertest.NewNop())
 	assert.NoError(t, err, "Receiver should be created")
 
@@ -38,7 +38,7 @@ func TestDatadogReceiver_Lifecycle(t *testing.T) {
 
 func TestDatadogServer(t *testing.T) {
 	cfg := createDefaultConfig().(*Config)
-	cfg.Endpoint = "localhost:0" // Using a randomly assigned address
+	cfg.ServerConfig.NetAddr.Endpoint = "localhost:0" // Using a randomly assigned address
 	dd, err := newDataDogReceiver(
 		cfg,
 		receivertest.NewNopSettings(metadata.Type),

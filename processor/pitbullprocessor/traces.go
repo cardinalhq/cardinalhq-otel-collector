@@ -42,33 +42,39 @@ func (p *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 		}
 		attrSet := p.attributesFor(cid)
 
-		transformCtx := ottlresource.NewTransformContext(rs.Resource(), rs)
+		transformCtx := ottlresource.NewTransformContextPtr(rs.Resource(), rs)
 		if transformations != nil {
-			transformations.ExecuteResourceTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
+			transformations.ExecuteResourceTransforms(p.logger, attrSet, p.ottlTelemetry, *transformCtx)
 			if _, found := rs.Resource().Attributes().Get(translate.CardinalFieldDropMarker); found {
+				transformCtx.Close()
 				return true
 			}
 		}
+		transformCtx.Close()
 		rs.ScopeSpans().RemoveIf(func(iss ptrace.ScopeSpans) bool {
-			transformCtx := ottlscope.NewTransformContext(iss.Scope(), rs.Resource(), rs)
+			transformCtx := ottlscope.NewTransformContextPtr(iss.Scope(), rs.Resource(), iss)
 			if transformations != nil {
-				transformations.ExecuteScopeTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
+				transformations.ExecuteScopeTransforms(p.logger, attrSet, p.ottlTelemetry, *transformCtx)
 				if _, found := iss.Scope().Attributes().Get(translate.CardinalFieldDropMarker); found {
+					transformCtx.Close()
 					return true
 				}
 			}
+			transformCtx.Close()
 			iss.Spans().RemoveIf(func(sr ptrace.Span) bool {
-				transformCtx := ottlspan.NewTransformContext(sr, iss.Scope(), rs.Resource(), iss, rs)
+				transformCtx := ottlspan.NewTransformContextPtr(rs, iss, sr)
 				if luc != nil {
 					for _, lookupConfig := range *luc {
-						lookupConfig.ExecuteSpansRules(context.Background(), transformCtx, sr)
+						lookupConfig.ExecuteSpansRules(context.Background(), *transformCtx, sr)
 					}
 				}
 				if transformations == nil {
+					transformCtx.Close()
 					return false
 				}
-				transformations.ExecuteSpanTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
+				transformations.ExecuteSpanTransforms(p.logger, attrSet, p.ottlTelemetry, *transformCtx)
 				_, found := sr.Attributes().Get(translate.CardinalFieldDropMarker)
+				transformCtx.Close()
 				return found
 			})
 			return iss.Spans().Len() == 0

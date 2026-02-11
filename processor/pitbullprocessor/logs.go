@@ -60,35 +60,41 @@ func (p *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 			return false
 		}
 		attrSet := p.attributesFor(cid)
-		transformCtx := ottlresource.NewTransformContext(rl.Resource(), rl)
+		transformCtx := ottlresource.NewTransformContextPtr(rl.Resource(), rl)
 		if transformations != nil {
-			transformations.ExecuteResourceTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
+			transformations.ExecuteResourceTransforms(p.logger, attrSet, p.ottlTelemetry, *transformCtx)
 			if _, found := rl.Resource().Attributes().Get(translate.CardinalFieldDropMarker); found {
+				transformCtx.Close()
 				return true
 			}
 		}
+		transformCtx.Close()
 
 		rl.ScopeLogs().RemoveIf(func(sl plog.ScopeLogs) bool {
-			transformCtx := ottlscope.NewTransformContext(sl.Scope(), rl.Resource(), rl)
+			transformCtx := ottlscope.NewTransformContextPtr(sl.Scope(), rl.Resource(), sl)
 			if transformations != nil {
-				transformations.ExecuteScopeTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
+				transformations.ExecuteScopeTransforms(p.logger, attrSet, p.ottlTelemetry, *transformCtx)
 				if _, found := sl.Scope().Attributes().Get(translate.CardinalFieldDropMarker); found {
+					transformCtx.Close()
 					return true
 				}
 			}
+			transformCtx.Close()
 
 			sl.LogRecords().RemoveIf(func(lr plog.LogRecord) bool {
-				transformCtx := ottllog.NewTransformContext(lr, sl.Scope(), rl.Resource(), sl, rl)
+				transformCtx := ottllog.NewTransformContextPtr(rl, sl, lr)
 				if luc != nil {
 					for _, lookupConfig := range *luc {
-						lookupConfig.ExecuteLogsRules(context.Background(), transformCtx, lr)
+						lookupConfig.ExecuteLogsRules(context.Background(), *transformCtx, lr)
 					}
 				}
 				if transformations == nil {
+					transformCtx.Close()
 					return false
 				}
-				transformations.ExecuteLogTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
+				transformations.ExecuteLogTransforms(p.logger, attrSet, p.ottlTelemetry, *transformCtx)
 				_, dropMe := lr.Attributes().Get(translate.CardinalFieldDropMarker)
+				transformCtx.Close()
 				return dropMe
 			})
 			return sl.LogRecords().Len() == 0

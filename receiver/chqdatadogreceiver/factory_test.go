@@ -16,7 +16,7 @@ import (
 func TestCreateReceiver(t *testing.T) {
 	factory := NewFactory()
 	cfg := factory.CreateDefaultConfig()
-	cfg.(*Config).Endpoint = "http://localhost:0"
+	cfg.(*Config).ServerConfig.NetAddr.Endpoint = "localhost:0"
 
 	tReceiver, err := factory.CreateTraces(context.Background(), receivertest.NewNopSettings(metadata.Type), cfg, consumertest.NewNop())
 	assert.NoError(t, err)

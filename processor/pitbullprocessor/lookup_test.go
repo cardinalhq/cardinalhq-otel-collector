@@ -64,8 +64,8 @@ func TestLookupTableBasic(t *testing.T) {
 	logRecord := plog.NewLogRecord()
 	rl.Resource().Attributes().PutStr("service.name", "service1")
 
-	transformCtx := ottllog.NewTransformContext(logRecord, sl.Scope(), rl.Resource(), sl, rl)
-	lookupConfig.ExecuteLogsRules(context.Background(), transformCtx, logRecord)
+	transformCtx := ottllog.NewTransformContextPtr(rl, sl, logRecord)
+	lookupConfig.ExecuteLogsRules(context.Background(), *transformCtx, logRecord)
 
 	teamAttr, found := logRecord.Attributes().Get("team")
 	assert.True(t, found, "Expected 'team' attribute to be found")
@@ -102,8 +102,8 @@ func TestLookupTableBasicWithErrorInCondition(t *testing.T) {
 	logRecord := plog.NewLogRecord()
 	rl.Resource().Attributes().PutStr("service.name", "service1")
 
-	transformCtx := ottllog.NewTransformContext(logRecord, sl.Scope(), rl.Resource(), sl, rl)
-	lookupConfig.ExecuteLogsRules(context.Background(), transformCtx, logRecord)
+	transformCtx := ottllog.NewTransformContextPtr(rl, sl, logRecord)
+	lookupConfig.ExecuteLogsRules(context.Background(), *transformCtx, logRecord)
 
 	_, found := logRecord.Attributes().Get("team")
 	assert.False(t, found, "Expected 'team' attribute to be found")
@@ -152,8 +152,8 @@ func TestLookupTableMultipleConditions(t *testing.T) {
 	rl.Resource().Attributes().PutStr("service.name", "service1")
 	rl.Resource().Attributes().PutStr("business.unit", "bu123")
 
-	transformCtx := ottllog.NewTransformContext(logRecord, sl.Scope(), rl.Resource(), sl, rl)
-	lookupConfig.ExecuteLogsRules(context.Background(), transformCtx, logRecord)
+	transformCtx := ottllog.NewTransformContextPtr(rl, sl, logRecord)
+	lookupConfig.ExecuteLogsRules(context.Background(), *transformCtx, logRecord)
 
 	teamAttr, found := logRecord.Attributes().Get("team")
 	assert.True(t, found, "Expected 'team' attribute to be found")
@@ -195,8 +195,8 @@ func TestLookupTableNegativeCondition(t *testing.T) {
 	// Set business.unit to a value that doesn't exist in the table
 	rl.Resource().Attributes().PutStr("business.unit", "bu999")
 
-	transformCtx := ottllog.NewTransformContext(logRecord, sl.Scope(), rl.Resource(), sl, rl)
-	lookupConfig.ExecuteLogsRules(context.Background(), transformCtx, logRecord)
+	transformCtx := ottllog.NewTransformContextPtr(rl, sl, logRecord)
+	lookupConfig.ExecuteLogsRules(context.Background(), *transformCtx, logRecord)
 
 	_, found := logRecord.Attributes().Get("team")
 	assert.False(t, found, "Expected 'team' attribute NOT to be found since the conditions do not match")

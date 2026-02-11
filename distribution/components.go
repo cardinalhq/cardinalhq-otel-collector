@@ -261,7 +261,6 @@ import (
 	zipkinreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/zipkinreceiver"
 	zookeeperreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/zookeeperreceiver"
 	routereceiver "github.com/observiq/bindplane-otel-collector/receiver/routereceiver"
-	chqdatadogreceiver "github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver"
 	chqprwreceiver "github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver"
 	githubeventsreceiver "github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver"
 )
@@ -482,7 +481,6 @@ func components() (otelcol.Factories, error) {
 		zipkinreceiver.NewFactory(),
 		zookeeperreceiver.NewFactory(),
 		routereceiver.NewFactory(),
-		chqdatadogreceiver.NewFactory(),
 		chqprwreceiver.NewFactory(),
 		githubeventsreceiver.NewFactory(),
 	)
@@ -593,7 +591,6 @@ func components() (otelcol.Factories, error) {
 		zipkinreceiver.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/zipkinreceiver v0.145.0",
 		zookeeperreceiver.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/zookeeperreceiver v0.145.0",
 		routereceiver.NewFactory().Type(): "github.com/observiq/bindplane-otel-collector/receiver/routereceiver v1.86.1",
-		chqdatadogreceiver.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver v0.145.0",
 		chqprwreceiver.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver v0.145.0",
 		githubeventsreceiver.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.145.0",
 	})

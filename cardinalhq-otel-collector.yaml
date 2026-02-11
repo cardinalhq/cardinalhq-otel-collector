@@ -186,8 +186,6 @@ exporters:
   # CardinalHQ exporters
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v0.145.0
     path: ./exporter/chqs3exporter
-  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.145.0
-    path: ./exporter/chqdatadogexporter
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.145.0
     path: ./exporter/chqservicegraphexporter
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.145.0

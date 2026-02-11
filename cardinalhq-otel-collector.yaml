@@ -284,8 +284,6 @@ processors:
     path: ./processor/summarysplitprocessor
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.145.0
     path: ./processor/extractmetricsprocessor
-  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/chqexemplarprocessor v0.145.0
-    path: ./processor/chqexemplarprocessor
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/chqspannerprocessor v0.145.0
     path: ./processor/chqspannerprocessor
 

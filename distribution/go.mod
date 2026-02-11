@@ -6,7 +6,6 @@ go 1.25.0
 
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector v0.145.0
-	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.145.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.145.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter v0.145.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v0.145.0
@@ -1083,8 +1082,6 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver 
 replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.145.0 => ../receiver/githubeventsreceiver
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v0.145.0 => ../exporter/chqs3exporter
-
-replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqdatadogexporter v0.145.0 => ../exporter/chqdatadogexporter
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.145.0 => ../exporter/chqservicegraphexporter
 

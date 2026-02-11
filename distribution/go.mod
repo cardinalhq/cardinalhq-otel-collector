@@ -23,7 +23,6 @@ require (
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor v0.145.0
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.145.0
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.145.0
-	github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver v0.145.0
 	github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver v0.145.0
 	github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.145.0
 	github.com/observiq/bindplane-otel-collector/receiver/routereceiver v1.89.0
@@ -500,7 +499,6 @@ require (
 	github.com/aws/smithy-go v1.24.0 // indirect
 	github.com/axiomhq/hyperloglog v0.2.6 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
-	github.com/barweiss/go-tuple v1.1.2 // indirect
 	github.com/bboreham/go-loser v0.0.0-20230920113527-fcc2c21820a3 // indirect
 	github.com/beevik/ntp v1.5.0 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
@@ -1079,8 +1077,6 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigexten
 replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.145.0 => ../extension/chqtagcacheextension
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention v0.145.0 => ../extension/chqsyntheticsextention
-
-replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqdatadogreceiver v0.145.0 => ../receiver/chqdatadogreceiver
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver v0.145.0 => ../receiver/chqprwreceiver
 

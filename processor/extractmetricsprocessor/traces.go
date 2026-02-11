@@ -276,7 +276,7 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 
 			for k := 0; k < spans.Len(); k++ {
 				lr := spans.At(k)
-				tc := ottlspan.NewTransformContext(lr, scopeSpan.Scope(), resourceSpan.Resource(), scopeSpan, resourceSpan)
+				tc := ottlspan.NewTransformContextPtr(resourceSpan, scopeSpan, lr)
 
 				for _, lex := range spanExtractors {
 					attrset := attribute.NewSet(
@@ -288,7 +288,7 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 						attribute.String("organization_id", cid),
 					)
 
-					matches, err := lex.EvalSpanConditions(ctx, tc)
+					matches, err := lex.EvalSpanConditions(ctx, *tc)
 					if err != nil {
 						p.logger.Error("Failed when executing ottl match statement.", zap.Error(err))
 						telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
@@ -300,12 +300,12 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 
 					telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 
-					aggregateTags := p.withServiceClusterNamespace(resource, lex.ExtractAggregateAttributes(ctx, tc))
+					aggregateTags := p.withServiceClusterNamespace(resource, lex.ExtractAggregateAttributes(ctx, *tc))
 					spanAggregateSketchCache.Update(lex.MetricName, lex.MetricType, aggregateTags, lr, resource, 0, 0)
 
 					// Otherwise, do span sketches (count-style) at the line level.
 					if len(lex.LineDimensions) > 0 {
-						mapAttrsByTagFamilyId := lex.ExtractLineAttributes(ctx, tc)
+						mapAttrsByTagFamilyId := lex.ExtractLineAttributes(ctx, *tc)
 						for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
 							lineTags := p.withServiceClusterNamespace(resource, mapAttrs)
 							spanLineSketchCache.Update(
@@ -320,6 +320,7 @@ func (p *extractor) updateSketchCache(ctx context.Context, pl ptrace.Traces) {
 						}
 					}
 				}
+				tc.Close()
 			}
 		}
 	}

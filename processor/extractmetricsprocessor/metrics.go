@@ -101,15 +101,17 @@ func (p *extractor) updateMetricSketchCache(
 				if gaugeDataPoints.Len() > 0 {
 					for i := 0; i < gaugeDataPoints.Len(); i++ {
 						dp := gaugeDataPoints.At(i)
-						tc := ottldatapoint.NewTransformContext(dp, mm, ms, sm.Scope(), resource, sm, rm)
-						matches, err := mex.EvalMetricConditions(ctx, tc)
+						tc := ottldatapoint.NewTransformContextPtr(rm, sm, mm, dp)
+						matches, err := mex.EvalMetricConditions(ctx, *tc)
 						if err != nil {
+							tc.Close()
 							continue
 						}
 						if matches {
 							metricValue := p.getMetricValue(dp)
-							p.updateWithDataPoint(ctx, metricValue, dp.Timestamp().AsTime(), tc, resource, mex, metricsAggregateSketchCache, metricsLineSketchCache)
+							p.updateWithDataPoint(ctx, metricValue, dp.Timestamp().AsTime(), *tc, resource, mex, metricsAggregateSketchCache, metricsLineSketchCache)
 						}
+						tc.Close()
 					}
 				}
 
@@ -118,15 +120,17 @@ func (p *extractor) updateMetricSketchCache(
 				if sumDataPoints.Len() > 0 {
 					for i := 0; i < sumDataPoints.Len(); i++ {
 						dp := sumDataPoints.At(i)
-						tc := ottldatapoint.NewTransformContext(dp, mm, ms, sm.Scope(), resource, sm, rm)
-						matches, err := mex.EvalMetricConditions(ctx, tc)
+						tc := ottldatapoint.NewTransformContextPtr(rm, sm, mm, dp)
+						matches, err := mex.EvalMetricConditions(ctx, *tc)
 						if err != nil {
+							tc.Close()
 							continue
 						}
 						if matches {
 							metricValue := p.getMetricValue(dp)
-							p.updateWithDataPoint(ctx, metricValue, dp.Timestamp().AsTime(), tc, resource, mex, metricsAggregateSketchCache, metricsLineSketchCache)
+							p.updateWithDataPoint(ctx, metricValue, dp.Timestamp().AsTime(), *tc, resource, mex, metricsAggregateSketchCache, metricsLineSketchCache)
 						}
+						tc.Close()
 					}
 				}
 
@@ -151,8 +155,9 @@ func (p *extractor) updateMetricSketchCache(
 							continue
 						}
 						avgValue := dp.Sum() / float64(dp.Count())
-						tc := ottldatapoint.NewTransformContext(dp, mm, ms, sm.Scope(), resource, sm, rm)
-						p.updateWithDataPoint(ctx, avgValue, dp.Timestamp().AsTime(), tc, resource, mex, metricsAggregateSketchCache, metricsLineSketchCache)
+						tc := ottldatapoint.NewTransformContextPtr(rm, sm, mm, dp)
+						p.updateWithDataPoint(ctx, avgValue, dp.Timestamp().AsTime(), *tc, resource, mex, metricsAggregateSketchCache, metricsLineSketchCache)
+						tc.Close()
 					}
 				}
 
@@ -164,9 +169,10 @@ func (p *extractor) updateMetricSketchCache(
 						continue
 					}
 
-					tc := ottldatapoint.NewTransformContext(dp, mm, ms, sm.Scope(), resource, sm, rm)
-					matches, err := mex.EvalMetricConditions(ctx, tc)
+					tc := ottldatapoint.NewTransformContextPtr(rm, sm, mm, dp)
+					matches, err := mex.EvalMetricConditions(ctx, *tc)
 					if err != nil || !matches {
+						tc.Close()
 						continue
 					}
 					ts := dp.Timestamp().AsTime()
@@ -191,11 +197,11 @@ func (p *extractor) updateMetricSketchCache(
 								value = -value
 							}
 
-							aggregateTags := p.withServiceClusterNamespace(resource, mex.ExtractAggregateAttributes(ctx, tc))
+							aggregateTags := p.withServiceClusterNamespace(resource, mex.ExtractAggregateAttributes(ctx, *tc))
 							parentTID := metricsAggregateSketchCache.UpdateWithCount(mex.OutputMetricName, mex.MetricType, mex.Direction, aggregateTags, 0, 0, value, count, ts)
 
 							if len(mex.LineDimensions) > 0 {
-								mapAttrsByTagFamilyId := mex.ExtractLineAttributes(ctx, tc)
+								mapAttrsByTagFamilyId := mex.ExtractLineAttributes(ctx, *tc)
 								for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
 									lineTags := p.withServiceClusterNamespace(resource, mapAttrs)
 									metricsLineSketchCache.UpdateWithCount(mex.OutputMetricName, mex.MetricType, mex.Direction, lineTags, parentTID, tagFamilyId, value, count, ts)
@@ -207,6 +213,7 @@ func (p *extractor) updateMetricSketchCache(
 					// Update non-zero buckets
 					updateBuckets(dp.Positive(), false)
 					updateBuckets(dp.Negative(), true)
+					tc.Close()
 				}
 
 			case pmetric.MetricTypeEmpty:
@@ -242,8 +249,9 @@ func (p *extractor) updateHistogramWithBuckets(
 	sketchCache *chqpb.GenericSketchCache,
 	sketchLineCache *chqpb.GenericSketchCache,
 ) {
-	tc := ottldatapoint.NewTransformContext(dp, mm, ms, sm.Scope(), resource, sm, rm)
-	evaluated, err := mex.EvalMetricConditions(ctx, tc)
+	tc := ottldatapoint.NewTransformContextPtr(rm, sm, mm, dp)
+	defer tc.Close()
+	evaluated, err := mex.EvalMetricConditions(ctx, *tc)
 	if err != nil || !evaluated {
 		return
 	}
@@ -272,12 +280,12 @@ func (p *extractor) updateHistogramWithBuckets(
 		}
 		midpoint := getMidpoint(i)
 
-		aggregateAttrs := mex.ExtractAggregateAttributes(ctx, tc)
+		aggregateAttrs := mex.ExtractAggregateAttributes(ctx, *tc)
 		tags := p.withServiceClusterNamespace(resource, aggregateAttrs)
 		parentTID := sketchCache.UpdateWithCount(mex.OutputMetricName, mex.MetricType, mex.Direction, tags, 0, 0, midpoint, bucketCount, timestamp)
 
 		if len(mex.LineDimensions) > 0 {
-			mapAttrsByTagFamilyId := mex.ExtractLineAttributes(ctx, tc)
+			mapAttrsByTagFamilyId := mex.ExtractLineAttributes(ctx, *tc)
 			for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
 				tags := p.withServiceClusterNamespace(resource, mapAttrs)
 				sketchLineCache.UpdateWithCount(mex.OutputMetricName, mex.MetricType, mex.Direction, tags, parentTID, tagFamilyId, midpoint, bucketCount, timestamp)

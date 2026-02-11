@@ -44,8 +44,9 @@ func (p *pitbull) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pmetric
 		attrSet := p.attributesFor(cid)
 
 		if transformations != nil {
-			transformCtx := ottlresource.NewTransformContext(rm.Resource(), rm)
-			transformations.ExecuteResourceTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
+			transformCtx := ottlresource.NewTransformContextPtr(rm.Resource(), rm)
+			transformations.ExecuteResourceTransforms(p.logger, attrSet, p.ottlTelemetry, *transformCtx)
+			transformCtx.Close()
 			if _, found := rattr.Get(translate.CardinalFieldDropMarker); found {
 				return true
 			}
@@ -54,8 +55,9 @@ func (p *pitbull) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pmetric
 		rm.ScopeMetrics().RemoveIf(func(ilm pmetric.ScopeMetrics) bool {
 			if transformations != nil {
 				sattr := ilm.Scope().Attributes()
-				transformCtx := ottlscope.NewTransformContext(ilm.Scope(), rm.Resource(), rm)
-				transformations.ExecuteScopeTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
+				transformCtx := ottlscope.NewTransformContextPtr(ilm.Scope(), rm.Resource(), ilm)
+				transformations.ExecuteScopeTransforms(p.logger, attrSet, p.ottlTelemetry, *transformCtx)
+				transformCtx.Close()
 				if _, found := sattr.Get(translate.CardinalFieldDropMarker); found {
 					return true
 				}
@@ -65,67 +67,77 @@ func (p *pitbull) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pmetric
 				switch m.Type() {
 				case pmetric.MetricTypeGauge:
 					m.Gauge().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
-						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
-						p.evaluateLookupTables(transformCtx, luc, func(tagToSet string, targetValue string) {
+						transformCtx := ottldatapoint.NewTransformContextPtr(rm, ilm, m, dp)
+						p.evaluateLookupTables(*transformCtx, luc, func(tagToSet string, targetValue string) {
 							dp.Attributes().PutStr(tagToSet, targetValue)
 						})
 						if transformations == nil {
+							transformCtx.Close()
 							return false
 						}
-						transformations.ExecuteDatapointTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
+						transformations.ExecuteDatapointTransforms(p.logger, attrSet, p.ottlTelemetry, *transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
+						transformCtx.Close()
 						return found
 					})
 				case pmetric.MetricTypeSum:
 					m.Sum().DataPoints().RemoveIf(func(dp pmetric.NumberDataPoint) bool {
-						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
-						p.evaluateLookupTables(transformCtx, luc, func(tagToSet string, targetValue string) {
+						transformCtx := ottldatapoint.NewTransformContextPtr(rm, ilm, m, dp)
+						p.evaluateLookupTables(*transformCtx, luc, func(tagToSet string, targetValue string) {
 							dp.Attributes().PutStr(tagToSet, targetValue)
 						})
 						if transformations == nil {
+							transformCtx.Close()
 							return false
 						}
-						transformations.ExecuteDatapointTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
+						transformations.ExecuteDatapointTransforms(p.logger, attrSet, p.ottlTelemetry, *transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
+						transformCtx.Close()
 						return found
 					})
 				case pmetric.MetricTypeHistogram:
 					m.Histogram().DataPoints().RemoveIf(func(dp pmetric.HistogramDataPoint) bool {
-						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
-						p.evaluateLookupTables(transformCtx, luc, func(tagToSet string, targetValue string) {
+						transformCtx := ottldatapoint.NewTransformContextPtr(rm, ilm, m, dp)
+						p.evaluateLookupTables(*transformCtx, luc, func(tagToSet string, targetValue string) {
 							dp.Attributes().PutStr(tagToSet, targetValue)
 						})
 						if transformations == nil {
+							transformCtx.Close()
 							return false
 						}
-						transformations.ExecuteDatapointTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
+						transformations.ExecuteDatapointTransforms(p.logger, attrSet, p.ottlTelemetry, *transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
+						transformCtx.Close()
 						return found
 					})
 				case pmetric.MetricTypeSummary:
 					m.Summary().DataPoints().RemoveIf(func(dp pmetric.SummaryDataPoint) bool {
-						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
-						p.evaluateLookupTables(transformCtx, luc, func(tagToSet string, targetValue string) {
+						transformCtx := ottldatapoint.NewTransformContextPtr(rm, ilm, m, dp)
+						p.evaluateLookupTables(*transformCtx, luc, func(tagToSet string, targetValue string) {
 							dp.Attributes().PutStr(tagToSet, targetValue)
 						})
 						if transformations == nil {
+							transformCtx.Close()
 							return false
 						}
-						transformations.ExecuteDatapointTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
+						transformations.ExecuteDatapointTransforms(p.logger, attrSet, p.ottlTelemetry, *transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
+						transformCtx.Close()
 						return found
 					})
 				case pmetric.MetricTypeExponentialHistogram:
 					m.ExponentialHistogram().DataPoints().RemoveIf(func(dp pmetric.ExponentialHistogramDataPoint) bool {
-						transformCtx := ottldatapoint.NewTransformContext(dp, m, ilm.Metrics(), ilm.Scope(), rm.Resource(), ilm, rm)
-						p.evaluateLookupTables(transformCtx, luc, func(tagToSet string, targetValue string) {
+						transformCtx := ottldatapoint.NewTransformContextPtr(rm, ilm, m, dp)
+						p.evaluateLookupTables(*transformCtx, luc, func(tagToSet string, targetValue string) {
 							dp.Attributes().PutStr(tagToSet, targetValue)
 						})
 						if transformations == nil {
+							transformCtx.Close()
 							return false
 						}
-						transformations.ExecuteDatapointTransforms(p.logger, attrSet, p.ottlTelemetry, transformCtx)
+						transformations.ExecuteDatapointTransforms(p.logger, attrSet, p.ottlTelemetry, *transformCtx)
 						_, found := dp.Attributes().Get(translate.CardinalFieldDropMarker)
+						transformCtx.Close()
 						return found
 					})
 				case pmetric.MetricTypeEmpty:

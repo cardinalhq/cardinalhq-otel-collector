@@ -8,6 +8,9 @@ header:
     - 'bin'
     - distribution
     - receiver/chqdatadogreceiver
+    - receiver/chqprwreceiver
+    - docker/run-with-env-config.sh
+    - internal/identity/resource.go
     - '**/*.md'
     - 'LICENSE'
     - 'NOTICE'

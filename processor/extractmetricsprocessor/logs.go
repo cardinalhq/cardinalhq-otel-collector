@@ -73,7 +73,7 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) {
 			scopeLog := resourceLogs.At(i).ScopeLogs().At(j)
 			for k := range resourceLogs.At(i).ScopeLogs().At(j).LogRecords().Len() {
 				lr := resourceLogs.At(i).ScopeLogs().At(j).LogRecords().At(k)
-				tc := ottllog.NewTransformContext(lr, scopeLog.Scope(), resourceLog.Resource(), scopeLog, resourceLog)
+				tc := ottllog.NewTransformContextPtr(resourceLog, scopeLog, lr)
 
 				for _, lex := range logExtractors {
 					attrset := attribute.NewSet(
@@ -85,7 +85,7 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) {
 						attribute.String("organization_id", cid),
 					)
 
-					matches, err := lex.EvalLogConditions(ctx, tc)
+					matches, err := lex.EvalLogConditions(ctx, *tc)
 					if err != nil {
 						p.logger.Error("Failed when executing ottl match statement.", zap.Error(err))
 						telemetry.CounterAdd(p.ruleErrors, 1, metric.WithAttributeSet(attrset))
@@ -95,7 +95,7 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) {
 						continue
 					}
 
-					val, err := p.extractLogValue(ctx, tc, lex)
+					val, err := p.extractLogValue(ctx, *tc, lex)
 					if err != nil {
 						p.logger.Error("Failed when extracting value.", zap.Error(err))
 						attrset := attribute.NewSet(attribute.String("ruleId", lex.RuleID),
@@ -111,18 +111,19 @@ func (p *extractor) extract(ctx context.Context, pl plog.Logs) {
 					}
 					telemetry.CounterAdd(p.rulesEvaluated, 1, metric.WithAttributeSet(attrset))
 
-					aggregateAttrs := lex.ExtractAggregateAttributes(ctx, tc)
+					aggregateAttrs := lex.ExtractAggregateAttributes(ctx, *tc)
 					tags := p.withServiceClusterNamespace(resource, aggregateAttrs)
 					parentTID := aggregateSketchCache.Update(lex.MetricName, lex.MetricType, lex.Direction, tags, 0, 0, val, lr.ObservedTimestamp().AsTime())
 
 					if len(lex.LineDimensions) > 0 {
-						mapAttrsByTagFamilyId := lex.ExtractLineAttributes(ctx, tc)
+						mapAttrsByTagFamilyId := lex.ExtractLineAttributes(ctx, *tc)
 						for tagFamilyId, mapAttrs := range mapAttrsByTagFamilyId {
 							metricTags := p.withServiceClusterNamespace(resource, mapAttrs)
 							lineSketchCache.Update(lex.MetricName, lex.MetricType, lex.Direction, metricTags, parentTID, tagFamilyId, val, lr.ObservedTimestamp().AsTime())
 						}
 					}
 				}
+				tc.Close()
 			}
 		}
 	}

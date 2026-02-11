@@ -8,7 +8,6 @@ require (
 	github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector v0.145.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.145.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter v0.145.0
-	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v0.145.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.145.0
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.145.0
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.145.0
@@ -815,9 +814,6 @@ require (
 	github.com/oschwald/maxminddb-golang/v2 v2.1.1 // indirect
 	github.com/outcaste-io/ristretto v0.2.3 // indirect
 	github.com/ovh/go-ovh v1.9.0 // indirect
-	github.com/parquet-go/bitpack v1.0.0 // indirect
-	github.com/parquet-go/jsonlite v1.1.0 // indirect
-	github.com/parquet-go/parquet-go v0.26.3 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/paulmach/orb v0.12.0 // indirect
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
@@ -852,7 +848,6 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/richardartoul/molecule v1.0.1-0.20240531184615-7ca0df43c0b3 // indirect
 	github.com/rs/cors v1.11.1 // indirect
-	github.com/rs/xid v1.6.0 // indirect
 	github.com/samber/lo v1.52.0 // indirect
 	github.com/scaleway/scaleway-sdk-go v1.0.0-beta.36 // indirect
 	github.com/scalyr/dataset-go v0.21.0 // indirect
@@ -1079,8 +1074,6 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticse
 replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver v0.145.0 => ../receiver/chqprwreceiver
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.145.0 => ../receiver/githubeventsreceiver
-
-replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v0.145.0 => ../exporter/chqs3exporter
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.145.0 => ../exporter/chqservicegraphexporter
 

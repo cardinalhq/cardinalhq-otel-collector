@@ -74,7 +74,6 @@ import (
 	tencentcloudlogserviceexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/tencentcloudlogserviceexporter"
 	tinybirdexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/tinybirdexporter"
 	zipkinexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/zipkinexporter"
-	chqs3exporter "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter"
 	chqservicegraphexporter "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter"
 	chqentitygraphexporter "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter"
 	chqk8sentitygraphexporter "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter"
@@ -643,7 +642,6 @@ func components() (otelcol.Factories, error) {
 		tencentcloudlogserviceexporter.NewFactory(),
 		tinybirdexporter.NewFactory(),
 		zipkinexporter.NewFactory(),
-		chqs3exporter.NewFactory(),
 		chqservicegraphexporter.NewFactory(),
 		chqentitygraphexporter.NewFactory(),
 		chqk8sentitygraphexporter.NewFactory(),
@@ -701,7 +699,6 @@ func components() (otelcol.Factories, error) {
 		tencentcloudlogserviceexporter.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/tencentcloudlogserviceexporter v0.145.0",
 		tinybirdexporter.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/tinybirdexporter v0.145.0",
 		zipkinexporter.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/zipkinexporter v0.145.0",
-		chqs3exporter.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqs3exporter v0.145.0",
 		chqservicegraphexporter.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.145.0",
 		chqentitygraphexporter.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.145.0",
 		chqk8sentitygraphexporter.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter v0.145.0",

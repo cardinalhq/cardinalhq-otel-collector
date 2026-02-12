@@ -16,7 +16,6 @@ package extractmetricsprocessor
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
@@ -157,7 +156,7 @@ func (p *extractor) spanSketchesToEmittables(list *chqpb.SpanSketchList) []Emitt
 		totalCount := float64(s.TotalCount)
 		intervalMs := s.Interval * 1000
 		out = append(out, Emittable{
-			MetricName: fmt.Sprintf("%s.total", s.MetricName),
+			MetricName: s.MetricName + ".total",
 			MetricType: "count",
 			Tags:       s.Tags,
 			IntervalMs: intervalMs,
@@ -165,7 +164,7 @@ func (p *extractor) spanSketchesToEmittables(list *chqpb.SpanSketchList) []Emitt
 		})
 		errorCount := float64(s.ErrorCount)
 		out = append(out, Emittable{
-			MetricName: fmt.Sprintf("%s.errors", s.MetricName),
+			MetricName: s.MetricName + ".errors",
 			MetricType: "count",
 			Tags:       s.Tags,
 			IntervalMs: intervalMs,
@@ -182,7 +181,7 @@ func (p *extractor) spanSketchesToEmittables(list *chqpb.SpanSketchList) []Emitt
 				p.logger.Error("Failed to get p50 from sketch", zap.Error(err))
 			} else {
 				out = append(out, Emittable{
-					MetricName: fmt.Sprintf("%s.p50", s.MetricName),
+					MetricName: s.MetricName + ".p50",
 					MetricType: "gauge",
 					Tags:       s.Tags,
 					IntervalMs: intervalMs,
@@ -194,7 +193,7 @@ func (p *extractor) spanSketchesToEmittables(list *chqpb.SpanSketchList) []Emitt
 				p.logger.Error("Failed to get p95 from sketch", zap.Error(err))
 			} else {
 				out = append(out, Emittable{
-					MetricName: fmt.Sprintf("%s.p95", s.MetricName),
+					MetricName: s.MetricName + ".p95",
 					MetricType: "gauge",
 					Tags:       s.Tags,
 					IntervalMs: intervalMs,
@@ -206,7 +205,7 @@ func (p *extractor) spanSketchesToEmittables(list *chqpb.SpanSketchList) []Emitt
 				p.logger.Error("Failed to get p99 from sketch", zap.Error(err))
 			} else {
 				out = append(out, Emittable{
-					MetricName: fmt.Sprintf("%s.p99", s.MetricName),
+					MetricName: s.MetricName + ".p99",
 					MetricType: "gauge",
 					Tags:       s.Tags,
 					IntervalMs: intervalMs,

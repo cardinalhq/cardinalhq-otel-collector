@@ -10,7 +10,6 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
-	"sync"
 	"testing"
 	"time"
 
@@ -22,7 +21,6 @@ import (
 	"github.com/prometheus/prometheus/storage/remote"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/collector/component"
-	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/consumer/consumertest"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
@@ -1098,9 +1096,9 @@ func TestTranslateV2(t *testing.T) {
 								Timestamp:      123456789,
 								StartTimestamp: 123456000,
 								Schema:         -53, // NHCB schema
-								Sum:          100.5,
-								Count:        &writev2.Histogram_CountInt{CountInt: 180},
-								CustomValues: []float64{1.0, 2.0, 5.0, 10.0}, // Custom bucket boundaries
+								Sum:            100.5,
+								Count:          &writev2.Histogram_CountInt{CountInt: 180},
+								CustomValues:   []float64{1.0, 2.0, 5.0, 10.0}, // Custom bucket boundaries
 								PositiveSpans: []writev2.BucketSpan{
 									{Offset: 0, Length: 5}, // 5 buckets: 4 custom + 1 overflow
 								},
@@ -1285,9 +1283,9 @@ func TestTranslateV2(t *testing.T) {
 								Timestamp:      123456789,
 								StartTimestamp: 123456000,
 								Schema:         -53,
-								Sum:          100.5,
-								Count:        &writev2.Histogram_CountInt{CountInt: 180},
-								CustomValues: []float64{1.0, 2.0, 5.0, 10.0},
+								Sum:            100.5,
+								Count:          &writev2.Histogram_CountInt{CountInt: 180},
+								CustomValues:   []float64{1.0, 2.0, 5.0, 10.0},
 								PositiveSpans: []writev2.BucketSpan{
 									{Offset: 0, Length: 5},
 								},
@@ -1379,28 +1377,6 @@ func TestTranslateV2(t *testing.T) {
 			assert.Equal(t, tc.expectedStats, stats)
 		})
 	}
-}
-
-type nonMutatingConsumer struct{}
-
-// Capabilities returns the base consumer capabilities.
-func (nonMutatingConsumer) Capabilities() consumer.Capabilities {
-	return consumer.Capabilities{MutatesData: false}
-}
-
-type mockConsumer struct {
-	nonMutatingConsumer
-	mu         sync.Mutex
-	metrics    []pmetric.Metrics
-	dataPoints int
-}
-
-func (m *mockConsumer) ConsumeMetrics(_ context.Context, md pmetric.Metrics) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.metrics = append(m.metrics, md)
-	m.dataPoints += md.DataPointCount()
-	return nil
 }
 
 func TestTargetInfoWithNormalMetric(t *testing.T) {

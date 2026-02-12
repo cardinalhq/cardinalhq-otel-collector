@@ -231,8 +231,8 @@ func (p *extractor) getMetricValue(dp pmetric.NumberDataPoint) float64 {
 		metricValue = dp.DoubleValue()
 	case pmetric.NumberDataPointValueTypeInt:
 		metricValue = float64(dp.IntValue())
-	default:
-		metricValue = dp.DoubleValue()
+	case pmetric.NumberDataPointValueTypeEmpty:
+		metricValue = 0
 	}
 	return metricValue
 }
@@ -302,7 +302,6 @@ func (p *extractor) updateWithDataPoint(ctx context.Context,
 	mex *ottl.MetricSketchExtractor,
 	sketchCache *chqpb.GenericSketchCache,
 	sketchLineCache *chqpb.GenericSketchCache) {
-
 	aggregateTags := p.withServiceClusterNamespace(resource, mex.ExtractAggregateAttributes(ctx, tc))
 	parentTID := sketchCache.Update(mex.OutputMetricName, mex.MetricType, mex.Direction, aggregateTags, 0, 0, metricValue, t)
 

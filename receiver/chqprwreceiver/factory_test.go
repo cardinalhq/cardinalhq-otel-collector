@@ -16,7 +16,7 @@ import (
 func TestCreateMetricsReceiver(t *testing.T) {
 	factory := NewFactory()
 	cfg := factory.CreateDefaultConfig()
-	cfg.(*Config).ServerConfig.NetAddr.Endpoint = "http://localhost:0"
+	cfg.(*Config).ServerConfig.NetAddr.Endpoint = "http://localhost:0" //nolint:staticcheck // QF1008
 
 	tReceiver, err := factory.CreateMetrics(t.Context(), receivertest.NewNopSettings(metadata.Type), cfg, consumertest.NewNop())
 	assert.NoError(t, err)

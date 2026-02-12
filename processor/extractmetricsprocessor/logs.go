@@ -16,7 +16,6 @@ package extractmetricsprocessor
 
 import (
 	"context"
-	"fmt"
 	"github.com/cardinalhq/oteltools/pkg/chqpb"
 	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"time"
@@ -153,15 +152,15 @@ func (p *extractor) withServiceClusterNamespace(resource pcommon.Resource, mapAt
 }
 
 func (p *extractor) toNamespaceNameKey() string {
-	return fmt.Sprintf("resource.%s", string(semconv.K8SNamespaceNameKey))
+	return "resource." + string(semconv.K8SNamespaceNameKey)
 }
 
 func (p *extractor) toClusterNameKey() string {
-	return fmt.Sprintf("resource.%s", string(semconv.K8SClusterNameKey))
+	return "resource." + string(semconv.K8SClusterNameKey)
 }
 
 func (p *extractor) toServiceNameKey() string {
-	return fmt.Sprintf("resource.%s", string(semconv.ServiceNameKey))
+	return "resource." + string(semconv.ServiceNameKey)
 }
 
 func (p *extractor) extractLogValue(ctx context.Context, tc ottllog.TransformContext, e *ottl.LogExtractor) (float64, error) {

@@ -35,7 +35,10 @@ func TestConsumeTraces(t *testing.T) {
 	}
 
 	testcase1, err := os.ReadFile("testdata/go-client-span.json")
-	traces, err := unmarshaller.UnmarshalTraces([]byte(testcase1))
+	if err != nil {
+		t.Fatalf("Failed to read test data: %v", err)
+	}
+	traces, err := unmarshaller.UnmarshalTraces(testcase1)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal test traces: %v", err)
 	}

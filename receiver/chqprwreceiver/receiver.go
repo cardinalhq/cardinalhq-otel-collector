@@ -346,13 +346,15 @@ func (prw *prometheusRemoteWriteReceiver) translateV2(_ context.Context, req *wr
 				sum := metric.SetEmptySum()
 				sum.SetIsMonotonic(true)
 				sum.SetAggregationTemporality(pmetric.AggregationTemporalityCumulative)
-			case writev2.Metadata_METRIC_TYPE_SUMMARY,
-				writev2.Metadata_METRIC_TYPE_UNSPECIFIED,
+			case writev2.Metadata_METRIC_TYPE_SUMMARY:
+				// Drop summary series as we will not handle them.
+				continue
+			case writev2.Metadata_METRIC_TYPE_UNSPECIFIED,
 				writev2.Metadata_METRIC_TYPE_HISTOGRAM,
 				writev2.Metadata_METRIC_TYPE_GAUGEHISTOGRAM,
 				writev2.Metadata_METRIC_TYPE_INFO,
 				writev2.Metadata_METRIC_TYPE_STATESET:
-				// Drop these series as we will not handle them.
+				badRequestErrors = errors.Join(badRequestErrors, fmt.Errorf("unsupported metric type %q for metric %q", ts.Metadata.Type, metricName))
 				continue
 			}
 			metricCache[metricKey] = metric
@@ -367,14 +369,15 @@ func (prw *prometheusRemoteWriteReceiver) translateV2(_ context.Context, req *wr
 			addNumberDatapoints(metric.Gauge().DataPoints(), ls, ts, &stats)
 		case writev2.Metadata_METRIC_TYPE_COUNTER:
 			addNumberDatapoints(metric.Sum().DataPoints(), ls, ts, &stats)
-		case writev2.Metadata_METRIC_TYPE_SUMMARY,
-			writev2.Metadata_METRIC_TYPE_UNSPECIFIED,
+		case writev2.Metadata_METRIC_TYPE_SUMMARY:
+			// Drop summary series as we will not handle them.
+			continue
+		case writev2.Metadata_METRIC_TYPE_UNSPECIFIED,
 			writev2.Metadata_METRIC_TYPE_HISTOGRAM,
 			writev2.Metadata_METRIC_TYPE_GAUGEHISTOGRAM,
 			writev2.Metadata_METRIC_TYPE_INFO,
 			writev2.Metadata_METRIC_TYPE_STATESET:
-			// Drop these series as we will not handle them.
-			continue
+			badRequestErrors = errors.Join(badRequestErrors, fmt.Errorf("unsupported metric type %q for metric %q", ts.Metadata.Type, metricName))
 		}
 	}
 

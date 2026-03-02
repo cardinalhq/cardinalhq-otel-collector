@@ -60,7 +60,7 @@ func sanitize(name string) string {
 		if isSafe(character) {
 			sanitized.WriteRune(character)
 		} else {
-			sanitized.WriteString(fmt.Sprintf("~%04X", character))
+			fmt.Fprintf(&sanitized, "~%04X", character)
 		}
 	}
 	return sanitized.String()

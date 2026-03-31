@@ -1,6 +1,6 @@
 module github.com/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor
 
-go 1.25.0
+go 1.26
 
 require (
 	github.com/cardinalhq/oteltools v0.32.1

@@ -2,7 +2,7 @@
 
 module go.opentelemetry.io/collector/cmd/builder
 
-go 1.25.7
+go 1.26
 
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector v0.148.0

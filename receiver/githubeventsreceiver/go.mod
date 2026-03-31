@@ -1,6 +1,6 @@
 module github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver
 
-go 1.25.0
+go 1.26
 
 require (
 	github.com/google/go-github/v63 v63.0.0

@@ -19,9 +19,10 @@ builds:
 checksum:
   name_template: "{{ .ProjectName }}_checksums.txt"
 release:
-  disable: true
+  draft: false
+  prerelease: auto
 changelog:
-  disable: true
+  sort: asc
 archives:
   - id: default
     # use the "binary" format so GoReleaser skips creating an archive

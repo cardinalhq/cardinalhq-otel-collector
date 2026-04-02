@@ -8,7 +8,7 @@ on:
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
   # packages: write
   # issues: write
 
@@ -77,4 +77,4 @@ jobs:
           version: "nightly"
           args: release --clean -f .goreleaser-release.yaml
         env:
-          GITHUB_TOKEN: dummy
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

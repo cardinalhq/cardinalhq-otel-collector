@@ -107,15 +107,11 @@ func (chq *chqServerAuth) Authenticate(ctx context.Context, headers map[string][
 	if auth == "" {
 		return ctx, errNoAuthHeader
 	}
-	collectorID := getCollectorFromHeaders(headers)
 
-	envkeys := getEnvFromHeaders(headers)
-
-	authData, err := chq.authenticateAPIKey(ctx, auth, collectorID)
+	authData, err := chq.authenticateAPIKey(ctx, auth)
 	if err != nil {
 		return ctx, err
 	}
-	authData.environment = envkeys
 
 	cl := client.FromContext(ctx)
 	cl.Auth = authData
@@ -123,17 +119,15 @@ func (chq *chqServerAuth) Authenticate(ctx context.Context, headers map[string][
 }
 
 type validateResponse struct {
-	CustomerID    string `json:"customer_id"`
-	CustomerName  string `json:"customer_name"`
-	CollectorID   string `json:"collector_id"`
-	CollectorName string `json:"collector_name"`
-	Valid         bool   `json:"valid"`
+	CustomerID   string `json:"customer_id"`
+	CustomerName string `json:"customer_name"`
+	Valid        bool   `json:"valid"`
 }
 
-func (chq *chqServerAuth) getcache(cacheKey string) (*authData, bool) {
+func (chq *chqServerAuth) getcache(apiKey string) (*authData, bool) {
 	chq.cacheLock.Lock()
 	defer chq.cacheLock.Unlock()
-	ad, ok := chq.lookupCache[cacheKey]
+	ad, ok := chq.lookupCache[apiKey]
 	if !ok {
 		attrs := metric.WithAttributes(attribute.String("cache", "miss"))
 		chq.authCacheLookups.Add(context.Background(), 1, attrs)
@@ -142,7 +136,7 @@ func (chq *chqServerAuth) getcache(cacheKey string) (*authData, bool) {
 	if ad.expiry.Before(time.Now()) {
 		attrs := metric.WithAttributes(attribute.String("cache", "expired"))
 		chq.authCacheLookups.Add(context.Background(), 1, attrs)
-		delete(chq.lookupCache, cacheKey)
+		delete(chq.lookupCache, apiKey)
 		return ad, true
 	}
 	attrs := metric.WithAttributes(attribute.String("cache", "hit"))
@@ -150,19 +144,15 @@ func (chq *chqServerAuth) getcache(cacheKey string) (*authData, bool) {
 	return ad, false
 }
 
-func getCacheKey(apiKey, collectorID string) string {
-	return apiKey + ":" + collectorID
-}
-
 func (chq *chqServerAuth) setcache(ad *authData) {
 	chq.authCacheAdds.Add(context.Background(), 1)
 	chq.cacheLock.Lock()
 	defer chq.cacheLock.Unlock()
-	chq.lookupCache[getCacheKey(ad.apiKey, ad.collectorID)] = ad
+	chq.lookupCache[ad.apiKey] = ad
 }
 
-func (chq *chqServerAuth) authenticateAPIKey(ctx context.Context, apiKey, collectorID string) (*authData, error) {
-	cached, expired := chq.getcache(getCacheKey(apiKey, collectorID))
+func (chq *chqServerAuth) authenticateAPIKey(ctx context.Context, apiKey string) (*authData, error) {
+	cached, expired := chq.getcache(apiKey)
 	if cached != nil && !expired {
 		if !cached.valid {
 			return nil, errDenied
@@ -170,14 +160,13 @@ func (chq *chqServerAuth) authenticateAPIKey(ctx context.Context, apiKey, collec
 		return cached, nil
 	}
 
-	ad, err := chq.callValidateAPI(ctx, apiKey, collectorID)
+	ad, err := chq.callValidateAPI(ctx, apiKey)
 	if err != nil {
 		if errors.Is(err, errDenied) {
 			ad = &authData{
-				apiKey:      apiKey,
-				collectorID: collectorID,
-				valid:       false,
-				expiry:      time.Now().Add(chq.config.ServerAuth.CacheTTLInvalid),
+				apiKey: apiKey,
+				valid:  false,
+				expiry: time.Now().Add(chq.config.ServerAuth.CacheTTLInvalid),
 			}
 			chq.setcache(ad)
 		}
@@ -194,15 +183,12 @@ func (chq *chqServerAuth) authenticateAPIKey(ctx context.Context, apiKey, collec
 	return ad, nil
 }
 
-func (chq *chqServerAuth) callValidateAPI(ctx context.Context, apiKey, collectorID string) (*authData, error) {
+func (chq *chqServerAuth) callValidateAPI(ctx context.Context, apiKey string) (*authData, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, chq.config.ServerAuth.Endpoint, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set(apiKeyHeader, apiKey)
-	if collectorID != "" {
-		req.Header.Set(collectorIDHeader, collectorID)
-	}
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := chq.httpClient.Do(req)
@@ -224,12 +210,10 @@ func (chq *chqServerAuth) callValidateAPI(ctx context.Context, apiKey, collector
 	}
 
 	return &authData{
-		apiKey:        apiKey,
-		customerID:    validateResp.CustomerID,
-		customerName:  validateResp.CustomerName,
-		collectorID:   validateResp.CollectorID,
-		collectorName: validateResp.CollectorName,
-		valid:         validateResp.Valid,
+		apiKey:       apiKey,
+		customerID:   validateResp.CustomerID,
+		customerName: validateResp.CustomerName,
+		valid:        validateResp.Valid,
 	}, nil
 }
 
@@ -244,45 +228,12 @@ func getAuthHeader(targets []string, h map[string][]string) string {
 	return ""
 }
 
-func getCollectorFromHeaders(h map[string][]string) string {
-	for k, v := range h {
-		if strings.EqualFold(k, collectorIDHeader) {
-			return v[0]
-		}
-	}
-	return ""
-}
-
-func getEnvFromHeaders(h map[string][]string) map[string]string {
-	for k, v := range h {
-		if strings.EqualFold(k, envKeyHeader) {
-			return parseEnv(v[0])
-		}
-	}
-	return map[string]string{}
-}
-
-func parseEnv(env string) map[string]string {
-	items := strings.Split(env, ";")
-	envMap := make(map[string]string)
-	for _, item := range items {
-		parts := strings.Split(item, "=")
-		if len(parts) == 2 {
-			envMap[parts[0]] = parts[1]
-		}
-	}
-	return envMap
-}
-
 type authData struct {
-	apiKey        string
-	environment   map[string]string
-	customerID    string
-	customerName  string
-	collectorID   string
-	collectorName string
-	valid         bool
-	expiry        time.Time
+	apiKey       string
+	customerID   string
+	customerName string
+	valid        bool
+	expiry       time.Time
 }
 
 var _ client.AuthData = (*authData)(nil)
@@ -291,16 +242,10 @@ func (a *authData) GetAttribute(name string) any {
 	switch name {
 	case "api_key":
 		return a.apiKey
-	case "environment":
-		return a.environment
 	case "customer_id":
 		return a.customerID
 	case "customer_name":
 		return a.customerName
-	case "collector_id":
-		return a.collectorID
-	case "collector_name":
-		return a.collectorName
 	case "valid":
 		return a.valid
 	default:
@@ -309,5 +254,5 @@ func (a *authData) GetAttribute(name string) any {
 }
 
 func (a *authData) GetAttributeNames() []string {
-	return []string{"api_key", "environment", "customer_id", "customer_name", "collector_id", "collector_name", "valid"}
+	return []string{"api_key", "customer_id", "customer_name", "valid"}
 }

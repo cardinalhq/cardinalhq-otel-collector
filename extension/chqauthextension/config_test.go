@@ -87,106 +87,6 @@ func TestServerAuth_Validate(t *testing.T) {
 		})
 	}
 }
-func TestSanitizeKey(t *testing.T) {
-	tests := []struct {
-		name     string
-		key      string
-		expected string
-	}{
-		{
-			"valid key",
-			"abc",
-			"abc",
-		},
-		{
-			"incalid due to upppercase",
-			"AbC",
-			"",
-		},
-		{
-			"invalid due to numbers",
-			"abc123",
-			"",
-		},
-		{
-			"invalid key with uppercase",
-			"AbC123",
-			"",
-		},
-		{
-			"key with special characters",
-			"abc_123",
-			"",
-		},
-		{
-			"key with spaces",
-			"abc 123",
-			"",
-		},
-		{
-			"key_with_symbols",
-			"abc_foo",
-			"abc_foo",
-		},
-		{
-			"empty key",
-			"",
-			"",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := sanitizeKey(tt.key)
-			if result != tt.expected {
-				t.Errorf("Expected sanitized key %s, got %s", tt.expected, result)
-			}
-		})
-	}
-}
-
-func TestSanitizeValue(t *testing.T) {
-	tests := []struct {
-		name     string
-		value    string
-		expected string
-	}{
-		{
-			"valid value",
-			"abc",
-			"abc",
-		},
-		{
-			"value with symbols",
-			"abc_-./@:,123",
-			"abc_-./@:,123",
-		},
-		{
-			"valid value with spaces",
-			"abc 123",
-			"",
-		},
-		{
-			"invalid value with non-printable characters",
-			"abc\x00",
-			"",
-		},
-		{
-			"empty value",
-			"",
-			"",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := sanitizeValue(tt.value)
-			if result != tt.expected {
-				t.Errorf("Expected sanitized value %s, got %s", tt.expected, result)
-			}
-		})
-	}
-}
 
 func TestConfig_Validate(t *testing.T) {
 	tests := []struct {
@@ -199,20 +99,12 @@ func TestConfig_Validate(t *testing.T) {
 			"valid client auth",
 			&Config{
 				ClientAuth: &ClientAuth{
-					APIKey:      "key",
-					CollectorID: "collector1",
-					Environment: map[string]string{
-						"markus": "value1",
-					},
+					APIKey: "key",
 				},
 			},
 			&Config{
 				ClientAuth: &ClientAuth{
-					APIKey:      "key",
-					CollectorID: "collector1",
-					Environment: map[string]string{
-						"markus": "value1",
-					},
+					APIKey: "key",
 				},
 			},
 			nil,
@@ -227,8 +119,7 @@ func TestConfig_Validate(t *testing.T) {
 			"both auth config",
 			&Config{
 				ClientAuth: &ClientAuth{
-					APIKey:      "key",
-					CollectorID: "collector1",
+					APIKey: "key",
 				},
 				ServerAuth: &ServerAuth{
 					ClientConfig: confighttp.ClientConfig{
@@ -238,8 +129,7 @@ func TestConfig_Validate(t *testing.T) {
 			},
 			&Config{
 				ClientAuth: &ClientAuth{
-					APIKey:      "key",
-					CollectorID: "collector1",
+					APIKey: "key",
 				},
 				ServerAuth: &ServerAuth{
 					ClientConfig: confighttp.ClientConfig{
@@ -260,12 +150,6 @@ func TestConfig_Validate(t *testing.T) {
 			if tt.config.ClientAuth != nil {
 				if tt.config.ClientAuth.APIKey != tt.expected.ClientAuth.APIKey {
 					t.Errorf("Expected APIKey %s, got %s", tt.expected.ClientAuth.APIKey, tt.config.ClientAuth.APIKey)
-				}
-				if tt.config.ClientAuth.CollectorID != tt.expected.ClientAuth.CollectorID {
-					t.Errorf("Expected CollectorID %s, got %s", tt.expected.ClientAuth.CollectorID, tt.config.ClientAuth.CollectorID)
-				}
-				if len(tt.config.ClientAuth.Environment) != len(tt.expected.ClientAuth.Environment) {
-					t.Errorf("Expected Environment %v, got %v", tt.expected.ClientAuth.Environment, tt.config.ClientAuth.Environment)
 				}
 			}
 			if tt.config.ServerAuth != nil {
@@ -293,18 +177,10 @@ func TestClientAuth_Validate(t *testing.T) {
 		{
 			"valid",
 			&ClientAuth{
-				APIKey:      "key",
-				CollectorID: "collector1",
-				Environment: map[string]string{
-					"markus": "value1",
-				},
+				APIKey: "key",
 			},
 			&ClientAuth{
-				APIKey:      "key",
-				CollectorID: "collector1",
-				Environment: map[string]string{
-					"markus": "value1",
-				},
+				APIKey: "key",
 			},
 			nil,
 		},
@@ -318,42 +194,6 @@ func TestClientAuth_Validate(t *testing.T) {
 			},
 			errNoClientAPIKey,
 		},
-		{
-			"invalid environment key",
-			&ClientAuth{
-				APIKey:      "key",
-				CollectorID: "collector1",
-				Environment: map[string]string{
-					"markus1": "value1",
-				},
-			},
-			&ClientAuth{
-				APIKey:      "key",
-				CollectorID: "collector1",
-				Environment: map[string]string{
-					"markus1": "value1",
-				},
-			},
-			errBadEnvironmentKey,
-		},
-		{
-			"invalid environment value",
-			&ClientAuth{
-				APIKey:      "key",
-				CollectorID: "collector1",
-				Environment: map[string]string{
-					"markus": "value\x00",
-				},
-			},
-			&ClientAuth{
-				APIKey:      "key",
-				CollectorID: "collector1",
-				Environment: map[string]string{
-					"markus": "value\x00",
-				},
-			},
-			errBadEnvironmentValue,
-		},
 	}
 
 	for _, tt := range tests {
@@ -364,12 +204,6 @@ func TestClientAuth_Validate(t *testing.T) {
 			}
 			if tt.config.APIKey != tt.expected.APIKey {
 				t.Errorf("Expected APIKey %s, got %s", tt.expected.APIKey, tt.config.APIKey)
-			}
-			if tt.config.CollectorID != tt.expected.CollectorID {
-				t.Errorf("Expected CollectorID %s, got %s", tt.expected.CollectorID, tt.config.CollectorID)
-			}
-			if len(tt.config.Environment) != len(tt.expected.Environment) {
-				t.Errorf("Expected Environment %v, got %v", tt.expected.Environment, tt.config.Environment)
 			}
 		})
 	}

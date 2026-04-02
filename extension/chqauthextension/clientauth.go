@@ -17,7 +17,6 @@ package chqauthextension
 import (
 	"context"
 	"net/http"
-	"strings"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/extension"
@@ -31,7 +30,6 @@ type chqClientAuth struct {
 
 	config   *ClientAuth
 	insecure bool
-	env      map[string]string
 }
 
 var (
@@ -44,16 +42,13 @@ func newClientAuthExtension(cfg *Config, _ extension.Settings) (*chqClientAuth, 
 	chq := chqClientAuth{
 		config:   cfg.ClientAuth,
 		insecure: cfg.ClientAuth.Insecure,
-		env:      cfg.ClientAuth.Environment,
 	}
 	return &chq, nil
 }
 
 type chqRoundTripper struct {
-	base        http.RoundTripper
-	apiKey      string
-	collectorID string
-	env         map[string]string
+	base   http.RoundTripper
+	apiKey string
 }
 
 func (chq *chqClientAuth) RoundTripper(base http.RoundTripper) (http.RoundTripper, error) {
@@ -61,20 +56,14 @@ func (chq *chqClientAuth) RoundTripper(base http.RoundTripper) (http.RoundTrippe
 		return base, nil
 	}
 	return &chqRoundTripper{
-		base:        base,
-		apiKey:      chq.config.APIKey,
-		collectorID: chq.config.CollectorID,
-		env:         chq.env,
+		base:   base,
+		apiKey: chq.config.APIKey,
 	}, nil
 }
 
 func (c *chqRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	newReq := req.Clone(req.Context())
 	newReq.Header.Set(apiKeyHeader, c.apiKey)
-	if c.collectorID != "" {
-		newReq.Header.Set(collectorIDHeader, c.collectorID)
-	}
-	newReq.Header.Set(envKeyHeader, encodeEnv(c.env))
 	return c.base.RoundTrip(newReq)
 }
 
@@ -87,24 +76,10 @@ func (chq *chqClientAuth) PerRPCCredentials() (creds.PerRPCCredentials, error) {
 	metadata := map[string]string{
 		apiKeyHeader: chq.config.APIKey,
 	}
-	if chq.config.CollectorID != "" {
-		metadata[collectorIDHeader] = chq.config.CollectorID
-	}
-	if len(chq.env) > 0 {
-		metadata[envKeyHeader] = encodeEnv(chq.env)
-	}
 	return &chqPerRPCAuth{
 		metadata: metadata,
 		insecure: chq.config.Insecure,
 	}, nil
-}
-
-func encodeEnv(env map[string]string) string {
-	var items []string
-	for k, v := range env {
-		items = append(items, k+"="+v)
-	}
-	return strings.Join(items, ";")
 }
 
 func (c *chqPerRPCAuth) GetRequestMetadata(_ context.Context, _ ...string) (map[string]string, error) {

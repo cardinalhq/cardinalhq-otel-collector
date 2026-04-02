@@ -29,10 +29,8 @@ type ServerAuth struct {
 }
 
 type ClientAuth struct {
-	APIKey      string            `mapstructure:"api_key"`
-	CollectorID string            `mapstructure:"collector_id"`
-	Insecure    bool              `mapstructure:"insecure"`
-	Environment map[string]string `mapstructure:"environment"`
+	APIKey   string `mapstructure:"api_key"`
+	Insecure bool   `mapstructure:"insecure"`
 }
 
 type Config struct {
@@ -50,8 +48,6 @@ var (
 	errNoAuthConfig        = errors.New("one of client_auth.api_key or server_auth.endpoint must be set")
 	errDuplicateAuthConfig = errors.New("only one of client_auth.api_key or server_auth.endpoint can be set")
 	errNoClientAPIKey      = errors.New("client_auth.api_key must be set")
-	errBadEnvironmentKey   = errors.New("environment key contains invalid characters: only lowercase letters and _ are allowed")
-	errBadEnvironmentValue = errors.New("environment value contains invalid characters: only alphanumeric characters and _-.@:/, are allowed")
 )
 
 var defaultHeaders = []string{
@@ -83,15 +79,6 @@ func (cfg *ClientAuth) Validate() error {
 		return errNoClientAPIKey
 	}
 
-	for k, v := range cfg.Environment {
-		if sanitizeKey(k) != k {
-			return errBadEnvironmentKey
-		}
-		if sanitizeValue(v) != v {
-			return errBadEnvironmentValue
-		}
-	}
-
 	return nil
 }
 
@@ -110,27 +97,4 @@ func (cfg *ServerAuth) Validate() error {
 		cfg.Headers = defaultHeaders
 	}
 	return nil
-}
-
-// allow only lowercase letterrs and _
-func sanitizeKey(key string) string {
-	for _, c := range key {
-		if (c < 'a' || c > 'z') && c != '_' {
-			return ""
-		}
-	}
-	return key
-}
-
-// allow uppercase and lowercase letters, numbers, and _-.@:/,
-func sanitizeValue(value string) string {
-	for _, c := range value {
-		if (c < 'a' || c > 'z') &&
-			(c < 'A' || c > 'Z') &&
-			(c < '0' || c > '9') &&
-			c != '_' && c != '-' && c != '.' && c != '@' && c != ':' && c != '/' && c != ',' {
-			return ""
-		}
-	}
-	return value
 }

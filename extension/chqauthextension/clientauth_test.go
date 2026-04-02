@@ -13,25 +13,3 @@
 // limitations under the License.
 
 package chqauthextension
-
-import (
-	"strings"
-	"testing"
-
-	"github.com/stretchr/testify/assert"
-)
-
-func TestEncodeEnv(t *testing.T) {
-	env := map[string]string{
-		"key1": "value1",
-		"key2": "value2",
-		"key3": "value3",
-	}
-
-	expected := "key1=value1;key2=value2;key3=value3"
-	result := encodeEnv(env)
-
-	retSplit := strings.Split(result, ";")
-	expSplit := strings.Split(expected, ";")
-	assert.ElementsMatch(t, retSplit, expSplit)
-}

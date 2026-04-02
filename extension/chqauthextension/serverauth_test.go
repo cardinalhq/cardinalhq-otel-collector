@@ -111,16 +111,14 @@ func TestSetCache(t *testing.T) {
 	}
 
 	chq.setcache(ad)
-	assert.Equal(t, ad, chq.lookupCache[getCacheKey(ad.apiKey, ad.collectorID)])
+	assert.Equal(t, ad, chq.lookupCache[ad.apiKey])
 }
 
 func TestGetAttribute(t *testing.T) {
 	ad := &authData{
 		apiKey:       "key1",
-		environment:  map[string]string{"env1": "value1"},
 		customerID:   "client1",
 		customerName: "John Doe",
-		collectorID:  "collector1",
 		valid:        true,
 		expiry:       time.Now().Add(time.Hour),
 	}
@@ -134,20 +132,12 @@ func TestGetAttribute(t *testing.T) {
 			"key1",
 		},
 		{
-			"environment",
-			map[string]string{"env1": "value1"},
-		},
-		{
 			"customer_id",
 			"client1",
 		},
 		{
 			"customer_name",
 			"John Doe",
-		},
-		{
-			"collector_id",
-			"collector1",
 		},
 		{
 			"valid",
@@ -168,7 +158,7 @@ func TestGetAttribute(t *testing.T) {
 
 func TestGetAttributeNames(t *testing.T) {
 	ad := &authData{}
-	expected := []string{"api_key", "environment", "customer_id", "customer_name", "collector_id", "collector_name", "valid"}
+	expected := []string{"api_key", "customer_id", "customer_name", "valid"}
 	names := ad.GetAttributeNames()
 	assert.ElementsMatch(t, expected, names)
 }
@@ -182,13 +172,13 @@ func TestGetAuthHeader(t *testing.T) {
 	}{
 		{
 			"no header",
-			[]string{apiKeyHeader, collectorIDHeader, envKeyHeader},
+			[]string{apiKeyHeader},
 			map[string][]string{},
 			"",
 		},
 		{
 			"header not found",
-			[]string{apiKeyHeader, collectorIDHeader, envKeyHeader},
+			[]string{apiKeyHeader},
 			map[string][]string{
 				"Content-Type": {"application/json"},
 			},
@@ -196,7 +186,7 @@ func TestGetAuthHeader(t *testing.T) {
 		},
 		{
 			"header found",
-			[]string{apiKeyHeader, collectorIDHeader, envKeyHeader},
+			[]string{apiKeyHeader},
 			map[string][]string{
 				"x-cardinalhq-api-key": {"my-api-key"},
 				"Content-Type":         {"application/json"},
@@ -205,7 +195,7 @@ func TestGetAuthHeader(t *testing.T) {
 		},
 		{
 			"case insensitive",
-			[]string{apiKeyHeader, collectorIDHeader, envKeyHeader},
+			[]string{apiKeyHeader},
 			map[string][]string{
 				"X-CARDINALHQ-API-KEY": {"my-api-key"},
 				"Content-Type":         {"application/json"},
@@ -218,58 +208,6 @@ func TestGetAuthHeader(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			authHeader := getAuthHeader(tt.targets, tt.headers)
 			assert.Equal(t, tt.expected, authHeader)
-		})
-	}
-}
-
-func TestGetEnvFromHeaders(t *testing.T) {
-	tests := []struct {
-		name     string
-		headers  map[string][]string
-		expected map[string]string
-	}{
-		{
-			"no headers",
-			map[string][]string{},
-			map[string]string{},
-		},
-		{
-			"no env headers",
-			map[string][]string{
-				"Content-Type": {"application/json"},
-			},
-			map[string]string{},
-		},
-		{
-			"single env header",
-			map[string][]string{
-				"x-cardinalhq-environment": {"bar=bax"},
-				"Content-Type":             {"application/json"},
-			},
-			map[string]string{"bar": "bax"},
-		},
-		{
-			"multiple env headers",
-			map[string][]string{
-				"x-cardinalhq-environment": {"foo=bar;baz=qux"},
-				"Content-Type":             {"application/json"},
-			},
-			map[string]string{"foo": "bar", "baz": "qux"},
-		},
-		{
-			"case insensitive",
-			map[string][]string{
-				"X-CARDINALHQ-ENVIRONmenT": {"foo=bar"},
-				"Content-Type":             {"application/json"},
-			},
-			map[string]string{"foo": "bar"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			env := getEnvFromHeaders(tt.headers)
-			assert.Equal(t, tt.expected, env)
 		})
 	}
 }

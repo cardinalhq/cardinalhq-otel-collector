@@ -29,7 +29,6 @@ exporters:
       endpoint: "https://stats-receiver.global.aws.cardinalhq.io"
       headers:
         x-cardinalhq-api-key: ${env:CARDINAL_API_KEY}
-        x-cardinalhq-collector-id: ${env:CARDINAL_COLLECTOR_ID}
 ```
 
 When sending this data to Cardinal for Chip AI, these values can be obtained through the

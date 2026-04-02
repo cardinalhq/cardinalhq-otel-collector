@@ -23,7 +23,7 @@ func main() {
 	info := component.BuildInfo{
 		Command:     "cardinalhq-otel-collector",
 		Description: "",
-		Version:     "v0.145.0-chq",
+		Version:     "v0.148.0-chq",
 	}
 
 	set := otelcol.CollectorSettings{
@@ -49,17 +49,17 @@ func main() {
 			httpprovider.NewFactory().Create(confmap.ProviderSettings{}).Scheme(): "go.opentelemetry.io/collector/confmap/provider/httpprovider v1.51.0",
 			httpsprovider.NewFactory().Create(confmap.ProviderSettings{}).Scheme(): "go.opentelemetry.io/collector/confmap/provider/httpsprovider v1.51.0",
 			yamlprovider.NewFactory().Create(confmap.ProviderSettings{}).Scheme(): "go.opentelemetry.io/collector/confmap/provider/yamlprovider v1.51.0",
-			aesprovider.NewFactory().Create(confmap.ProviderSettings{}).Scheme(): "github.com/open-telemetry/opentelemetry-collector-contrib/confmap/provider/aesprovider v0.145.0",
-			s3provider.NewFactory().Create(confmap.ProviderSettings{}).Scheme(): "github.com/open-telemetry/opentelemetry-collector-contrib/confmap/provider/s3provider v0.145.0",
-			secretsmanagerprovider.NewFactory().Create(confmap.ProviderSettings{}).Scheme(): "github.com/open-telemetry/opentelemetry-collector-contrib/confmap/provider/secretsmanagerprovider v0.145.0",
-    	},
+			aesprovider.NewFactory().Create(confmap.ProviderSettings{}).Scheme(): "github.com/open-telemetry/opentelemetry-collector-contrib/confmap/provider/aesprovider v0.148.0",
+			s3provider.NewFactory().Create(confmap.ProviderSettings{}).Scheme(): "github.com/open-telemetry/opentelemetry-collector-contrib/confmap/provider/s3provider v0.148.0",
+			secretsmanagerprovider.NewFactory().Create(confmap.ProviderSettings{}).Scheme(): "github.com/open-telemetry/opentelemetry-collector-contrib/confmap/provider/secretsmanagerprovider v0.148.0",
+		},
 		ConverterModules: []string{
 		},
 	}
 
 	if err := run(set); err != nil {
-	 // The error message is logged by cobra, so we intentionally
-    // avoid logging it again here to prevent duplicate output.
+		// The error message is logged by cobra, so we intentionally
+		// avoid logging it again here to prevent duplicate output.
 		os.Exit(1)
 	}
 }

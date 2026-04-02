@@ -13,7 +13,7 @@
 # limitations under the License.
 
 TARGETS=bin/cardinalhq-otel-collector
-OTEL_VERSION=v0.145.0
+OTEL_VERSION=v0.148.0
 
 #
 # Build targets.  Adding to these will cause magic to occur.
@@ -62,7 +62,7 @@ fmt:
 .PHONY: check
 check: test license-check lint
 
-bin/license-eye bin/goreleaser: scripts/install-dev-tools.sh
+bin/license-eye bin/goreleaser bin/golangci-lint: scripts/install-dev-tools.sh
 	./scripts/install-dev-tools.sh
 
 .PHONY: license-check
@@ -70,9 +70,9 @@ license-check: tidy-dot bin/license-eye
 	./bin/license-eye header check
 
 .PHONY: lint
-lint:
+lint: bin/golangci-lint
 	for i in $(MODULE_SOURCE_PATHS); do \
-	  (echo ============ linting $$i ... ; cd $$i && golangci-lint run --config ${CURRENT_DIR}/.golangci.yaml) || exit 1; \
+	  (echo ============ linting $$i ... ; cd $$i && ${CURRENT_DIR}/bin/golangci-lint run --config ${CURRENT_DIR}/.golangci.yaml) || exit 1; \
 	done
 
 .PHONY: update-deps

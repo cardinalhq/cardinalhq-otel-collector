@@ -93,7 +93,7 @@ go test -v ./...
 - **License**: All files require Apache 2.0 license headers (checked by license-eye)
 - **Builder Config**: cardinalhq-otel-collector.yaml defines which components to include
 - **Go Version**: Requires Go 1.25.0
-- **OpenTelemetry Version**: Based on v0.145.0
+- **OpenTelemetry Version**: Based on v0.148.0
 
 ## Key Dependencies
 

@@ -163,16 +163,20 @@ func (chq *chqServerAuth) authenticateAPIKey(ctx context.Context, apiKey string)
 	ad, err := chq.callValidateAPI(ctx, apiKey)
 	if err != nil {
 		if errors.Is(err, errDenied) {
-			ad = &authData{
+			chq.setcache(&authData{
 				apiKey: apiKey,
 				valid:  false,
 				expiry: time.Now().Add(chq.config.ServerAuth.CacheTTLInvalid),
-			}
-			chq.setcache(ad)
+			})
+			// A definitive denial must never fall back to a previously
+			// cached valid entry — that would let a revoked key keep
+			// authenticating as its former customer for one more TTL
+			// boundary crossing.
+			return nil, errDenied
 		}
 
-		// we have any error that isn't a definitive denial, we
-		// will return our perhaps expired cache entry
+		// Transient error (network, 5xx, parse): fall back to the last
+		// known cached entry if we have one, to preserve availability.
 		if cached != nil {
 			return cached, nil
 		}
@@ -207,6 +211,17 @@ func (chq *chqServerAuth) callValidateAPI(ctx context.Context, apiKey string) (*
 	var validateResp validateResponse
 	if err := json.NewDecoder(resp.Body).Decode(&validateResp); err != nil {
 		return nil, err
+	}
+
+	// A response must positively assert validity and carry a non-empty
+	// customer_id before we treat it as an authenticated identity.
+	// Without this, a 200 OK carrying {"valid":true,"customer_id":""}
+	// (or {"valid":false,...}) would be accepted, cached under the
+	// valid-TTL, and every downstream request would flow with an empty
+	// tenant — resulting in data written to paths that lack a customer
+	// UUID segment.
+	if !validateResp.Valid || validateResp.CustomerID == "" {
+		return nil, errDenied
 	}
 
 	return &authData{

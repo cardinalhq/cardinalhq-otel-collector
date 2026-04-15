@@ -15,10 +15,17 @@
 package chqauthextension
 
 import (
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/otel/metric/noop"
 )
 
@@ -211,3 +218,156 @@ func TestGetAuthHeader(t *testing.T) {
 		})
 	}
 }
+// newchqWithServer returns a chqServerAuth wired against a mock validator
+// whose JSON body is controlled by the test. The returned cleanup closes
+// the server.
+func newchqWithServer(t *testing.T, handler http.HandlerFunc) (*chqServerAuth, *httptest.Server) {
+	t.Helper()
+	srv := httptest.NewServer(handler)
+
+	chq := newchq()
+	chq.config = &Config{ServerAuth: &ServerAuth{
+		ClientConfig:    confighttp.ClientConfig{Endpoint: srv.URL},
+		CacheTTLValid:   10 * time.Minute,
+		CacheTTLInvalid: 1 * time.Minute,
+		Headers:         []string{"x-cardinalhq-api-key"},
+	}}
+	chq.httpClient = srv.Client()
+	return chq, srv
+}
+
+func TestCallValidateAPI_RejectsInvalidOrEmptyCustomer(t *testing.T) {
+	tests := []struct {
+		name       string
+		status     int
+		body       string
+		wantDenied bool
+	}{
+		{
+			name:       "valid=true with customer_id is accepted",
+			status:     http.StatusOK,
+			body:       `{"valid":true,"customer_id":"cust-1","customer_name":"n","collector_id":"col","collector_name":"cn"}`,
+			wantDenied: false,
+		},
+		{
+			name:       "valid=true but empty customer_id is denied",
+			status:     http.StatusOK,
+			body:       `{"valid":true,"customer_id":""}`,
+			wantDenied: true,
+		},
+		{
+			name:       "valid=false with 200 OK is denied",
+			status:     http.StatusOK,
+			body:       `{"valid":false,"customer_id":"cust-1"}`,
+			wantDenied: true,
+		},
+		{
+			name:       "valid=false and empty customer_id is denied",
+			status:     http.StatusOK,
+			body:       `{"valid":false,"customer_id":""}`,
+			wantDenied: true,
+		},
+		{
+			name:       "non-200 is denied",
+			status:     http.StatusForbidden,
+			body:       ``,
+			wantDenied: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			chq, srv := newchqWithServer(t, func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(tt.status)
+				_, _ = w.Write([]byte(tt.body))
+			})
+			defer srv.Close()
+
+			ad, err := chq.callValidateAPI(context.Background(), "key")
+			if tt.wantDenied {
+				assert.Nil(t, ad)
+				assert.ErrorIs(t, err, errDenied)
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, ad)
+			assert.Equal(t, "cust-1", ad.customerID)
+			assert.True(t, ad.valid)
+		})
+	}
+}
+
+func TestAuthenticateAPIKey_RevokedKeyDoesNotReturnStaleCache(t *testing.T) {
+	// This test guards against a regression where a revoked key, after
+	// the cached entry expired, would be re-authenticated as the old
+	// customer for one more TTL-boundary crossing.
+	var denyNext atomic.Bool
+	chq, srv := newchqWithServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		if denyNext.Load() {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"valid":true,"customer_id":"cust-1","collector_id":"col"}`))
+	})
+	defer srv.Close()
+
+	// First call: populate cache with a valid entry.
+	ad, err := chq.authenticateAPIKey(context.Background(), "key")
+	require.NoError(t, err)
+	require.NotNil(t, ad)
+	assert.Equal(t, "cust-1", ad.customerID)
+
+	// Force the cached entry to look expired.
+	chq.cacheLock.Lock()
+	chq.lookupCache["key"].expiry = time.Now().Add(-time.Second)
+	chq.cacheLock.Unlock()
+
+	// Validator now denies the key (revoked).
+	denyNext.Store(true)
+
+	// Second call must return errDenied, not the previously valid authData.
+	ad2, err := chq.authenticateAPIKey(context.Background(), "key")
+	assert.Nil(t, ad2)
+	assert.True(t, errors.Is(err, errDenied), "expected errDenied, got %v", err)
+
+	// And the cache must now hold a valid=false entry so future calls
+	// within the invalid TTL are rejected without hitting the validator.
+	chq.cacheLock.Lock()
+	neg, ok := chq.lookupCache["key"]
+	chq.cacheLock.Unlock()
+	require.True(t, ok, "expected a negative cache entry after denial")
+	assert.False(t, neg.valid)
+}
+
+func TestAuthenticateAPIKey_TransientErrorFallsBackToCache(t *testing.T) {
+	// Verifies that genuine transient errors (network failures,
+	// parse errors) still allow the last-known cached entry to
+	// serve the request — the availability trade-off is retained.
+	// Note: the current implementation treats any non-200 as
+	// errDenied, so only connection-level failures exercise this
+	// branch.
+	chq, srv := newchqWithServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"valid":true,"customer_id":"cust-1","collector_id":"col"}`))
+	})
+
+	ad, err := chq.authenticateAPIKey(context.Background(), "key")
+	require.NoError(t, err)
+	require.NotNil(t, ad)
+
+	// Expire the cached entry.
+	chq.cacheLock.Lock()
+	chq.lookupCache["key"].expiry = time.Now().Add(-time.Second)
+	chq.cacheLock.Unlock()
+
+	// Take the validator offline — httpClient.Do will surface a
+	// non-errDenied error, which must fall back to the cached entry.
+	srv.Close()
+
+	ad2, err := chq.authenticateAPIKey(context.Background(), "key")
+	require.NoError(t, err)
+	require.NotNil(t, ad2)
+	assert.Equal(t, "cust-1", ad2.customerID)
+}
+

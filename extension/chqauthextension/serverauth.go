@@ -178,8 +178,12 @@ func (chq *chqServerAuth) authenticateAPIKey(ctx context.Context, apiKey string)
 		// Transient error (network, 5xx, parse): fall back to the last
 		// known cached entry if we have one, to preserve availability.
 		if cached != nil {
+			chq.logger.Warn("auth validator transient failure; serving expired cache entry",
+				zap.Error(err))
 			return cached, nil
 		}
+		chq.logger.Warn("auth validator transient failure; no cache available",
+			zap.Error(err))
 		return nil, err
 	}
 	ad.expiry = time.Now().Add(chq.config.ServerAuth.CacheTTLValid)
@@ -221,6 +225,11 @@ func (chq *chqServerAuth) callValidateAPI(ctx context.Context, apiKey string) (*
 	// tenant — resulting in data written to paths that lack a customer
 	// UUID segment.
 	if !validateResp.Valid || validateResp.CustomerID == "" {
+		if validateResp.Valid && validateResp.CustomerID == "" {
+			// Upstream contract violation: treated as a denial below, but
+			// log it distinctly so it doesn't masquerade as a normal revocation.
+			chq.logger.Error("auth validator returned valid=true with empty customer_id")
+		}
 		return nil, errDenied
 	}
 

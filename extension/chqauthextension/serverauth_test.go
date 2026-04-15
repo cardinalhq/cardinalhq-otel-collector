@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/otel/metric/noop"
+	"go.uber.org/zap"
 )
 
 func newchq() *chqServerAuth {
@@ -35,6 +36,7 @@ func newchq() *chqServerAuth {
 	cam, _ := m.Int64Counter("auth_cache_adds")
 
 	chq := &chqServerAuth{
+		logger:           zap.NewNop(),
 		lookupCache:      make(map[string]*authData),
 		authCacheLookups: clm,
 		authCacheAdds:    cam,
@@ -297,12 +299,26 @@ func TestCallValidateAPI_RejectsInvalidOrEmptyCustomer(t *testing.T) {
 	}
 }
 
+// expireCacheEntry replaces the cached entry for the given key with a
+// copy whose expiry is in the past, without mutating a pointer that may
+// be shared with concurrent readers.
+func expireCacheEntry(t *testing.T, chq *chqServerAuth, key string) {
+	t.Helper()
+	chq.cacheLock.Lock()
+	entry := *chq.lookupCache[key]
+	chq.cacheLock.Unlock()
+	entry.expiry = time.Now().Add(-time.Second)
+	chq.setcache(&entry)
+}
+
 func TestAuthenticateAPIKey_RevokedKeyDoesNotReturnStaleCache(t *testing.T) {
 	// This test guards against a regression where a revoked key, after
 	// the cached entry expired, would be re-authenticated as the old
 	// customer for one more TTL-boundary crossing.
 	var denyNext atomic.Bool
+	var validatorHits atomic.Int32
 	chq, srv := newchqWithServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		validatorHits.Add(1)
 		if denyNext.Load() {
 			w.WriteHeader(http.StatusForbidden)
 			return
@@ -318,10 +334,7 @@ func TestAuthenticateAPIKey_RevokedKeyDoesNotReturnStaleCache(t *testing.T) {
 	require.NotNil(t, ad)
 	assert.Equal(t, "cust-1", ad.customerID)
 
-	// Force the cached entry to look expired.
-	chq.cacheLock.Lock()
-	chq.lookupCache["key"].expiry = time.Now().Add(-time.Second)
-	chq.cacheLock.Unlock()
+	expireCacheEntry(t, chq, "key")
 
 	// Validator now denies the key (revoked).
 	denyNext.Store(true)
@@ -337,6 +350,36 @@ func TestAuthenticateAPIKey_RevokedKeyDoesNotReturnStaleCache(t *testing.T) {
 	neg, ok := chq.lookupCache["key"]
 	chq.cacheLock.Unlock()
 	require.True(t, ok, "expected a negative cache entry after denial")
+	assert.False(t, neg.valid)
+
+	hitsAfterDenial := validatorHits.Load()
+
+	// Third call within the invalid TTL must be served from the negative
+	// cache without another validator request.
+	ad3, err := chq.authenticateAPIKey(context.Background(), "key")
+	assert.Nil(t, ad3)
+	assert.True(t, errors.Is(err, errDenied), "expected errDenied from negative cache, got %v", err)
+	assert.Equal(t, hitsAfterDenial, validatorHits.Load(),
+		"negative cache must short-circuit the validator")
+}
+
+func TestAuthenticateAPIKey_EmptyCustomerIDIsDenied(t *testing.T) {
+	// End-to-end: a 200 OK response with an empty customer_id must be
+	// treated as a denial and cached under the invalid TTL.
+	chq, srv := newchqWithServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"valid":true,"customer_id":""}`))
+	})
+	defer srv.Close()
+
+	ad, err := chq.authenticateAPIKey(context.Background(), "key")
+	assert.Nil(t, ad)
+	assert.True(t, errors.Is(err, errDenied), "expected errDenied, got %v", err)
+
+	chq.cacheLock.Lock()
+	neg, ok := chq.lookupCache["key"]
+	chq.cacheLock.Unlock()
+	require.True(t, ok, "expected a negative cache entry")
 	assert.False(t, neg.valid)
 }
 
@@ -356,10 +399,7 @@ func TestAuthenticateAPIKey_TransientErrorFallsBackToCache(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, ad)
 
-	// Expire the cached entry.
-	chq.cacheLock.Lock()
-	chq.lookupCache["key"].expiry = time.Now().Add(-time.Second)
-	chq.cacheLock.Unlock()
+	expireCacheEntry(t, chq, "key")
 
 	// Take the validator offline — httpClient.Do will surface a
 	// non-errDenied error, which must fall back to the cached entry.

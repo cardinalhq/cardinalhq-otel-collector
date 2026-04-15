@@ -20,6 +20,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -51,7 +52,13 @@ type chqServerAuth struct {
 	httpClientSettings confighttp.ClientConfig
 	authCacheLookups   metric.Int64Counter
 	authCacheAdds      metric.Int64Counter
+
+	debugLogInvalidKeys   bool
+	invalidKeyLogLock     sync.Mutex
+	invalidKeyLogLastSeen map[string]time.Time
 }
+
+const invalidKeyLogInterval = 5 * time.Minute
 
 var (
 	_ extension.Extension  = (*chqServerAuth)(nil)
@@ -81,11 +88,13 @@ func (chq *chqServerAuth) setupServerTelemetry(params extension.Settings) error 
 
 func newServerAuthExtension(cfg *Config, params extension.Settings) (*chqServerAuth, error) {
 	chq := chqServerAuth{
-		config:             cfg,
-		httpClientSettings: cfg.ServerAuth.ClientConfig,
-		telemetrySettings:  params.TelemetrySettings,
-		logger:             params.Logger,
-		lookupCache:        make(map[string]*authData),
+		config:                cfg,
+		httpClientSettings:    cfg.ServerAuth.ClientConfig,
+		telemetrySettings:     params.TelemetrySettings,
+		logger:                params.Logger,
+		lookupCache:           make(map[string]*authData),
+		debugLogInvalidKeys:   strings.EqualFold(os.Getenv("CHQAUTH_SERVER_DEBUG"), "true"),
+		invalidKeyLogLastSeen: make(map[string]time.Time),
 	}
 	if err := chq.setupServerTelemetry(params); err != nil {
 		return nil, err
@@ -151,10 +160,27 @@ func (chq *chqServerAuth) setcache(ad *authData) {
 	chq.lookupCache[ad.apiKey] = ad
 }
 
+func (chq *chqServerAuth) maybeLogInvalidKey(apiKey string) {
+	if !chq.debugLogInvalidKeys {
+		return
+	}
+	chq.invalidKeyLogLock.Lock()
+	now := time.Now()
+	last, ok := chq.invalidKeyLogLastSeen[apiKey]
+	if ok && now.Sub(last) < invalidKeyLogInterval {
+		chq.invalidKeyLogLock.Unlock()
+		return
+	}
+	chq.invalidKeyLogLastSeen[apiKey] = now
+	chq.invalidKeyLogLock.Unlock()
+	chq.logger.Info("invalid API key attempted", zap.String("api_key", apiKey))
+}
+
 func (chq *chqServerAuth) authenticateAPIKey(ctx context.Context, apiKey string) (*authData, error) {
 	cached, expired := chq.getcache(apiKey)
 	if cached != nil && !expired {
 		if !cached.valid {
+			chq.maybeLogInvalidKey(apiKey)
 			return nil, errDenied
 		}
 		return cached, nil
@@ -168,6 +194,7 @@ func (chq *chqServerAuth) authenticateAPIKey(ctx context.Context, apiKey string)
 				valid:  false,
 				expiry: time.Now().Add(chq.config.ServerAuth.CacheTTLInvalid),
 			})
+			chq.maybeLogInvalidKey(apiKey)
 			// A definitive denial must never fall back to a previously
 			// cached valid entry — that would let a revoked key keep
 			// authenticating as its former customer for one more TTL

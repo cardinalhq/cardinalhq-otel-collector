@@ -28,6 +28,7 @@ import (
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/otel/metric/noop"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 func newchq() *chqServerAuth {
@@ -36,10 +37,11 @@ func newchq() *chqServerAuth {
 	cam, _ := m.Int64Counter("auth_cache_adds")
 
 	chq := &chqServerAuth{
-		logger:           zap.NewNop(),
-		lookupCache:      make(map[string]*authData),
-		authCacheLookups: clm,
-		authCacheAdds:    cam,
+		logger:                zap.NewNop(),
+		lookupCache:           make(map[string]*authData),
+		authCacheLookups:      clm,
+		authCacheAdds:         cam,
+		invalidKeyLogLastSeen: make(map[string]time.Time),
 	}
 	return chq
 }
@@ -220,6 +222,7 @@ func TestGetAuthHeader(t *testing.T) {
 		})
 	}
 }
+
 // newchqWithServer returns a chqServerAuth wired against a mock validator
 // whose JSON body is controlled by the test. The returned cleanup closes
 // the server.
@@ -411,3 +414,59 @@ func TestAuthenticateAPIKey_TransientErrorFallsBackToCache(t *testing.T) {
 	assert.Equal(t, "cust-1", ad2.customerID)
 }
 
+func TestMaybeLogInvalidKey_RateLimited(t *testing.T) {
+	core, logs := observer.New(zap.InfoLevel)
+	chq := newchq()
+	chq.logger = zap.New(core)
+	chq.debugLogInvalidKeys = true
+
+	chq.maybeLogInvalidKey("secret-key")
+	chq.maybeLogInvalidKey("secret-key")
+	chq.maybeLogInvalidKey("other-key")
+
+	entries := logs.All()
+	require.Len(t, entries, 2)
+	for _, e := range entries {
+		assert.Equal(t, "invalid API key attempted", e.Message)
+	}
+	assert.Equal(t, "secret-key", entries[0].ContextMap()["api_key"])
+	assert.Equal(t, "other-key", entries[1].ContextMap()["api_key"])
+
+	// Simulate time passing beyond the rate-limit window.
+	chq.invalidKeyLogLastSeen["secret-key"] = time.Now().Add(-invalidKeyLogInterval - time.Second)
+	chq.maybeLogInvalidKey("secret-key")
+	assert.Len(t, logs.All(), 3)
+}
+
+func TestMaybeLogInvalidKey_DisabledByDefault(t *testing.T) {
+	core, logs := observer.New(zap.InfoLevel)
+	chq := newchq()
+	chq.logger = zap.New(core)
+	// debugLogInvalidKeys left false
+
+	chq.maybeLogInvalidKey("secret-key")
+	assert.Empty(t, logs.All())
+}
+
+func TestAuthenticateAPIKey_LogsFullInvalidKeyWhenDebugEnabled(t *testing.T) {
+	chq, srv := newchqWithServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	})
+	defer srv.Close()
+
+	core, logs := observer.New(zap.InfoLevel)
+	chq.logger = zap.New(core)
+	chq.debugLogInvalidKeys = true
+
+	_, err := chq.authenticateAPIKey(context.Background(), "bad-key")
+	assert.ErrorIs(t, err, errDenied)
+
+	// Second call within rate-limit window hits the negative cache; still
+	// should not produce a duplicate log entry.
+	_, err = chq.authenticateAPIKey(context.Background(), "bad-key")
+	assert.ErrorIs(t, err, errDenied)
+
+	entries := logs.FilterMessage("invalid API key attempted").All()
+	require.Len(t, entries, 1)
+	assert.Equal(t, "bad-key", entries[0].ContextMap()["api_key"])
+}

@@ -20,6 +20,7 @@ header:
     - .github
     - .licenserc.yaml
     - '**/*.yaml'
+    - '**/*.yml'
     - go.sum
     - go.mod
     - sample-config.yaml

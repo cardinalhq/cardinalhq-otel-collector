@@ -6,6 +6,7 @@ go 1.26
 
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector v0.150.0
+	github.com/cardinalhq/cardinalhq-otel-collector/exporter/awss3exporter v0.150.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.150.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter v0.150.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.150.0
@@ -42,7 +43,6 @@ require (
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awscloudwatchlogsexporter v0.150.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awsemfexporter v0.150.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awskinesisexporter v0.150.0
-	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awss3exporter v0.150.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awsxrayexporter v0.150.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azureblobexporter v0.150.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azuredataexplorerexporter v0.150.0
@@ -470,7 +470,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.14 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.14 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.21 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.19.13 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.16.15 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.1.15 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.21 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.21 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.6 // indirect
@@ -487,7 +488,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/kinesis v1.43.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/lightsail v1.51.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/rds v1.117.0 // indirect
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.98.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.99.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.41.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/servicediscovery v1.39.21 // indirect
 	github.com/aws/aws-sdk-go-v2/service/signin v1.0.9 // indirect
@@ -1084,6 +1085,8 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver 
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.150.0 => ../receiver/githubeventsreceiver
 
+replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/awss3exporter v0.150.0 => ../exporter/awss3exporter
+
 replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.150.0 => ../exporter/chqservicegraphexporter
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.150.0 => ../exporter/chqentitygraphexporter
@@ -1107,5 +1110,3 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/processor/chqspannerproc
 replace github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
 
 replace github.com/open-telemetry/opentelemetry-collector-contrib/exporter/loadbalancingexporter => github.com/cardinalhq/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.0.0-20251226215024-9c35e6eca2c8
-
-replace github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awss3exporter => github.com/cardinalhq/opentelemetry-collector-contrib/exporter/awss3exporter v0.0.0-20251226212959-dfe1f462f237

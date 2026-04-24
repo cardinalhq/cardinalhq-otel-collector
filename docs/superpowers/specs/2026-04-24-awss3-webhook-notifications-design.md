@@ -6,7 +6,15 @@
 
 ## Problem
 
-After each successful S3 upload, downstream systems (notably our `lakerunner` service, which runs a `pubsub-http` receiver) need to learn that the file exists so they can pick it up. Today that's done via the usual S3 → SNS → SQS plumbing. We want the collector to POST a JSON notification directly to a user-configured HTTP(S) endpoint instead, mimicking the shape of a standard AWS S3 event notification.
+After each successful S3 upload, downstream systems (notably our `lakerunner` service, which runs a `pubsub-http` receiver) need to learn that the file exists so they can pick it up.
+
+On native AWS, that's done via S3 → SNS → SQS (or EventBridge). This feature targets the cases where that path isn't available or practical:
+
+- **S3-compatible stores without native event notifications.** MinIO, Ceph RGW, on-prem S3 gateways, and various object-store front-ends either don't emit S3-shaped events at all or emit them in incompatible formats.
+- **Configuration complexity.** Even where S3 events exist, wiring them to a downstream consumer requires provisioning SNS topics, SQS queues, IAM policies, and cross-account/cross-region permissions. For a "just pick up my files" use case, that's a lot of moving parts.
+- **Network boundaries.** Collectors deployed behind NAT, in restricted VPCs, or at edge sites often can push HTTP out to a known endpoint but can't be reached by AWS event delivery (SQS is pull-based but still needs IAM + reachability; SNS-HTTP subscriptions need a public endpoint with subscription-confirmation handshakes).
+
+The solution is to let the collector POST a JSON notification directly to a user-configured HTTP(S) endpoint after each successful upload, using a payload shape that mimics a standard AWS S3 event notification. Receivers designed for real S3 events can consume it unchanged.
 
 ## Goals
 

@@ -6,12 +6,15 @@ package awss3exporter
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.uber.org/zap"
 
+	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/awss3exporter/internal/notify"
 	"github.com/cardinalhq/cardinalhq-otel-collector/exporter/awss3exporter/internal/upload"
 )
 
@@ -95,4 +98,46 @@ func TestLogWithBucketAndPrefixAttrs(t *testing.T) {
 	logs := getTestLogs(t)
 	exporter := getLogExporterWithBucketAndPrefixAttrs(t)
 	assert.NoError(t, exporter.ConsumeLogs(t.Context(), logs))
+}
+
+// stubExporterNotifier counts Shutdown invocations so the exporter-level
+// wiring test can verify s3Exporter.shutdown forwards the call. Enqueue is
+// unused here; the upload-manager test covers the Enqueue path.
+type stubExporterNotifier struct {
+	shutdownCalls atomic.Int32
+}
+
+func (*stubExporterNotifier) Enqueue(_ context.Context, _ notify.Event) bool { return false }
+
+func (s *stubExporterNotifier) Shutdown(_ context.Context) error {
+	s.shutdownCalls.Add(1)
+	return nil
+}
+
+func TestExporterShutdownCallsNotifier(t *testing.T) {
+	t.Parallel()
+
+	stub := &stubExporterNotifier{}
+	e := &s3Exporter{
+		config:   &Config{},
+		logger:   zap.NewNop(),
+		notifier: stub,
+	}
+
+	require.NoError(t, e.shutdown(t.Context()))
+	assert.EqualValues(t, 1, stub.shutdownCalls.Load(),
+		"s3Exporter.shutdown must forward to the notifier exactly once")
+}
+
+func TestExporterShutdownNilNotifierIsNoop(t *testing.T) {
+	t.Parallel()
+
+	// Covers the code path where Start failed before the notifier was built
+	// or where the exporter instance was constructed for a test that skips
+	// start().
+	e := &s3Exporter{
+		config: &Config{},
+		logger: zap.NewNop(),
+	}
+	require.NoError(t, e.shutdown(t.Context()))
 }

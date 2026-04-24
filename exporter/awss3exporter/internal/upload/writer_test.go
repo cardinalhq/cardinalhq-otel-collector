@@ -5,9 +5,11 @@ package upload
 
 import (
 	"compress/gzip"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,6 +18,7 @@ import (
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/klauspost/compress/zstd"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/tilinna/clock"
 	"go.opentelemetry.io/collector/config/configcompression"
 	"go.uber.org/zap"
@@ -331,4 +334,143 @@ func TestS3ManagerUpload(t *testing.T) {
 			}
 		})
 	}
+}
+
+// stubNotifier records every Enqueue for assertions in the upload-manager
+// notifier test. Thread-safe so the uploader's own goroutines (if any) cannot
+// race the test.
+type stubNotifier struct {
+	mu     sync.Mutex
+	events []NotifyEvent
+}
+
+func (s *stubNotifier) Enqueue(_ context.Context, e NotifyEvent) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.events = append(s.events, e)
+	return true
+}
+
+func (s *stubNotifier) snapshot() []NotifyEvent {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]NotifyEvent, len(s.events))
+	copy(out, s.events)
+	return out
+}
+
+// TestS3ManagerNotifiesAfterUpload asserts that successful uploads surface a
+// NotifyEvent carrying the override bucket, computed key, and post-
+// compression byte length. The gzip case exercises the "size after encoding"
+// invariant that the spec requires.
+func TestS3ManagerNotifiesAfterUpload(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name        string
+		compression configcompression.Type
+		data        []byte
+		wantKey     string
+		// The expected size is asserted as "matches the compressed body's
+		// size on the wire" in a compression-independent way, by recording
+		// what the HTTP handler actually received.
+	}{
+		{
+			name:        "uncompressed",
+			compression: configcompression.Type(""),
+			data:        []byte("hello world"),
+			wantKey:     "telemetry/year=2024/month=01/day=10/hour=10/minute=30/signal-data-noop_random.metrics",
+		},
+		{
+			name:        "gzip compressed reports compressed size",
+			compression: configcompression.TypeGzip,
+			data:        []byte("hello world"),
+			wantKey:     "telemetry/year=2024/month=01/day=10/hour=10/minute=30/signal-data-noop_random.metrics.gz",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			var gotSize int64
+			handler := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+				body, err := io.ReadAll(r.Body)
+				require.NoError(t, err)
+				_ = r.Body.Close()
+				gotSize = int64(len(body))
+			})
+
+			srv := httptest.NewServer(handler)
+			t.Cleanup(srv.Close)
+
+			stub := &stubNotifier{}
+			sm := NewS3Manager(
+				zap.NewNop(),
+				"my-bucket",
+				&PartitionKeyBuilder{
+					PartitionPrefix: "telemetry",
+					PartitionFormat: "year=%Y/month=%m/day=%d/hour=%H/minute=%M",
+					FilePrefix:      "signal-data-",
+					Metadata:        "noop",
+					FileFormat:      "metrics",
+					Compression:     tc.compression,
+					UniqueKeyFunc:   func() string { return "random" },
+				},
+				s3.New(s3.Options{
+					BaseEndpoint: aws.String(srv.URL),
+					Region:       "local",
+				}),
+				"STANDARD",
+				WithNotifier(stub),
+			)
+
+			mc := clock.NewMock(time.Date(2024, 0o1, 10, 10, 30, 40, 100, time.Local))
+			err := sm.Upload(clock.Context(t.Context(), mc), tc.data, &UploadOptions{OverrideBucket: "custom-bucket"})
+			require.NoError(t, err)
+
+			events := stub.snapshot()
+			require.Len(t, events, 1, "exactly one Enqueue per successful upload")
+			assert.Equal(t, "custom-bucket", events[0].Bucket)
+			assert.Equal(t, tc.wantKey, events[0].Key)
+			assert.Equal(t, gotSize, events[0].Size,
+				"notifier size must equal the bytes the receiver saw")
+			assert.Positive(t, gotSize, "sanity: handler saw a non-empty body")
+		})
+	}
+}
+
+// TestS3ManagerNoopNotifierOnFailure asserts that Enqueue is not called when
+// UploadObject fails. The subscriber contract would be violated if lakerunner
+// saw notifications for objects that never landed in S3.
+func TestS3ManagerNoNotifyOnFailure(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "nope", http.StatusInternalServerError)
+	}))
+	t.Cleanup(srv.Close)
+
+	stub := &stubNotifier{}
+	sm := NewS3Manager(
+		zap.NewNop(),
+		"my-bucket",
+		&PartitionKeyBuilder{
+			PartitionPrefix: "telemetry",
+			PartitionFormat: "year=%Y/month=%m/day=%d/hour=%H/minute=%M",
+			FilePrefix:      "signal-data-",
+			Metadata:        "noop",
+			FileFormat:      "metrics",
+			UniqueKeyFunc:   func() string { return "random" },
+		},
+		s3.New(s3.Options{
+			BaseEndpoint: aws.String(srv.URL),
+			Region:       "local",
+		}),
+		"STANDARD",
+		WithNotifier(stub),
+	)
+
+	mc := clock.NewMock(time.Date(2024, 0o1, 10, 10, 30, 40, 100, time.Local))
+	err := sm.Upload(clock.Context(t.Context(), mc), []byte("hello"), nil)
+	require.Error(t, err)
+	assert.Empty(t, stub.snapshot(), "failed uploads must not notify")
 }

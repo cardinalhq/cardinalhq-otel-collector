@@ -30,6 +30,34 @@ type UploadOptions struct {
 	OverridePrefix string
 }
 
+// NotifyEvent is the minimum tuple published to EventNotifier after each
+// successful S3 upload. It is declared here — rather than imported from the
+// notify sub-package — to keep upload free of any dependency on notify and
+// thereby prevent an import cycle through the exporter root package.
+type NotifyEvent struct {
+	// Bucket is the S3 bucket the object was written to.
+	Bucket string
+	// Key is the raw object key. Consumers are responsible for any
+	// encoding required by their transport.
+	Key string
+	// Size is the number of bytes written to S3 (post-compression).
+	Size int64
+}
+
+// EventNotifier is the subset of the notify.Notifier contract the upload
+// manager needs. The exporter wires a thin adapter from notify.Notifier to
+// this interface.
+type EventNotifier interface {
+	Enqueue(ctx context.Context, e NotifyEvent) bool
+}
+
+// noopEventNotifier is the default EventNotifier assigned when WithNotifier
+// is not applied. It exists so the upload manager can call
+// sw.notifier.Enqueue unconditionally.
+type noopEventNotifier struct{}
+
+func (noopEventNotifier) Enqueue(_ context.Context, _ NotifyEvent) bool { return false }
+
 type s3manager struct {
 	logger                 *zap.Logger
 	bucket                 string
@@ -38,6 +66,7 @@ type s3manager struct {
 	storageClass           s3types.StorageClass
 	acl                    s3types.ObjectCannedACL
 	enableGCSCompatibility bool
+	notifier               EventNotifier
 }
 
 var _ Manager = (*s3manager)(nil)
@@ -49,6 +78,7 @@ func NewS3Manager(logger *zap.Logger, bucket string, builder *PartitionKeyBuilde
 		builder:      builder,
 		uploader:     transfermanager.New(service),
 		storageClass: storageClass,
+		notifier:     noopEventNotifier{},
 	}
 	for _, opt := range opts {
 		if opt != nil {
@@ -103,9 +133,25 @@ func (sw *s3manager) Upload(ctx context.Context, data []byte, opts *UploadOption
 		uploadInput.ContentEncoding = aws.String(encoding)
 	}
 
+	// Record the size BEFORE the uploader consumes the buffer. content is a
+	// *bytes.Buffer and Len() decreases as it is read, so capturing it after
+	// UploadObject returns would report zero.
+	uploadSize := int64(content.Len())
+
 	sw.logger.Debug("uploading object", zap.String("bucket", overrideBucket), zap.String("key", key))
-	_, err = sw.uploader.UploadObject(ctx, uploadInput)
-	return err
+	if _, err = sw.uploader.UploadObject(ctx, uploadInput); err != nil {
+		return err
+	}
+
+	// The notifier's Enqueue is non-blocking and drops under back-pressure;
+	// its return value is intentionally ignored so a slow webhook cannot
+	// degrade the S3 upload path.
+	sw.notifier.Enqueue(ctx, NotifyEvent{
+		Bucket: overrideBucket,
+		Key:    key,
+		Size:   uploadSize,
+	})
+	return nil
 }
 
 func (sw *s3manager) contentBuffer(raw []byte) (*bytes.Buffer, error) {
@@ -160,5 +206,21 @@ func WithGCSCompatibility(enabled bool) func(Manager) {
 			return
 		}
 		s3m.enableGCSCompatibility = enabled
+	}
+}
+
+// WithNotifier installs the EventNotifier invoked after each successful
+// UploadObject call. Passing nil leaves the default no-op notifier in place.
+func WithNotifier(n EventNotifier) ManagerOpt {
+	return func(m Manager) {
+		s3m, ok := m.(*s3manager)
+		if !ok {
+			return
+		}
+		if n == nil {
+			s3m.notifier = noopEventNotifier{}
+			return
+		}
+		s3m.notifier = n
 	}
 }

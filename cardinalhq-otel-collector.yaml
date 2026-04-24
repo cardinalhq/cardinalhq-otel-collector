@@ -142,7 +142,8 @@ exporters:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awsemfexporter v0.150.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awskinesisexporter v0.150.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awsxrayexporter v0.150.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awss3exporter v0.150.0
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/awss3exporter v0.150.0
+    path: ./exporter/awss3exporter
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azureblobexporter v0.150.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azuredataexplorerexporter v0.150.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azuremonitorexporter v0.150.0
@@ -315,4 +316,3 @@ providers:
 replaces:
   - github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
   - github.com/open-telemetry/opentelemetry-collector-contrib/exporter/loadbalancingexporter => github.com/cardinalhq/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.0.0-20251226215024-9c35e6eca2c8 # silence-k8s-warnings branch
-  - github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awss3exporter => github.com/cardinalhq/opentelemetry-collector-contrib/exporter/awss3exporter v0.0.0-20251226212959-dfe1f462f237 # awss3_gcs branch

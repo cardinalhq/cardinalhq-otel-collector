@@ -34,7 +34,7 @@ import (
 	awsemfexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awsemfexporter"
 	awskinesisexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awskinesisexporter"
 	awsxrayexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awsxrayexporter"
-	awss3exporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awss3exporter"
+	awss3exporter "github.com/cardinalhq/cardinalhq-otel-collector/exporter/awss3exporter"
 	azureblobexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azureblobexporter"
 	azuredataexplorerexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azuredataexplorerexporter"
 	azuremonitorexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azuremonitorexporter"
@@ -654,7 +654,7 @@ func components() (otelcol.Factories, error) {
 		awsemfexporter.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awsemfexporter v0.150.0",
 		awskinesisexporter.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awskinesisexporter v0.150.0",
 		awsxrayexporter.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awsxrayexporter v0.150.0",
-		awss3exporter.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awss3exporter v0.150.0",
+		awss3exporter.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/exporter/awss3exporter v0.150.0",
 		azureblobexporter.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azureblobexporter v0.150.0",
 		azuredataexplorerexporter.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azuredataexplorerexporter v0.150.0",
 		azuremonitorexporter.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/azuremonitorexporter v0.150.0",

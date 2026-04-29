@@ -116,7 +116,6 @@ import (
 	zpagesextension "go.opentelemetry.io/collector/extension/zpagesextension"
 	chqauthextension "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension"
 	chqconfigextension "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
-	chqtagcacheextension "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension"
 	chqsyntheticsextention "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention"
 	batchprocessor "go.opentelemetry.io/collector/processor/batchprocessor"
 	memorylimiterprocessor "go.opentelemetry.io/collector/processor/memorylimiterprocessor"
@@ -321,7 +320,6 @@ func components() (otelcol.Factories, error) {
 		zpagesextension.NewFactory(),
 		chqauthextension.NewFactory(),
 		chqconfigextension.NewFactory(),
-		chqtagcacheextension.NewFactory(),
 		chqsyntheticsextention.NewFactory(),
 	)
 	if err != nil {
@@ -368,7 +366,6 @@ func components() (otelcol.Factories, error) {
 		zpagesextension.NewFactory().Type(): "go.opentelemetry.io/collector/extension/zpagesextension v0.151.0",
 		chqauthextension.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.151.0",
 		chqconfigextension.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.151.0",
-		chqtagcacheextension.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.151.0",
 		chqsyntheticsextention.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention v0.151.0",
 	})
 

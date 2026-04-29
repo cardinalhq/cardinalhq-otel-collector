@@ -50,7 +50,7 @@ Each component type has its own directory with individual Go modules:
 - **Receivers**: `chqdatadogreceiver`, `githubeventsreceiver`
 - **Exporters**: `chqs3exporter`, `chqdatadogexporter`, `chqservicegraphexporter`, `chqentitygraphexporter`, `chqk8sentitygraphexporter`
 - **Processors**: `aggregationprocessor`, `pitbullprocessor`, `fingerprintprocessor`, `piiredactionprocessor`, `summarysplitprocessor`, `extractmetricsprocessor`, `chqexemplarprocessor`, `chqspannerprocessor`
-- **Extensions**: `chqauthextension`, `chqconfigextension`, `chqtagcacheextension`, `chqsyntheticsextention`
+- **Extensions**: `chqauthextension`, `chqconfigextension`, `chqsyntheticsextention`
 - **Connectors**: `chqmissingdataconnector`, `chqk8smetricsconnector`
 
 #### Key Features

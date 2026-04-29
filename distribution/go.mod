@@ -13,7 +13,6 @@ require (
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.151.0
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.151.0
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention v0.151.0
-	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.151.0
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.151.0
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/chqspannerprocessor v0.151.0
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.151.0
@@ -1073,8 +1072,6 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdata
 replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.151.0 => ../extension/chqauthextension
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.151.0 => ../extension/chqconfigextension
-
-replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqtagcacheextension v0.151.0 => ../extension/chqtagcacheextension
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention v0.151.0 => ../extension/chqsyntheticsextention
 

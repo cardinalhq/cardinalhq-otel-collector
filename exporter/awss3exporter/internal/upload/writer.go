@@ -155,6 +155,7 @@ func (sw *s3manager) Upload(ctx context.Context, data []byte, opts *UploadOption
 }
 
 func (sw *s3manager) contentBuffer(raw []byte) (*bytes.Buffer, error) {
+	//exhaustive:ignore // unhandled compression types intentionally fall through to the default raw-passthrough case.
 	switch sw.builder.Compression {
 	case configcompression.TypeGzip:
 		content := bytes.NewBuffer(nil)

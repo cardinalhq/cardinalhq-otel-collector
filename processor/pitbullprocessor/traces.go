@@ -52,7 +52,7 @@ func (p *pitbull) ConsumeTraces(ctx context.Context, td ptrace.Traces) (ptrace.T
 		}
 		transformCtx.Close()
 		rs.ScopeSpans().RemoveIf(func(iss ptrace.ScopeSpans) bool {
-			transformCtx := ottlscope.NewTransformContextPtr(iss.Scope(), rs.Resource(), iss)
+			transformCtx := ottlscope.NewTransformContextPtr(iss.Scope(), rs.Resource(), iss, rs)
 			if transformations != nil {
 				transformations.ExecuteScopeTransforms(p.logger, attrSet, p.ottlTelemetry, *transformCtx)
 				if _, found := iss.Scope().Attributes().Get(translate.CardinalFieldDropMarker); found {

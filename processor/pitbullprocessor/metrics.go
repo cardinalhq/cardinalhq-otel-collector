@@ -55,7 +55,7 @@ func (p *pitbull) ConsumeMetrics(_ context.Context, md pmetric.Metrics) (pmetric
 		rm.ScopeMetrics().RemoveIf(func(ilm pmetric.ScopeMetrics) bool {
 			if transformations != nil {
 				sattr := ilm.Scope().Attributes()
-				transformCtx := ottlscope.NewTransformContextPtr(ilm.Scope(), rm.Resource(), ilm)
+				transformCtx := ottlscope.NewTransformContextPtr(ilm.Scope(), rm.Resource(), ilm, rm)
 				transformations.ExecuteScopeTransforms(p.logger, attrSet, p.ottlTelemetry, *transformCtx)
 				transformCtx.Close()
 				if _, found := sattr.Get(translate.CardinalFieldDropMarker); found {

@@ -71,7 +71,7 @@ func (p *pitbull) ConsumeLogs(_ context.Context, ld plog.Logs) (plog.Logs, error
 		transformCtx.Close()
 
 		rl.ScopeLogs().RemoveIf(func(sl plog.ScopeLogs) bool {
-			transformCtx := ottlscope.NewTransformContextPtr(sl.Scope(), rl.Resource(), sl)
+			transformCtx := ottlscope.NewTransformContextPtr(sl.Scope(), rl.Resource(), sl, rl)
 			if transformations != nil {
 				transformations.ExecuteScopeTransforms(p.logger, attrSet, p.ottlTelemetry, *transformCtx)
 				if _, found := sl.Scope().Attributes().Get(translate.CardinalFieldDropMarker); found {

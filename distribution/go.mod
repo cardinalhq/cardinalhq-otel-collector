@@ -311,7 +311,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.6.4 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azqueue v1.0.1 // indirect
 	github.com/Azure/go-amqp v1.5.1 // indirect
-	github.com/Azure/go-ntlmssp v0.1.1 // indirect
+	github.com/Azure/go-ntlmssp v0.1.0 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.6.0 // indirect
 	github.com/BurntSushi/toml v1.5.0 // indirect
 	github.com/ClickHouse/ch-go v0.71.0 // indirect
@@ -673,7 +673,7 @@ require (
 	github.com/itchyny/timefmt-go v0.1.8 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
-	github.com/jackc/pgx/v5 v5.9.2 // indirect
+	github.com/jackc/pgx/v5 v5.9.1 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jaegertracing/jaeger-idl v0.6.0 // indirect
 	github.com/jcmturner/aescts/v2 v2.0.0 // indirect

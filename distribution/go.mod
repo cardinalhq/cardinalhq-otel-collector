@@ -457,7 +457,7 @@ require (
 	github.com/apache/cassandra-gocql-driver/v2 v2.1.1 // indirect
 	github.com/apache/datasketches-go v0.0.0-20251212084617-f7bc4b1db865 // indirect
 	github.com/apache/pulsar-client-go v0.19.0 // indirect
-	github.com/apache/thrift v0.22.0 // indirect
+	github.com/apache/thrift v0.23.0 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/ardielle/ardielle-go v1.5.2 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect

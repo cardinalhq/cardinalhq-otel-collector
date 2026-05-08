@@ -460,8 +460,8 @@ github.com/apache/datasketches-go v0.0.0-20251212084617-f7bc4b1db865 h1:C8vuEhEB
 github.com/apache/datasketches-go v0.0.0-20251212084617-f7bc4b1db865/go.mod h1:tWCpdsIfpbCQH04ZV3mUb6RyIfovjjNwHn/dGT8wrTw=
 github.com/apache/pulsar-client-go v0.19.0 h1:NHqYXgIUAEpuyBSVAUmYgcM6VFHFygsthxa9a0CrCvg=
 github.com/apache/pulsar-client-go v0.19.0/go.mod h1:/Zf8Q8bSSc6ndEJ8V1muIHf6ZWsMrHoQU+98Ww9pOeI=
-github.com/apache/thrift v0.22.0 h1:r7mTJdj51TMDe6RtcmNdQxgn9XcyfGDOzegMDRg47uc=
-github.com/apache/thrift v0.22.0/go.mod h1:1e7J/O1Ae6ZQMTYdy9xa3w9k+XHWPfRvdPyJeynQ+/g=
+github.com/apache/thrift v0.23.0 h1:wKR6YnefQSEnxpEfmgTPuJibNG4bF0p2TK34tHLWi3s=
+github.com/apache/thrift v0.23.0/go.mod h1:zPt6WxgvTOM6hF92y8C+MkEM5LMxZuk4JcQOiU4Esvs=
 github.com/apapsch/go-jsonmerge/v2 v2.0.0 h1:axGnT1gRIfimI7gJifB699GoE/oq+F2MU7Dml6nw9rQ=
 github.com/apapsch/go-jsonmerge/v2 v2.0.0/go.mod h1:lvDnEdqiQrp0O42VQGgmlKpxL1AP2+08jFMw88y4klk=
 github.com/ardielle/ardielle-go v1.5.2 h1:TilHTpHIQJ27R1Tl/iITBzMwiUGSlVfiVhwDNGM3Zj4=

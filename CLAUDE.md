@@ -91,13 +91,13 @@ go test -v ./...
 
 - **Linting**: Uses .golangci.yaml with custom rules and exclusions
 - **License**: All files require Apache 2.0 license headers (checked by license-eye)
-- **Builder Config**: cardinalhq-otel-collector.yaml defines which components to include
+- **Builder Config**: cardinalhq-otel-collector.yaml defines which components to include and pins the OpenTelemetry version (the `vX.Y.Z` on each `gomod` line, plus `dist.version`). Treat this file as the source of truth for the version rather than hardcoding it here.
 - **Go Version**: Requires Go 1.25.0
-- **OpenTelemetry Version**: Based on v0.148.0
+- **OpenTelemetry Version**: Pinned in `cardinalhq-otel-collector.yaml`
 
 ## Key Dependencies
 
-- OpenTelemetry Collector framework (v0.145.0)
+- OpenTelemetry Collector framework (version pinned in `cardinalhq-otel-collector.yaml`)
 - OpenTelemetry Collector Contrib components
 - AWS SDK for S3 operations
 - Datadog agent libraries

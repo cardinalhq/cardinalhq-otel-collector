@@ -12,6 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# MODULE_SOURCE_PATHS (below) uses brace expansion, which dash/POSIX sh does
+# not support. Force bash so module discovery works on any host (e.g. CI's
+# golang container, where /bin/sh is dash) -- not just shells that happen to
+# expand braces.
+SHELL := /bin/bash
+
 TARGETS=bin/cardinalhq-otel-collector
 OTEL_VERSION=v0.153.0
 

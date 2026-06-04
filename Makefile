@@ -12,10 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# MODULE_SOURCE_PATHS (below) uses brace expansion, which dash/POSIX sh does
-# not support. Force bash so module discovery works on any host (e.g. CI's
-# golang container, where /bin/sh is dash) -- not just shells that happen to
-# expand braces.
+# Use bash for recipe consistency across hosts (CI's /bin/sh is dash).
 SHELL := /bin/bash
 
 TARGETS=bin/cardinalhq-otel-collector
@@ -28,9 +25,14 @@ OTEL_VERSION=v0.153.0
 # These are targets for "make local"
 BINARIES = cardinalhq-otel-collector
 
-MODULE_SOURCE_PATHS = `ls -1d {connector,receiver,processor,exporter,extension}/*` internal
-SUMFILES = $(shell ls -1 {connector,receiver,processor,exporter,extension}/*/go.sum internal/go.sum)
-ALLGOFILES = $(shell find ${MODULE_SOURCE_PATHS} -name '*.go')
+# Discover component modules by their go.mod so empty/absent type dirs are
+# skipped and newly added components are picked up automatically (no Makefile
+# edit needed when you add, say, a new receiver). 2>/dev/null swallows the
+# "No such file" warning for a type dir that doesn't exist yet.
+COMPONENT_DIRS := connector receiver processor exporter extension
+MODULE_SOURCE_PATHS := $(patsubst %/go.mod,%,$(shell find $(COMPONENT_DIRS) -maxdepth 2 -name go.mod 2>/dev/null)) internal
+SUMFILES := $(shell find $(COMPONENT_DIRS) internal -maxdepth 2 -name go.sum 2>/dev/null)
+ALLGOFILES := $(shell find $(MODULE_SOURCE_PATHS) -name '*.go')
 
 #
 # Below here lies magic...

@@ -47,18 +47,14 @@ The codebase is organized as a monorepo with multiple Go modules:
 Each component type has its own directory with individual Go modules:
 
 #### Custom CardinalHQ Components
-- **Receivers**: `chqdatadogreceiver`, `githubeventsreceiver`
-- **Exporters**: `chqs3exporter`, `chqdatadogexporter`, `chqservicegraphexporter`, `chqentitygraphexporter`, `chqk8sentitygraphexporter`
-- **Processors**: `aggregationprocessor`, `pitbullprocessor`, `fingerprintprocessor`, `piiredactionprocessor`, `summarysplitprocessor`, `extractmetricsprocessor`, `chqexemplarprocessor`, `chqspannerprocessor`
-- **Extensions**: `chqauthextension`, `chqconfigextension`, `chqsyntheticsextention`
-- **Connectors**: `chqmissingdataconnector`, `chqk8smetricsconnector`
+- **Exporters**: `awss3exporter`
+- **Processors**: `aggregationprocessor`, `summarysplitprocessor`
+- **Extensions**: `chqauthextension`
 
 #### Key Features
-- **S3 Export**: Efficient data export to S3-compatible storage with parquet encoding
-- **Datadog Integration**: Enhanced Datadog receiver and exporter with tag caching
-- **PII Redaction**: Automated sensitive data redaction (piiredactionprocessor)
-- **Cost Management**: Data sampling and filtering for cost optimization (pitbullprocessor)
-- **Graph Generation**: Service and entity relationship graphs from telemetry data
+- **S3 Export**: Efficient data export to S3-compatible storage with parquet encoding (awss3exporter)
+- **Aggregation**: Metric aggregation and summary splitting (aggregationprocessor, summarysplitprocessor)
+- **Auth**: Authentication extension for the CardinalHQ control plane (chqauthextension)
 
 ### Distribution
 - `distribution/` - **GENERATED DIRECTORY** - Contains auto-generated main.go and components.go for the collector binary. Do not edit or examine files in this directory.

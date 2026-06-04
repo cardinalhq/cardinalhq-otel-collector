@@ -24,7 +24,6 @@ import (
 	spanmetricsconnector "github.com/open-telemetry/opentelemetry-collector-contrib/connector/spanmetricsconnector"
 	sumconnector "github.com/open-telemetry/opentelemetry-collector-contrib/connector/sumconnector"
 	signaltometricsconnector "github.com/open-telemetry/opentelemetry-collector-contrib/connector/signaltometricsconnector"
-	chqmissingdataconnector "github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector"
 	debugexporter "go.opentelemetry.io/collector/exporter/debugexporter"
 	nopexporter "go.opentelemetry.io/collector/exporter/nopexporter"
 	otlpexporter "go.opentelemetry.io/collector/exporter/otlpexporter"
@@ -73,9 +72,6 @@ import (
 	tencentcloudlogserviceexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/tencentcloudlogserviceexporter"
 	tinybirdexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/tinybirdexporter"
 	zipkinexporter "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/zipkinexporter"
-	chqservicegraphexporter "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter"
-	chqentitygraphexporter "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter"
-	chqk8sentitygraphexporter "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter"
 	ackextension "github.com/open-telemetry/opentelemetry-collector-contrib/extension/ackextension"
 	asapauthextension "github.com/open-telemetry/opentelemetry-collector-contrib/extension/asapauthextension"
 	awsproxy "github.com/open-telemetry/opentelemetry-collector-contrib/extension/awsproxy"
@@ -115,8 +111,6 @@ import (
 	k8sleaderelector "github.com/open-telemetry/opentelemetry-collector-contrib/extension/k8sleaderelector"
 	zpagesextension "go.opentelemetry.io/collector/extension/zpagesextension"
 	chqauthextension "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension"
-	chqconfigextension "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension"
-	chqsyntheticsextention "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention"
 	batchprocessor "go.opentelemetry.io/collector/processor/batchprocessor"
 	memorylimiterprocessor "go.opentelemetry.io/collector/processor/memorylimiterprocessor"
 	attributesprocessor "github.com/open-telemetry/opentelemetry-collector-contrib/processor/attributesprocessor"
@@ -147,12 +141,7 @@ import (
 	transformprocessor "github.com/open-telemetry/opentelemetry-collector-contrib/processor/transformprocessor"
 	unrollprocessor "github.com/open-telemetry/opentelemetry-collector-contrib/processor/unrollprocessor"
 	aggregationprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor"
-	pitbullprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor"
-	fingerprintprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor"
-	piiredactionprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor"
 	summarysplitprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor"
-	extractmetricsprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor"
-	chqspannerprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/chqspannerprocessor"
 	nopreceiver "go.opentelemetry.io/collector/receiver/nopreceiver"
 	otlpreceiver "go.opentelemetry.io/collector/receiver/otlpreceiver"
 	activedirectorydsreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/activedirectorydsreceiver"
@@ -255,8 +244,6 @@ import (
 	zipkinreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/zipkinreceiver"
 	zookeeperreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/zookeeperreceiver"
 	routereceiver "github.com/observiq/bindplane-otel-collector/receiver/routereceiver"
-	chqprwreceiver "github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver"
-	githubeventsreceiver "github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver"
 )
 
 type aliasProvider interface{ DeprecatedAlias() component.Type }
@@ -319,8 +306,6 @@ func components() (otelcol.Factories, error) {
 		k8sleaderelector.NewFactory(),
 		zpagesextension.NewFactory(),
 		chqauthextension.NewFactory(),
-		chqconfigextension.NewFactory(),
-		chqsyntheticsextention.NewFactory(),
 	)
 	if err != nil {
 		return otelcol.Factories{}, err
@@ -365,8 +350,6 @@ func components() (otelcol.Factories, error) {
 		k8sleaderelector.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/extension/k8sleaderelector v0.153.0",
 		zpagesextension.NewFactory().Type(): "go.opentelemetry.io/collector/extension/zpagesextension v0.153.0",
 		chqauthextension.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.153.0",
-		chqconfigextension.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.153.0",
-		chqsyntheticsextention.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention v0.153.0",
 	})
 
 	factories.Receivers, err = otelcol.MakeFactoryMap[receiver.Factory](
@@ -472,8 +455,6 @@ func components() (otelcol.Factories, error) {
 		zipkinreceiver.NewFactory(),
 		zookeeperreceiver.NewFactory(),
 		routereceiver.NewFactory(),
-		chqprwreceiver.NewFactory(),
-		githubeventsreceiver.NewFactory(),
 	)
 	if err != nil {
 		return otelcol.Factories{}, err
@@ -581,8 +562,6 @@ func components() (otelcol.Factories, error) {
 		zipkinreceiver.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/zipkinreceiver v0.153.0",
 		zookeeperreceiver.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/zookeeperreceiver v0.153.0",
 		routereceiver.NewFactory().Type(): "github.com/observiq/bindplane-otel-collector/receiver/routereceiver v1.95.0",
-		chqprwreceiver.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver v0.153.0",
-		githubeventsreceiver.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.153.0",
 	})
 
 	factories.Exporters, err = otelcol.MakeFactoryMap[exporter.Factory](
@@ -634,9 +613,6 @@ func components() (otelcol.Factories, error) {
 		tencentcloudlogserviceexporter.NewFactory(),
 		tinybirdexporter.NewFactory(),
 		zipkinexporter.NewFactory(),
-		chqservicegraphexporter.NewFactory(),
-		chqentitygraphexporter.NewFactory(),
-		chqk8sentitygraphexporter.NewFactory(),
 	)
 	if err != nil {
 		return otelcol.Factories{}, err
@@ -690,9 +666,6 @@ func components() (otelcol.Factories, error) {
 		tencentcloudlogserviceexporter.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/tencentcloudlogserviceexporter v0.153.0",
 		tinybirdexporter.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/tinybirdexporter v0.153.0",
 		zipkinexporter.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/zipkinexporter v0.153.0",
-		chqservicegraphexporter.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.153.0",
-		chqentitygraphexporter.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.153.0",
-		chqk8sentitygraphexporter.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter v0.153.0",
 	})
 
 	factories.Processors, err = otelcol.MakeFactoryMap[processor.Factory](
@@ -726,12 +699,7 @@ func components() (otelcol.Factories, error) {
 		transformprocessor.NewFactory(),
 		unrollprocessor.NewFactory(),
 		aggregationprocessor.NewFactory(),
-		pitbullprocessor.NewFactory(),
-		fingerprintprocessor.NewFactory(),
-		piiredactionprocessor.NewFactory(),
 		summarysplitprocessor.NewFactory(),
-		extractmetricsprocessor.NewFactory(),
-		chqspannerprocessor.NewFactory(),
 	)
 	if err != nil {
 		return otelcol.Factories{}, err
@@ -767,12 +735,7 @@ func components() (otelcol.Factories, error) {
 		transformprocessor.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/processor/transformprocessor v0.153.0",
 		unrollprocessor.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/processor/unrollprocessor v0.153.0",
 		aggregationprocessor.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.153.0",
-		pitbullprocessor.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.153.0",
-		fingerprintprocessor.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor v0.153.0",
-		piiredactionprocessor.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor v0.153.0",
 		summarysplitprocessor.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.153.0",
-		extractmetricsprocessor.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.153.0",
-		chqspannerprocessor.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/processor/chqspannerprocessor v0.153.0",
 	})
 
 	factories.Connectors, err = otelcol.MakeFactoryMap[connector.Factory](
@@ -789,7 +752,6 @@ func components() (otelcol.Factories, error) {
 		spanmetricsconnector.NewFactory(),
 		sumconnector.NewFactory(),
 		signaltometricsconnector.NewFactory(),
-		chqmissingdataconnector.NewFactory(),
 	)
 	if err != nil {
 		return otelcol.Factories{}, err
@@ -808,7 +770,6 @@ func components() (otelcol.Factories, error) {
 		spanmetricsconnector.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/connector/spanmetricsconnector v0.153.0",
 		sumconnector.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/connector/sumconnector v0.153.0",
 		signaltometricsconnector.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/connector/signaltometricsconnector v0.153.0",
-		chqmissingdataconnector.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector v0.153.0",
 	})
 
 	return factories, nil

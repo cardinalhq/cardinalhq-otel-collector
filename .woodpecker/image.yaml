@@ -1,0 +1,116 @@
+# Copyright 2024-2026 CardinalHQ, Inc
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Woodpecker pipeline: build the cardinalhq-otel-collector container image for
+# dev-branch commits AND for release tags, pushing the multi-arch (amd64+arm64)
+# image to docker.flame.org/library/cardinalhq-otel-collector. The GitHub
+# Actions publish workflow (.github/workflows/dev.yml) waits for this build's
+# `ci/woodpecker/push/image` status and then copies the image to its publish
+# target (public.ecr.aws) instead of rebuilding -- this is the source of the
+# build cache. docker.flame.org is the only registry this pipeline pushes to.
+#
+# The collector is pure Go (CGO_ENABLED=0), so goreleaser cross-builds both
+# arches natively on the amd64 host with no cross toolchain. Dockerfile.cross
+# only COPYs the prebuilt per-arch binary, so even the arm64 image assembles in
+# seconds with no QEMU emulation.
+#
+# Engine: woodpeckerci/plugin-docker-buildx (privileged, server-allowlisted).
+# It stands up its own buildkit + QEMU per run; here QEMU only covers the
+# trivial COPY layers, not any per-arch compile.
+#
+# SECURITY: pull_request is intentionally NOT a trigger. This build is
+# privileged and injects github_token + Harbor push creds; running it on
+# untrusted PR-controlled code would be a pwn-request vector. Only pushed
+# (trusted) commits run here, consistent with check.yaml. Reports to GitHub as
+# ci/woodpecker/push/image; intentionally NOT a required check.
+#
+# Requires Woodpecker secrets:
+#   - github_token                 (private cardinalhq/* modules, gh pr list)
+#   - docker_flame_org_username    (Harbor robot for project library)
+#   - docker_flame_org_password
+# and the durable RWX caches ci-gomodcache, ci-gobuildcache (shared with
+# check.yaml).
+
+when:
+  - event: [push, manual]
+    branch:
+      exclude: [main]
+  # Release/RC tag pushes (v1.2.3, v1.2.3-rc1, ...). The branch filter above does
+  # not apply to tag events, so they are not excluded by it.
+  - event: tag
+
+steps:
+  - name: build-binary
+    # Shared CI builder: golang + goreleaser/gh prebaked. Auto-refreshes daily.
+    image: docker.flame.org/library/woodpecker-builder:stable
+    pull: true
+    volumes:
+      - ci-gomodcache:/cache/gomod      # GOMODCACHE
+      - ci-gobuildcache:/cache/go-build # GOCACHE
+    environment:
+      GOMODCACHE: /cache/gomod
+      GOCACHE: /cache/go-build
+      GOPRIVATE: github.com/cardinalhq/*
+      GH_TOKEN:
+        from_secret: github_token
+    commands:
+      # --- private cardinalhq/* Go modules over HTTPS (scoped to cardinalhq) ---
+      - git config --global url."https://x-access-token:$${GH_TOKEN}@github.com/cardinalhq/".insteadOf "https://github.com/cardinalhq/"
+      - git config --global --add safe.directory '*'
+
+      - go version && goreleaser --version
+
+      # --- compute the image tag -> .tags (read automatically by the buildx plugin) ---
+      # Tag events use the git tag verbatim (v1.2.3, v1.2.3-rc1); GHA copies that
+      # exact tag from Harbor to ECR. Branch builds keep the v0.0.0-pr<N> /
+      # v0.0.0-<branch> scheme.
+      - |
+        if [ -n "$$CI_COMMIT_TAG" ]; then
+          echo "$$CI_COMMIT_TAG" > .tags
+        else
+          sha8=$$(git rev-parse --short=8 HEAD)
+          PRNUM=$$(gh pr list --repo "$$CI_REPO" --head "$$CI_COMMIT_BRANCH" --state open --json number --jq '.[0].number' 2>/dev/null || true)
+          if [ -n "$$PRNUM" ] && [ "$$PRNUM" != "null" ]; then
+            echo "v0.0.0-pr$${PRNUM}-$${sha8}" > .tags
+          else
+            echo "v0.0.0-$$(echo "$$CI_COMMIT_BRANCH" | tr '/' '-')-$${sha8}" > .tags
+          fi
+        fi
+      - export IMAGE_VERSION=$$(cat .tags)
+      - echo "Building image tag $${IMAGE_VERSION}"
+
+      # --- cross-build the Go binary for both arches (no QEMU, no CGO) ---
+      - goreleaser build --snapshot --clean --config .goreleaser.cross.yaml
+
+      # --- stage the per-arch binary where Dockerfile.cross copies it ---
+      - |
+        for arch in amd64 arm64; do
+          mkdir -p docker/bin/linux_$$arch
+          cp dist/cardinalhq-otel-collector_linux_$${arch}*/cardinalhq-otel-collector docker/bin/linux_$$arch/cardinalhq-otel-collector
+        done
+      - ls -l docker/bin/linux_amd64 docker/bin/linux_arm64
+
+  - name: publish
+    image: woodpeckerci/plugin-docker-buildx
+    settings:
+      repo: docker.flame.org/library/cardinalhq-otel-collector
+      registry: docker.flame.org
+      dockerfile: Dockerfile.cross
+      platforms: linux/amd64,linux/arm64
+      ipv6: true
+      buildkit_driveropt: network=host
+      username:
+        from_secret: docker_flame_org_username
+      password:
+        from_secret: docker_flame_org_password

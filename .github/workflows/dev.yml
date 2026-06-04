@@ -1,5 +1,14 @@
 name: goreleaser-latest-dev
 
+# Publishes the dev image at public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:<tag>.
+#
+# MODE = vars.IMAGE_BUILD_SOURCE (default 'woodpecker'):
+#   woodpecker -> wait for the kubepi Woodpecker build (ci/woodpecker/push/image)
+#                 and copy its multi-arch image from Harbor (docker.flame.org) to
+#                 ECR (no rebuild; reuses kubepi's warm build cache).
+#   gha        -> cross-compile + build the image here and push (fallback /
+#                 swap-back if kubepi is unavailable).
+
 on:
   push:
     tags:
@@ -8,45 +17,18 @@ on:
 permissions:
   id-token: write
   contents: write
-  # packages: write
-  # issues: write
 
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
+    env:
+      MODE: ${{ vars.IMAGE_BUILD_SOURCE || 'woodpecker' }}
     steps:
       - name: Checkout
         id: checkout
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-
-      - name: Set up Go
-        # no cache here intentionally
-        id: go
-        uses: actions/setup-go@v6
-        with:
-          go-version: stable
-
-      - name: go-cache-paths
-        id: go-cache-paths
-        run: |
-          echo "go-build=$(go env GOCACHE)" >> $GITHUB_OUTPUT
-          echo "go-mod=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
-
-      - name: Go Build Cache
-        uses: actions/cache@v5
-        with:
-          path: ${{ steps.go-cache-paths.outputs.go-build }}
-          key: ${{ runner.os }}-${{ runner.arch }}-go-build
-
-      - name: Set up QEMU
-        id: qemu
-        uses: docker/setup-qemu-action@v4
-
-      - name: Set up Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v4
 
       - name: Configure AWS credentials
         id: aws-credentials
@@ -65,7 +47,75 @@ jobs:
         with:
           registry-type: public
 
+      # ---- woodpecker mode: wait for the kubepi build, then copy ----
+      - name: Wait for Woodpecker image build
+        if: ${{ env.MODE == 'woodpecker' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ctx="ci/woodpecker/push/image"
+          deadline=$(( $(date +%s) + 1500 ))   # 25 min
+          while :; do
+            state=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/statuses" \
+              --jq "[.[] | select(.context == \"$ctx\")][0].state // \"\"")
+            case "$state" in
+              success) echo "Woodpecker image build succeeded"; break ;;
+              failure|error) echo "::error::Woodpecker image build $state. Set repo variable IMAGE_BUILD_SOURCE=gha to build in Actions."; exit 1 ;;
+              *) : ;;  # absent or pending
+            esac
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "::error::Timed out waiting for $ctx on $GITHUB_SHA. Set IMAGE_BUILD_SOURCE=gha to build in Actions."; exit 1
+            fi
+            echo "waiting for $ctx (state='${state:-absent}')..."
+            sleep 15
+          done
+
+      - name: Set up Docker Buildx
+        if: ${{ env.MODE == 'woodpecker' }}
+        uses: docker/setup-buildx-action@v4
+
+      - name: Copy image from Woodpecker (Harbor) to ECR
+        if: ${{ env.MODE == 'woodpecker' }}
+        run: |
+          docker buildx imagetools create \
+            -t "public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:${GITHUB_REF_NAME}" \
+            "docker.flame.org/library/cardinalhq-otel-collector:${GITHUB_REF_NAME}"
+
+      # ---- gha mode: cross-compile both arches here and push ----
+      - name: Set up Go
+        if: ${{ env.MODE == 'gha' }}
+        # no cache here intentionally
+        id: go
+        uses: actions/setup-go@v6
+        with:
+          go-version: stable
+
+      - name: go-cache-paths
+        if: ${{ env.MODE == 'gha' }}
+        id: go-cache-paths
+        run: |
+          echo "go-build=$(go env GOCACHE)" >> $GITHUB_OUTPUT
+          echo "go-mod=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
+
+      - name: Go Build Cache
+        if: ${{ env.MODE == 'gha' }}
+        uses: actions/cache@v5
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-build }}
+          key: ${{ runner.os }}-${{ runner.arch }}-go-build
+
+      - name: Set up QEMU
+        if: ${{ env.MODE == 'gha' }}
+        id: qemu
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx (gha)
+        if: ${{ env.MODE == 'gha' }}
+        id: buildx
+        uses: docker/setup-buildx-action@v4
+
       - name: Run GoReleaser
+        if: ${{ env.MODE == 'gha' }}
         id: goreleaser
         uses: goreleaser/goreleaser-action@v7
         with:

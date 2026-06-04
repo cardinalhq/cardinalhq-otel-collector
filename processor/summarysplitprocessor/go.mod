@@ -127,7 +127,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace (
-	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.0.0 => ../../extension/chqconfigextension
-	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 => ../../internal
-)
+replace github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 => ../../internal

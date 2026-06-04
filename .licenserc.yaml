@@ -7,7 +7,6 @@ header:
   paths-ignore:
     - 'bin'
     - distribution
-    - receiver/chqprwreceiver
     - docker/run-with-env-config.sh
     - internal/identity/resource.go
     - '**/*.md'

@@ -5,23 +5,10 @@ module go.opentelemetry.io/collector/cmd/builder
 go 1.26
 
 require (
-	github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector v0.153.0
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/awss3exporter v0.153.0
-	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.153.0
-	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter v0.153.0
-	github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.153.0
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.153.0
-	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.153.0
-	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention v0.153.0
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.153.0
-	github.com/cardinalhq/cardinalhq-otel-collector/processor/chqspannerprocessor v0.153.0
-	github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.153.0
-	github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor v0.153.0
-	github.com/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor v0.153.0
-	github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.153.0
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.153.0
-	github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver v0.153.0
-	github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.153.0
 	github.com/observiq/bindplane-otel-collector/receiver/routereceiver v1.95.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/confmap/provider/aesprovider v0.153.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/confmap/provider/s3provider v0.153.0
@@ -506,7 +493,6 @@ require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/buger/jsonparser v1.2.0 // indirect
-	github.com/cardinalhq/cardinalhq-otel-collector/internal v0.0.0 // indirect
 	github.com/cardinalhq/oteltools v0.32.1 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
@@ -529,7 +515,6 @@ require (
 	github.com/danieljoos/wincred v1.2.3 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/db47h/ragel/v2 v2.2.4 // indirect
-	github.com/deckarep/golang-set/v2 v2.8.0 // indirect
 	github.com/dennwc/varint v1.0.0 // indirect
 	github.com/dgryski/go-metro v0.0.0-20250106013310-edb8663e5e33 // indirect
 	github.com/digitalocean/go-metadata v0.0.0-20250129100319-e3650a3df44b // indirect
@@ -618,7 +603,6 @@ require (
 	github.com/google/flatbuffers v25.12.19+incompatible // indirect
 	github.com/google/gnostic-models v0.7.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/google/go-github/v63 v63.0.0 // indirect
 	github.com/google/go-github/v86 v86.0.0 // indirect
 	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/google/go-tpm v0.9.9-0.20260124013517-8f8f42cba0de // indirect
@@ -1065,39 +1049,13 @@ require (
 	software.sslmate.com/src/go-pkcs12 v0.7.1 // indirect
 )
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/connector/chqmissingdataconnector v0.153.0 => ../connector/chqmissingdataconnector
-
 replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.153.0 => ../extension/chqauthextension
-
-replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqconfigextension v0.153.0 => ../extension/chqconfigextension
-
-replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqsyntheticsextention v0.153.0 => ../extension/chqsyntheticsextention
-
-replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/chqprwreceiver v0.153.0 => ../receiver/chqprwreceiver
-
-replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/githubeventsreceiver v0.153.0 => ../receiver/githubeventsreceiver
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/awss3exporter v0.153.0 => ../exporter/awss3exporter
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqservicegraphexporter v0.153.0 => ../exporter/chqservicegraphexporter
-
-replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqentitygraphexporter v0.153.0 => ../exporter/chqentitygraphexporter
-
-replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/chqk8sentitygraphexporter v0.153.0 => ../exporter/chqk8sentitygraphexporter
-
 replace github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.153.0 => ../processor/aggregationprocessor
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/pitbullprocessor v0.153.0 => ../processor/pitbullprocessor
-
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/fingerprintprocessor v0.153.0 => ../processor/fingerprintprocessor
-
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/piiredactionprocessor v0.153.0 => ../processor/piiredactionprocessor
-
 replace github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.153.0 => ../processor/summarysplitprocessor
-
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/extractmetricsprocessor v0.153.0 => ../processor/extractmetricsprocessor
-
-replace github.com/cardinalhq/cardinalhq-otel-collector/processor/chqspannerprocessor v0.153.0 => ../processor/chqspannerprocessor
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
 

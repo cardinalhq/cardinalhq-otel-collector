@@ -3,9 +3,11 @@ name: goreleaser-latest-dev
 # Publishes the dev image at public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:<tag>.
 #
 # MODE = vars.IMAGE_BUILD_SOURCE (default 'woodpecker'):
-#   woodpecker -> wait for the kubepi Woodpecker build (ci/woodpecker/push/image)
-#                 and copy its multi-arch image from Harbor (docker.flame.org) to
-#                 ECR (no rebuild; reuses kubepi's warm build cache).
+#   woodpecker -> wait for the kubepi Woodpecker build (ci/woodpecker/tag/image;
+#                 this workflow is tag-triggered, so the status is posted under
+#                 the tag context, not push) and copy its multi-arch image from
+#                 Harbor (docker.flame.org) to ECR (no rebuild; reuses kubepi's
+#                 warm build cache).
 #   gha        -> cross-compile + build the image here and push (fallback /
 #                 swap-back if kubepi is unavailable).
 
@@ -17,6 +19,7 @@ on:
 permissions:
   id-token: write
   contents: write
+  statuses: read   # read the ci/woodpecker/tag/image commit status (woodpecker mode)
 
 jobs:
   goreleaser:
@@ -53,7 +56,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ctx="ci/woodpecker/push/image"
+          # tag events post the status under ci/woodpecker/tag/<workflow>
+          ctx="ci/woodpecker/tag/image"
           deadline=$(( $(date +%s) + 1500 ))   # 25 min
           while :; do
             state=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/statuses" \

@@ -40,7 +40,7 @@ when:
 
 steps:
   - name: check
-    image: docker.io/golang:1.26-bookworm
+    image: docker.flame.org/library/woodpecker-builder:stable
     pull: true
     # Durable shared caches on proxmox-cephfs (RWX). Syntax: {pvc-name}:{mount-path}.
     volumes:

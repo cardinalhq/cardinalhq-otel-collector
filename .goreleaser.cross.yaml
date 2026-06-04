@@ -1,0 +1,59 @@
+# Copyright 2024-2026 CardinalHQ, Inc
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Builds-only goreleaser config for the single-host cross-compile image builds,
+# shared by the kubepi Woodpecker pipeline (.woodpecker/image.yaml) and the
+# GitHub Actions gha-mode fallback (.github/workflows/dev.yml). It cross-builds
+# the Go binary for both arches on a single amd64 node; the multi-arch image
+# itself is assembled and pushed by buildx against Dockerfile.cross, NOT by
+# goreleaser -- so there is no `dockers:` / `docker_manifests:` section here.
+#
+# The collector is pure Go with CGO_ENABLED=0, so the arm64 binary
+# cross-compiles natively with no cross toolchain and no QEMU.
+#
+# Version comes from $IMAGE_VERSION (the tag computed in the pipeline and
+# written to .tags), since dev-branch commits have no git tag.
+
+version: 2
+
+project_name: cardinalhq-otel-collector
+
+snapshot:
+  version_template: "{{ .Env.IMAGE_VERSION }}"
+
+checksum:
+  disable: true
+
+release:
+  disable: true
+
+changelog:
+  disable: true
+
+builds:
+  - id: cardinalhq-otel-collector
+    dir: distribution
+    binary: cardinalhq-otel-collector
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s
+      - -w
+    env:
+      - CGO_ENABLED=0

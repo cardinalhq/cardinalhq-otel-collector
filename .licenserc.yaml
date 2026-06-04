@@ -13,6 +13,7 @@ header:
     - 'LICENSE'
     - 'NOTICE'
     - .gitignore
+    - '**/*.dockerignore'
     - .dockerignore
     - .helmignore
     - .github

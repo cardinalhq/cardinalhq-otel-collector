@@ -1,0 +1,6 @@
+# Context shipped to the remote kubepi0 buildkitd for Dockerfile.cross is only
+# the prebuilt per-arch binaries + the docker/ helpers. Everything else (source
+# tree, goreleaser dist/, etc.) is excluded so the kube-pod:// context stream
+# stays small.
+*
+!docker

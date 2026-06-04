@@ -1,0 +1,160 @@
+# Copyright 2024-2025 CardinalHQ, Inc
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Woodpecker pipeline: build the cardinalhq-otel-collector container image for
+# dev-branch commits AND for release tags, pushing the multi-arch (amd64+arm64)
+# image to docker.flame.org/library/cardinalhq-otel-collector. The GitHub
+# Actions publish workflow (.github/workflows/dev.yml) waits for this build's
+# `ci/woodpecker/push/image` status and then copies the image to its publish
+# target (public.ecr.aws) instead of rebuilding. docker.flame.org is the only
+# registry this pipeline pushes to.
+#
+# Two stages, two engines:
+#
+#   1. build-binary (woodpecker-builder:stable, amd64): the collector is pure Go
+#      (CGO_ENABLED=0), so goreleaser cross-builds BOTH arches natively on this
+#      amd64 node -- no cross toolchain, and crucially no emulation of the heavy
+#      Go compile. Shares the durable ci-gomodcache/ci-gobuildcache PVCs with
+#      check.yaml.
+#
+#   2. publish: assemble + push the multi-arch image on the shared,
+#      argocd-managed kubepi0 buildkitd (ns `buildkit`) as a REMOTE builder over
+#      kube-pod://, using Dockerfile.cross. kubepi0 is an amd64 host with
+#      binfmt/QEMU registered, so it CAN build linux/arm64 -- it just emulates
+#      it. Here that costs almost nothing: Dockerfile.cross compiles nothing
+#      per-arch (the binary is prebuilt and COPYed), so the only emulated arm64
+#      work is the tiny apt/ldd `tools` stage, and kubepi0's persistent
+#      /var/lib/buildkit cache PVC keeps even that warm across runs. Using
+#      kubepi0 (vs. an ephemeral in-pod buildkit) means no per-run buildkit
+#      startup and a shared warm layer cache. Requires the buildkit-client
+#      SA/RBAC on the cluster.
+#
+# SECURITY: pull_request is intentionally NOT a trigger. This injects a
+# github_token + Harbor push creds; running it on untrusted PR-controlled code
+# would be a pwn-request vector. Only pushed (trusted) commits run here,
+# consistent with check.yaml. Reports to GitHub as ci/woodpecker/push/image;
+# intentionally NOT a required check.
+#
+# Requires Woodpecker secrets (org-level):
+#   - github_token                 (private cardinalhq/* modules, gh pr list)
+#   - docker_flame_org_username    (Harbor robot for project library)
+#   - docker_flame_org_password
+# and the durable RWX caches ci-gomodcache, ci-gobuildcache (shared with
+# check.yaml).
+
+when:
+  - event: [push, manual]
+    branch:
+      exclude: [main]
+  # Release/RC tag pushes (v1.2.3, v1.2.3-rc1, ...). The branch filter above does
+  # not apply to tag events, so they are not excluded by it.
+  - event: tag
+
+steps:
+  - name: build-binary
+    # Shared CI builder: golang + goreleaser/gh prebaked. Auto-refreshes daily.
+    image: docker.flame.org/library/woodpecker-builder:stable
+    pull: true
+    volumes:
+      - ci-gomodcache:/cache/gomod      # GOMODCACHE
+      - ci-gobuildcache:/cache/go-build # GOCACHE
+    environment:
+      GOMODCACHE: /cache/gomod
+      GOCACHE: /cache/go-build
+      GOPRIVATE: github.com/cardinalhq/*
+      GH_TOKEN:
+        from_secret: github_token
+    commands:
+      # --- private cardinalhq/* Go modules over HTTPS (scoped to cardinalhq) ---
+      - git config --global url."https://x-access-token:$${GH_TOKEN}@github.com/cardinalhq/".insteadOf "https://github.com/cardinalhq/"
+      - git config --global --add safe.directory '*'
+
+      - go version && goreleaser --version
+
+      # --- compute the image tag -> .tags ---
+      # Tag events use the git tag verbatim (v1.2.3, v1.2.3-rc1); GHA copies that
+      # exact tag from Harbor to ECR. Branch builds keep the v0.0.0-pr<N> /
+      # v0.0.0-<branch> scheme.
+      - |
+        if [ -n "$$CI_COMMIT_TAG" ]; then
+          echo "$$CI_COMMIT_TAG" > .tags
+        else
+          sha8=$$(git rev-parse --short=8 HEAD)
+          PRNUM=$$(gh pr list --repo "$$CI_REPO" --head "$$CI_COMMIT_BRANCH" --state open --json number --jq '.[0].number' 2>/dev/null || true)
+          if [ -n "$$PRNUM" ] && [ "$$PRNUM" != "null" ]; then
+            echo "v0.0.0-pr$${PRNUM}-$${sha8}" > .tags
+          else
+            echo "v0.0.0-$$(echo "$$CI_COMMIT_BRANCH" | tr '/' '-')-$${sha8}" > .tags
+          fi
+        fi
+      - export IMAGE_VERSION=$$(cat .tags)
+      - echo "Building image tag $${IMAGE_VERSION}"
+
+      # --- cross-build the Go binary for both arches (no QEMU, no CGO) ---
+      - goreleaser build --snapshot --clean --config .goreleaser.cross.yaml
+
+      # --- stage the per-arch binary where Dockerfile.cross copies it ---
+      - |
+        for arch in amd64 arm64; do
+          mkdir -p docker/bin/linux_$$arch
+          cp dist/cardinalhq-otel-collector_linux_$${arch}*/cardinalhq-otel-collector docker/bin/linux_$$arch/cardinalhq-otel-collector
+        done
+      - ls -l docker/bin/linux_amd64 docker/bin/linux_arm64
+
+  - name: publish
+    # buildctl client; talks to the kubepi0 buildkitd over kube-pod://.
+    image: moby/buildkit:buildx-stable-1
+    pull: true
+    # SA allowed to reach kubepi0 via kube-pod:// (in-cluster creds auto-mounted;
+    # buildctl's kube-pod connhelper uses them).
+    backend_options:
+      kubernetes:
+        serviceAccountName: buildkit-client
+    environment:
+      FLAME_USER:
+        from_secret: docker_flame_org_username
+      FLAME_PASS:
+        from_secret: docker_flame_org_password
+    commands:
+      # kube-pod:// connhelper shells out to `kubectl exec`, so kubectl must exist.
+      - apk add --no-cache curl jq
+      - curl -fsSLo /usr/local/bin/kubectl "https://dl.k8s.io/release/$$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+      - chmod +x /usr/local/bin/kubectl
+      # --- registry auth for the push (buildctl reads DOCKER_CONFIG) ---
+      - |
+        mkdir -p /root/.docker
+        auth=$$(printf '%s:%s' "$${FLAME_USER}" "$${FLAME_PASS}" | base64 | tr -d '\n')
+        printf '{"auths":{"docker.flame.org":{"auth":"%s"}}}' "$$auth" > /root/.docker/config.json
+      # --- resolve the running kubepi0 pod (kube-pod:// needs a concrete pod) ---
+      - |
+        APISERVER=https://kubernetes.default.svc
+        SA=/var/run/secrets/kubernetes.io/serviceaccount
+        POD=$$(curl -fsSL --cacert $$SA/ca.crt -H "Authorization: Bearer $$(cat $$SA/token)" \
+          "$$APISERVER/api/v1/namespaces/buildkit/pods?labelSelector=app%3Dkubepi0" \
+          | jq -r '.items[] | select(.status.phase=="Running") | .metadata.name' | head -n1)
+        echo "buildkit pod = $$POD"
+        echo "$$POD" > .bk-pod
+      # --- build Dockerfile.cross on kubepi0 and push the multi-arch index ---
+      # Warm layer cache lives on kubepi0's /var/lib/buildkit PVC. Context is
+      # trimmed to docker/ by Dockerfile.cross.dockerignore (just the prebuilt
+      # per-arch binaries), so the kube-pod:// stream stays small.
+      - |
+        buildctl --addr "kube-pod://$$(cat .bk-pod)?namespace=buildkit" \
+          build \
+          --frontend dockerfile.v0 \
+          --local context=. \
+          --local dockerfile=. \
+          --opt filename=Dockerfile.cross \
+          --opt platform=linux/amd64,linux/arm64 \
+          --output type=image,name=docker.flame.org/library/cardinalhq-otel-collector:$$(cat .tags),push=true

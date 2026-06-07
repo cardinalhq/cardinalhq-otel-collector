@@ -113,8 +113,10 @@ steps:
       - ls -l docker/bin/linux_amd64 docker/bin/linux_arm64
 
   - name: publish
-    # buildctl client; talks to the kubepi0 buildkitd over kube-pod://.
-    image: moby/buildkit:buildx-stable-1
+    # Shared builder image: buildctl client that talks to the kubepi0 buildkitd
+    # over kube-pod://. Bakes in buildctl + a pinned, sha256-verified kubectl
+    # (kube-pod:// connhelper shells out to `kubectl exec`) plus curl/jq.
+    image: docker.flame.org/library/woodpecker-builder:stable
     pull: true
     # SA allowed to reach kubepi0 via kube-pod:// (in-cluster creds auto-mounted;
     # buildctl's kube-pod connhelper uses them).
@@ -127,10 +129,6 @@ steps:
       FLAME_PASS:
         from_secret: docker_flame_org_password
     commands:
-      # kube-pod:// connhelper shells out to `kubectl exec`, so kubectl must exist.
-      - apk add --no-cache curl jq
-      - curl -fsSLo /usr/local/bin/kubectl "https://dl.k8s.io/release/$$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-      - chmod +x /usr/local/bin/kubectl
       # --- registry auth for the push (buildctl reads DOCKER_CONFIG) ---
       - |
         mkdir -p /root/.docker

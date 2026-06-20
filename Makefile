@@ -41,6 +41,20 @@ ALLGOFILES := $(shell find $(MODULE_SOURCE_PATHS) -name '*.go')
 all_deps := $(shell find . -name '*.yaml') Dockerfile Makefile distribution/main.go ${SUMFILES} $(ALLGOFILES)
 
 CURRENT_DIR := $(shell pwd)
+BIN_DIR := $(CURRENT_DIR)/bin
+
+#
+# Dev tools (license-eye, goreleaser, golangci-lint).
+#
+# Prefer a copy already on PATH: the CI base image ships current versions, so we
+# skip the install step entirely there. Only when a tool is absent do we fall
+# back to a project-local ./bin copy, installed on demand by
+# scripts/install-dev-tools.sh. command -v returns an absolute path; the ./bin
+# fallback is absolute too, so the lint recipe's `cd $$i` doesn't break it.
+#
+LICENSE_EYE   := $(shell command -v license-eye   2>/dev/null || echo $(BIN_DIR)/license-eye)
+GORELEASER    := $(shell command -v goreleaser    2>/dev/null || echo $(BIN_DIR)/goreleaser)
+GOLANGCI_LINT := $(shell command -v golangci-lint 2>/dev/null || echo $(BIN_DIR)/golangci-lint)
 
 #
 # Default target.
@@ -70,17 +84,19 @@ fmt:
 .PHONY: check
 check: test license-check lint
 
-bin/license-eye bin/goreleaser bin/golangci-lint: scripts/install-dev-tools.sh
+# Installs all three tools to ./bin in one shot; only reached when a resolved
+# tool var above fell back to its $(BIN_DIR) path (i.e. it wasn't on PATH).
+$(BIN_DIR)/license-eye $(BIN_DIR)/goreleaser $(BIN_DIR)/golangci-lint: scripts/install-dev-tools.sh
 	./scripts/install-dev-tools.sh
 
 .PHONY: license-check
-license-check: tidy-dot bin/license-eye
-	./bin/license-eye header check
+license-check: tidy-dot $(LICENSE_EYE)
+	$(LICENSE_EYE) header check
 
 .PHONY: lint
-lint: bin/golangci-lint
+lint: $(GOLANGCI_LINT)
 	for i in $(MODULE_SOURCE_PATHS); do \
-	  (echo ============ linting $$i ... ; cd $$i && ${CURRENT_DIR}/bin/golangci-lint run --config ${CURRENT_DIR}/.golangci.yaml) || exit 1; \
+	  (echo ============ linting $$i ... ; cd $$i && $(GOLANGCI_LINT) run --config ${CURRENT_DIR}/.golangci.yaml) || exit 1; \
 	done
 
 .PHONY: update-deps
@@ -121,8 +137,8 @@ bin/cardinalhq-otel-collector: cardinalhq-otel-collector.yaml distribution/main.
 # Multi-architecture image builds
 #
 .PHONY: images
-images: buildfiles bin/goreleaser
-	./bin/goreleaser
+images: buildfiles $(GORELEASER)
+	$(GORELEASER)
 
 #
 # Test targets

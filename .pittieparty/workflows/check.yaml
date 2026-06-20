@@ -1,0 +1,29 @@
+# Copyright (c) 2025-2026 CardinalHQ, Inc. All rights reserved.
+#
+# Pittieparty port of .woodpecker/check.yaml: run `make check` (test +
+# license-check + lint) across the whole monorepo as a no-image check run --
+# clone -> compile/lint, the command's exit code is the verdict (reported as the
+# GitHub Check pittieparty/check).
+#
+# Platform-provided (never configured here): languages: [go] wires the Athens
+# GOPROXY and the warm Go cache (GOCACHEPROG); git_token exposes the per-run
+# installation token as GIT_TOKEN, covering the private cardinalhq/* Go modules.
+# Commands run as one `sh -eu` script in the default toolchain image
+# (woodpecker-builder), repo root as cwd.
+version: 1
+check:
+  git_token: true
+  languages: [go]
+  # test + lint across ~20 modules; golangci-lint over the whole monorepo is the
+  # memory lever and OOMs at the 4Gi default. Match the sibling repos' footprint.
+  memory: 12Gi
+  commands:
+    # Private cardinalhq/* modules over HTTPS: scope the token to cardinalhq only
+    # so it is never sent elsewhere.
+    - git config --global url."https://x-access-token:${GIT_TOKEN}@github.com/cardinalhq/".insteadOf "https://github.com/cardinalhq/"
+    - export GOPRIVATE='github.com/cardinalhq/*'
+    - git config --global --add safe.directory '*'
+    - go version
+    # test + license-check + lint across all modules. The lint/license targets
+    # install pinned dev tools (golangci-lint, license-eye) via `go install`.
+    - make check

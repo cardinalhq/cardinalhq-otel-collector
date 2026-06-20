@@ -13,12 +13,15 @@
 # limitations under the License.
 #
 # Woodpecker pipeline: build the cardinalhq-otel-collector container image for
-# dev-branch commits AND for release tags, pushing the multi-arch (amd64+arm64)
-# image to docker.flame.org/library/cardinalhq-otel-collector. The GitHub
-# Actions publish workflow (.github/workflows/dev.yml) waits for this build's
-# `ci/woodpecker/push/image` status and then copies the image to its publish
+# release tags ONLY, pushing the multi-arch (amd64+arm64) image to
+# docker.flame.org/library/cardinalhq-otel-collector. The GitHub Actions publish
+# workflow (.github/workflows/dev.yml) waits for this build's
+# `ci/woodpecker/tag/image` status and then copies the image to its publish
 # target (public.ecr.aws) instead of rebuilding. docker.flame.org is the only
 # registry this pipeline pushes to.
+#
+# Dev-branch / PR image builds were migrated to pittieparty
+# (.pittieparty/workflows/image.yaml); this pipeline now owns only release tags.
 #
 # Two stages, two engines:
 #
@@ -54,11 +57,10 @@
 # check.yaml).
 
 when:
-  - event: [push, manual]
-    branch:
-      exclude: [main]
-  # Release/RC tag pushes (v1.2.3, v1.2.3-rc1, ...). The branch filter above does
-  # not apply to tag events, so they are not excluded by it.
+  # Release/RC tag pushes (v1.2.3, v1.2.3-rc1, ...) ONLY. Dev-branch / PR image
+  # builds were migrated to pittieparty (.pittieparty/workflows/image.yaml);
+  # Woodpecker now owns only the release-tag image that
+  # .github/workflows/dev.yml waits on (ci/woodpecker/tag/image).
   - event: tag
 
 steps:
@@ -83,21 +85,9 @@ steps:
       - go version && goreleaser --version
 
       # --- compute the image tag -> .tags ---
-      # Tag events use the git tag verbatim (v1.2.3, v1.2.3-rc1); GHA copies that
-      # exact tag from Harbor to ECR. Branch builds keep the v0.0.0-pr<N> /
-      # v0.0.0-<branch> scheme.
-      - |
-        if [ -n "$$CI_COMMIT_TAG" ]; then
-          echo "$$CI_COMMIT_TAG" > .tags
-        else
-          sha8=$$(git rev-parse --short=8 HEAD)
-          PRNUM=$$(gh pr list --repo "$$CI_REPO" --head "$$CI_COMMIT_BRANCH" --state open --json number --jq '.[0].number' 2>/dev/null || true)
-          if [ -n "$$PRNUM" ] && [ "$$PRNUM" != "null" ]; then
-            echo "v0.0.0-pr$${PRNUM}-$${sha8}" > .tags
-          else
-            echo "v0.0.0-$$(echo "$$CI_COMMIT_BRANCH" | tr '/' '-')-$${sha8}" > .tags
-          fi
-        fi
+      # Tag-only pipeline: use the git tag verbatim (v1.2.3, v1.2.3-rc1); GHA
+      # copies that exact tag from Harbor to ECR.
+      - echo "$$CI_COMMIT_TAG" > .tags
       - export IMAGE_VERSION=$$(cat .tags)
       - echo "Building image tag $${IMAGE_VERSION}"
 

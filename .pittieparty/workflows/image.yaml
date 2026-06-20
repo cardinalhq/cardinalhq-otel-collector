@@ -1,0 +1,63 @@
+# Copyright (c) 2025-2026 CardinalHQ, Inc. All rights reserved.
+#
+# Pittieparty port of .woodpecker/image.yaml (PR scope only): cross-build the
+# pure-Go collector binary for amd64+arm64 on a single amd64 node, package both
+# with the thin Dockerfile.cross into a multi-arch image, and push it to Harbor.
+#
+# SCOPE: PR builds only. on: [push] -- a feature-branch push is treated as a PR
+# build, so the controller resolves the open PR and skips the build entirely if
+# none appears (we never branch-tag a PR branch). Release/tag image builds are
+# intentionally NOT handled here yet; .woodpecker/image.yaml still owns the
+# release-tag image that .github/workflows/dev.yml waits on.
+#
+# Publishes to docker.flame.org/library/cardinalhq-otel-collector via the
+# platform publisher robot (controller maps docker.flame.org=registry-flame in
+# PUBLISH_REGISTRIES). Only trusted pushes publish; pull_request can't (so on:
+# omits it).
+#
+# The collector is pure Go with CGO_ENABLED=0, so the arm64 binary cross-compiles
+# natively on this amd64 node -- no cross toolchain and no QEMU.
+#
+# Platform-provided (never configured here): languages: [go] wires the Athens
+# GOPROXY and the warm Go cache; git_token exposes the per-run installation token
+# as GIT_TOKEN (private cardinalhq/* Go modules). PP_GIT_* are platform-provided
+# (pittieparty v0.5.26+): PP_GIT_PR_NUMBER / PP_GIT_BRANCH / PP_GIT_SHA8. Commands
+# run as one `sh -eu` script in the default toolchain image (woodpecker-builder),
+# repo root as cwd.
+version: 1
+on: [push]
+build:
+  git_token: true
+  languages: [go]
+  commands:
+    # Private cardinalhq/* modules over HTTPS: scope the token to cardinalhq only.
+    - git config --global url."https://x-access-token:${GIT_TOKEN}@github.com/cardinalhq/".insteadOf "https://github.com/cardinalhq/"
+    - export GOPRIVATE='github.com/cardinalhq/*'
+    - go version && goreleaser --version
+
+    # Stamp the binary with the image tag (mirrors image.tags below). PR builds
+    # use the resolved open-PR number; the branch fallback covers the rare
+    # branch-push-without-PR window before the controller skips.
+    - |
+      if [ -n "$PP_GIT_PR_NUMBER" ]; then
+        export IMAGE_VERSION="v0.0.0-pr${PP_GIT_PR_NUMBER}-${PP_GIT_SHA8}"
+      else
+        export IMAGE_VERSION="v0.0.0-$(echo "$PP_GIT_BRANCH" | tr '/' '-')-${PP_GIT_SHA8}"
+      fi
+      echo "Building image version $IMAGE_VERSION"
+
+    # Cross-build the Go binary for amd64+arm64 (no QEMU, no CGO).
+    - goreleaser build --snapshot --clean --config .goreleaser.cross.yaml
+
+    # Stage the per-arch binary where Dockerfile.cross copies it.
+    - |
+      for arch in amd64 arm64; do
+        mkdir -p docker/bin/linux_$arch
+        cp dist/cardinalhq-otel-collector_linux_${arch}*/cardinalhq-otel-collector docker/bin/linux_$arch/cardinalhq-otel-collector
+      done
+    - ls -l docker/bin/linux_amd64 docker/bin/linux_arm64
+image:
+  name: docker.flame.org/library/cardinalhq-otel-collector
+  dockerfile: Dockerfile.cross
+  platforms: [linux/amd64, linux/arm64]
+  tags: ["v0.0.0-pr{pr}-{sha8}"]

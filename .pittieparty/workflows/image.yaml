@@ -4,9 +4,12 @@
 # pure-Go collector binary for amd64+arm64 on a single amd64 node, package both
 # with the thin Dockerfile.cross into a multi-arch image, and push it to Harbor.
 #
-# SCOPE: PR builds only. on: [push] -- a feature-branch push is treated as a PR
-# build, so the controller resolves the open PR and skips the build entirely if
-# none appears (we never branch-tag a PR branch). Release/tag image builds are
+# SCOPE: PR-branch pushes AND default-branch (main) pushes. on: [push] (never
+# pull_request -- a PR can't publish). A feature-branch push is a PR build
+# (tagged v0.0.0-pr{pr}-{sha8}; the controller resolves the open PR and skips if
+# none). A main push is tagged v0.0.0-{default_branch}-{sha8} -- this both
+# publishes a trunk image and, more importantly, warms the durable Go + buildkit
+# caches on the trusted ref so PR builds stay fast. Release/tag image builds are
 # intentionally NOT handled here yet; .woodpecker/image.yaml still owns the
 # release-tag image that .github/workflows/dev.yml waits on.
 #
@@ -29,6 +32,9 @@ on: [push]
 build:
   git_token: true
   languages: [go]
+  # goreleaser cross-builds the full collector distribution (huge module graph)
+  # for both arches; the 4Gi default OOMs. Match the check job / sibling repos.
+  memory: 12Gi
   commands:
     # Private cardinalhq/* modules over HTTPS: scope the token to cardinalhq only.
     - git config --global url."https://x-access-token:${GIT_TOKEN}@github.com/cardinalhq/".insteadOf "https://github.com/cardinalhq/"
@@ -60,4 +66,6 @@ image:
   name: docker.flame.org/library/cardinalhq-otel-collector
   dockerfile: Dockerfile.cross
   platforms: [linux/amd64, linux/arm64]
-  tags: ["v0.0.0-pr{pr}-{sha8}"]
+  # {pr} resolves on PR-branch pushes, {default_branch} on main pushes; the entry
+  # whose var is empty for a given push is dropped (every-entry-dropped is an error).
+  tags: ["v0.0.0-pr{pr}-{sha8}", "v0.0.0-{default_branch}-{sha8}"]

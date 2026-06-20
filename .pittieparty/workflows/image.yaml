@@ -33,8 +33,10 @@ build:
   git_token: true
   languages: [go]
   # goreleaser cross-builds the full collector distribution (huge module graph)
-  # for both arches; the 4Gi default OOMs. Match the check job / sibling repos.
-  memory: 12Gi
+  # for both arches; linking that binary is multi-GB per arch. 16Gi is the
+  # controller's cap (defaultCompileMemoryMax); combined with --parallelism 1
+  # below (one arch linked at a time) it keeps peak under the limit.
+  memory: 16Gi
   commands:
     # Private cardinalhq/* modules over HTTPS: scope the token to cardinalhq only.
     - git config --global url."https://x-access-token:${GIT_TOKEN}@github.com/cardinalhq/".insteadOf "https://github.com/cardinalhq/"
@@ -52,8 +54,10 @@ build:
       fi
       echo "Building image version $IMAGE_VERSION"
 
-    # Cross-build the Go binary for amd64+arm64 (no QEMU, no CGO).
-    - goreleaser build --snapshot --clean --config .goreleaser.cross.yaml
+    # Cross-build the Go binary for amd64+arm64 (no QEMU, no CGO). --parallelism 1
+    # links one arch at a time: the collector binary's link step is multi-GB, and
+    # goreleaser's default concurrent two-arch link OOMs even at 16Gi.
+    - goreleaser build --snapshot --clean --parallelism 1 --config .goreleaser.cross.yaml
 
     # Stage the per-arch binary where Dockerfile.cross copies it.
     - |

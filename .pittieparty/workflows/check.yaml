@@ -1,7 +1,7 @@
 # Copyright (c) 2025-2026 CardinalHQ, Inc. All rights reserved.
 #
-# Pittieparty port of .woodpecker/check.yaml: run `make check` (test +
-# license-check + lint) across the whole monorepo as a no-image check run --
+# Run `make check` (test + license-check + lint) across the whole monorepo as a
+# no-image check run --
 # clone -> compile/lint, the command's exit code is the verdict (reported as the
 # GitHub Check pittieparty/check).
 #

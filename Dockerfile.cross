@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Cross-compile image build, shared by the kubepi Woodpecker pipeline
-# (.woodpecker/image.yaml, via woodpeckerci/plugin-docker-buildx) and the GitHub
-# Actions gha-mode fallback (.github/workflows/dev.yml, via buildx).
-# Context = repo root.
+# Cross-compile image build, used by the pittieparty image pipeline
+# (.pittieparty/workflows/image.yaml). Context = repo root.
 #
 # Unlike ./Dockerfile, this variant compiles NOTHING per-arch: the Go binary is
 # cross-built on the amd64 host in the build-binaries step and staged into

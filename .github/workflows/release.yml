@@ -1,5 +1,15 @@
 name: goreleaser-release-latest
 
+# GA tags (vX.Y.Z, not vX.Y.Z-*).
+#
+# Default path COPIES the multi-arch image pittieparty built and pushed to Harbor
+# (docker.flame.org/library/cardinalhq-otel-collector, see
+# .pittieparty/workflows/image.yaml) into public ECR -- no rebuild, the build
+# cache stays on the cluster. Set repo variable IMAGE_BUILD_SOURCE=gha to build
+# the image in Actions (goreleaser) instead, e.g. if the cluster is down.
+#
+# The GitHub Release publishes regardless of the image source.
+
 on:
   push:
     tags:
@@ -7,27 +17,63 @@ on:
       - "!v*-*"
 
 permissions:
-  id-token: write
-  contents: write
+  contents: read
 
 jobs:
-  partials:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: linux_amd64
-            label: ubuntu-22.04
-            cache_path: dist/linux_amd64
-          - name: linux_arm64
-            label: ubuntu-22.04-arm
-            cache_path: dist/linux_arm64
-    runs-on: ${{ matrix.label }}
-    env:
-      DOCKER_CLI_EXPERIMENTAL: "enabled"
+  # Default: copy the pittieparty-built image from Harbor to ECR (no rebuild).
+  copy-image:
+    if: ${{ vars.IMAGE_BUILD_SOURCE != 'gha' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # AWS OIDC for ECR push
+      checks: read      # read the pittieparty/image check run
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          audience: sts.amazonaws.com
+          role-to-assume: arn:aws:iam::${{ secrets.ECR_ACCOUNT_ID }}:role/${{ secrets.ECR_ROLE_NAME }}
+          aws-region: ${{ secrets.ECR_REGISTRY_REGION }}
+          role-session-name: GitHubActions
+
+      - name: Login to PUBLIC Amazon ECR
+        env:
+          AWS_REGION: us-east-1
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
+
+      # pittieparty reports the image build as a GitHub Check run (not a commit
+      # status), so wait on the Checks API.
+      - name: Wait for pittieparty image build
+        uses: cardinalhq/actions/wait-for-check@v1
+        with:
+          check-name: pittieparty/image
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fail-hint: Set repo variable IMAGE_BUILD_SOURCE=gha to build in Actions.
+
+      - name: Copy image from pittieparty (Harbor) to ECR
+        uses: cardinalhq/actions/copy-image@v1
+        with:
+          source: docker.flame.org/library/cardinalhq-otel-collector:${{ github.ref_name }}
+          targets: |
+            public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:${{ github.ref_name }}
+          pin-source: true   # copy from immutable source digest
+          sign: true         # keyless-sign destination ref (cosign)
+
+  # Fallback: build the image in Actions (goreleaser -> ECR) when the cluster is
+  # unavailable. Enabled by repo variable IMAGE_BUILD_SOURCE=gha.
+  gha-build:
+    if: ${{ vars.IMAGE_BUILD_SOURCE == 'gha' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # AWS OIDC for ECR push
+    steps:
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -39,8 +85,8 @@ jobs:
       - name: go-cache-paths
         id: go-cache-paths
         run: |
-          echo "go-build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
-          echo "go-mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+          echo "go-build=$(go env GOCACHE)" >> $GITHUB_OUTPUT
+          echo "go-mod=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
 
       - name: Go Build Cache
         uses: actions/cache@v5
@@ -48,6 +94,9 @@ jobs:
           path: ${{ steps.go-cache-paths.outputs.go-build }}
           key: ${{ runner.os }}-${{ runner.arch }}-go-build
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -66,100 +115,23 @@ jobs:
         with:
           registry-type: public
 
-      - name: sha_short
-        run: echo "sha_short=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
-
-      - name: Cache partial dist
-        uses: actions/cache@v5
-        with:
-          path: ${{ matrix.cache_path }}
-          key: ${{ matrix.name }}-${{ env.sha_short }}
-
-      - name: make clean
-        run: make clean
-
-      - name: Setup GoReleaser Pro
+      - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7
         with:
-          distribution: goreleaser-pro
-          version: "~> v2"
-          install-only: true
+          distribution: goreleaser
+          version: "nightly"
+          args: release --clean -f .goreleaser.yaml
         env:
-          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
-
-      - name: Run GoReleaser Pro split
-        env:
-          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
-          GORELEASER_CURRENT_TAG: ${{ github.ref_name }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: goreleaser release --clean --split -f .goreleaser-release.yaml
-
-  merge:
-    needs: partials
-    runs-on: ubuntu-22.04
-    env:
-      DOCKER_CLI_EXPERIMENTAL: "enabled"
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          audience: sts.amazonaws.com
-          role-to-assume: arn:aws:iam::${{ secrets.ECR_ACCOUNT_ID }}:role/${{ secrets.ECR_ROLE_NAME }}
-          aws-region: ${{ secrets.ECR_REGISTRY_REGION }}
-          role-session-name: GitHubActions
-
-      - name: Login to PUBLIC Amazon ECR
-        env:
-          AWS_REGION: us-east-1
-        uses: aws-actions/amazon-ecr-login@v2
-        with:
-          registry-type: public
-
-      - name: sha_short
-        run: echo "sha_short=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
-
-      - name: Restore amd64 partial
-        uses: actions/cache@v5
-        with:
-          path: dist/linux_amd64
-          key: linux_amd64-${{ env.sha_short }}
-          fail-on-cache-miss: true
-
-      - name: Restore arm64 partial
-        uses: actions/cache@v5
-        with:
-          path: dist/linux_arm64
-          key: linux_arm64-${{ env.sha_short }}
-          fail-on-cache-miss: true
-
-      - name: Setup GoReleaser Pro
-        uses: goreleaser/goreleaser-action@v7
-        with:
-          distribution: goreleaser-pro
-          version: "~> v2"
-          install-only: true
-        env:
-          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
-
-      - name: Run GoReleaser Pro merge
-        env:
-          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
           GORELEASER_CURRENT_TAG: ${{ github.ref_name }}
-        run: goreleaser continue --merge
 
+  # Publish the GitHub Release regardless of which image path ran.
   release:
-    needs: merge
-    runs-on: ubuntu-22.04
+    needs: [copy-image, gha-build]
+    if: ${{ always() && !cancelled() && (needs.copy-image.result == 'success' || needs.gha-build.result == 'success') }}
+    runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write  # gh release create
     steps:
       - name: Checkout
         uses: actions/checkout@v6

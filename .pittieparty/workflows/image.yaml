@@ -1,17 +1,22 @@
 # Copyright (c) 2025-2026 CardinalHQ, Inc. All rights reserved.
 #
-# Pittieparty port of .woodpecker/image.yaml (PR scope only): cross-build the
-# pure-Go collector binary for amd64+arm64 on a single amd64 node, package both
-# with the thin Dockerfile.cross into a multi-arch image, and push it to Harbor.
+# Cross-build the pure-Go collector binary for amd64+arm64 on a single amd64
+# node, package both with the thin Dockerfile.cross into a multi-arch image, and
+# push it to Harbor. This is now the ONLY image build: it owns PR, default-branch
+# (main), AND release-tag images (the old .woodpecker/image.yaml is gone).
 #
-# SCOPE: PR-branch pushes AND default-branch (main) pushes. on: [push] (never
-# pull_request -- a PR can't publish). A feature-branch push is a PR build
-# (tagged v0.0.0-pr{pr}-{sha8}; the controller resolves the open PR and skips if
-# none). A main push is tagged v0.0.0-{default_branch}-{sha8} -- this both
-# publishes a trunk image and, more importantly, warms the durable Go + buildkit
-# caches on the trusted ref so PR builds stay fast. Release/tag image builds are
-# intentionally NOT handled here yet; .woodpecker/image.yaml still owns the
-# release-tag image that .github/workflows/dev.yml waits on.
+# SCOPE: all trusted pushes -- PR-branch, default-branch (main), and tags.
+# on: [push, tag] (never pull_request -- a PR can't publish). The GitHub Actions
+# workflows then copy this image Harbor -> ECR with no rebuild, waiting on the
+# pittieparty/image Check (.github/workflows/{pr-image-to-ecr,dev,release}.yml).
+#
+# Tag scheme (mirrors the old Woodpecker .tags + GHA's compute):
+#   tag push            -> {tag}                       e.g. v1.2.3 / v1.2.3-rc1
+#   PR-head push        -> v0.0.0-pr{pr}-{sha8}         ({pr} resolved from the open PR)
+#   default-branch push -> v0.0.0-{default_branch}-{sha8}
+# A default-branch / PR build also warms the durable Go + buildkit caches on the
+# trusted ref so PR builds stay fast. A feature-branch push is a PR build: the
+# controller resolves the open PR and skips the build if none appears.
 #
 # Publishes to docker.flame.org/library/cardinalhq-otel-collector via the
 # platform publisher robot (controller maps docker.flame.org=registry-flame in
@@ -24,11 +29,11 @@
 # Platform-provided (never configured here): languages: [go] wires the Athens
 # GOPROXY and the warm Go cache; git_token exposes the per-run installation token
 # as GIT_TOKEN (private cardinalhq/* Go modules). PP_GIT_* are platform-provided
-# (pittieparty v0.5.26+): PP_GIT_PR_NUMBER / PP_GIT_BRANCH / PP_GIT_SHA8. Commands
-# run as one `sh -eu` script in the default toolchain image (woodpecker-builder),
-# repo root as cwd.
+# (pittieparty v0.5.26+): PP_GIT_TAG / PP_GIT_PR_NUMBER / PP_GIT_BRANCH /
+# PP_GIT_SHA8. Commands run as one `sh -eu` script in the default toolchain image
+# (woodpecker-builder), repo root as cwd.
 version: 1
-on: [push]
+on: [push, tag]
 build:
   git_token: true
   languages: [go]
@@ -43,11 +48,14 @@ build:
     - export GOPRIVATE='github.com/cardinalhq/*'
     - go version && goreleaser --version
 
-    # Stamp the binary with the image tag (mirrors image.tags below). PR builds
-    # use the resolved open-PR number; the branch fallback covers the rare
-    # branch-push-without-PR window before the controller skips.
+    # Stamp the binary with the image tag (mirrors image.tags below): the real
+    # git tag on a tag push, else the resolved open-PR number, else the
+    # branch fallback (covers the rare branch-push-without-PR window before the
+    # controller skips).
     - |
-      if [ -n "$PP_GIT_PR_NUMBER" ]; then
+      if [ -n "$PP_GIT_TAG" ]; then
+        export IMAGE_VERSION="$PP_GIT_TAG"
+      elif [ -n "$PP_GIT_PR_NUMBER" ]; then
         export IMAGE_VERSION="v0.0.0-pr${PP_GIT_PR_NUMBER}-${PP_GIT_SHA8}"
       else
         export IMAGE_VERSION="v0.0.0-$(echo "$PP_GIT_BRANCH" | tr '/' '-')-${PP_GIT_SHA8}"
@@ -70,6 +78,7 @@ image:
   name: docker.flame.org/library/cardinalhq-otel-collector
   dockerfile: Dockerfile.cross
   platforms: [linux/amd64, linux/arm64]
-  # {pr} resolves on PR-branch pushes, {default_branch} on main pushes; the entry
-  # whose var is empty for a given push is dropped (every-entry-dropped is an error).
-  tags: ["v0.0.0-pr{pr}-{sha8}", "v0.0.0-{default_branch}-{sha8}"]
+  # {tag} resolves on tag pushes, {pr} on PR-branch pushes, {default_branch} on
+  # main pushes; the entry whose var is empty for a given push is dropped
+  # (every-entry-dropped is an error).
+  tags: ["{tag}", "v0.0.0-pr{pr}-{sha8}", "v0.0.0-{default_branch}-{sha8}"]

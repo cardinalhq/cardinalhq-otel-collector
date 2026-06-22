@@ -13,10 +13,9 @@
 # limitations under the License.
 #
 # Builds-only goreleaser config for the single-host cross-compile image builds,
-# shared by the kubepi Woodpecker pipeline (.woodpecker/image.yaml) and the
-# GitHub Actions gha-mode fallback (.github/workflows/dev.yml). It cross-builds
-# the Go binary for both arches on a single amd64 node; the multi-arch image
-# itself is assembled and pushed by buildx against Dockerfile.cross, NOT by
+# used by the pittieparty image pipeline (.pittieparty/workflows/image.yaml). It
+# cross-builds the Go binary for both arches on a single amd64 node; the
+# multi-arch image itself is assembled and pushed against Dockerfile.cross, NOT by
 # goreleaser -- so there is no `dockers:` / `docker_manifests:` section here.
 #
 # The collector is pure Go with CGO_ENABLED=0, so the arm64 binary

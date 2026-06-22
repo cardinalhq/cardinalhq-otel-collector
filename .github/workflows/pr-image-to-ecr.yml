@@ -1,0 +1,100 @@
+name: PR Image to ECR
+
+# On a push to a non-main branch that has an OPEN pull request, copy the
+# cardinalhq-otel-collector image pittieparty just built
+# (docker.flame.org/library/cardinalhq-otel-collector:v0.0.0-pr<N>-<sha8>, see
+# .pittieparty/workflows/image.yaml) to the public ECR distribution repo so the
+# PR build is pullable from anywhere ECR is reachable (e.g. disposable test
+# clusters that can't reach the internal Harbor). ECR ONLY.
+#
+# This only COPIES an already-built image; the heavy multi-arch build stays on the
+# cluster. There is no GHA-build fallback: if the pittieparty build is missing or
+# failed, this fails -- PR images are best-effort and not worth GHA build minutes.
+#
+# SECURITY: push-triggered (NOT pull_request), so only trusted commits pushed by
+# repo-write users run here with ECR OIDC creds. Fork PRs cannot reach this
+# workflow, matching the pittieparty pipeline's trust model. Branches with no open
+# PR resolve to an empty PR number and the copy job is skipped.
+
+on:
+  push:
+    branches-ignore:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    name: Resolve open PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      pr: ${{ steps.pr.outputs.number }}
+      tag: ${{ steps.pr.outputs.tag }}
+    steps:
+      - name: Find open PR + image tag
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --state open \
+            --json number --jq '.[0].number // empty')
+          echo "number=$pr" >> "$GITHUB_OUTPUT"
+          if [ -n "$pr" ]; then
+            sha8=$(echo "$SHA" | cut -c1-8)
+            tag="v0.0.0-pr${pr}-${sha8}"
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+            echo "Branch '$BRANCH' -> PR #$pr, image tag $tag"
+          else
+            echo "Branch '$BRANCH' has no open PR; skipping ECR copy."
+          fi
+
+  copy-to-ecr:
+    name: Copy PR Image to ECR
+    needs: resolve
+    if: ${{ needs.resolve.outputs.pr != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # AWS OIDC for ECR push
+      checks: read      # read the pittieparty/image check run
+    steps:
+      # pittieparty reports the image build as a GitHub Check run (not a commit
+      # status), so wait on the Checks API.
+      - name: Wait for pittieparty image build
+        uses: cardinalhq/actions/wait-for-check@v1
+        with:
+          check-name: pittieparty/image
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fail-hint: PR images are best-effort; no image to copy.
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          audience: sts.amazonaws.com
+          role-to-assume: arn:aws:iam::${{ secrets.ECR_ACCOUNT_ID }}:role/${{ secrets.ECR_ROLE_NAME }}
+          aws-region: ${{ secrets.ECR_REGISTRY_REGION }}
+          role-session-name: GitHubActions
+
+      - name: Login to PUBLIC Amazon ECR
+        env:
+          AWS_REGION: us-east-1
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
+
+      - name: Copy image from pittieparty (Harbor) to ECR
+        uses: cardinalhq/actions/copy-image@v1
+        with:
+          source: docker.flame.org/library/cardinalhq-otel-collector:${{ needs.resolve.outputs.tag }}
+          targets: |
+            public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:${{ needs.resolve.outputs.tag }}
+          pin-source: true   # copy from immutable source digest
+          sign: true         # keyless-sign destination ref (cosign)

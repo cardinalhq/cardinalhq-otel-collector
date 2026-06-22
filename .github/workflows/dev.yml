@@ -1,15 +1,15 @@
 name: goreleaser-latest-dev
 
-# Publishes the dev image at public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:<tag>.
+# Publishes the dev image at public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:<tag>
+# for dev/rc tags (v*-*).
 #
-# MODE = vars.IMAGE_BUILD_SOURCE (default 'woodpecker'):
-#   woodpecker -> wait for the kubepi Woodpecker build (ci/woodpecker/tag/image;
-#                 this workflow is tag-triggered, so the status is posted under
-#                 the tag context, not push) and copy its multi-arch image from
-#                 Harbor (docker.flame.org) to ECR (no rebuild; reuses kubepi's
-#                 warm build cache).
-#   gha        -> cross-compile + build the image here and push (fallback /
-#                 swap-back if kubepi is unavailable).
+# Default path COPIES the multi-arch image pittieparty built and pushed to Harbor
+# (docker.flame.org/library/cardinalhq-otel-collector, see
+# .pittieparty/workflows/image.yaml) into public ECR -- no rebuild, the build
+# cache stays on the cluster. Set repo variable IMAGE_BUILD_SOURCE=gha to build
+# the image in Actions (goreleaser) instead, e.g. if the cluster is down.
+#
+# Dev tags do NOT create a GitHub release (that's release.yml, for GA tags).
 
 on:
   push:
@@ -17,24 +17,21 @@ on:
       - "v*-*"
 
 permissions:
-  id-token: write
-  contents: write
-  statuses: read   # read the ci/woodpecker/tag/image commit status (woodpecker mode)
+  contents: read
 
 jobs:
-  goreleaser:
+  # Default: copy the pittieparty-built image from Harbor to ECR (no rebuild).
+  copy-image:
+    if: ${{ vars.IMAGE_BUILD_SOURCE != 'gha' }}
     runs-on: ubuntu-latest
-    env:
-      MODE: ${{ vars.IMAGE_BUILD_SOURCE || 'woodpecker' }}
+    permissions:
+      contents: read
+      id-token: write   # AWS OIDC for ECR push
+      checks: read      # read the pittieparty/image check run
     steps:
-      - name: Checkout
-        id: checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
+      - uses: docker/setup-buildx-action@v4
 
       - name: Configure AWS credentials
-        id: aws-credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
           audience: sts.amazonaws.com
@@ -43,84 +40,83 @@ jobs:
           role-session-name: GitHubActions
 
       - name: Login to PUBLIC Amazon ECR
-        id: login-ecr-public
         env:
           AWS_REGION: us-east-1
         uses: aws-actions/amazon-ecr-login@v2
         with:
           registry-type: public
 
-      # ---- woodpecker mode: wait for the kubepi build, then copy ----
-      - name: Wait for Woodpecker image build
-        if: ${{ env.MODE == 'woodpecker' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # tag events post the status under ci/woodpecker/tag/<workflow>
-          ctx="ci/woodpecker/tag/image"
-          deadline=$(( $(date +%s) + 1500 ))   # 25 min
-          while :; do
-            state=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/statuses" \
-              --jq "[.[] | select(.context == \"$ctx\")][0].state // \"\"")
-            case "$state" in
-              success) echo "Woodpecker image build succeeded"; break ;;
-              failure|error) echo "::error::Woodpecker image build $state. Set repo variable IMAGE_BUILD_SOURCE=gha to build in Actions."; exit 1 ;;
-              *) : ;;  # absent or pending
-            esac
-            if [ "$(date +%s)" -ge "$deadline" ]; then
-              echo "::error::Timed out waiting for $ctx on $GITHUB_SHA. Set IMAGE_BUILD_SOURCE=gha to build in Actions."; exit 1
-            fi
-            echo "waiting for $ctx (state='${state:-absent}')..."
-            sleep 15
-          done
+      # pittieparty reports the image build as a GitHub Check run (not a commit
+      # status), so wait on the Checks API.
+      - name: Wait for pittieparty image build
+        uses: cardinalhq/actions/wait-for-check@v1
+        with:
+          check-name: pittieparty/image
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fail-hint: Set repo variable IMAGE_BUILD_SOURCE=gha to build in Actions.
 
-      - name: Set up Docker Buildx
-        if: ${{ env.MODE == 'woodpecker' }}
-        uses: docker/setup-buildx-action@v4
+      - name: Copy image from pittieparty (Harbor) to ECR
+        uses: cardinalhq/actions/copy-image@v1
+        with:
+          source: docker.flame.org/library/cardinalhq-otel-collector:${{ github.ref_name }}
+          targets: |
+            public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:${{ github.ref_name }}
+          pin-source: true   # copy from immutable source digest
+          sign: true         # keyless-sign destination ref (cosign)
 
-      - name: Copy image from Woodpecker (Harbor) to ECR
-        if: ${{ env.MODE == 'woodpecker' }}
-        run: |
-          docker buildx imagetools create \
-            -t "public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:${GITHUB_REF_NAME}" \
-            "docker.flame.org/library/cardinalhq-otel-collector:${GITHUB_REF_NAME}"
+  # Fallback: build the image in Actions (goreleaser -> ECR) when the cluster is
+  # unavailable. Enabled by repo variable IMAGE_BUILD_SOURCE=gha.
+  gha-build:
+    if: ${{ vars.IMAGE_BUILD_SOURCE == 'gha' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # AWS OIDC for ECR push
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
-      # ---- gha mode: cross-compile both arches here and push ----
       - name: Set up Go
-        if: ${{ env.MODE == 'gha' }}
         # no cache here intentionally
-        id: go
         uses: actions/setup-go@v6
         with:
           go-version: stable
 
       - name: go-cache-paths
-        if: ${{ env.MODE == 'gha' }}
         id: go-cache-paths
         run: |
           echo "go-build=$(go env GOCACHE)" >> $GITHUB_OUTPUT
           echo "go-mod=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
 
       - name: Go Build Cache
-        if: ${{ env.MODE == 'gha' }}
         uses: actions/cache@v5
         with:
           path: ${{ steps.go-cache-paths.outputs.go-build }}
           key: ${{ runner.os }}-${{ runner.arch }}-go-build
 
       - name: Set up QEMU
-        if: ${{ env.MODE == 'gha' }}
-        id: qemu
         uses: docker/setup-qemu-action@v4
 
-      - name: Set up Docker Buildx (gha)
-        if: ${{ env.MODE == 'gha' }}
-        id: buildx
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          audience: sts.amazonaws.com
+          role-to-assume: arn:aws:iam::${{ secrets.ECR_ACCOUNT_ID }}:role/${{ secrets.ECR_ROLE_NAME }}
+          aws-region: ${{ secrets.ECR_REGISTRY_REGION }}
+          role-session-name: GitHubActions
+
+      - name: Login to PUBLIC Amazon ECR
+        env:
+          AWS_REGION: us-east-1
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
+
       - name: Run GoReleaser
-        if: ${{ env.MODE == 'gha' }}
-        id: goreleaser
         uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser

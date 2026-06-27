@@ -16,22 +16,26 @@ package summarysplitprocessor
 
 import (
 	"context"
+	"math"
 	"strconv"
 	"strings"
 
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 )
 
 func (p *summarysplit) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
-	inCount := countDatapointTypes(md)
-	if inCount[pmetric.MetricTypeSummary] == 0 {
+	if countMetricTypes(md)[pmetric.MetricTypeSummary] == 0 {
 		return md, nil
 	}
-	result := splitSummaryDataPoints(md)
+	result, split := splitSummaryDataPoints(md)
+	if p.splitCount != nil {
+		p.splitCount.Add(ctx, split)
+	}
 	return result, nil
 }
 
-func countDatapointTypes(md pmetric.Metrics) map[pmetric.MetricType]int64 {
+func countMetricTypes(md pmetric.Metrics) map[pmetric.MetricType]int64 {
 	counts := map[pmetric.MetricType]int64{}
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
 		rm := md.ResourceMetrics().At(i)
@@ -46,7 +50,11 @@ func countDatapointTypes(md pmetric.Metrics) map[pmetric.MetricType]int64 {
 	return counts
 }
 
-func splitSummaryDataPoints(md pmetric.Metrics) pmetric.Metrics {
+// splitSummaryDataPoints rebuilds md, replacing each summary metric with its
+// count/sum/quantile metrics and passing everything else through unchanged. It
+// returns the number of summary data points that were split.
+func splitSummaryDataPoints(md pmetric.Metrics) (pmetric.Metrics, int64) {
+	var split int64
 	newMetrics := pmetric.NewMetrics()
 	for i := 0; i < md.ResourceMetrics().Len(); i++ {
 		rm := md.ResourceMetrics().At(i)
@@ -61,6 +69,7 @@ func splitSummaryDataPoints(md pmetric.Metrics) pmetric.Metrics {
 			for k := 0; k < ilm.Metrics().Len(); k++ {
 				metric := ilm.Metrics().At(k)
 				if metric.Type() == pmetric.MetricTypeSummary {
+					split += int64(metric.Summary().DataPoints().Len())
 					splitSummaryDataPoint(metric, newILM)
 				} else {
 					metric.CopyTo(newILM.Metrics().AppendEmpty())
@@ -68,7 +77,15 @@ func splitSummaryDataPoints(md pmetric.Metrics) pmetric.Metrics {
 			}
 		}
 	}
-	return newMetrics
+	// Drop scopes/resources we left empty (e.g. a scope whose only metrics were
+	// summaries with no data points) rather than emitting empty trees.
+	newMetrics.ResourceMetrics().RemoveIf(func(rm pmetric.ResourceMetrics) bool {
+		rm.ScopeMetrics().RemoveIf(func(sm pmetric.ScopeMetrics) bool {
+			return sm.Metrics().Len() == 0
+		})
+		return rm.ScopeMetrics().Len() == 0
+	})
+	return newMetrics, split
 }
 
 func splitSummaryDataPoint(metric pmetric.Metric, ilm pmetric.ScopeMetrics) {
@@ -90,18 +107,20 @@ func createCountMetric(metric pmetric.Metric, ilm pmetric.ScopeMetrics) {
 	mcount.SetName(metric.Name() + ".count")
 	count := mcount.SetEmptySum()
 	count.SetIsMonotonic(false)
+	// .count is emitted as a delta (non-monotonic) Sum per Cardinal's convention.
 	count.SetAggregationTemporality(pmetric.AggregationTemporalityDelta)
 	for i := 0; i < summary.DataPoints().Len(); i++ {
 		sdp := summary.DataPoints().At(i)
 		dp := count.DataPoints().AppendEmpty()
 		sdp.Attributes().CopyTo(dp.Attributes())
-		sts := sdp.StartTimestamp()
-		if sts == 0 {
-			sts = sdp.Timestamp()
-		}
-		dp.SetStartTimestamp(sts)
+		dp.SetStartTimestamp(startTimestamp(sdp))
 		dp.SetTimestamp(sdp.Timestamp())
-		dp.SetIntValue(int64(sdp.Count()))
+		// Count is uint64 but the data point only holds int64; clamp rather than wrap.
+		count := sdp.Count()
+		if count > math.MaxInt64 {
+			count = math.MaxInt64
+		}
+		dp.SetIntValue(int64(count))
 	}
 }
 
@@ -111,16 +130,13 @@ func createSumMetric(metric pmetric.Metric, ilm pmetric.ScopeMetrics) {
 	msum.SetDescription(metric.Description())
 	msum.SetUnit(metric.Unit())
 	msum.SetName(metric.Name() + ".sum")
+	// Summary.sum isn't guaranteed monotonic across reports, so emit it as a gauge.
 	g := msum.SetEmptyGauge()
 	for i := 0; i < summary.DataPoints().Len(); i++ {
 		sdp := summary.DataPoints().At(i)
 		dp := g.DataPoints().AppendEmpty()
 		sdp.Attributes().CopyTo(dp.Attributes())
-		sts := sdp.StartTimestamp()
-		if sts == 0 {
-			sts = sdp.Timestamp()
-		}
-		dp.SetStartTimestamp(sts)
+		dp.SetStartTimestamp(startTimestamp(sdp))
 		dp.SetTimestamp(sdp.Timestamp())
 		dp.SetDoubleValue(sdp.Sum())
 	}
@@ -133,7 +149,12 @@ func createQuantileMetrics(metric pmetric.Metric, ilm pmetric.ScopeMetrics) {
 		sdp := summary.DataPoints().At(i)
 		for j := 0; j < sdp.QuantileValues().Len(); j++ {
 			quantile := sdp.QuantileValues().At(j)
-			name := quantileToName(metric.Name(), quantile.Quantile())
+			q := quantile.Quantile()
+			// Skip out-of-domain quantiles so we don't mint junk metric names.
+			if math.IsNaN(q) || math.IsInf(q, 0) || q < 0 || q > 1 {
+				continue
+			}
+			name := quantileToName(metric.Name(), q)
 			m, ok := metricRefs[name]
 			if !ok {
 				m = ilm.Metrics().AppendEmpty()
@@ -145,17 +166,25 @@ func createQuantileMetrics(metric pmetric.Metric, ilm pmetric.ScopeMetrics) {
 			}
 			dp := m.Gauge().DataPoints().AppendEmpty()
 			sdp.Attributes().CopyTo(dp.Attributes())
-			sts := sdp.StartTimestamp()
-			if sts == 0 {
-				sts = sdp.Timestamp()
-			}
-			dp.SetStartTimestamp(sts)
+			dp.SetStartTimestamp(startTimestamp(sdp))
 			dp.SetTimestamp(sdp.Timestamp())
 			dp.SetDoubleValue(quantile.Value())
 		}
 	}
 }
 
+// startTimestamp returns the data point's StartTimestamp, falling back to its
+// Timestamp when unset. Some receivers (e.g. awsfirehose) omit StartTimestamp,
+// and a zero start time breaks delta-temporality consumers downstream.
+func startTimestamp(sdp pmetric.SummaryDataPoint) pcommon.Timestamp {
+	if sts := sdp.StartTimestamp(); sts != 0 {
+		return sts
+	}
+	return sdp.Timestamp()
+}
+
+// quantileToName maps a quantile to a metric-name suffix: 0 -> .min, 1 -> .max,
+// otherwise .quantile.<percent> with '.' replaced by '_' (e.g. 0.999 -> .quantile.99_9).
 func quantileToName(baseName string, quantile float64) string {
 	switch quantile {
 	case 0:

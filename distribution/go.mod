@@ -1061,8 +1061,6 @@ replace github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationpro
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.154.0 => ../processor/summarysplitprocessor
 
-replace github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
-
 replace github.com/open-telemetry/opentelemetry-collector-contrib/exporter/loadbalancingexporter => github.com/cardinalhq/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.0.0-20251226215024-9c35e6eca2c8
 
 replace go.mongodb.org/mongo-driver/v2 => go.mongodb.org/mongo-driver/v2 v2.4.2

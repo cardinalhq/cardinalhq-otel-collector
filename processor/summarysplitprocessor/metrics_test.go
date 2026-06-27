@@ -57,7 +57,7 @@ func TestQuantileToNameSuffix(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.expected, func(t *testing.T) {
-			assert.Equal(t, test.expected, quantileToNameSuffix(test.basename, test.quantile))
+			assert.Equal(t, test.expected, quantileToName(test.basename, test.quantile))
 		})
 	}
 }
@@ -245,11 +245,6 @@ func TestConsumeMetrics_empty_input(t *testing.T) {
 
 	ctx := context.Background()
 
-	md := pmetric.NewMetrics()
-	md.ResourceMetrics().AppendEmpty()
-	md.ResourceMetrics().At(0).ScopeMetrics().AppendEmpty()
-	md.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().AppendEmpty().SetEmptyGauge()
-
 	newMD, err := e.ConsumeMetrics(ctx, pmetric.NewMetrics())
 	assert.NoError(t, err)
 	assert.Equal(t, 0, newMD.ResourceMetrics().Len())
@@ -319,4 +314,68 @@ func TestConsumeMetrics_with_summary_data_points(t *testing.T) {
 	assert.Equal(t, "test.metric.quantile.99_9", newMD.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(3).Name())
 	assert.Equal(t, "test.metric.min", newMD.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(4).Name())
 	assert.Equal(t, "test.metric.max", newMD.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics().At(5).Name())
+
+	metrics := newMD.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics()
+	count := metrics.At(0).Sum()
+	assert.Equal(t, pmetric.AggregationTemporalityDelta, count.AggregationTemporality())
+	assert.False(t, count.IsMonotonic())
+	assert.Equal(t, int64(10), count.DataPoints().At(0).IntValue())
+	assert.Equal(t, 100.0, metrics.At(1).Gauge().DataPoints().At(0).DoubleValue())
+	assert.Equal(t, 50.0, metrics.At(2).Gauge().DataPoints().At(0).DoubleValue())
+}
+
+func TestConsumeMetrics_preserves_resource_scope_and_schema(t *testing.T) {
+	e := &summarysplit{logger: zap.NewNop()}
+
+	md := pmetric.NewMetrics()
+	rm := md.ResourceMetrics().AppendEmpty()
+	rm.SetSchemaUrl("https://schema/resource")
+	rm.Resource().Attributes().PutStr("service.name", "svc")
+	ilm := rm.ScopeMetrics().AppendEmpty()
+	ilm.SetSchemaUrl("https://schema/scope")
+	ilm.Scope().SetName("scope.name")
+	ilm.Scope().SetVersion("1.2.3")
+	metric := ilm.Metrics().AppendEmpty()
+	metric.SetName("test.metric")
+	dp := metric.SetEmptySummary().DataPoints().AppendEmpty()
+	dp.SetCount(1)
+	dp.SetSum(1)
+
+	newMD, err := e.ConsumeMetrics(context.Background(), md)
+	require.NoError(t, err)
+	require.Equal(t, 1, newMD.ResourceMetrics().Len())
+	newRM := newMD.ResourceMetrics().At(0)
+	assert.Equal(t, "https://schema/resource", newRM.SchemaUrl())
+	v, found := newRM.Resource().Attributes().Get("service.name")
+	require.True(t, found)
+	assert.Equal(t, "svc", v.AsString())
+	newILM := newRM.ScopeMetrics().At(0)
+	assert.Equal(t, "https://schema/scope", newILM.SchemaUrl())
+	assert.Equal(t, "scope.name", newILM.Scope().Name())
+	assert.Equal(t, "1.2.3", newILM.Scope().Version())
+}
+
+func TestConsumeMetrics_passes_through_non_summary_alongside_summary(t *testing.T) {
+	e := &summarysplit{logger: zap.NewNop()}
+
+	md := pmetric.NewMetrics()
+	ilm := md.ResourceMetrics().AppendEmpty().ScopeMetrics().AppendEmpty()
+	gauge := ilm.Metrics().AppendEmpty()
+	gauge.SetName("passthrough.gauge")
+	gauge.SetEmptyGauge().DataPoints().AppendEmpty().SetDoubleValue(7)
+	summary := ilm.Metrics().AppendEmpty()
+	summary.SetName("test.metric")
+	sdp := summary.SetEmptySummary().DataPoints().AppendEmpty()
+	sdp.SetCount(1)
+	sdp.SetSum(1)
+
+	newMD, err := e.ConsumeMetrics(context.Background(), md)
+	require.NoError(t, err)
+	out := newMD.ResourceMetrics().At(0).ScopeMetrics().At(0).Metrics()
+	require.Equal(t, 3, out.Len()) // gauge passthrough + .count + .sum
+	assert.Equal(t, "passthrough.gauge", out.At(0).Name())
+	assert.Equal(t, pmetric.MetricTypeGauge, out.At(0).Type())
+	assert.Equal(t, 7.0, out.At(0).Gauge().DataPoints().At(0).DoubleValue())
+	assert.Equal(t, "test.metric.count", out.At(1).Name())
+	assert.Equal(t, "test.metric.sum", out.At(2).Name())
 }

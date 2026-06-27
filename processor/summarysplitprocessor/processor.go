@@ -15,26 +15,35 @@
 package summarysplitprocessor
 
 import (
-	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/processor"
+	"go.opentelemetry.io/otel/metric"
 	"go.uber.org/zap"
+
+	"github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor/internal/metadata"
 )
 
 type summarysplit struct {
-	logger             *zap.Logger
-	id                 component.ID
-	nextMetricReceiver consumer.Metrics
+	logger     *zap.Logger
+	splitCount metric.Int64Counter
 }
 
-func newSummarySplitter(_ *Config, set processor.Settings, nextConsumer consumer.Metrics) (*summarysplit, error) {
-	p := &summarysplit{
-		id:                 set.ID,
-		logger:             set.Logger,
-		nextMetricReceiver: nextConsumer,
+func newSummarySplitter(_ *Config, set processor.Settings, _ consumer.Metrics) (*summarysplit, error) {
+	splitCount, err := metadata.Meter(set.TelemetrySettings).Int64Counter(
+		"summarysplit_summary_datapoints_split",
+		metric.WithDescription("Number of summary metric data points split into count, sum, and quantile metrics"),
+		metric.WithUnit("1"),
+	)
+	if err != nil {
+		return nil, err
 	}
 
-	p.logger.Info("SummarySplit processor is enabled. Converting summary metrics to quantile metrics.")
+	p := &summarysplit{
+		logger:     set.Logger,
+		splitCount: splitCount,
+	}
+
+	p.logger.Info("SummarySplit processor enabled. Splitting summary metrics into count, sum, and quantile metrics.")
 
 	return p, nil
 }

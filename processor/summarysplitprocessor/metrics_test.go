@@ -57,7 +57,7 @@ func TestQuantileToNameSuffix(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.expected, func(t *testing.T) {
-			assert.Equal(t, test.expected, quantileToNameSuffix(test.basename, test.quantile))
+			assert.Equal(t, test.expected, quantileToName(test.basename, test.quantile))
 		})
 	}
 }

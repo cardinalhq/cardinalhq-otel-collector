@@ -21,6 +21,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
@@ -60,6 +61,10 @@ type MockMetricsConsumer struct {
 func (m *MockMetricsConsumer) ConsumeMetrics(_ context.Context, metrics pmetric.Metrics) error {
 	m.ConsumedMetrics = append(m.ConsumedMetrics, metrics)
 	return nil
+}
+
+func (m *MockMetricsConsumer) Capabilities() consumer.Capabilities {
+	return consumer.Capabilities{MutatesData: true}
 }
 
 func TestAggregateCounter(t *testing.T) {

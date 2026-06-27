@@ -15,13 +15,9 @@
 package aggregationprocessor
 
 import (
-	"context"
-	"sync"
 	"time"
 
-	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
-	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -32,24 +28,13 @@ import (
 	"github.com/cardinalhq/oteltools/pkg/telemetry"
 )
 
-type MetricsConsumer interface {
-	ConsumeMetrics(ctx context.Context, td pmetric.Metrics) error
-}
-
 type aggregationProcessor struct {
-	sync.RWMutex
-
-	config *Config
 	logger *zap.Logger
-
-	id                component.ID
-	ttype             string
-	telemetrySettings component.TelemetrySettings
 
 	additionalAttributes map[string]string
 
 	// for metrics
-	nextMetricReceiver   MetricsConsumer
+	nextMetricReceiver   consumer.Metrics
 	aggregationInterval  time.Duration
 	aggregatorI          ottl.MetricAggregator[int64]
 	aggregatorF          ottl.MetricAggregator[float64]
@@ -59,10 +44,6 @@ type aggregationProcessor struct {
 
 func newPitbull(config *Config, ttype string, set processor.Settings, nextConsumer consumer.Metrics) (*aggregationProcessor, error) {
 	p := &aggregationProcessor{
-		id:                   set.ID,
-		ttype:                ttype,
-		config:               config,
-		telemetrySettings:    set.TelemetrySettings,
 		additionalAttributes: config.AdditionalAttributes,
 		logger:               set.Logger,
 		nextMetricReceiver:   nextConsumer,

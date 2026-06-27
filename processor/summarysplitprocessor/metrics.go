@@ -163,11 +163,7 @@ func quantileToName(baseName string, quantile float64) string {
 	case 1:
 		return baseName + ".max"
 	default:
-		return quantileToNameSuffix(baseName, quantile)
+		quantileStr := strconv.FormatFloat(quantile*100, 'f', -1, 64)
+		return baseName + ".quantile." + strings.ReplaceAll(quantileStr, ".", "_")
 	}
-}
-
-func quantileToNameSuffix(baseName string, quantile float64) string {
-	quantileStr := strconv.FormatFloat(quantile*100, 'f', -1, 64)
-	return baseName + ".quantile." + strings.ReplaceAll(quantileStr, ".", "_")
 }

@@ -72,34 +72,6 @@ func (p *aggregationProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Me
 						}
 						return false
 					})
-				case pmetric.MetricTypeHistogram:
-					m.Histogram().DataPoints().RemoveIf(func(dp pmetric.HistogramDataPoint) bool {
-						dattr := dp.Attributes()
-						if !needsAttr(dattr) {
-							return false
-						}
-						return false
-					})
-				case pmetric.MetricTypeSummary:
-					m.Summary().DataPoints().RemoveIf(func(dp pmetric.SummaryDataPoint) bool {
-						dattr := dp.Attributes()
-						if !needsAttr(dattr) {
-							return false
-						}
-						return false
-					})
-				case pmetric.MetricTypeExponentialHistogram:
-					m.ExponentialHistogram().DataPoints().RemoveIf(func(dp pmetric.ExponentialHistogramDataPoint) bool {
-						dattr := dp.Attributes()
-						if !needsAttr(dattr) {
-							return false
-						}
-						return false
-					})
-				case pmetric.MetricTypeEmpty:
-					return false
-				default:
-					return false
 				}
 
 				return false

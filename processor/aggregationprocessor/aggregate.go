@@ -196,14 +196,6 @@ func (p *aggregationProcessor) aggregate(rms pmetric.ResourceMetrics, ils pmetri
 		return p.aggregateGaugeDatapoint(rms, ils, metric, dp)
 	case pmetric.MetricTypeSum:
 		return p.aggregateSumDatapoint(rms, ils, metric, dp)
-	case pmetric.MetricTypeEmpty:
-		return false
-	case pmetric.MetricTypeHistogram:
-		return false
-	case pmetric.MetricTypeSummary:
-		return false
-	case pmetric.MetricTypeExponentialHistogram:
-		return false
 	default:
 		return false
 	}

@@ -15,23 +15,18 @@
 package summarysplitprocessor
 
 import (
-	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/processor"
 	"go.uber.org/zap"
 )
 
 type summarysplit struct {
-	logger             *zap.Logger
-	id                 component.ID
-	nextMetricReceiver consumer.Metrics
+	logger *zap.Logger
 }
 
-func newSummarySplitter(_ *Config, set processor.Settings, nextConsumer consumer.Metrics) (*summarysplit, error) {
+func newSummarySplitter(_ *Config, set processor.Settings, _ consumer.Metrics) (*summarysplit, error) {
 	p := &summarysplit{
-		id:                 set.ID,
-		logger:             set.Logger,
-		nextMetricReceiver: nextConsumer,
+		logger: set.Logger,
 	}
 
 	p.logger.Info("SummarySplit processor is enabled. Converting summary metrics to quantile metrics.")

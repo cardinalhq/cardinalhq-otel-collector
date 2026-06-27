@@ -35,14 +35,6 @@ This is the CardinalHQ OpenTelemetry Collector, a custom distribution of the Ope
 
 The codebase is organized as a monorepo with multiple Go modules:
 
-### Core Modules
-- `internal/` - Shared internal packages including:
-  - `boxer/` - Data buffering and storage abstractions
-  - `ddpb/` - Datadog protobuf definitions
-  - `spantagger/` - Span tagging utilities
-  - `trigram/` - Text analysis utilities
-  - `wtcache/` - Write-through caching implementation
-
 ### Component Modules
 Each component type has its own directory with individual Go modules:
 

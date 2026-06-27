@@ -286,6 +286,5 @@ providers:
 
 # note: these are releative to the build directory, which is "./distribution"
 replaces:
-  - github.com/cardinalhq/cardinalhq-otel-collector/internal => ../internal
   - github.com/open-telemetry/opentelemetry-collector-contrib/exporter/loadbalancingexporter => github.com/cardinalhq/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.0.0-20251226215024-9c35e6eca2c8 # silence-k8s-warnings branch
   - go.mongodb.org/mongo-driver/v2 => go.mongodb.org/mongo-driver/v2 v2.4.2 # CVE-2026-2303 (mongodbreceiver pulls v2.3.1)

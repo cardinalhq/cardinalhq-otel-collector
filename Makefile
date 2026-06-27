@@ -30,8 +30,8 @@ BINARIES = cardinalhq-otel-collector
 # edit needed when you add, say, a new receiver). 2>/dev/null swallows the
 # "No such file" warning for a type dir that doesn't exist yet.
 COMPONENT_DIRS := connector receiver processor exporter extension
-MODULE_SOURCE_PATHS := $(patsubst %/go.mod,%,$(shell find $(COMPONENT_DIRS) -maxdepth 2 -name go.mod 2>/dev/null)) internal
-SUMFILES := $(shell find $(COMPONENT_DIRS) internal -maxdepth 2 -name go.sum 2>/dev/null)
+MODULE_SOURCE_PATHS := $(patsubst %/go.mod,%,$(shell find $(COMPONENT_DIRS) -maxdepth 2 -name go.mod 2>/dev/null))
+SUMFILES := $(shell find $(COMPONENT_DIRS) -maxdepth 2 -name go.sum 2>/dev/null)
 ALLGOFILES := $(shell find $(MODULE_SOURCE_PATHS) -name '*.go')
 
 #

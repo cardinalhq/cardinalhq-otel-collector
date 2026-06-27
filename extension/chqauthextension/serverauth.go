@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -68,6 +69,7 @@ var (
 var (
 	errNoAuthHeader = errors.New("no authentication header found")
 	errDenied       = errors.New("authentication denied")
+	errTransient    = errors.New("auth validator transient failure")
 )
 
 func (chq *chqServerAuth) setupServerTelemetry(params extension.Settings) error {
@@ -202,7 +204,8 @@ func (chq *chqServerAuth) authenticateAPIKey(ctx context.Context, apiKey string)
 			return nil, errDenied
 		}
 
-		// Transient error (network, 5xx, parse): fall back to the last
+		// Transient error (network, non-200 such as a 5xx during a
+		// validator restart, or parse failure): fall back to the last
 		// known cached entry if we have one, to preserve availability.
 		if cached != nil {
 			chq.logger.Warn("auth validator transient failure; serving expired cache entry",
@@ -235,8 +238,13 @@ func (chq *chqServerAuth) callValidateAPI(ctx context.Context, apiKey string) (*
 		_ = resp.Body.Close()
 	}()
 
+	// A revoked or invalid key is always signalled as 200 + valid:false
+	// (handled below). Any non-200 therefore means the validator itself is
+	// unhealthy (e.g. 5xx during a restart) — a transient error, so that
+	// callers fall back to the last-known cache rather than locking out
+	// already-authenticated collectors.
 	if resp.StatusCode != http.StatusOK {
-		return nil, errDenied
+		return nil, fmt.Errorf("auth validator returned status %d: %w", resp.StatusCode, errTransient)
 	}
 
 	var validateResp validateResponse

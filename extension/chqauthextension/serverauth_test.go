@@ -243,40 +243,48 @@ func newchqWithServer(t *testing.T, handler http.HandlerFunc) (*chqServerAuth, *
 
 func TestCallValidateAPI_RejectsInvalidOrEmptyCustomer(t *testing.T) {
 	tests := []struct {
-		name       string
-		status     int
-		body       string
-		wantDenied bool
+		name    string
+		status  int
+		body    string
+		wantErr error // nil = accepted; errDenied or errTransient otherwise
 	}{
 		{
-			name:       "valid=true with customer_id is accepted",
-			status:     http.StatusOK,
-			body:       `{"valid":true,"customer_id":"cust-1","customer_name":"n","collector_id":"col","collector_name":"cn"}`,
-			wantDenied: false,
+			name:    "valid=true with customer_id is accepted",
+			status:  http.StatusOK,
+			body:    `{"valid":true,"customer_id":"cust-1","customer_name":"n","collector_id":"col","collector_name":"cn"}`,
+			wantErr: nil,
 		},
 		{
-			name:       "valid=true but empty customer_id is denied",
-			status:     http.StatusOK,
-			body:       `{"valid":true,"customer_id":""}`,
-			wantDenied: true,
+			name:    "valid=true but empty customer_id is denied",
+			status:  http.StatusOK,
+			body:    `{"valid":true,"customer_id":""}`,
+			wantErr: errDenied,
 		},
 		{
-			name:       "valid=false with 200 OK is denied",
-			status:     http.StatusOK,
-			body:       `{"valid":false,"customer_id":"cust-1"}`,
-			wantDenied: true,
+			name:    "valid=false with 200 OK is denied",
+			status:  http.StatusOK,
+			body:    `{"valid":false,"customer_id":"cust-1"}`,
+			wantErr: errDenied,
 		},
 		{
-			name:       "valid=false and empty customer_id is denied",
-			status:     http.StatusOK,
-			body:       `{"valid":false,"customer_id":""}`,
-			wantDenied: true,
+			name:    "valid=false and empty customer_id is denied",
+			status:  http.StatusOK,
+			body:    `{"valid":false,"customer_id":""}`,
+			wantErr: errDenied,
 		},
 		{
-			name:       "non-200 is denied",
-			status:     http.StatusForbidden,
-			body:       ``,
-			wantDenied: true,
+			// Revocation is signalled via 200 + valid:false, so a non-200
+			// means the validator is unhealthy: transient, not a denial.
+			name:    "non-200 is transient",
+			status:  http.StatusForbidden,
+			body:    ``,
+			wantErr: errTransient,
+		},
+		{
+			name:    "5xx is transient",
+			status:  http.StatusServiceUnavailable,
+			body:    ``,
+			wantErr: errTransient,
 		},
 	}
 
@@ -289,9 +297,9 @@ func TestCallValidateAPI_RejectsInvalidOrEmptyCustomer(t *testing.T) {
 			defer srv.Close()
 
 			ad, err := chq.callValidateAPI(context.Background(), "key")
-			if tt.wantDenied {
+			if tt.wantErr != nil {
 				assert.Nil(t, ad)
-				assert.ErrorIs(t, err, errDenied)
+				assert.ErrorIs(t, err, tt.wantErr)
 				return
 			}
 			require.NoError(t, err)
@@ -322,11 +330,12 @@ func TestAuthenticateAPIKey_RevokedKeyDoesNotReturnStaleCache(t *testing.T) {
 	var validatorHits atomic.Int32
 	chq, srv := newchqWithServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		validatorHits.Add(1)
+		w.WriteHeader(http.StatusOK)
 		if denyNext.Load() {
-			w.WriteHeader(http.StatusForbidden)
+			// Revocation is signalled as 200 + valid:false, not a 4xx.
+			_, _ = w.Write([]byte(`{"valid":false,"customer_id":"cust-1"}`))
 			return
 		}
-		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"valid":true,"customer_id":"cust-1","collector_id":"col"}`))
 	})
 	defer srv.Close()
@@ -414,6 +423,46 @@ func TestAuthenticateAPIKey_TransientErrorFallsBackToCache(t *testing.T) {
 	assert.Equal(t, "cust-1", ad2.customerID)
 }
 
+func TestAuthenticateAPIKey_5xxServesStaleCache(t *testing.T) {
+	// A validator restart returns 5xx. Already-authenticated keys must keep
+	// working off the last-known cache instead of being locked out.
+	var fail atomic.Bool
+	chq, srv := newchqWithServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		if fail.Load() {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"valid":true,"customer_id":"cust-1","collector_id":"col"}`))
+	})
+	defer srv.Close()
+
+	_, err := chq.authenticateAPIKey(context.Background(), "key")
+	require.NoError(t, err)
+
+	expireCacheEntry(t, chq, "key")
+	fail.Store(true)
+
+	ad, err := chq.authenticateAPIKey(context.Background(), "key")
+	require.NoError(t, err)
+	require.NotNil(t, ad)
+	assert.Equal(t, "cust-1", ad.customerID)
+}
+
+func TestAuthenticateAPIKey_5xxWithNoCacheFails(t *testing.T) {
+	// A new (uncached) key during a validator outage has nothing to fall
+	// back to and must fail.
+	chq, srv := newchqWithServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	})
+	defer srv.Close()
+
+	ad, err := chq.authenticateAPIKey(context.Background(), "new-key")
+	assert.Nil(t, ad)
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, errDenied), "outage must not be reported as a denial")
+}
+
 func TestMaybeLogInvalidKey_RateLimited(t *testing.T) {
 	core, logs := observer.New(zap.InfoLevel)
 	chq := newchq()
@@ -450,7 +499,8 @@ func TestMaybeLogInvalidKey_DisabledByDefault(t *testing.T) {
 
 func TestAuthenticateAPIKey_LogsFullInvalidKeyWhenDebugEnabled(t *testing.T) {
 	chq, srv := newchqWithServer(t, func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusForbidden)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"valid":false,"customer_id":"cust-1"}`))
 	})
 	defer srv.Close()
 

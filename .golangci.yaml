@@ -9,6 +9,9 @@ linters:
     - sloglint
     - unconvert
     - whitespace
+  settings:
+    exhaustive:
+      default-signifies-exhaustive: true
   exclusions:
     generated: lax
     presets:

@@ -72,6 +72,7 @@ func (p *aggregationProcessor) ConsumeMetrics(ctx context.Context, md pmetric.Me
 						}
 						return false
 					})
+				default:
 				}
 
 				return false

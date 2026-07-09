@@ -1,6 +1,6 @@
 module github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor
 
-go 1.26
+go 1.26.5
 
 require (
 	github.com/cardinalhq/oteltools v0.35.0

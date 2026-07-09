@@ -2,7 +2,7 @@
 
 module go.opentelemetry.io/collector/cmd/builder
 
-go 1.26
+go 1.26.5
 
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/awss3exporter v0.155.0

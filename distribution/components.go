@@ -114,6 +114,7 @@ import (
 	k8sleaderelector "github.com/open-telemetry/opentelemetry-collector-contrib/extension/k8sleaderelector"
 	zpagesextension "go.opentelemetry.io/collector/extension/zpagesextension"
 	chqauthextension "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension"
+	fbnauthextension "github.com/cardinalhq/cardinalhq-otel-collector/extension/fbnauthextension"
 	batchprocessor "go.opentelemetry.io/collector/processor/batchprocessor"
 	memorylimiterprocessor "go.opentelemetry.io/collector/processor/memorylimiterprocessor"
 	attributesprocessor "github.com/open-telemetry/opentelemetry-collector-contrib/processor/attributesprocessor"
@@ -147,6 +148,7 @@ import (
 	unrollprocessor "github.com/open-telemetry/opentelemetry-collector-contrib/processor/unrollprocessor"
 	aggregationprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor"
 	summarysplitprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor"
+	fbnvalidatorprocessor "github.com/cardinalhq/cardinalhq-otel-collector/processor/fbnvalidatorprocessor"
 	nopreceiver "go.opentelemetry.io/collector/receiver/nopreceiver"
 	otlpreceiver "go.opentelemetry.io/collector/receiver/otlpreceiver"
 	activedirectorydsreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/activedirectorydsreceiver"
@@ -320,6 +322,7 @@ func components() (otelcol.Factories, error) {
 		k8sleaderelector.NewFactory(),
 		zpagesextension.NewFactory(),
 		chqauthextension.NewFactory(),
+		fbnauthextension.NewFactory(),
 	)
 	if err != nil {
 		return otelcol.Factories{}, err
@@ -366,6 +369,7 @@ func components() (otelcol.Factories, error) {
 		k8sleaderelector.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/extension/k8sleaderelector v0.155.0",
 		zpagesextension.NewFactory().Type(): "go.opentelemetry.io/collector/extension/zpagesextension v0.155.0",
 		chqauthextension.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.155.0",
+		fbnauthextension.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/extension/fbnauthextension v0.155.0",
 	})
 
 	factories.Receivers, err = otelcol.MakeFactoryMap[receiver.Factory](
@@ -734,6 +738,7 @@ func components() (otelcol.Factories, error) {
 		unrollprocessor.NewFactory(),
 		aggregationprocessor.NewFactory(),
 		summarysplitprocessor.NewFactory(),
+		fbnvalidatorprocessor.NewFactory(),
 	)
 	if err != nil {
 		return otelcol.Factories{}, err
@@ -772,6 +777,7 @@ func components() (otelcol.Factories, error) {
 		unrollprocessor.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/processor/unrollprocessor v0.155.0",
 		aggregationprocessor.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.155.0",
 		summarysplitprocessor.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.155.0",
+		fbnvalidatorprocessor.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/processor/fbnvalidatorprocessor v0.155.0",
 	})
 
 	factories.Connectors, err = otelcol.MakeFactoryMap[connector.Factory](

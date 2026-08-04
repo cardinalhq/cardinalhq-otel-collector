@@ -232,6 +232,8 @@ extensions:
   # CardinalHQ extensions
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.155.0
     path: ./extension/chqauthextension
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/extension/fbnauthextension v0.155.0
+    path: ./extension/fbnauthextension
 
 processors:
   - gomod: go.opentelemetry.io/collector/processor/batchprocessor v0.155.0
@@ -269,6 +271,8 @@ processors:
     path: ./processor/aggregationprocessor
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.155.0
     path: ./processor/summarysplitprocessor
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/fbnvalidatorprocessor v0.155.0
+    path: ./processor/fbnvalidatorprocessor
 
 connectors:
   - gomod: go.opentelemetry.io/collector/connector/forwardconnector v0.155.0

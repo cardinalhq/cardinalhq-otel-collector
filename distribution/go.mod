@@ -7,7 +7,9 @@ go 1.26.5
 require (
 	github.com/cardinalhq/cardinalhq-otel-collector/exporter/awss3exporter v0.155.0
 	github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.155.0
+	github.com/cardinalhq/cardinalhq-otel-collector/extension/fbnauthextension v0.155.0
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.155.0
+	github.com/cardinalhq/cardinalhq-otel-collector/processor/fbnvalidatorprocessor v0.155.0
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.155.0
 	github.com/observiq/bindplane-otel-collector/receiver/routereceiver v1.95.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/confmap/provider/aesprovider v0.155.0
@@ -315,7 +317,7 @@ require (
 	github.com/Azure/go-amqp v1.7.0 // indirect
 	github.com/Azure/go-ntlmssp v0.1.1 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.7.2 // indirect
-	github.com/BurntSushi/toml v1.5.0 // indirect
+	github.com/BurntSushi/toml v1.4.0 // indirect
 	github.com/ClickHouse/ch-go v0.71.0 // indirect
 	github.com/ClickHouse/clickhouse-go/v2 v2.46.0 // indirect
 	github.com/Code-Hex/go-generics-cache v1.5.1 // indirect
@@ -745,6 +747,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/mongodb-forks/digest v1.1.0 // indirect
+	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/mtibben/percent v0.2.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
@@ -1091,8 +1094,12 @@ require (
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.155.0 => ../extension/chqauthextension
 
+replace github.com/cardinalhq/cardinalhq-otel-collector/extension/fbnauthextension v0.155.0 => ../extension/fbnauthextension
+
 replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/awss3exporter v0.155.0 => ../exporter/awss3exporter
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.155.0 => ../processor/aggregationprocessor
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.155.0 => ../processor/summarysplitprocessor
+
+replace github.com/cardinalhq/cardinalhq-otel-collector/processor/fbnvalidatorprocessor v0.155.0 => ../processor/fbnvalidatorprocessor

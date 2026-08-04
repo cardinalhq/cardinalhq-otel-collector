@@ -3,7 +3,7 @@ module github.com/cardinalhq/cardinalhq-otel-collector/extension/fbnauthextensio
 go 1.26.5
 
 require (
-	filippo.io/edwards25519 v1.1.0
+	filippo.io/edwards25519 v1.1.1
 	github.com/mr-tron/base58 v1.2.0
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/collector/client v1.63.0
@@ -37,7 +37,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.44.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
-	google.golang.org/grpc v1.82.0 // indirect
+	google.golang.org/grpc v1.82.1 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

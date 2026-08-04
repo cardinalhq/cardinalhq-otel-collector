@@ -3,7 +3,7 @@ module github.com/cardinalhq/cardinalhq-otel-collector/extension/fbnauthextensio
 go 1.26.5
 
 require (
-	filippo.io/edwards25519 v1.1.0
+	filippo.io/edwards25519 v1.1.1
 	github.com/mr-tron/base58 v1.2.0
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/collector/client v1.61.0

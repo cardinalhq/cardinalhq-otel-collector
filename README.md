@@ -26,3 +26,14 @@ Cardinal is use-case focused, so instead of building a pipeline, you are configu
 solve real-world telemetry problems.
 
 See <url here> for more, including how to begin using Cardinal's collector and ecosystem.
+
+## Upgrading OpenTelemetry
+
+The component list is the upstream [otelcol-contrib manifest](https://github.com/open-telemetry/opentelemetry-collector-releases/blob/main/distributions/otelcol-contrib/manifest.yaml)
+plus the CardinalHQ overlay in `manifest-cardinalhq.yaml` (our components, extras, and exclusions).
+`cardinalhq-otel-collector.yaml` is generated — edit the overlay instead, then:
+
+```bash
+make bump-otel NEW=v0.158.0   # regenerate manifest, bump Makefile + all go.mods
+make all test                 # verify
+```

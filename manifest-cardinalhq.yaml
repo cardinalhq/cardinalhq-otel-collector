@@ -1,0 +1,51 @@
+# Copyright 2024-2025 CardinalHQ, Inc
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# CardinalHQ overlay for the upstream otelcol-contrib manifest.
+# scripts/bump-otel.sh merges this with the upstream manifest to produce
+# cardinalhq-otel-collector.yaml. ${OTEL_VERSION} is substituted at generation.
+
+dist:
+  name: cardinalhq-otel-collector
+  output_path: ./distribution
+  include_core: true
+  version: ${OTEL_VERSION}-chq
+  build_tags: "grpcnotrace"
+
+# Upstream entries dropped from our build (regex matched against the gomod line).
+exclude:
+  - opentelemetry-collector-contrib/exporter/awss3exporter # replaced by our fork below
+  - go.opentelemetry.io/obi # requires upstream's local source-tree replace
+
+receivers:
+  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/signalfxreceiver ${OTEL_VERSION}
+  - gomod: github.com/observiq/bindplane-otel-collector/receiver/routereceiver v1.95.0
+
+exporters:
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/awss3exporter ${OTEL_VERSION}
+    path: ./exporter/awss3exporter
+
+extensions:
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension ${OTEL_VERSION}
+    path: ./extension/chqauthextension
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/extension/fbnauthextension ${OTEL_VERSION}
+    path: ./extension/fbnauthextension
+
+processors:
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor ${OTEL_VERSION}
+    path: ./processor/aggregationprocessor
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor ${OTEL_VERSION}
+    path: ./processor/summarysplitprocessor
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/processor/fbnvalidatorprocessor ${OTEL_VERSION}
+    path: ./processor/fbnvalidatorprocessor

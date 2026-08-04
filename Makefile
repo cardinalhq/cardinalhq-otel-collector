@@ -16,7 +16,7 @@
 SHELL := /bin/bash
 
 TARGETS=bin/cardinalhq-otel-collector
-OTEL_VERSION=v0.155.0
+OTEL_VERSION=v0.157.0
 
 #
 # Build targets.  Adding to these will cause magic to occur.
@@ -98,6 +98,13 @@ lint: $(GOLANGCI_LINT)
 	for i in $(MODULE_SOURCE_PATHS); do \
 	  (echo ============ linting $$i ... ; cd $$i && $(GOLANGCI_LINT) run --config ${CURRENT_DIR}/.golangci.yaml) || exit 1; \
 	done
+
+# Bump the pinned OpenTelemetry version: make bump-otel NEW=v0.158.0
+# Regenerates cardinalhq-otel-collector.yaml from the upstream otelcol-contrib
+# manifest plus our overlay (manifest-cardinalhq.yaml) and bumps all go.mods.
+.PHONY: bump-otel
+bump-otel:
+	./scripts/bump-otel.sh $(NEW)
 
 .PHONY: update-deps
 update-deps:

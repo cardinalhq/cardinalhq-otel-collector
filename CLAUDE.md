@@ -79,9 +79,9 @@ go test -v ./...
 
 - **Linting**: Uses .golangci.yaml with custom rules and exclusions
 - **License**: All files require Apache 2.0 license headers (checked by license-eye)
-- **Builder Config**: cardinalhq-otel-collector.yaml defines which components to include and pins the OpenTelemetry version (the `vX.Y.Z` on each `gomod` line, plus `dist.version`). Treat this file as the source of truth for the version rather than hardcoding it here.
+- **Builder Config**: cardinalhq-otel-collector.yaml is GENERATED — do not edit it. It is produced by `make bump-otel NEW=vX.Y.Z` (scripts/bump-otel.sh) from the upstream otelcol-contrib manifest at that tag merged with `manifest-cardinalhq.yaml` (our dist settings, CardinalHQ components, and exclusions). To add/remove/exclude components, edit the overlay and re-run the script.
 - **Go Version**: Requires Go 1.25.0
-- **OpenTelemetry Version**: Pinned in `cardinalhq-otel-collector.yaml`
+- **OpenTelemetry Version**: Pinned as `OTEL_VERSION` in the Makefile; bump with `make bump-otel NEW=vX.Y.Z`, which also updates every go.mod
 
 ## Key Dependencies
 

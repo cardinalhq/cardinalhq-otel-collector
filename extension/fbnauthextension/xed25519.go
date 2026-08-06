@@ -27,7 +27,6 @@ import (
 	"crypto/rand"
 	"crypto/sha512"
 	"errors"
-	"fmt"
 	"time"
 
 	"filippo.io/edwards25519"
@@ -170,16 +169,17 @@ func xed25519Sign(x25519Secret, message []byte, z [64]byte) ([]byte, error) {
 }
 
 // BuildTokenXEd25519 assembles and signs a token with an x25519 private key,
-// deriving the public key from it. Exported for use by clients and tests; the
-// collector itself only verifies.
-func BuildTokenXEd25519(prefix string, x25519Secret []byte, ts time.Time) (string, error) {
+// deriving the public key from it. audience is the value from AudienceHash for
+// the URL being dialed, or "" for the pre-audience form. Exported for use by
+// clients and tests; the collector itself only verifies.
+func BuildTokenXEd25519(prefix, audience string, x25519Secret []byte, ts time.Time) (string, error) {
 	a, err := edwards25519.NewScalar().SetBytesWithClamping(x25519Secret)
 	if err != nil {
 		return "", err
 	}
 	pub := (&edwards25519.Point{}).ScalarBaseMult(a).BytesMontgomery()
 
-	signed := fmt.Sprintf("%s/%s/%d", prefix, base58.Encode(pub), ts.Unix())
+	signed := signedPayload(prefix, base58.Encode(pub), audience, ts)
 	var z [64]byte
 	if _, err := rand.Read(z[:]); err != nil {
 		return "", err

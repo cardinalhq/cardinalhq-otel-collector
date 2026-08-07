@@ -93,11 +93,17 @@ func (cfg *Config) Validate() error {
 // canonical URL. Both sides must canonicalize identically — this mirrors
 // freenet's docs/otel-metrics.md.
 //
-// Canonical form is "{scheme}://{host}:{port}{path}", with:
-//   - scheme and host lowercased
+// Canonical form is "{host}:{port}{path}", with:
+//   - host lowercased
 //   - port always explicit (80 for http, 443 for https when omitted)
 //   - path verbatim: no trailing-slash collapse, no dot-segment removal
 //   - userinfo stripped, query and fragment dropped
+//
+// The scheme is deliberately not hashed: it names a transport, not a party, so
+// binding it would not narrow which collector may use a token, while forcing
+// every collector reachable over both http and https to be listed twice. It
+// still reaches the hash indirectly through the default-port rule, so
+// http://c.example/x and https://c.example/x do not collide.
 //
 // Userinfo is stripped rather than signed because a URL carrying credentials
 // would otherwise put the operator's password, hashed but grindable, into a
@@ -126,6 +132,6 @@ func AudienceHash(rawURL string) (string, error) {
 	if strings.Contains(host, ":") {
 		host = "[" + host + "]" // IPv6 literals keep their brackets
 	}
-	sum := sha256.Sum256([]byte(scheme + "://" + host + ":" + port + u.EscapedPath()))
+	sum := sha256.Sum256([]byte(host + ":" + port + u.EscapedPath()))
 	return base58.Encode(sum[:audienceHashBytes]), nil
 }

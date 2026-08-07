@@ -43,18 +43,24 @@ field separator, and because signing the URL verbatim would put any userinfo
 
 Canonical form, which both sides must build identically:
 
-- `{scheme}://{host}:{port}{path}`, e.g. `http://collector.example:4318/v1/metrics`
-- scheme and host lowercased
+- `{host}:{port}{path}`, e.g. `collector.example:4318/v1/metrics`
+- host lowercased
 - port always explicit — 80 for `http`, 443 for `https` when the URL omits it
-- path verbatim: no trailing-slash collapse, no dot-segment removal
+- path verbatim: no trailing-slash collapse, no dot-segment removal; a URL with
+  no path counts as `/`, which is what a sender pointed at the root sends
 - userinfo stripped; query and fragment dropped
+- **no scheme**: it names a transport, not a party, so binding it would not
+  narrow which collector may use a token, and would make a collector reachable
+  both ways need two entries. It still reaches the hash through the
+  default-port rule, so `http://c.example/x` and `https://c.example/x` differ.
 
 Configure the URLs this collector legitimately answers at (`audiences`, below)
-and a token authenticates only if its audience hashes to one of them. **These
-are full URLs as the sender dials them, not hostnames** — if an ingress
-rewrites `/otlp/v1/metrics` to `/v1/metrics`, list the external spelling,
-because that is what the sender hashed. An empty or unset list means the field
-is not checked.
+and a token authenticates only if its audience hashes to one of them. Entries
+are written as full URLs — the scheme is read for the default port and then
+dropped. **These are URLs as the sender dials them, not hostnames** — if an
+ingress rewrites `/otlp/v1/metrics` to `/v1/metrics`, list the external
+spelling, because that is what the sender hashed. An empty or unset list means
+the field is not checked.
 
 The hash is opaque, so a `wrong_audience` denial says nothing about where the
 sender thought it was pointing. The received hash is therefore logged at WARN

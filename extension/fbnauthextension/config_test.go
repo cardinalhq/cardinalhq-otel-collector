@@ -89,10 +89,12 @@ func TestAudienceHashCanonicalization(t *testing.T) {
 // Golden values computed outside this package (sha256 of the canonical string,
 // first 16 bytes, base58). Pins the formula itself, not just self-consistency —
 // the canonicalization above would pass even if we hashed the wrong string.
+// The canonical strings behind these, which are what the freenet side hashes:
+// "collector.example:4318/v1/metrics" and "collector.example:443/v1/metrics".
 func TestAudienceHashGolden(t *testing.T) {
 	for url, want := range map[string]string{
-		"http://collector.example:4318/v1/metrics": "Lm4fqwHu5pupgXfDF8UrPa",
-		"https://collector.example/v1/metrics":     "JRq1VQz3is6NGHvhE9LqBA",
+		"http://collector.example:4318/v1/metrics": "QeBzi6joRxb8ZXD1scRqoq",
+		"https://collector.example/v1/metrics":     "J72yJMQ8Kvzno9a7DBDz6b",
 	} {
 		got, err := AudienceHash(url)
 		require.NoError(t, err)
@@ -104,15 +106,30 @@ func TestAudienceHashDistinctions(t *testing.T) {
 	base, err := AudienceHash("https://c.example/v1/metrics")
 	require.NoError(t, err)
 
-	// Query and fragment are dropped; an OTLP export URL has neither.
+	// Query and fragment are dropped; an OTLP export URL has neither. The
+	// scheme is deliberately not bound either — one collector reachable both
+	// ways must not need two audience entries — so pin that here rather than
+	// leave it to be "fixed" back, which is exactly how this side and the
+	// freenet side drifted apart once.
 	for _, same := range []string{
 		"https://c.example/v1/metrics?x=1",
 		"https://c.example/v1/metrics#f",
 		"https://c.example:443/v1/metrics",
+		"http://c.example:443/v1/metrics",
 	} {
 		h, err := AudienceHash(same)
 		require.NoError(t, err)
 		assert.Equal(t, base, h, same)
+	}
+
+	// A pathless URL is "/" on the wire; listing the base form must match what
+	// a sender pointed at the root actually hashes.
+	root, err := AudienceHash("https://c.example/")
+	require.NoError(t, err)
+	for _, same := range []string{"https://c.example", "https://c.example:443"} {
+		h, err := AudienceHash(same)
+		require.NoError(t, err)
+		assert.Equal(t, root, h, same)
 	}
 
 	// Path is verbatim: a trailing slash or a dot segment is a different URL,

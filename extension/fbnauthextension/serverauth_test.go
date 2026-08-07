@@ -46,6 +46,18 @@ func newTestExt(t *testing.T) *fbnServerAuth {
 	return ext
 }
 
+// newAudienceExt is newTestExt with an audience list on the "freenet" prefix.
+func newAudienceExt(t *testing.T, urls ...string) *fbnServerAuth {
+	cfg := createDefaultConfig().(*Config)
+	cfg.Prefixes = map[string]PrefixConfig{
+		"freenet": {SignatureAlgo: SignatureAlgoEd25519, Audiences: urls},
+	}
+	require.NoError(t, cfg.Validate())
+	ext, err := newServerAuthExtension(cfg, extensiontest.NewNopSettings(extensiontest.NopType))
+	require.NoError(t, err)
+	return ext
+}
+
 func newKey(t *testing.T) ed25519.PrivateKey {
 	_, priv, err := ed25519.GenerateKey(rand.Reader)
 	require.NoError(t, err)
@@ -59,7 +71,7 @@ func bearer(token string) map[string][]string {
 func TestAuthenticate_Valid(t *testing.T) {
 	ext := newTestExt(t)
 	priv := newKey(t)
-	token := BuildToken("freenet", priv, time.Now())
+	token := BuildToken("freenet", "", priv, time.Now())
 
 	ctx, err := ext.Authenticate(context.Background(), bearer(token))
 	require.NoError(t, err)
@@ -75,7 +87,7 @@ func TestAuthenticate_Valid(t *testing.T) {
 
 func TestAuthenticate_CaseInsensitiveHeaderAndScheme(t *testing.T) {
 	ext := newTestExt(t)
-	token := BuildToken("freenet", newKey(t), time.Now())
+	token := BuildToken("freenet", "", newKey(t), time.Now())
 	_, err := ext.Authenticate(context.Background(),
 		map[string][]string{"authorization": {"bearer " + token}})
 	require.NoError(t, err)
@@ -84,7 +96,7 @@ func TestAuthenticate_CaseInsensitiveHeaderAndScheme(t *testing.T) {
 func TestAuthenticate_Denials(t *testing.T) {
 	ext := newTestExt(t)
 	priv := newKey(t)
-	good := BuildToken("freenet", priv, time.Now())
+	good := BuildToken("freenet", "", priv, time.Now())
 
 	tests := []struct {
 		name    string
@@ -93,14 +105,14 @@ func TestAuthenticate_Denials(t *testing.T) {
 	}{
 		{"no header", map[string][]string{}, errNoAuthHeader},
 		{"wrong scheme", map[string][]string{"Authorization": {"Basic " + good}}, errNoAuthHeader},
-		{"unknown prefix", bearer(BuildToken("other", priv, time.Now())), errDenied},
+		{"unknown prefix", bearer(BuildToken("other", "", priv, time.Now())), errDenied},
 		{"malformed", bearer("freenet/only-two-parts"), errDenied},
-		{"stale timestamp", bearer(BuildToken("freenet", priv, time.Now().Add(-time.Hour))), errDenied},
-		{"future timestamp", bearer(BuildToken("freenet", priv, time.Now().Add(time.Hour))), errDenied},
+		{"stale timestamp", bearer(BuildToken("freenet", "", priv, time.Now().Add(-time.Hour))), errDenied},
+		{"future timestamp", bearer(BuildToken("freenet", "", priv, time.Now().Add(time.Hour))), errDenied},
 		// Timestamp moved one second inside the skew window: passes the
 		// freshness check, so it is the signature that must reject it.
 		{"tampered timestamp", bearer(retimestamp(good, 1)), errDenied},
-		{"too many parts", bearer(good + "/extra"), errDenied},
+		{"too many parts", bearer(good + "/extra/more"), errDenied},
 		{"garbage pubkey", bearer(fmt.Sprintf("freenet/!!!/%d/%s", time.Now().Unix(),
 			base58.Encode(make([]byte, ed25519.SignatureSize)))), errDenied},
 		{"wrong key signature", bearer(swapSignature(good, newKey(t))), errDenied},
@@ -131,9 +143,9 @@ func TestAuthenticate_ErrorCarriesReason(t *testing.T) {
 	priv := newKey(t)
 
 	for reason, headers := range map[string]map[string][]string{
-		"unknown_prefix":  bearer(BuildToken("other", priv, time.Now())),
+		"unknown_prefix":  bearer(BuildToken("other", "", priv, time.Now())),
 		"malformed":       bearer("freenet/only-two-parts"),
-		"stale_timestamp": bearer(BuildToken("freenet", priv, time.Now().Add(-time.Hour))),
+		"stale_timestamp": bearer(BuildToken("freenet", "", priv, time.Now().Add(-time.Hour))),
 	} {
 		t.Run(reason, func(t *testing.T) {
 			_, err := ext.Authenticate(context.Background(), headers)
@@ -141,6 +153,78 @@ func TestAuthenticate_ErrorCarriesReason(t *testing.T) {
 			assert.Contains(t, err.Error(), reason)
 		})
 	}
+}
+
+// The audience field is what stops the collector a token was sent to from
+// replaying it at another collector on the same scheme.
+func TestAuthenticate_Audience(t *testing.T) {
+	const ourURL = "https://otel.example.com/v1/metrics"
+	const theirURL = "https://other.example.com/v1/metrics"
+	ours, err := AudienceHash(ourURL)
+	require.NoError(t, err)
+	theirs, err := AudienceHash(theirURL)
+	require.NoError(t, err)
+	priv := newKey(t)
+
+	tests := []struct {
+		name   string
+		ext    *fbnServerAuth
+		token  string
+		reason string // empty means the token must authenticate
+	}{
+		{"matching audience", newAudienceExt(t, ourURL),
+			BuildToken("freenet", ours, priv, time.Now()), ""},
+		{"any listed URL matches", newAudienceExt(t, theirURL, ourURL),
+			BuildToken("freenet", ours, priv, time.Now()), ""},
+		{"audience for another collector", newAudienceExt(t, ourURL),
+			BuildToken("freenet", theirs, priv, time.Now()), reasonWrongAudience},
+		// A signed but empty audience field must not read as "unbound", or a
+		// sender could opt out of the binding at will.
+		{"empty audience field", newAudienceExt(t, ourURL),
+			buildEmptyAudienceToken(priv), reasonWrongAudience},
+		// Transition: senders upgrade on their own schedule, so a token with no
+		// audience field at all is still accepted (with no binding).
+		{"pre-audience token", newAudienceExt(t, ourURL),
+			BuildToken("freenet", "", priv, time.Now()), ""},
+		// No list configured: the field is carried but not checked.
+		{"unconfigured audiences", newTestExt(t),
+			BuildToken("freenet", theirs, priv, time.Now()), ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := tt.ext.Authenticate(context.Background(), bearer(tt.token))
+			if tt.reason == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorIs(t, err, errDenied)
+			assert.Contains(t, err.Error(), tt.reason)
+		})
+	}
+}
+
+// A five-field token whose audience field is the empty string, correctly signed.
+func buildEmptyAudienceToken(priv ed25519.PrivateKey) string {
+	signed := fmt.Sprintf("freenet/%s//%d",
+		base58.Encode(priv.Public().(ed25519.PublicKey)), time.Now().Unix())
+	return signed + "/" + base58.Encode(ed25519.Sign(priv, []byte(signed)))
+}
+
+// Stripping the audience field to reach the unbound legacy path breaks the
+// signature, so the transition window is not a downgrade attack.
+func TestAuthenticate_AudienceCannotBeStripped(t *testing.T) {
+	const ourURL = "https://otel.example.com/v1/metrics"
+	ours, err := AudienceHash(ourURL)
+	require.NoError(t, err)
+	priv := newKey(t)
+	ext := newAudienceExt(t, ourURL)
+
+	parts := strings.Split(BuildToken("freenet", ours, priv, time.Now()), "/")
+	stripped := strings.Join([]string{parts[0], parts[1], parts[3], parts[4]}, "/")
+
+	_, err = ext.Authenticate(context.Background(), bearer(stripped))
+	require.ErrorIs(t, err, errDenied)
+	assert.Contains(t, err.Error(), "bad_signature")
 }
 
 // swapSignature re-signs the payload with a different key than the embedded pubkey.
@@ -166,11 +250,13 @@ func retimestamp(token string, delta int64) string {
 // Rust one — if either side drifts, this fails.
 //
 // The message is a token from when the format carried a uniqueness field, so
-// it is no longer a well-formed token. That does not weaken what the vector
-// pins: xed25519Verify treats the message as opaque bytes, and it is the
-// signature construction, not the token layout, that must stay in agreement
-// across implementations. Regenerating it against the current 3-field payload
-// would be equally valid.
+// it is not a well-formed token under any current layout. That does not weaken
+// what the vector pins: xed25519Verify treats the message as opaque bytes, and
+// it is the signature construction, not the token layout, that must stay in
+// agreement across implementations. Regenerating it over a payload with an
+// audience field would be equally valid — the canonical-URL agreement that the
+// audience field actually depends on is pinned by TestAudienceHashGolden and
+// TestAudienceHashCanonicalization instead.
 const (
 	rustVectorPubKey  = "2L54SXdEHm5mraF2X2GPid3m4PSkwVehEvhk487mWTx8"
 	rustVectorPayload = "freenet/2L54SXdEHm5mraF2X2GPid3m4PSkwVehEvhk487mWTx8/1754300000/testnonce"
@@ -200,7 +286,7 @@ func TestAuthenticate_XEd25519Token(t *testing.T) {
 		secret[i] = 0x07
 	}
 
-	token, err := BuildTokenXEd25519("fnx", secret, time.Now())
+	token, err := BuildTokenXEd25519("fnx", "", secret, time.Now())
 	require.NoError(t, err)
 	ctx, err := ext.Authenticate(context.Background(), bearer(token))
 	require.NoError(t, err)
@@ -218,7 +304,7 @@ func TestXEd25519_GoRoundTrip(t *testing.T) {
 	_, err := rand.Read(secret)
 	require.NoError(t, err)
 
-	token, err := BuildTokenXEd25519("fnx", secret, time.Now())
+	token, err := BuildTokenXEd25519("fnx", "", secret, time.Now())
 	require.NoError(t, err)
 	_, err = ext.Authenticate(context.Background(), bearer(token))
 	require.NoError(t, err)

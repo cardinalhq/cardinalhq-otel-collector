@@ -10,21 +10,56 @@ their data lands in a shared tenant and is further validated by the
 Sent as `Authorization: Bearer <token>` where the token is:
 
 ```
-prefix/base58(pubkey)/timestamp/base58(signature)
+prefix/base58(pubkey)/audience/timestamp/base58(signature)
 ```
 
 - `prefix` — must match a configured prefix (e.g. `freenet`)
 - `pubkey` — base58-encoded public key (32 bytes); its type depends on the
   prefix's `signature_algo`
+- `audience` — identifies the URL the sender dialed; see below
 - `timestamp` — unix epoch seconds; must be within `max_clock_skew` of now
-- `signature` — base58-encoded signature over the literal bytes of
-  `prefix/base58(pubkey)/timestamp`
+- `signature` — base58-encoded signature over the literal bytes of everything
+  before the final `/`
+
+The pre-audience 4-field form (`prefix/pubkey/timestamp/signature`) is still
+accepted, because senders upgrade on their own schedule. It carries no audience
+binding. The `token_fields` attribute on `auth_attempts` is how you tell when
+the 4-field population has reached zero and the transition can end. Stripping
+the audience field from a 5-field token to reach that path does not work: the
+signature covers it.
 
 There is no nonce or salt field. A sender-chosen one would buy nothing here:
 it is not replay protection unless the verifier tracks it, and it is not
 precomputation resistance either, because the party who would precompute is
 the same party who picks it. A token is therefore stable for a given
 (key, second).
+
+## Audience binding
+
+`audience` is base58 of the first 16 bytes of `SHA-256(canonical URL)` — the
+URL the sender exports to. It is hashed because a URL contains `/`, the token's
+field separator, and because signing the URL verbatim would put any userinfo
+(an operator's password) into a wire-visible token that lands in logs.
+
+Canonical form, which both sides must build identically:
+
+- `{scheme}://{host}:{port}{path}`, e.g. `http://collector.example:4318/v1/metrics`
+- scheme and host lowercased
+- port always explicit — 80 for `http`, 443 for `https` when the URL omits it
+- path verbatim: no trailing-slash collapse, no dot-segment removal
+- userinfo stripped; query and fragment dropped
+
+Configure the URLs this collector legitimately answers at (`audiences`, below)
+and a token authenticates only if its audience hashes to one of them. **These
+are full URLs as the sender dials them, not hostnames** — if an ingress
+rewrites `/otlp/v1/metrics` to `/v1/metrics`, list the external spelling,
+because that is what the sender hashed. An empty or unset list means the field
+is not checked.
+
+The hash is opaque, so a `wrong_audience` denial says nothing about where the
+sender thought it was pointing. The received hash is therefore logged at WARN
+on denial, and the startup-computed set is logged at INFO alongside its source
+URLs, so the two can be paired by eye.
 
 ## Signature algorithms
 
@@ -59,6 +94,14 @@ keypair authenticates successfully. What makes that useful is the
 `fbn_validator` processor, which binds the payload to the key that
 authenticated it.
 
+**Audience binding closes recipient replay, not capture replay.** A token that
+names no audience can be replayed by the collector it was sent to, at any other
+collector accepting the same scheme — the legitimate recipient impersonates the
+sender upstream. Binding the audience means a token minted for collector A does
+not verify at collector B, provided B has `audiences` configured. It does
+nothing about a token being reused at the collector it was minted for, and
+nothing at all while the 4-field transition form is accepted.
+
 **Tokens are replayable within the skew window.** Nothing tracks whether a
 token has been seen before. A captured `Authorization` header can be reused
 for up to `2 × max_clock_skew` (10 minutes at the default), and because the
@@ -73,9 +116,10 @@ nothing here.
 ## Telemetry
 
 - `auth_attempts` (counter) — one per authentication attempt, with a `result`
-  attribute: `ok`, `no_header`, `malformed`, `unknown_prefix`, `bad_timestamp`,
-  `stale_timestamp`, `bad_pubkey`, `bad_key_size`, `low_order_key`,
-  `bad_signature`, or `bad_algo`.
+  attribute: `ok`, `no_header`, `malformed`, `unknown_prefix`, `wrong_audience`,
+  `bad_timestamp`, `stale_timestamp`, `bad_pubkey`, `bad_key_size`,
+  `low_order_key`, `bad_signature`, or `bad_algo`. Attempts that carried a token
+  also get `token_fields` (4 = pre-audience sender, 5 = current).
 
 ## Configuration
 
@@ -86,7 +130,14 @@ extensions:
     prefixes:
       freenet:
         signature_algo: xed25519   # what freenet nodes send; ed25519 also supported
+        audiences:                 # optional; empty means do not check
+          - https://otel.example.com/v1/metrics
+          - http://collector.internal:4318/v1/metrics
 ```
+
+`audiences` is per-prefix because it only means something for prefixes whose
+tokens carry the field. A bad URL there fails validation at startup rather than
+turning into blanket denials at runtime.
 
 Rotate to a new prefix if the signature algorithm for a sender population
 needs to change.

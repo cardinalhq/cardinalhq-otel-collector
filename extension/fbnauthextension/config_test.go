@@ -66,6 +66,85 @@ func TestConfigValidate(t *testing.T) {
 	}
 }
 
+// The canonical-URL table from the freenet side (its
+// the_audience_hash_is_reproducible_from_the_documented_canonical_url test):
+// each URL a node might be pointed at must hash as the canonical URL it
+// reduces to. If these two sides disagree, every token is wrong_audience.
+func TestAudienceHashCanonicalization(t *testing.T) {
+	tests := []struct{ requestURL, canonical string }{
+		{"http://collector.example:4318/v1/metrics", "http://collector.example:4318/v1/metrics"},
+		{"https://Collector.Example/v1/metrics", "https://collector.example:443/v1/metrics"},
+		{"https://user:secret@collector.example:4318/v1/metrics", "https://collector.example:4318/v1/metrics"},
+		{"http://user:pass@host:1234/path/here", "http://host:1234/path/here"},
+	}
+	for _, tt := range tests {
+		got, err := AudienceHash(tt.requestURL)
+		require.NoError(t, err)
+		want, err := AudienceHash(tt.canonical)
+		require.NoError(t, err)
+		assert.Equal(t, want, got, tt.requestURL)
+	}
+}
+
+// Golden values computed outside this package (sha256 of the canonical string,
+// first 16 bytes, base58). Pins the formula itself, not just self-consistency —
+// the canonicalization above would pass even if we hashed the wrong string.
+func TestAudienceHashGolden(t *testing.T) {
+	for url, want := range map[string]string{
+		"http://collector.example:4318/v1/metrics": "Lm4fqwHu5pupgXfDF8UrPa",
+		"https://collector.example/v1/metrics":     "JRq1VQz3is6NGHvhE9LqBA",
+	} {
+		got, err := AudienceHash(url)
+		require.NoError(t, err)
+		assert.Equal(t, want, got, url)
+	}
+}
+
+func TestAudienceHashDistinctions(t *testing.T) {
+	base, err := AudienceHash("https://c.example/v1/metrics")
+	require.NoError(t, err)
+
+	// Query and fragment are dropped; an OTLP export URL has neither.
+	for _, same := range []string{
+		"https://c.example/v1/metrics?x=1",
+		"https://c.example/v1/metrics#f",
+		"https://c.example:443/v1/metrics",
+	} {
+		h, err := AudienceHash(same)
+		require.NoError(t, err)
+		assert.Equal(t, base, h, same)
+	}
+
+	// Path is verbatim: a trailing slash or a dot segment is a different URL,
+	// because it is a different string on the sender's side too.
+	for _, differs := range []string{
+		"https://c.example/v1/metrics/",
+		"https://c.example/v2/../v1/metrics",
+		"http://c.example/v1/metrics",
+		"https://c.example:4318/v1/metrics",
+	} {
+		h, err := AudienceHash(differs)
+		require.NoError(t, err)
+		assert.NotEqual(t, base, h, differs)
+	}
+}
+
+func TestAudienceHashRejects(t *testing.T) {
+	// Fails closed rather than guessing a port or a host: a typo in the
+	// audience list must surface at startup, not as blanket denials later.
+	for _, bad := range []string{"", "collector.example/v1/metrics", "ftp://c.example/x", "https:///v1/metrics"} {
+		_, err := AudienceHash(bad)
+		assert.Error(t, err, bad)
+	}
+}
+
+func TestConfigValidateRejectsBadAudience(t *testing.T) {
+	cfg := Config{MaxClockSkew: time.Minute, Prefixes: map[string]PrefixConfig{
+		"freenet": {SignatureAlgo: SignatureAlgoXEd25519, Audiences: []string{"not-a-url"}},
+	}}
+	assert.Error(t, cfg.Validate())
+}
+
 func TestNewFactory(t *testing.T) {
 	f := NewFactory()
 	cfg := f.CreateDefaultConfig().(*Config)

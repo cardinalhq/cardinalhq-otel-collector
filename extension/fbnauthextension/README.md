@@ -46,7 +46,8 @@ Canonical form, which both sides must build identically:
 - `{host}:{port}{path}`, e.g. `collector.example:4318/v1/metrics`
 - host lowercased
 - port always explicit — 80 for `http`, 443 for `https` when the URL omits it
-- path verbatim: no trailing-slash collapse, no dot-segment removal
+- path verbatim: no trailing-slash collapse, no dot-segment removal; a URL with
+  no path counts as `/`, which is what a sender pointed at the root sends
 - userinfo stripped; query and fragment dropped
 - **no scheme**: it names a transport, not a party, so binding it would not
   narrow which collector may use a token, and would make a collector reachable

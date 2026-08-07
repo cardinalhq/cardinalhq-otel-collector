@@ -132,6 +132,13 @@ func AudienceHash(rawURL string) (string, error) {
 	if strings.Contains(host, ":") {
 		host = "[" + host + "]" // IPv6 literals keep their brackets
 	}
-	sum := sha256.Sum256([]byte(host + ":" + port + u.EscapedPath()))
+	// A pathless URL is "/" on the wire, and that is what the sender hashes
+	// (http::Uri::path never returns empty); url.Parse gives "" here. Without
+	// this, listing a base URL silently matches nothing.
+	path := u.EscapedPath()
+	if path == "" {
+		path = "/"
+	}
+	sum := sha256.Sum256([]byte(host + ":" + port + path))
 	return base58.Encode(sum[:audienceHashBytes]), nil
 }

@@ -122,6 +122,16 @@ func TestAudienceHashDistinctions(t *testing.T) {
 		assert.Equal(t, base, h, same)
 	}
 
+	// A pathless URL is "/" on the wire; listing the base form must match what
+	// a sender pointed at the root actually hashes.
+	root, err := AudienceHash("https://c.example/")
+	require.NoError(t, err)
+	for _, same := range []string{"https://c.example", "https://c.example:443"} {
+		h, err := AudienceHash(same)
+		require.NoError(t, err)
+		assert.Equal(t, root, h, same)
+	}
+
 	// Path is verbatim: a trailing slash or a dot segment is a different URL,
 	// because it is a different string on the sender's side too.
 	for _, differs := range []string{

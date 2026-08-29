@@ -51,6 +51,29 @@ func TestValidateRejectsUnalignedInterval(t *testing.T) {
 	assert.ErrorContains(t, req.Validate(), "aligned")
 }
 
+func TestValidateRejectsNanosecondStart(t *testing.T) {
+	req := baseRequest(t)
+	// Add 1 ns to interval_start; keep end coherent with the shifted start
+	// so the shift-by-frequency check does not fire first.
+	req.IntervalStart = req.IntervalStart.Add(time.Nanosecond)
+	req.IntervalEnd = req.IntervalStart.Add(time.Minute)
+	err := req.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "whole second")
+	assert.Contains(t, err.Error(), "interval_start")
+}
+
+func TestValidateRejectsNanosecondEnd(t *testing.T) {
+	req := baseRequest(t)
+	// Interval start remains on a whole second; skew only the end so this
+	// case is distinct from the start-side check.
+	req.IntervalEnd = req.IntervalEnd.Add(999999999 * time.Nanosecond)
+	err := req.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "whole second")
+	assert.Contains(t, err.Error(), "interval_end")
+}
+
 func TestValidateRejectsWrongIntervalEnd(t *testing.T) {
 	req := baseRequest(t)
 	req.IntervalEnd = req.IntervalStart.Add(90 * time.Second)

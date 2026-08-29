@@ -111,6 +111,12 @@ func (req FinalizationRequest) Validate() error {
 	if req.IntervalStart.IsZero() {
 		return fmt.Errorf("interval_start must be a real time")
 	}
+	if req.IntervalStart.Nanosecond() != 0 {
+		return fmt.Errorf("interval_start must be on a whole second (nanosecond component must be zero)")
+	}
+	if req.IntervalEnd.Nanosecond() != 0 {
+		return fmt.Errorf("interval_end must be on a whole second (nanosecond component must be zero)")
+	}
 	if !req.IntervalEnd.Equal(req.IntervalStart.Add(time.Duration(req.FrequencySeconds) * time.Second)) {
 		return fmt.Errorf("interval_end must equal interval_start + frequency_seconds")
 	}

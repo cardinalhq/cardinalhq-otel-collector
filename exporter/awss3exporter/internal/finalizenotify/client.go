@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -26,6 +27,12 @@ type Endpoint struct {
 	// Token is the shared secret whose SHA-256 hex matches the receiver's
 	// LAKERUNNER_INTAKE_FINALIZATION_AUDIENCE_KEYS allowlist.
 	Token string
+	// AllowInsecureBaseURL, when true, allows a plaintext http:// BaseURL for
+	// local development. Production callers MUST leave this false so
+	// credentials cannot be exfiltrated on the wire. The caller (not
+	// Validate) is responsible for setting this from configuration; Validate
+	// never reads environment variables.
+	AllowInsecureBaseURL bool
 }
 
 // Result classifies the outcome of one POST.
@@ -52,6 +59,11 @@ const (
 	ErrCodeRequestInvalid      ErrorCode = "REQUEST_INVALID"
 	ErrCodeTransport           ErrorCode = "TRANSPORT"
 	ErrCodeTimeout             ErrorCode = "TIMEOUT"
+	// ErrCodeCancelled is returned when the caller cancels the context. It is
+	// deliberately non-retryable: the caller asked us to stop, and retrying
+	// would ignore that signal. Distinct from ErrCodeTimeout, which reflects
+	// the client-side deadline expiring on a still-desired request.
+	ErrCodeCancelled ErrorCode = "CANCELLED"
 )
 
 // Error carries the classified failure.
@@ -111,6 +123,20 @@ func (e Endpoint) Validate() error {
 	if strings.TrimSpace(e.BaseURL) == "" {
 		return errors.New("finalizenotify: endpoint BaseURL is required")
 	}
+	u, err := url.Parse(e.BaseURL)
+	if err != nil {
+		return fmt.Errorf("finalizenotify: endpoint BaseURL is not a valid URL: %w", err)
+	}
+	switch u.Scheme {
+	case "https":
+		// always accepted
+	case "http":
+		if !e.AllowInsecureBaseURL {
+			return errors.New("finalizenotify: endpoint BaseURL scheme must be https (set AllowInsecureBaseURL for local dev)")
+		}
+	default:
+		return fmt.Errorf("finalizenotify: endpoint BaseURL scheme %q is not permitted; use https", u.Scheme)
+	}
 	if err := ValidateProducerIdentity(e.Identity); err != nil {
 		return err
 	}
@@ -141,6 +167,13 @@ func (p *Publisher) Publish(ctx context.Context, req FinalizationRequest) (Resul
 
 	resp, err := p.client.Do(httpReq)
 	if err != nil {
+		// Caller cancellation of the parent context beats any other
+		// classification: the caller asked us to stop, so surface a
+		// non-retryable code even if the transport also reported the
+		// error as a timeout on the derived callCtx.
+		if errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
+			return "", &Error{Code: ErrCodeCancelled, Message: "finalization request cancelled"}
+		}
 		if errors.Is(err, context.DeadlineExceeded) || errors.Is(callCtx.Err(), context.DeadlineExceeded) {
 			return "", &Error{Code: ErrCodeTimeout, Message: "finalization request timed out"}
 		}

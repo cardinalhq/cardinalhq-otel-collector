@@ -9,6 +9,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -41,11 +42,38 @@ func testEndpoint(url string) Endpoint {
 }
 
 func TestEndpointValidateRejectsBadShape(t *testing.T) {
-	assert.Error(t, Endpoint{Identity: "x", Token: "t"}.Validate())
-	assert.Error(t, Endpoint{BaseURL: "http://x", Token: "t"}.Validate())
-	assert.Error(t, Endpoint{BaseURL: "http://x", Identity: "BAD", Token: "t"}.Validate())
-	assert.Error(t, Endpoint{BaseURL: "http://x", Identity: testEndpointIdentity}.Validate())
-	assert.NoError(t, Endpoint{BaseURL: "http://x", Identity: testEndpointIdentity, Token: "t"}.Validate())
+	// Missing BaseURL entirely.
+	assert.Error(t, Endpoint{Identity: testEndpointIdentity, Token: "t"}.Validate())
+	// Missing token.
+	assert.Error(t, Endpoint{BaseURL: "https://x", Identity: testEndpointIdentity}.Validate())
+	// Bad identity shape.
+	assert.Error(t, Endpoint{BaseURL: "https://x", Identity: "BAD", Token: "t"}.Validate())
+	// Well-formed https endpoint accepted.
+	assert.NoError(t, Endpoint{BaseURL: "https://x", Identity: testEndpointIdentity, Token: "t"}.Validate())
+}
+
+func TestEndpointValidateRequiresHTTPS(t *testing.T) {
+	// http:// is rejected by default: production must not exfiltrate the
+	// bearer token in plaintext.
+	err := Endpoint{BaseURL: "http://x", Identity: testEndpointIdentity, Token: "t"}.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "https")
+
+	// The AllowInsecureBaseURL escape hatch lets local dev use http://.
+	assert.NoError(t, Endpoint{BaseURL: "http://x", Identity: testEndpointIdentity, Token: "t", AllowInsecureBaseURL: true}.Validate())
+
+	// https:// is always accepted regardless of the boolean.
+	assert.NoError(t, Endpoint{BaseURL: "https://x", Identity: testEndpointIdentity, Token: "t"}.Validate())
+	assert.NoError(t, Endpoint{BaseURL: "https://x", Identity: testEndpointIdentity, Token: "t", AllowInsecureBaseURL: true}.Validate())
+
+	// Non-http(s) schemes are rejected even when the escape hatch is set —
+	// the hatch is only for plaintext dev, not for arbitrary schemes.
+	err = Endpoint{BaseURL: "ftp://x", Identity: testEndpointIdentity, Token: "t"}.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "https")
+	err = Endpoint{BaseURL: "ftp://x", Identity: testEndpointIdentity, Token: "t", AllowInsecureBaseURL: true}.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "https")
 }
 
 func TestPublishCreated(t *testing.T) {
@@ -156,6 +184,46 @@ func TestPublishTimeoutIsRetryable(t *testing.T) {
 	require.True(t, errors.As(err, &pe))
 	assert.Equal(t, ErrCodeTimeout, pe.Code)
 	assert.True(t, IsRetryable(pe.Code))
+}
+
+func TestPublishCallerCancellationIsNonRetryable(t *testing.T) {
+	// A real httptest server whose handler blocks until the caller cancels
+	// the context — this exercises the true cancellation path through the
+	// http transport rather than a synthesised error.
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-release:
+		}
+	}))
+	defer srv.Close()
+	defer close(release)
+
+	// AllowInsecureBaseURL because httptest.NewServer is http://.
+	pub, err := New(srv.Client(), Endpoint{
+		BaseURL:              srv.URL,
+		Identity:             testEndpointIdentity,
+		Token:                "test-token",
+		AllowInsecureBaseURL: true,
+	}, 5*time.Second)
+	require.NoError(t, err)
+
+	req := baseRequest(t)
+	req.FrontierHash, _ = ComputeFrontierHash(req, testEndpointIdentity)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	// Cancel shortly after Publish starts so the request is in-flight.
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		cancel()
+	}()
+
+	_, err = pub.Publish(ctx, req)
+	var pe *Error
+	require.True(t, errors.As(err, &pe))
+	assert.Equal(t, ErrCodeCancelled, pe.Code)
+	assert.False(t, IsRetryable(pe.Code), "cancellation must not be retried — the caller asked us to stop")
 }
 
 func TestPublishRejectsMalformedRequestBeforeSending(t *testing.T) {

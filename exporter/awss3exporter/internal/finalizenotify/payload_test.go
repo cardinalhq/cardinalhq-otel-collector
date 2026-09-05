@@ -137,13 +137,13 @@ func TestComputeFrontierHashChangesOnFieldMutation(t *testing.T) {
 	req := baseRequest(t)
 	baseline, _ := ComputeFrontierHash(req, "customer-intake.chq-saas.v1")
 	mutations := map[string]func(*FinalizationRequest){
-		"collector":  func(r *FinalizationRequest) { r.CollectorID = "chq-other" },
-		"signal":     func(r *FinalizationRequest) { r.Signal = SignalMetrics },
-		"frequency":  func(r *FinalizationRequest) { r.FrequencySeconds = 30 },
-		"offset":     func(r *FinalizationRequest) { r.ProducerOffset = 1 },
-		"terminal":   func(r *FinalizationRequest) { r.TerminalResult = TerminalAborted },
-		"eligible":   func(r *FinalizationRequest) { r.StrictReaderEligible = false },
-		"cutoff":     func(r *FinalizationRequest) { r.CutoffAt = r.CutoffAt.Add(time.Second) },
+		"collector": func(r *FinalizationRequest) { r.CollectorID = "chq-other" },
+		"signal":    func(r *FinalizationRequest) { r.Signal = SignalMetrics },
+		"frequency": func(r *FinalizationRequest) { r.FrequencySeconds = 30 },
+		"offset":    func(r *FinalizationRequest) { r.ProducerOffset = 1 },
+		"terminal":  func(r *FinalizationRequest) { r.TerminalResult = TerminalAborted },
+		"eligible":  func(r *FinalizationRequest) { r.StrictReaderEligible = false },
+		"cutoff":    func(r *FinalizationRequest) { r.CutoffAt = r.CutoffAt.Add(time.Second) },
 	}
 	for name, mutate := range mutations {
 		t.Run(name, func(t *testing.T) {

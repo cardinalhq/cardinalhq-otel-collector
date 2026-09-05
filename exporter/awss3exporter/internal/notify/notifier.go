@@ -98,18 +98,18 @@ type httpNotifier struct {
 
 // New builds a Notifier from the supplied configuration.
 //
-// When cfg.Endpoint is empty the feature is disabled and a noop Notifier is
+// When cfg.ClientConfig.Endpoint is empty the feature is disabled and a noop Notifier is
 // returned. Otherwise a live httpNotifier is started with the configured
 // queue, workers, and retry policy.
 func New(cfg Config, scopeName string, telemetry component.TelemetrySettings, host component.Host, logger *zap.Logger) (Notifier, error) {
-	if cfg.Endpoint == "" {
+	if cfg.ClientConfig.Endpoint == "" {
 		return noopNotifier{}, nil
 	}
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 
-	client, err := cfg.ToClient(context.Background(), host.GetExtensions(), telemetry)
+	client, err := cfg.ClientConfig.ToClient(context.Background(), host.GetExtensions(), telemetry)
 	if err != nil {
 		return nil, fmt.Errorf("notifications: build http client: %w", err)
 	}
@@ -368,10 +368,10 @@ func (n *httpNotifier) postBatch(ctx context.Context, batch []Event) {
 //   - retriable: true when the attempt may be retried (network error or 5xx).
 //   - err: nil on 2xx; otherwise a descriptive error.
 func (n *httpNotifier) doOnePost(parentCtx context.Context, body []byte) (statusClass string, permanent, retriable bool, err error) {
-	attemptCtx, cancel := context.WithTimeout(parentCtx, n.cfg.Timeout)
+	attemptCtx, cancel := context.WithTimeout(parentCtx, n.cfg.ClientConfig.Timeout)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(attemptCtx, http.MethodPost, n.cfg.Endpoint, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(attemptCtx, http.MethodPost, n.cfg.ClientConfig.Endpoint, bytes.NewReader(body))
 	if err != nil {
 		// Only possible if Endpoint was mutated post-Validate. Treat as
 		// retriable network-class failure.

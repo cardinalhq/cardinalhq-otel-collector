@@ -156,7 +156,7 @@ func newTestNotifier(t *testing.T, handler http.Handler, tune func(c *Config)) (
 	t.Cleanup(srv.Close)
 
 	cfg := NewDefaultConfig()
-	cfg.Endpoint = srv.URL
+	cfg.ClientConfig.Endpoint = srv.URL
 	cfg.InitialBackoff = time.Millisecond
 	cfg.MaxBackoff = 10 * time.Millisecond
 	if tune != nil {
@@ -206,7 +206,7 @@ func TestHappyPath(t *testing.T) {
 	n, tt, _ := newTestNotifier(t, handler, func(c *Config) {
 		c.MaxRecordsPerPost = 10
 		c.Workers = 2
-		c.Headers.Set("Authorization", configopaque.String("Bearer test-token"))
+		c.ClientConfig.Headers.Set("Authorization", configopaque.String("Bearer test-token"))
 	})
 
 	const N = 50
@@ -514,7 +514,7 @@ func TestShutdownDeadline(t *testing.T) {
 		// Give the HTTP client enough headroom that the request doesn't
 		// trigger its own timeout — we're exercising Shutdown's deadline,
 		// not ClientConfig.Timeout.
-		c.Timeout = 30 * time.Second
+		c.ClientConfig.Timeout = 30 * time.Second
 	})
 
 	const N = 100

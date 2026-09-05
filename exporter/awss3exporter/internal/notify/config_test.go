@@ -17,8 +17,8 @@ func TestNewDefaultConfig(t *testing.T) {
 
 	c := NewDefaultConfig()
 
-	assert.Equal(t, "", c.Endpoint, "feature must be off by default")
-	assert.Equal(t, DefaultTimeout, c.Timeout)
+	assert.Equal(t, "", c.ClientConfig.Endpoint, "feature must be off by default")
+	assert.Equal(t, DefaultTimeout, c.ClientConfig.Timeout)
 	assert.Equal(t, DefaultQueueSize, c.QueueSize)
 	assert.Equal(t, DefaultWorkers, c.Workers)
 	assert.Equal(t, DefaultMaxRecordsPerPost, c.MaxRecordsPerPost)
@@ -33,7 +33,7 @@ func TestConfigValidate(t *testing.T) {
 	// valid: populated defaults with Endpoint set.
 	valid := func() Config {
 		c := NewDefaultConfig()
-		c.Endpoint = "https://example.com/hook"
+		c.ClientConfig.Endpoint = "https://example.com/hook"
 		return c
 	}
 
@@ -62,7 +62,7 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "bad scheme",
 			mutate: func(c *Config) {
-				c.Endpoint = "ftp://example.com/"
+				c.ClientConfig.Endpoint = "ftp://example.com/"
 			},
 			wantErr:     true,
 			errContains: []string{"notifications.endpoint must be http(s) URL"},
@@ -70,7 +70,7 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "missing scheme",
 			mutate: func(c *Config) {
-				c.Endpoint = "example.com/hook"
+				c.ClientConfig.Endpoint = "example.com/hook"
 			},
 			wantErr:     true,
 			errContains: []string{"notifications.endpoint must be http(s) URL"},
@@ -78,7 +78,7 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "reserved Content-Type header",
 			mutate: func(c *Config) {
-				c.Headers.Set("Content-Type", configopaque.String("application/xml"))
+				c.ClientConfig.Headers.Set("Content-Type", configopaque.String("application/xml"))
 			},
 			wantErr:     true,
 			errContains: []string{"Content-Type"},
@@ -86,7 +86,7 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "reserved content-type header mixed case",
 			mutate: func(c *Config) {
-				c.Headers.Set("content-TYPE", configopaque.String("application/xml"))
+				c.ClientConfig.Headers.Set("content-TYPE", configopaque.String("application/xml"))
 			},
 			wantErr:     true,
 			errContains: []string{"Content-Type"},
@@ -94,7 +94,7 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "reserved Content-Encoding header",
 			mutate: func(c *Config) {
-				c.Headers.Set("Content-Encoding", configopaque.String("gzip"))
+				c.ClientConfig.Headers.Set("Content-Encoding", configopaque.String("gzip"))
 			},
 			wantErr:     true,
 			errContains: []string{"Content-Encoding"},
@@ -102,7 +102,7 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "compression configured",
 			mutate: func(c *Config) {
-				c.Compression = "gzip"
+				c.ClientConfig.Compression = "gzip"
 			},
 			wantErr:     true,
 			errContains: []string{"notifications.compression is not supported"},
@@ -111,21 +111,21 @@ func TestConfigValidate(t *testing.T) {
 			// "none" is the explicit uncompressed sentinel in configcompression.
 			name: "compression none accepted",
 			mutate: func(c *Config) {
-				c.Compression = "none"
+				c.ClientConfig.Compression = "none"
 			},
 			wantErr: false,
 		},
 		{
 			name: "compression empty accepted",
 			mutate: func(c *Config) {
-				c.Compression = ""
+				c.ClientConfig.Compression = ""
 			},
 			wantErr: false,
 		},
 		{
 			name: "endpoint missing host",
 			mutate: func(c *Config) {
-				c.Endpoint = "http://"
+				c.ClientConfig.Endpoint = "http://"
 			},
 			wantErr:     true,
 			errContains: []string{"notifications.endpoint must be http(s) URL"},
@@ -133,7 +133,7 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "endpoint no authority",
 			mutate: func(c *Config) {
-				c.Endpoint = "http:/hook"
+				c.ClientConfig.Endpoint = "http:/hook"
 			},
 			wantErr:     true,
 			errContains: []string{"notifications.endpoint must be http(s) URL"},
@@ -141,7 +141,7 @@ func TestConfigValidate(t *testing.T) {
 		{
 			name: "endpoint empty authority",
 			mutate: func(c *Config) {
-				c.Endpoint = "https:///hook"
+				c.ClientConfig.Endpoint = "https:///hook"
 			},
 			wantErr:     true,
 			errContains: []string{"notifications.endpoint must be http(s) URL"},

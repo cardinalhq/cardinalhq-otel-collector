@@ -36,7 +36,11 @@ const (
 // short-circuits Validate so unrelated invariants are not enforced on the
 // dormant block.
 type Config struct {
-	confighttp.ClientConfig `mapstructure:",squash"`
+	// ClientConfig is a named (not embedded) squash field on purpose: confmap
+	// only decodes sibling fields correctly when a squashed struct with its own
+	// Unmarshal method -- as ClientConfig has since v0.160.0 -- is a named
+	// field. This matches upstream otlphttpexporter.
+	ClientConfig confighttp.ClientConfig `mapstructure:",squash"`
 
 	// QueueSize is the bounded capacity of the in-memory event channel.
 	// Enqueue drops events non-blockingly once this capacity is reached.
@@ -89,7 +93,7 @@ func NewDefaultConfig() Config {
 // the feature-specific invariants, accumulating errors with multierr so that
 // a caller reporting "config invalid" can surface all root causes at once.
 func (c *Config) Validate() error {
-	if c.Endpoint == "" {
+	if c.ClientConfig.Endpoint == "" {
 		return nil
 	}
 
@@ -101,14 +105,14 @@ func (c *Config) Validate() error {
 	// Endpoint must be a well-formed http(s) URL with a host. confighttp
 	// does not enforce this, and a scheme-only/host-less value would defer
 	// failure to runtime request construction.
-	if u, err := url.Parse(c.Endpoint); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		errs = multierr.Append(errs, fmt.Errorf("notifications.endpoint must be http(s) URL: %q", c.Endpoint))
+	if u, err := url.Parse(c.ClientConfig.Endpoint); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		errs = multierr.Append(errs, fmt.Errorf("notifications.endpoint must be http(s) URL: %q", c.ClientConfig.Endpoint))
 	}
 
 	// Reserved request headers. confighttp overwrites colliding headers at
 	// the transport layer, so allowing these would silently defeat the
 	// notifier's Content-Type contract.
-	for _, p := range c.Headers {
+	for _, p := range c.ClientConfig.Headers {
 		switch strings.ToLower(p.Name) {
 		case "content-type":
 			errs = multierr.Append(errs, errors.New("notifications.headers must not override Content-Type"))
@@ -120,7 +124,7 @@ func (c *Config) Validate() error {
 	// Request compression is not part of the receiver contract (plain JSON
 	// POST). Reject any actively compressing value; the explicit "none"
 	// value and the empty string both mean uncompressed and are accepted.
-	if c.Compression.IsCompressed() {
+	if c.ClientConfig.Compression.IsCompressed() {
 		errs = multierr.Append(errs, errors.New("notifications.compression is not supported"))
 	}
 

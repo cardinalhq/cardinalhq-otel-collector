@@ -16,7 +16,7 @@
 SHELL := /bin/bash
 
 TARGETS=bin/cardinalhq-otel-collector
-OTEL_VERSION=v0.157.0
+OTEL_VERSION=v0.160.0
 
 #
 # Build targets.  Adding to these will cause magic to occur.

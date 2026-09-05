@@ -403,14 +403,14 @@ func TestConfigValidateNotifications(t *testing.T) {
 		{
 			name: "notifications enabled with minimal valid endpoint",
 			mutate: func(c *Config) {
-				c.S3Uploader.Notifications.Endpoint = "https://example.com/hook"
+				c.S3Uploader.Notifications.ClientConfig.Endpoint = "https://example.com/hook"
 			},
 			wantErr: false,
 		},
 		{
 			name: "bad endpoint scheme",
 			mutate: func(c *Config) {
-				c.S3Uploader.Notifications.Endpoint = "ftp://example.com/hook"
+				c.S3Uploader.Notifications.ClientConfig.Endpoint = "ftp://example.com/hook"
 			},
 			wantErr:     true,
 			errContains: "notifications.endpoint must be http(s) URL",
@@ -418,7 +418,7 @@ func TestConfigValidateNotifications(t *testing.T) {
 		{
 			name: "queue_size zero",
 			mutate: func(c *Config) {
-				c.S3Uploader.Notifications.Endpoint = "https://example.com/hook"
+				c.S3Uploader.Notifications.ClientConfig.Endpoint = "https://example.com/hook"
 				c.S3Uploader.Notifications.QueueSize = 0
 			},
 			wantErr:     true,
@@ -427,7 +427,7 @@ func TestConfigValidateNotifications(t *testing.T) {
 		{
 			name: "max_backoff less than initial_backoff",
 			mutate: func(c *Config) {
-				c.S3Uploader.Notifications.Endpoint = "https://example.com/hook"
+				c.S3Uploader.Notifications.ClientConfig.Endpoint = "https://example.com/hook"
 				c.S3Uploader.Notifications.InitialBackoff = 5 * time.Second
 				c.S3Uploader.Notifications.MaxBackoff = 1 * time.Second
 			},
@@ -437,8 +437,8 @@ func TestConfigValidateNotifications(t *testing.T) {
 		{
 			name: "reserved Content-Type header",
 			mutate: func(c *Config) {
-				c.S3Uploader.Notifications.Endpoint = "https://example.com/hook"
-				c.S3Uploader.Notifications.Headers.Set("Content-Type", "text/plain")
+				c.S3Uploader.Notifications.ClientConfig.Endpoint = "https://example.com/hook"
+				c.S3Uploader.Notifications.ClientConfig.Headers.Set("Content-Type", "text/plain")
 			},
 			wantErr:     true,
 			errContains: "Content-Type",
@@ -446,8 +446,8 @@ func TestConfigValidateNotifications(t *testing.T) {
 		{
 			name: "non-empty compression",
 			mutate: func(c *Config) {
-				c.S3Uploader.Notifications.Endpoint = "https://example.com/hook"
-				c.S3Uploader.Notifications.Compression = "gzip"
+				c.S3Uploader.Notifications.ClientConfig.Endpoint = "https://example.com/hook"
+				c.S3Uploader.Notifications.ClientConfig.Compression = "gzip"
 			},
 			wantErr:     true,
 			errContains: "notifications.compression is not supported",
@@ -815,8 +815,8 @@ func TestConfigNotifications(t *testing.T) {
 	e := cfg.Exporters[component.MustNewID("awss3")].(*Config)
 	n := e.S3Uploader.Notifications
 
-	assert.Equal(t, "https://example.com/webhook", n.Endpoint)
-	assert.Equal(t, 7*time.Second, n.Timeout)
+	assert.Equal(t, "https://example.com/webhook", n.ClientConfig.Endpoint)
+	assert.Equal(t, 7*time.Second, n.ClientConfig.Timeout)
 	assert.Equal(t, 1234, n.QueueSize)
 	assert.Equal(t, 2, n.Workers)
 	assert.Equal(t, 50, n.MaxRecordsPerPost)
@@ -824,7 +824,7 @@ func TestConfigNotifications(t *testing.T) {
 	assert.Equal(t, 2*time.Second, n.InitialBackoff)
 	assert.Equal(t, 40*time.Second, n.MaxBackoff)
 
-	v, ok := n.Headers.Get("Authorization")
+	v, ok := n.ClientConfig.Headers.Get("Authorization")
 	require.True(t, ok, "Authorization header must round-trip through config")
 	assert.Equal(t, "Bearer abc", string(v))
 }

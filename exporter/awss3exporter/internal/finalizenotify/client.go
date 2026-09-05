@@ -51,14 +51,14 @@ const (
 type ErrorCode string
 
 const (
-	ErrCodeUnconfigured        ErrorCode = "UNCONFIGURED"
-	ErrCodeCredentialsInvalid  ErrorCode = "CREDENTIALS_INVALID"
-	ErrCodeConflict            ErrorCode = "CONFLICT"
-	ErrCodeRuntimeUnavailable  ErrorCode = "RUNTIME_UNAVAILABLE"
-	ErrCodeBadResponse         ErrorCode = "BAD_RESPONSE"
-	ErrCodeRequestInvalid      ErrorCode = "REQUEST_INVALID"
-	ErrCodeTransport           ErrorCode = "TRANSPORT"
-	ErrCodeTimeout             ErrorCode = "TIMEOUT"
+	ErrCodeUnconfigured       ErrorCode = "UNCONFIGURED"
+	ErrCodeCredentialsInvalid ErrorCode = "CREDENTIALS_INVALID"
+	ErrCodeConflict           ErrorCode = "CONFLICT"
+	ErrCodeRuntimeUnavailable ErrorCode = "RUNTIME_UNAVAILABLE"
+	ErrCodeBadResponse        ErrorCode = "BAD_RESPONSE"
+	ErrCodeRequestInvalid     ErrorCode = "REQUEST_INVALID"
+	ErrCodeTransport          ErrorCode = "TRANSPORT"
+	ErrCodeTimeout            ErrorCode = "TIMEOUT"
 	// ErrCodeCancelled is returned when the caller cancels the context. It is
 	// deliberately non-retryable: the caller asked us to stop, and retrying
 	// would ignore that signal. Distinct from ErrCodeTimeout, which reflects

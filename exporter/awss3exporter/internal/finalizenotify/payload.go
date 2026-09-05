@@ -23,6 +23,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"time"
@@ -95,63 +96,63 @@ var (
 // branch.
 func (req FinalizationRequest) Validate() error {
 	if req.OrganizationID == "" {
-		return fmt.Errorf("organization_id must be a UUID")
+		return errors.New("organization_id must be a UUID")
 	}
 	if !identityPattern.MatchString(req.CollectorID) {
-		return fmt.Errorf("collector_id has invalid shape")
+		return errors.New("collector_id has invalid shape")
 	}
 	switch req.Signal {
 	case SignalLogs, SignalMetrics, SignalTraces:
 	default:
-		return fmt.Errorf("signal must be one of logs, metrics, traces")
+		return errors.New("signal must be one of logs, metrics, traces")
 	}
 	if req.FrequencySeconds <= 0 || req.FrequencySeconds > 604_800 {
-		return fmt.Errorf("frequency_seconds must be in (0, 604800]")
+		return errors.New("frequency_seconds must be in (0, 604800]")
 	}
 	if req.IntervalStart.IsZero() {
-		return fmt.Errorf("interval_start must be a real time")
+		return errors.New("interval_start must be a real time")
 	}
 	if req.IntervalStart.Nanosecond() != 0 {
-		return fmt.Errorf("interval_start must be on a whole second (nanosecond component must be zero)")
+		return errors.New("interval_start must be on a whole second (nanosecond component must be zero)")
 	}
 	if req.IntervalEnd.Nanosecond() != 0 {
-		return fmt.Errorf("interval_end must be on a whole second (nanosecond component must be zero)")
+		return errors.New("interval_end must be on a whole second (nanosecond component must be zero)")
 	}
 	if !req.IntervalEnd.Equal(req.IntervalStart.Add(time.Duration(req.FrequencySeconds) * time.Second)) {
-		return fmt.Errorf("interval_end must equal interval_start + frequency_seconds")
+		return errors.New("interval_end must equal interval_start + frequency_seconds")
 	}
 	if req.IntervalStart.UTC().Unix()%req.FrequencySeconds != 0 {
-		return fmt.Errorf("interval_start must be aligned to frequency_seconds")
+		return errors.New("interval_start must be aligned to frequency_seconds")
 	}
 	if req.ProducerOffset < 0 {
-		return fmt.Errorf("producer_offset must be non-negative")
+		return errors.New("producer_offset must be non-negative")
 	}
 	switch req.TerminalResult {
 	case TerminalCommittedObject:
 		if req.ObjectKey == nil || *req.ObjectKey == "" {
-			return fmt.Errorf("committed_object requires object_key")
+			return errors.New("committed_object requires object_key")
 		}
 		if req.ObjectSHA256 == nil || !sha256Pattern.MatchString(*req.ObjectSHA256) {
-			return fmt.Errorf("committed_object requires object_sha256 as lowercase SHA-256")
+			return errors.New("committed_object requires object_sha256 as lowercase SHA-256")
 		}
 	case TerminalExplicitEmpty, TerminalAborted:
 		if req.ObjectKey != nil || req.ObjectSHA256 != nil {
-			return fmt.Errorf("non-committed_object results must not carry object_key or object_sha256")
+			return errors.New("non-committed_object results must not carry object_key or object_sha256")
 		}
 	default:
-		return fmt.Errorf("terminal_result must be one of committed_object, explicit_empty, aborted")
+		return errors.New("terminal_result must be one of committed_object, explicit_empty, aborted")
 	}
 	if !sourceDomainPattern.MatchString(req.SourceDomain) {
-		return fmt.Errorf("source_domain has invalid shape")
+		return errors.New("source_domain has invalid shape")
 	}
 	if req.CutoffAt.IsZero() {
-		return fmt.Errorf("cutoff_at must be a real time")
+		return errors.New("cutoff_at must be a real time")
 	}
 	if req.PredecessorHash != nil && !sha256Pattern.MatchString(*req.PredecessorHash) {
-		return fmt.Errorf("predecessor_hash must be lowercase SHA-256")
+		return errors.New("predecessor_hash must be lowercase SHA-256")
 	}
 	if !sha256Pattern.MatchString(req.FrontierHash) {
-		return fmt.Errorf("frontier_hash must be lowercase SHA-256")
+		return errors.New("frontier_hash must be lowercase SHA-256")
 	}
 	return nil
 }
@@ -160,7 +161,7 @@ func (req FinalizationRequest) Validate() error {
 // producer can reject its own configuration before it ever attempts a POST.
 func ValidateProducerIdentity(identity string) error {
 	if !identityPattern.MatchString(identity) {
-		return fmt.Errorf("producer_identity has invalid shape")
+		return errors.New("producer_identity has invalid shape")
 	}
 	return nil
 }

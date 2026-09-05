@@ -111,11 +111,11 @@ func TestPublishReplayed(t *testing.T) {
 
 func TestPublishMapsStatusCodesToErrors(t *testing.T) {
 	cases := map[int]ErrorCode{
-		http.StatusUnauthorized:        ErrCodeCredentialsInvalid,
-		http.StatusConflict:            ErrCodeConflict,
-		http.StatusBadRequest:          ErrCodeRequestInvalid,
+		http.StatusUnauthorized:         ErrCodeCredentialsInvalid,
+		http.StatusConflict:             ErrCodeConflict,
+		http.StatusBadRequest:           ErrCodeRequestInvalid,
 		http.StatusUnsupportedMediaType: ErrCodeRequestInvalid,
-		http.StatusInternalServerError: ErrCodeTransport,
+		http.StatusInternalServerError:  ErrCodeTransport,
 	}
 	for status, code := range cases {
 		t.Run(http.StatusText(status), func(t *testing.T) {

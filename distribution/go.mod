@@ -869,7 +869,7 @@ require (
 	github.com/prometheus/prometheus v0.314.0 // indirect
 	github.com/prometheus/sigv4 v0.4.1 // indirect
 	github.com/puzpuzpuz/xsync/v4 v4.5.0 // indirect
-	github.com/rabbitmq/amqp091-go v1.12.0 // indirect
+	github.com/rabbitmq/amqp091-go v1.13.0 // indirect
 	github.com/rdforte/gomaxecs v1.1.2 // indirect
 	github.com/redis/go-redis/v9 v9.22.0 // indirect
 	github.com/relvacode/iso8601 v1.8.0 // indirect

@@ -25,6 +25,7 @@ header:
     - sample-config.yaml
     - '**/testdata/**'
     - .idea
+    - .claude
     - docs/flow/flow.svg
     - exporter/awss3exporter
     - examples/prometheus/remote-write.conf

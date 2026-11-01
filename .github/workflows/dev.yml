@@ -1,13 +1,7 @@
 name: goreleaser-latest-dev
 
 # Publishes the dev image at public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:<tag>
-# for dev/rc tags (v*-*).
-#
-# Default path COPIES the multi-arch image pittieparty built and pushed to Harbor
-# (docker.flame.org/library/cardinalhq-otel-collector, see
-# .pittieparty/workflows/image.yaml) into public ECR -- no rebuild, the build
-# cache stays on the cluster. Set repo variable IMAGE_BUILD_SOURCE=gha to build
-# the image in Actions (goreleaser) instead, e.g. if the cluster is down.
+# for dev/rc tags (v*-*), built in Actions by goreleaser.
 #
 # Dev tags do NOT create a GitHub release (that's release.yml, for GA tags).
 
@@ -20,54 +14,7 @@ permissions:
   contents: read
 
 jobs:
-  # Default: copy the pittieparty-built image from Harbor to ECR (no rebuild).
-  copy-image:
-    if: ${{ vars.IMAGE_BUILD_SOURCE != 'gha' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write   # AWS OIDC for ECR push
-      checks: read      # read the pittieparty/image check run
-    steps:
-      - uses: docker/setup-buildx-action@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          audience: sts.amazonaws.com
-          role-to-assume: arn:aws:iam::${{ secrets.ECR_ACCOUNT_ID }}:role/${{ secrets.ECR_ROLE_NAME }}
-          aws-region: ${{ secrets.ECR_REGISTRY_REGION }}
-          role-session-name: GitHubActions
-
-      - name: Login to PUBLIC Amazon ECR
-        env:
-          AWS_REGION: us-east-1
-        uses: aws-actions/amazon-ecr-login@v2
-        with:
-          registry-type: public
-
-      # pittieparty reports the image build as a GitHub Check run (not a commit
-      # status), so wait on the Checks API.
-      - name: Wait for pittieparty image build
-        uses: cardinalhq/actions/wait-for-check@v1
-        with:
-          check-name: pittieparty/image
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          fail-hint: Set repo variable IMAGE_BUILD_SOURCE=gha to build in Actions.
-
-      - name: Copy image from pittieparty (Harbor) to ECR
-        uses: cardinalhq/actions/copy-image@v1
-        with:
-          source: docker.flame.org/library/cardinalhq-otel-collector:${{ github.ref_name }}
-          targets: |
-            public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:${{ github.ref_name }}
-          pin-source: true   # copy from immutable source digest
-          sign: true         # keyless-sign destination ref (cosign)
-
-  # Fallback: build the image in Actions (goreleaser -> ECR) when the cluster is
-  # unavailable. Enabled by repo variable IMAGE_BUILD_SOURCE=gha.
   gha-build:
-    if: ${{ vars.IMAGE_BUILD_SOURCE == 'gha' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -86,8 +33,8 @@ jobs:
       - name: go-cache-paths
         id: go-cache-paths
         run: |
-          echo "go-build=$(go env GOCACHE)" >> $GITHUB_OUTPUT
-          echo "go-mod=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
+          echo "go-build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "go-mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
 
       - name: Go Build Cache
         uses: actions/cache@v5
@@ -121,6 +68,6 @@ jobs:
         with:
           distribution: goreleaser
           version: "nightly"
-          args: release --clean -f .goreleaser.yaml
+          args: release --clean --parallelism 1 -f .goreleaser.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

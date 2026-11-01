@@ -96,15 +96,16 @@ jobs:
       - name: Verify signature
         env:
           DIGEST: ${{ steps.digest.outputs.digest }}
-          IDENTITY_REGEXP: '^https://github\.com/cardinalhq/cardinalhq-otel-collector/\.github/workflows/dev\.yml@refs/tags/.+$'
+          IDENTITY_REGEXP: '^https://github\.com/cardinalhq/cardinalhq-otel-collector/\.github/workflows/dev\.yml@refs/tags/v[0-9]+\.[0-9]+\.[0-9]+-.+$'
         run: |
           cosign verify \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
             --certificate-identity-regexp "$IDENTITY_REGEXP" \
             "public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector@${DIGEST}" > /dev/null
+          exact="${IDENTITY_REGEXP%/*}/${GITHUB_REF_NAME//./\\.}\$"
           {
             echo "## Signed image"
             echo ""
             echo "- \`public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector@${DIGEST}\`"
-            echo "- verify: \`cosign verify --certificate-oidc-issuer https://token.actions.githubusercontent.com --certificate-identity-regexp '$IDENTITY_REGEXP' <image>\`"
+            echo "- verify: \`cosign verify --certificate-oidc-issuer https://token.actions.githubusercontent.com --certificate-identity-regexp '$exact' <image>\`"
           } >> "$GITHUB_STEP_SUMMARY"

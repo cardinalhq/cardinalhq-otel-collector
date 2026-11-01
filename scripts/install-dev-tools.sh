@@ -17,7 +17,7 @@ set -euo pipefail
 
 # Dev tool versions - update these to change versions across the project
 LICENSE_EYE_VERSION="latest"
-GORELEASER_VERSION="latest"
+GORELEASER_VERSION="v2.17.0"  # last release building with go.mod's Go 1.26
 GOLANGCI_LINT_VERSION="v2.11.4"
 
 # Project root directory

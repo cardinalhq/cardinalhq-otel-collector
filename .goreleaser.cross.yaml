@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 # Builds-only goreleaser config for the single-host cross-compile image builds,
-# used by the pittieparty image pipeline (.pittieparty/workflows/image.yaml). It
+# used by the PR image build (.github/workflows/pr-image-to-ecr.yml). It
 # cross-builds the Go binary for both arches on a single amd64 node; the
 # multi-arch image itself is assembled and pushed against Dockerfile.cross, NOT by
 # goreleaser -- so there is no `dockers:` / `docker_manifests:` section here.

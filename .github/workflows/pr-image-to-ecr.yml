@@ -1,20 +1,17 @@
 name: PR Image to ECR
 
-# On a push to a non-main branch that has an OPEN pull request, copy the
-# cardinalhq-otel-collector image pittieparty just built
-# (docker.flame.org/library/cardinalhq-otel-collector:v0.0.0-pr<N>-<sha8>, see
-# .pittieparty/workflows/image.yaml) to the public ECR distribution repo so the
-# PR build is pullable from anywhere ECR is reachable (e.g. disposable test
-# clusters that can't reach the internal Harbor). ECR ONLY.
+# On a push to a non-main branch that has an OPEN pull request, build the
+# multi-arch cardinalhq-otel-collector image and push it to the public ECR
+# distribution repo as v0.0.0-pr<N>-<sha8>, so the PR build is pullable from
+# disposable test clusters. ECR ONLY; PR images are best-effort.
 #
-# This only COPIES an already-built image; the heavy multi-arch build stays on the
-# cluster. There is no GHA-build fallback: if the pittieparty build is missing or
-# failed, this fails -- PR images are best-effort and not worth GHA build minutes.
+# The pure-Go binary is cross-compiled for amd64+arm64 on the runner (no CGO),
+# then packaged with the thin Dockerfile.cross, so nothing heavy runs under QEMU.
 #
 # SECURITY: push-triggered (NOT pull_request), so only trusted commits pushed by
 # repo-write users run here with ECR OIDC creds. Fork PRs cannot reach this
-# workflow, matching the pittieparty pipeline's trust model. Branches with no open
-# PR resolve to an empty PR number and the copy job is skipped.
+# workflow. Branches with no open PR resolve to an empty PR number and the build
+# job is skipped.
 
 on:
   push:
@@ -51,32 +48,52 @@ jobs:
             echo "tag=$tag" >> "$GITHUB_OUTPUT"
             echo "Branch '$BRANCH' -> PR #$pr, image tag $tag"
           else
-            echo "Branch '$BRANCH' has no open PR; skipping ECR copy."
+            echo "Branch '$BRANCH' has no open PR; skipping image build."
           fi
 
-  copy-to-ecr:
-    name: Copy PR Image to ECR
+  build-to-ecr:
+    name: Build PR Image to ECR
     needs: resolve
     if: ${{ needs.resolve.outputs.pr != '' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     permissions:
       contents: read
       id-token: write   # AWS OIDC for ECR push
-      checks: read      # read the pittieparty/image check run
+    env:
+      IMAGE_VERSION: ${{ needs.resolve.outputs.tag }}
     steps:
-      # pittieparty reports the image build as a GitHub Check run (not a commit
-      # status), so wait on the Checks API.
-      - name: Wait for pittieparty image build
-        uses: cardinalhq/actions/wait-for-check@v1
-        with:
-          check-name: pittieparty/image
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          fail-hint: PR images are best-effort; no image to copy.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: docker/setup-buildx-action@v4
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: "**/go.sum"
+
+      # --parallelism 1 links one arch at a time: the link step is multi-GB per
+      # arch and two at once OOMs the runner.
+      - name: Cross-build binaries
+        uses: goreleaser/goreleaser-action@1a80836c5c9d9e5755a25cb59ec6f45a3b5f41a8 # v7.2.1
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: build --snapshot --clean --parallelism 1 --config .goreleaser.cross.yaml
+
+      - name: Stage per-arch binaries for Dockerfile.cross
+        run: |
+          for arch in amd64 arm64; do
+            mkdir -p docker/bin/linux_$arch
+            cp dist/cardinalhq-otel-collector_linux_${arch}*/cardinalhq-otel-collector docker/bin/linux_$arch/cardinalhq-otel-collector
+          done
+          ls -l docker/bin/linux_amd64 docker/bin/linux_arm64
+
+      - uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
+      - uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v6.1.0
         with:
           audience: sts.amazonaws.com
           role-to-assume: arn:aws:iam::${{ secrets.ECR_ACCOUNT_ID }}:role/${{ secrets.ECR_ROLE_NAME }}
@@ -86,15 +103,41 @@ jobs:
       - name: Login to PUBLIC Amazon ECR
         env:
           AWS_REGION: us-east-1
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@19d944daaa35f0fa1d3f7f8af1d3f2e5de25c5b7 # v2.1.4
         with:
           registry-type: public
 
-      - name: Copy image from pittieparty (Harbor) to ECR
-        uses: cardinalhq/actions/copy-image@v1
+      - name: Build and push multi-arch image
+        id: build
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
-          source: docker.flame.org/library/cardinalhq-otel-collector:${{ needs.resolve.outputs.tag }}
-          targets: |
-            public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:${{ needs.resolve.outputs.tag }}
-          pin-source: true   # copy from immutable source digest
-          sign: true         # keyless-sign destination ref (cosign)
+          context: .
+          file: Dockerfile.cross
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: false
+          tags: public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:${{ env.IMAGE_VERSION }}
+
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      # Keyless-sign the immutable digest (never the mutable tag) with this
+      # workflow's OIDC identity, then prove the signature verifies.
+      - name: Sign image
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: cosign sign --yes "public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector@${DIGEST}"
+      - name: Verify signature
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          IDENTITY_REGEXP: '^https://github\.com/cardinalhq/cardinalhq-otel-collector/\.github/workflows/pr-image-to-ecr\.yml@refs/heads/.+$'
+        run: |
+          cosign verify \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity-regexp "$IDENTITY_REGEXP" \
+            "public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector@${DIGEST}" > /dev/null
+          {
+            echo "## Signed image"
+            echo ""
+            echo "- \`public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector@${DIGEST}\`"
+            echo "- verify: \`cosign verify --certificate-oidc-issuer https://token.actions.githubusercontent.com --certificate-identity-regexp '$IDENTITY_REGEXP' <image>\`"
+          } >> "$GITHUB_STEP_SUMMARY"

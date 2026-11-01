@@ -78,7 +78,7 @@ jobs:
         uses: goreleaser/goreleaser-action@1a80836c5c9d9e5755a25cb59ec6f45a3b5f41a8 # v7.2.1
         with:
           distribution: goreleaser
-          version: "nightly"
+          version: '~> v2'
           args: build --snapshot --clean --parallelism 1 --config .goreleaser.cross.yaml
 
       - name: Stage per-arch binaries for Dockerfile.cross
@@ -108,6 +108,7 @@ jobs:
           registry-type: public
 
       - name: Build and push multi-arch image
+        id: build
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
           context: .
@@ -116,3 +117,27 @@ jobs:
           push: true
           provenance: false
           tags: public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector:${{ env.IMAGE_VERSION }}
+
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      # Keyless-sign the immutable digest (never the mutable tag) with this
+      # workflow's OIDC identity, then prove the signature verifies.
+      - name: Sign image
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: cosign sign --yes "public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector@${DIGEST}"
+      - name: Verify signature
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          IDENTITY_REGEXP: '^https://github\.com/cardinalhq/cardinalhq-otel-collector/\.github/workflows/pr-image-to-ecr\.yml@refs/heads/.+$'
+        run: |
+          cosign verify \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity-regexp "$IDENTITY_REGEXP" \
+            "public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector@${DIGEST}" > /dev/null
+          {
+            echo "## Signed image"
+            echo ""
+            echo "- \`public.ecr.aws/cardinalhq.io/cardinalhq-otel-collector@${DIGEST}\`"
+            echo "- verify: \`cosign verify --certificate-oidc-issuer https://token.actions.githubusercontent.com --certificate-identity-regexp '$IDENTITY_REGEXP' <image>\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -11,6 +11,7 @@ require (
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/aggregationprocessor v0.162.0
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/fbnvalidatorprocessor v0.162.0
 	github.com/cardinalhq/cardinalhq-otel-collector/processor/summarysplitprocessor v0.162.0
+	github.com/cardinalhq/cardinalhq-otel-collector/receiver/googlecloudpubsubreceiver v0.162.0
 	github.com/observiq/bindplane-otel-collector/receiver/routereceiver v1.95.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/confmap/provider/aesprovider v0.162.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/confmap/provider/googlesecretmanagerprovider v0.162.0
@@ -176,7 +177,6 @@ require (
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/githubreceiver v0.162.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/gitlabreceiver v0.162.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudmonitoringreceiver v0.162.0
-	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudpubsubreceiver v0.162.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudspannerreceiver v0.162.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/haproxyreceiver v0.162.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/hostmetricsreceiver v0.162.0
@@ -1114,6 +1114,8 @@ require (
 replace github.com/cardinalhq/cardinalhq-otel-collector/extension/chqauthextension v0.162.0 => ../extension/chqauthextension
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/extension/fbnauthextension v0.162.0 => ../extension/fbnauthextension
+
+replace github.com/cardinalhq/cardinalhq-otel-collector/receiver/googlecloudpubsubreceiver v0.162.0 => ../receiver/googlecloudpubsubreceiver
 
 replace github.com/cardinalhq/cardinalhq-otel-collector/exporter/awss3exporter v0.162.0 => ../exporter/awss3exporter
 

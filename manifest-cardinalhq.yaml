@@ -26,11 +26,14 @@ dist:
 # Upstream entries dropped from our build (regex matched against the gomod line).
 exclude:
   - opentelemetry-collector-contrib/exporter/awss3exporter # replaced by our fork below
+  - opentelemetry-collector-contrib/receiver/googlecloudpubsubreceiver # replaced by our fork below
   - go.opentelemetry.io/obi # requires upstream's local source-tree replace
 
 receivers:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/signalfxreceiver ${OTEL_VERSION}
   - gomod: github.com/observiq/bindplane-otel-collector/receiver/routereceiver v1.95.0
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/receiver/googlecloudpubsubreceiver ${OTEL_VERSION}
+    path: ./receiver/googlecloudpubsubreceiver
 
 exporters:
   - gomod: github.com/cardinalhq/cardinalhq-otel-collector/exporter/awss3exporter ${OTEL_VERSION}

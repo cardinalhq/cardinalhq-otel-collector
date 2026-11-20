@@ -187,7 +187,6 @@ import (
 	githubreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/githubreceiver"
 	gitlabreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/gitlabreceiver"
 	googlecloudmonitoringreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudmonitoringreceiver"
-	googlecloudpubsubreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudpubsubreceiver"
 	googlecloudspannerreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudspannerreceiver"
 	haproxyreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/haproxyreceiver"
 	hostmetricsreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/hostmetricsreceiver"
@@ -259,6 +258,7 @@ import (
 	zookeeperreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/zookeeperreceiver"
 	signalfxreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/signalfxreceiver"
 	routereceiver "github.com/observiq/bindplane-otel-collector/receiver/routereceiver"
+	googlecloudpubsubreceiver "github.com/cardinalhq/cardinalhq-otel-collector/receiver/googlecloudpubsubreceiver"
 )
 
 type aliasProvider interface{ DeprecatedAlias() component.Type }
@@ -412,7 +412,6 @@ func components() (otelcol.Factories, error) {
 		githubreceiver.NewFactory(),
 		gitlabreceiver.NewFactory(),
 		googlecloudmonitoringreceiver.NewFactory(),
-		googlecloudpubsubreceiver.NewFactory(),
 		googlecloudspannerreceiver.NewFactory(),
 		haproxyreceiver.NewFactory(),
 		hostmetricsreceiver.NewFactory(),
@@ -484,6 +483,7 @@ func components() (otelcol.Factories, error) {
 		zookeeperreceiver.NewFactory(),
 		signalfxreceiver.NewFactory(),
 		routereceiver.NewFactory(),
+		googlecloudpubsubreceiver.NewFactory(),
 	)
 	if err != nil {
 		return otelcol.Factories{}, err
@@ -525,7 +525,6 @@ func components() (otelcol.Factories, error) {
 		githubreceiver.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/githubreceiver v0.162.0",
 		gitlabreceiver.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/gitlabreceiver v0.162.0",
 		googlecloudmonitoringreceiver.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudmonitoringreceiver v0.162.0",
-		googlecloudpubsubreceiver.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudpubsubreceiver v0.162.0",
 		googlecloudspannerreceiver.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudspannerreceiver v0.162.0",
 		haproxyreceiver.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/haproxyreceiver v0.162.0",
 		hostmetricsreceiver.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/hostmetricsreceiver v0.162.0",
@@ -597,6 +596,7 @@ func components() (otelcol.Factories, error) {
 		zookeeperreceiver.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/zookeeperreceiver v0.162.0",
 		signalfxreceiver.NewFactory().Type(): "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/signalfxreceiver v0.162.0",
 		routereceiver.NewFactory().Type(): "github.com/observiq/bindplane-otel-collector/receiver/routereceiver v1.95.0",
+		googlecloudpubsubreceiver.NewFactory().Type(): "github.com/cardinalhq/cardinalhq-otel-collector/receiver/googlecloudpubsubreceiver v0.162.0",
 	})
 
 	factories.Exporters, err = otelcol.MakeFactoryMap[exporter.Factory](

@@ -189,7 +189,6 @@ receivers:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/githubreceiver v0.162.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/gitlabreceiver v0.162.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudmonitoringreceiver v0.162.0
-  - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudpubsubreceiver v0.162.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudspannerreceiver v0.162.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/haproxyreceiver v0.162.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/hostmetricsreceiver v0.162.0
@@ -261,6 +260,8 @@ receivers:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/zookeeperreceiver v0.162.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/receiver/signalfxreceiver v0.162.0
   - gomod: github.com/observiq/bindplane-otel-collector/receiver/routereceiver v1.95.0
+  - gomod: github.com/cardinalhq/cardinalhq-otel-collector/receiver/googlecloudpubsubreceiver v0.162.0
+    path: ./receiver/googlecloudpubsubreceiver
 connectors:
   - gomod: go.opentelemetry.io/collector/connector/forwardconnector v0.162.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/connector/countconnector v0.162.0

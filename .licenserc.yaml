@@ -28,6 +28,7 @@ header:
     - .claude
     - docs/flow/flow.svg
     - exporter/awss3exporter
+    - receiver/googlecloudpubsubreceiver
     - examples/prometheus/remote-write.conf
 
   comment: on-failure

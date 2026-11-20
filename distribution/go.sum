@@ -1797,8 +1797,6 @@ github.com/open-telemetry/opentelemetry-collector-contrib/receiver/gitlabreceive
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/gitlabreceiver v0.162.0/go.mod h1:fqAvs/cE1T7z7FEUfvV3M1yd2iu/pG49A5Dq930E/p4=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudmonitoringreceiver v0.162.0 h1:MBtGyFYzEHzsCQJmQPFc9Zxuu9b2JHrcXpwyWmi40WQ=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudmonitoringreceiver v0.162.0/go.mod h1:OvBIdTEJOYRky5MYLRU8/tdUVdwLrJFTD4b0O5uimkY=
-github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudpubsubreceiver v0.162.0 h1:6TIx6q9Pztofbvk0A0vJjrR3KEN2U39qR5yzBtHzwFA=
-github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudpubsubreceiver v0.162.0/go.mod h1:hVnvYP3Tw0lOcX7u4v4f+T8uFl2TOdWrcXwlusPzJzM=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudspannerreceiver v0.162.0 h1:pkMOqwx4H5YtSIy8rdY1k0IlhVywgT7XTIV9/C5ItfQ=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/googlecloudspannerreceiver v0.162.0/go.mod h1:bdFkDzc7P58HXnSomWWD1qhQRrkkUtSedae+xRwL7iQ=
 github.com/open-telemetry/opentelemetry-collector-contrib/receiver/haproxyreceiver v0.162.0 h1:sQPz200v9E8ZKGtgN8kVACAluMvPB0KwLgBLTMAE9Ao=

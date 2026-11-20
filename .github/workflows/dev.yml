@@ -28,7 +28,9 @@ jobs:
         # no cache here intentionally
         uses: actions/setup-go@v6
         with:
-          go-version: stable
+          # Build with the go.mod version: Go 1.27.4 panics at init in a contrib
+          # dependency (SermoDigital/jose RegisterHash), which broke v1.13.0.
+          go-version-file: go.mod
 
       - name: go-cache-paths
         id: go-cache-paths
